@@ -3,10 +3,11 @@
 // відкривається офлайн — важливо для торгових представників у маршруті,
 // де інтернет буває нестабільним. Google Fonts (крос-домен) свідомо не
 // кешуються тут — при їх відсутності сторінка й так падає на системний шрифт.
-const CACHE_NAME = 'telesale-course-v6';
+const CACHE_NAME = 'telesale-course-v8';
 const APP_SHELL = [
   './',
   './index.html',
+  './course-assortment.html',
   './manifest.json',
   './assets/favicon-32.png',
   './assets/apple-touch-icon.png',
@@ -15,6 +16,15 @@ const APP_SHELL = [
   './assets/icon-maskable-512.png',
   './assets/carlsberg-logo.png',
   './assets/monolit-code-hint.png',
+  './assets/assortment-intro.jpg',
+  './assets/assortment-production.jpg',
+  './assets/assortment-leadership.jpg',
+  './assets/assortment-portfolio.jpg',
+  './assets/assortment-packaging-types.jpg',
+  './assets/assortment-pack-glass.png',
+  './assets/assortment-pack-can.png',
+  './assets/assortment-pack-pet.png',
+  './assets/assortment-pack-keg.png',
   './css/base.css',
   './css/registration.css',
   './css/hub.css',
