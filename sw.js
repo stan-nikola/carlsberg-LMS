@@ -1,19 +1,28 @@
-// Service worker для платформи адаптації Carlsberg (index.html — головна,
-// course-8-steps.html — курс "8 кроків телесейлінгу").
-// Кешує весь застосунок при першому відкритті, тож платформа й курс далі
-// відкриваються офлайн — важливо для торгових представників у маршруті,
+// Service worker для платформи адаптації Carlsberg.
+// Кешує весь застосунок при першому відкритті, тож платформа далі
+// відкривається офлайн — важливо для торгових представників у маршруті,
 // де інтернет буває нестабільним. Google Fonts (крос-домен) свідомо не
 // кешуються тут — при їх відсутності сторінка й так падає на системний шрифт.
-const CACHE_NAME = 'telesale-course-v4';
+const CACHE_NAME = 'telesale-course-v6';
 const APP_SHELL = [
   './',
   './index.html',
-  './course-8-steps.html',
   './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
-  './icon-maskable-512.png',
-  './assets/monolit-code-hint.png'
+  './assets/favicon-32.png',
+  './assets/apple-touch-icon.png',
+  './assets/icon-192.png',
+  './assets/icon-512.png',
+  './assets/icon-maskable-512.png',
+  './assets/carlsberg-logo.png',
+  './assets/monolit-code-hint.png',
+  './css/base.css',
+  './css/registration.css',
+  './css/hub.css',
+  './js/main.js',
+  './js/helpers.js',
+  './js/settings.js',
+  './js/registration.js',
+  './js/cabinet.js'
 ];
 
 self.addEventListener('install', function(event){

@@ -1,0 +1,109 @@
+/* ===================== BASE: tokens, reset, shared shell ==========================
+   Design tokens, page reset, the phone-card shell (.stage/.course-card/.appbar),
+   generic buttons, the bottom-sheet mechanics used by both the settings sheet and
+   the registration code-hint sheet, and the responsive breakpoints for the shell.
+   Shared by every screen in the app (registration + hub). */
+
+:root{
+  color-scheme: light only;
+  --ink:#122019; --ink-soft:#3d4d44;
+  --surface:#FAF8F1; --surface-1:#F1EDDF; --surface-2:#E7E1CC; --line:#DCD5BE;
+  --green-900:#0B4A34; --green-700:#0E6B4C; --green-500:#1E8A5D; --green-300:#8FC7A8; --green-tint:#E4F0E7;
+  --gold:#B9924B; --gold-soft:#EFE2C2; --danger:#B5493A;
+  --shadow: 0 20px 45px -20px rgba(11,33,22,.35);
+  --radius-lg:22px; --radius-md:16px; --radius-sm:10px;
+  --font-display:'Sora',system-ui,sans-serif; --font-body:'Source Sans 3',system-ui,sans-serif; --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+  --fs-scale:1;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--surface); color:var(--ink); font-family:var(--font-body);
+  min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px 14px;
+  background-image:
+    radial-gradient(circle at 15% 8%, color-mix(in srgb, var(--green-500) 9%, transparent), transparent 45%),
+    radial-gradient(circle at 88% 92%, color-mix(in srgb, var(--gold) 11%, transparent), transparent 40%);
+}
+h1,h2,h3{font-family:var(--font-display); text-wrap:balance; margin:0;}
+p{margin:0; line-height:1.5;}
+button{font-family:inherit;}
+
+.stage{display:flex; flex-direction:column; align-items:center; gap:14px; width:100%; max-width:440px;}
+.course-col{display:contents;}
+.course-card{
+  position:relative; width:100%; height:min(812px, 88vh);
+  background:var(--surface); border:1px solid var(--line); border-radius:30px; overflow:hidden;
+  box-shadow:var(--shadow); display:flex; flex-direction:column;
+}
+.appbar{display:flex; align-items:center; gap:8px; padding:16px 14px 10px; flex-shrink:0;}
+.iconbtn{
+  width:34px; height:34px; border-radius:10px; border:1px solid var(--line); background:var(--surface-1);
+  display:flex; align-items:center; justify-content:center; color:var(--ink); cursor:pointer; flex-shrink:0;
+  transition:transform .15s ease;
+}
+.iconbtn:active{transform:scale(.9);}
+.iconbtn svg{width:16px;height:16px;}
+
+.photo-frame{width:100%; border-radius:var(--radius-md); overflow:hidden; margin-bottom:13px; border:1px solid var(--line); background:var(--surface-1); position:relative;}
+.photo-frame img{display:block; width:100%; height:auto;}
+
+.footnote{font-size:calc(12.2px * var(--fs-scale)); color:var(--ink-soft); background:var(--gold-soft); border-radius:12px; padding:11px 13px; margin-top:2px;}
+.footnote b{color:var(--ink);}
+
+/* bottom sheet (settings + registration code-hint) */
+.sheet-overlay{position:fixed; inset:0; background:rgba(10,20,15,.5); backdrop-filter:blur(2px); opacity:0; pointer-events:none; transition:opacity .3s ease; z-index:50; display:flex; align-items:flex-end; justify-content:center;}
+.sheet-overlay.open{opacity:1; pointer-events:auto;}
+.sheet{width:100%; max-width:440px; max-height:82vh; overflow-y:auto; background:var(--surface); border-radius:24px 24px 0 0; padding:8px 20px 26px; transform:translateY(30px); transition:transform .35s cubic-bezier(.4,0,.2,1); border:1px solid var(--line); border-bottom:none;}
+.sheet-overlay.open .sheet{transform:translateY(0);}
+.sheet-handle{width:36px;height:4px;border-radius:99px; background:var(--line); margin:10px auto 15px;}
+.sheet h3{font-size:calc(17px * var(--fs-scale)); margin-bottom:4px;}
+.sheet .lead{margin-bottom:16px;}
+
+.settings-block{margin-bottom:6px;}
+.settings-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 0; border-bottom:1px solid var(--line);}
+.settings-row:last-child{border-bottom:none;}
+.settings-label{display:flex; align-items:center; gap:10px; min-width:0;}
+.settings-ico{width:32px;height:32px;border-radius:9px; background:var(--green-tint); color:var(--green-700); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+.settings-ico svg{width:16px;height:16px;}
+.settings-t{font-weight:600; font-size:calc(13.4px * var(--fs-scale));}
+.settings-d{font-size:calc(11.6px * var(--fs-scale)); color:var(--ink-soft); line-height:1.4; margin-top:1px;}
+.fs-slider-wrap{display:flex; align-items:center; gap:7px; flex-shrink:0;}
+.fs-a{font-family:var(--font-display); font-weight:700; color:var(--ink-soft); font-size:calc(11px * var(--fs-scale)); line-height:1;}
+.fs-a.big{font-size:calc(16px * var(--fs-scale));}
+#fsSlider{-webkit-appearance:none; appearance:none; width:74px; height:4px; border-radius:99px; background:var(--surface-2); outline:none; cursor:pointer;}
+#fsSlider::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%; background:var(--green-700); border:2px solid var(--surface); box-shadow:0 2px 6px rgba(0,0,0,.25); cursor:pointer;}
+#fsSlider::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:var(--green-700); border:2px solid var(--surface); box-shadow:0 2px 6px rgba(0,0,0,.25); cursor:pointer; border-width:2px;}
+
+/* primary full-width button (registration submit, pin confirm) + busy spinner */
+.btn-primary-full{
+  width:100%; border:none; border-radius:14px; padding:15px 16px; font-weight:700;
+  font-size:calc(15px * var(--fs-scale)); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px;
+  background:linear-gradient(135deg, var(--green-500), var(--green-700)); color:#fff;
+  position:relative; overflow:hidden; box-shadow:0 10px 22px -12px color-mix(in srgb, var(--green-700) 70%, transparent);
+  transition:transform .15s ease, opacity .15s ease;
+}
+.btn-primary-full:active{transform:scale(.98);}
+.btn-primary-full svg{width:17px;height:17px;}
+.btn-primary-full:disabled{opacity:.5; cursor:not-allowed;}
+.btn-spinner{display:none; width:18px; height:18px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:#fff; flex-shrink:0; animation:btnSpin .7s linear infinite;}
+@keyframes btnSpin{to{transform:rotate(360deg);}}
+.btn-primary-full.is-busy .btn-label,
+.btn-primary-full.is-busy .btn-arrow{display:none;}
+.btn-primary-full.is-busy .btn-spinner{display:inline-block;}
+
+@media (prefers-reduced-motion: reduce){ *{animation-duration:.001s !important; transition-duration:.001s !important;} }
+
+@media (max-width:560px){
+  body{padding:0; align-items:stretch;}
+  .stage{max-width:none; gap:0;}
+  .course-card{height:100dvh; border-radius:0; box-shadow:none;}
+  .appbar{padding-top:calc(14px + env(safe-area-inset-top));}
+}
+
+/* Desktop / tablet sessions: use the extra width instead of leaving the
+   phone-width card centered in empty space. */
+@media (min-width:900px){
+  .stage{flex-direction:row; align-items:flex-start; max-width:none; width:-moz-fit-content; width:fit-content; gap:22px;}
+  .course-col{display:flex; flex-direction:column; align-items:center; gap:14px; width:400px; flex-shrink:0;}
+  .course-card{width:400px; flex-shrink:0;}
+}
