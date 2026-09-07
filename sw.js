@@ -4,7 +4,7 @@
 // відкриваються офлайн — важливо для торгових представників у маршруті,
 // де інтернет буває нестабільним. Google Fonts (крос-домен) свідомо не
 // кешуються тут — при їх відсутності сторінка й так падає на системний шрифт.
-const CACHE_NAME = 'telesale-course-v3';
+const CACHE_NAME = 'telesale-course-v4';
 const APP_SHELL = [
   './',
   './index.html',
@@ -12,7 +12,8 @@ const APP_SHELL = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './icon-maskable-512.png'
+  './icon-maskable-512.png',
+  './assets/monolit-code-hint.png'
 ];
 
 self.addEventListener('install', function(event){

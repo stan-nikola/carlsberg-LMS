@@ -29,11 +29,6 @@
   --font-display:'Sora',system-ui,sans-serif; --font-body:'Source Sans 3',system-ui,sans-serif; --font-mono:'IBM Plex Mono',ui-monospace,monospace;
   --fs-scale:1;
 }
-:root[data-theme="dark"]{
-  --ink:#EAE7DA; --ink-soft:#B7C2B9; --surface:#0E1712; --surface-1:#152019; --surface-2:#1C2A21; --line:#28362C;
-  --green-700:#1C7C55; --green-500:#2FA873; --green-tint:#132A1F; --gold:#D8B876; --gold-soft:#2A2517; --danger:#D97563;
-  --shadow: 0 20px 50px -18px rgba(0,0,0,.6);
-}
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
 body{
@@ -434,10 +429,6 @@ button{font-family:inherit;}
 #fsSlider{-webkit-appearance:none; appearance:none; width:74px; height:4px; border-radius:99px; background:var(--surface-2); outline:none; cursor:pointer;}
 #fsSlider::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%; background:var(--green-700); border:2px solid var(--surface); box-shadow:0 2px 6px rgba(0,0,0,.25); cursor:pointer;}
 #fsSlider::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:var(--green-700); border:2px solid var(--surface); box-shadow:0 2px 6px rgba(0,0,0,.25); cursor:pointer; border-width:2px;}
-.toggle-grp{display:flex; background:var(--surface-2); border-radius:99px; padding:3px; flex-shrink:0; gap:2px;}
-.toggle-opt{border:none; background:transparent; color:var(--ink-soft); font-family:inherit; font-weight:600; font-size:calc(11.5px * var(--fs-scale)); padding:6px 9px; border-radius:99px; cursor:pointer; transition:background .2s ease, color .2s ease;}
-.toggle-opt.active{background:var(--green-700); color:#fff;}
-.toggle-opt:disabled{opacity:.4; cursor:not-allowed;}
 
 /* ===== Registration screen (shown before the course itself starts) ===== */
 .reg-viewport{flex:1; overflow-y:auto; padding:14px 22px 20px; display:flex; flex-direction:column; align-items:center; text-align:center;}
@@ -473,6 +464,26 @@ button{font-family:inherit;}
 .reg-select-wrap.locked select{padding-left:34px;}
 .reg-note{font-size:calc(12.5px * var(--fs-scale)); color:var(--ink-soft); background:var(--green-tint); border-radius:12px; padding:11px 13px; text-align:left; margin-top:6px; width:100%;}
 .reg-footer{flex-shrink:0; padding:14px 22px calc(20px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--surface);}
+.field-error{font-size:calc(12px * var(--fs-scale)); color:var(--danger); margin-top:-2px; display:none;}
+.field.has-error .field-error{display:block;}
+.field.has-error input[type="text"]{border-color:var(--danger);}
+.reg-form .field label{display:flex; align-items:center; gap:6px;}
+.reg-info-btn{width:18px; height:18px; border-radius:50%; border:1px solid var(--ink-soft); background:transparent; color:var(--ink-soft); display:inline-flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:11px; font-weight:700; cursor:pointer; padding:0; flex-shrink:0;}
+.reg-info-btn:active{transform:scale(.9);}
+.reg-step{display:none; width:100%;}
+.reg-step.active{display:flex; flex-direction:column;}
+.reg-pin-input{letter-spacing:.5em; text-align:center; font-family:var(--font-mono) !important; font-size:calc(20px * var(--fs-scale)) !important;}
+.reg-step-links{display:flex; justify-content:space-between; margin-top:2px;}
+.reg-link-btn{background:none; border:none; padding:6px 2px; font-size:calc(12.5px * var(--fs-scale)); color:var(--green-700); font-weight:600; cursor:pointer; font-family:inherit;}
+.reg-link-btn:disabled{opacity:.5; cursor:not-allowed;}
+.reg-footer .btn-primary-full{display:none;}
+.reg-footer .btn-primary-full.step-active{display:flex;}
+.btn-primary-full:disabled{opacity:.5; cursor:not-allowed;}
+.btn-spinner{display:none; width:18px; height:18px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:#fff; flex-shrink:0; animation:btnSpin .7s linear infinite;}
+@keyframes btnSpin{to{transform:rotate(360deg);}}
+.btn-primary-full.is-busy .btn-label,
+.btn-primary-full.is-busy .btn-arrow{display:none;}
+.btn-primary-full.is-busy .btn-spinner{display:inline-block;}
 .btn-primary-full{
   width:100%; border:none; border-radius:14px; padding:15px 16px; font-weight:700;
   font-size:calc(15px * var(--fs-scale)); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px;
@@ -579,60 +590,52 @@ button{font-family:inherit;}
       <div class="reg-org" data-tid="reg-org">Carlsberg Ukraine · Навчальний курс</div>
       <h1 class="reg-h1" data-tid="reg-h1">Це курс 8 кроків телесейлінгу для торгового представника, будь ласка зареєструйтесь.</h1>
 
-      <form class="reg-form" id="regForm">
-        <div class="field" id="fldRegion">
-          <label for="fRegion" data-tid="reg-l-region">Оберіть Регіон</label>
-          <div class="reg-select-wrap">
-            <select id="fRegion" required>
-              <option value="" selected disabled hidden></option>
-              <option value="pivnichno-shidnyi" data-tid="reg-o-region-1">Північно-східний</option>
-              <option value="zahidnyi" data-tid="reg-o-region-2">Західний</option>
-            </select>
+      <div class="reg-step active" id="regStepIdentity">
+        <form class="reg-form" id="regForm">
+          <div class="field" id="fldName">
+            <label for="fName" data-tid="reg-l-name">Ваше ім'я</label>
+            <input type="text" id="fName" required placeholder="Наприклад: Олена Коваль" autocomplete="name">
           </div>
+
+          <div class="field" id="fldUserId">
+            <label for="fUserId">
+              <span data-tid="reg-l-userid">Ваш код</span>
+              <button type="button" class="reg-info-btn" id="codeHintBtn" aria-label="Де знайти код">i</button>
+            </label>
+            <input type="text" id="fUserId" required placeholder="Наприклад: ml03005" autocomplete="off" autocapitalize="off" spellcheck="false">
+            <div class="field-error" id="fUserIdError" data-tid="reg-err-notfound">Код не знайдено. Перевірте правильність і спробуйте ще раз.</div>
+          </div>
+        </form>
+
+        <div class="reg-note" data-tid="reg-note">Дані реєстрації використовуються лише для проходження курсу та ідентифікації результату тесту.</div>
+      </div>
+
+      <div class="reg-step" id="regStepPin">
+        <div class="field" id="fldPin">
+          <label for="fPin" data-tid="reg-l-pin">PIN-код підтвердження</label>
+          <input type="text" inputmode="numeric" maxlength="4" id="fPin" class="reg-pin-input" placeholder="••••" autocomplete="one-time-code">
+          <div class="field-error" id="fPinError" data-tid="reg-err-pin">Невірний PIN-код. Спробуйте ще раз.</div>
         </div>
 
-        <div class="field locked" id="fldAsm">
-          <label for="fAsm" data-tid="reg-l-asm">Оберіть АСМ</label>
-          <div class="reg-select-wrap locked">
-            <select id="fAsm" required disabled>
-              <option value="" selected disabled hidden></option>
-              <option value="asm-1">АСМ-1</option>
-              <option value="asm-2">АСМ-2</option>
-            </select>
-          </div>
-        </div>
+        <div class="reg-note" data-tid="reg-pin-note">PIN-код надіслано на пошту вашого керівника (СВ). Уточніть код у нього і введіть тут.</div>
 
-        <div class="field locked" id="fldSv">
-          <label for="fSv" data-tid="reg-l-sv">Оберіть СВ</label>
-          <div class="reg-select-wrap locked">
-            <select id="fSv" required disabled>
-              <option value="" selected disabled hidden></option>
-              <option value="sv-1">СВ-1</option>
-              <option value="sv-2">СВ-2</option>
-              <option value="sv-3">СВ-3</option>
-            </select>
-          </div>
+        <div class="reg-step-links">
+          <button type="button" class="reg-link-btn" id="regPinBack" data-tid="reg-pin-back">← Змінити код</button>
+          <button type="button" class="reg-link-btn" id="regPinResend" data-tid="reg-pin-resend">Надіслати ще раз</button>
         </div>
-
-        <div class="field locked" id="fldCode">
-          <label for="fCode" data-tid="reg-l-code">Оберіть свій код посади</label>
-          <div class="reg-select-wrap locked">
-            <select id="fCode" required disabled>
-              <option value="" selected disabled hidden></option>
-              <option value="sv001">SV001</option>
-              <option value="sv002">SV002</option>
-            </select>
-          </div>
-        </div>
-      </form>
-
-      <div class="reg-note" data-tid="reg-note">Дані реєстрації використовуються лише для проходження курсу та ідентифікації результату тесту.</div>
+      </div>
     </div>
 
     <div class="reg-footer">
-      <button class="btn-primary-full" id="regSubmit" type="button">
-        <span data-tid="reg-btn">Зареєструватись</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      <button class="btn-primary-full step-active" id="regSubmit" type="button">
+        <span class="btn-label" data-tid="reg-btn">Зареєструватись</span>
+        <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        <span class="btn-spinner" aria-hidden="true"></span>
+      </button>
+      <button class="btn-primary-full" id="regPinSubmit" type="button">
+        <span class="btn-label" data-tid="reg-pin-btn">Підтвердити</span>
+        <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        <span class="btn-spinner" aria-hidden="true"></span>
       </button>
     </div>
   </div>
@@ -1253,19 +1256,20 @@ button{font-family:inherit;}
           <span class="fs-a big">A</span>
         </div>
       </div>
-      <div class="settings-row">
-        <div class="settings-label">
-          <span class="settings-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 4 9 15 15 0 0 1-4 9 15 15 0 0 1-4-9 15 15 0 0 1 4-9Z"/></svg></span>
-          <div><div class="settings-t" data-tid="ui-settings-lang">Мова курсу</div><div class="settings-d" data-tid="ui-settings-lang-d">Перемикає весь текст курсу та тесту</div></div>
-        </div>
-        <div class="toggle-grp" id="langToggle" role="group" aria-label="Мова">
-          <button class="toggle-opt" data-val="uk">UA</button>
-          <button class="toggle-opt" data-val="en">EN</button>
-          <button class="toggle-opt" data-val="kk">KZ</button>
-        </div>
-      </div>
     </div>
     <p class="footnote" data-tid="ui-settings-note">Налаштування зберігаються лише на цьому пристрої й не впливають на результат тесту.</p>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="codeHintOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3 data-tid="reg-hint-title">Де знайти ваш код?</h3>
+    <p class="lead" data-tid="reg-hint-lead">Відкрийте застосунок Monolit Agent — ваш код показано поруч із номером версії у верхній частині екрана.</p>
+    <div class="photo-frame">
+      <img src="assets/monolit-code-hint.png" alt="Скріншот Monolit Agent із виділеним кодом">
+    </div>
+    <p class="footnote" data-tid="reg-hint-note">Код виглядає як комбінація літер і цифр у квадратних дужках, наприклад [ml03005].</p>
   </div>
 </div>
 
@@ -1280,23 +1284,15 @@ button{font-family:inherit;}
 
 <script>
 (function(){
-  /* ===================== SETTINGS: THEME / FONT SCALE / LANGUAGE =====================
-     Persisted to localStorage — the same browser/device remembers theme, language
-     and text size between visits. */
+  /* ===================== SETTINGS: FONT SCALE =====================
+     Persisted to localStorage — the same browser/device remembers text size
+     between visits. Course is Ukrainian-only, light theme only — no language/theme switching. */
   var FS_SCALES = [1, 1.15, 1.3, 1.45];
   var currentLang = 'uk', currentFsStep = 0;
-  // Picks uk/en/kk text by the current language, one place instead of a ternary at
-  // every call site — falls back to the Ukrainian source if a translation is missing.
-  function langPick(lang, uk, en, kk){
-    if(lang==='en') return (en!==undefined && en!==null) ? en : uk;
-    if(lang==='kk') return (kk!==undefined && kk!==null) ? kk : uk;
-    return uk;
-  }
+  function langPick(lang, uk, en, kk){ return uk; }
   try{
-    var savedLang = localStorage.getItem('telesale_lang'); if(savedLang==='en'||savedLang==='uk'||savedLang==='kk') currentLang = savedLang;
     var savedFs = parseInt(localStorage.getItem('telesale_fs_step'),10); if(!isNaN(savedFs) && savedFs>=0 && savedFs<=3) currentFsStep = savedFs;
   }catch(e){}
-  document.documentElement.lang = currentLang;
   document.documentElement.style.setProperty('--fs-scale', FS_SCALES[currentFsStep]);
 
   function shuffleArr(arr){
@@ -1592,909 +1588,13 @@ button{font-family:inherit;}
     ]
   };
 
-  /* English text for every quiz question — same order/shape as QUESTION_BANKS, correctness stays on the UK object */
-  var QUESTION_BANKS_EN = {
-    basics: [
-      { title:"When is a 'Telesales' visit added to the route?",
-        options:["If the sales rep is unable to visit the outlet in person","If extra merchandising is needed without placing an order","If the outlet is new and hasn't been worked with yet"] },
-      { title:'Which components make up the FIT model?',
-        options:['Track — monitoring execution (KPIs, coaching, training)','Focus — prioritizing channels and processes','Implement — tools for executing standards at the outlet','Follow-up — monitoring accounts receivable'] },
-      { title:'How many steps does the telesales model for a sales rep include?',
-        options:['5 steps','8 steps','12 steps'] },
-      { title:'Put the steps of a sales visit in the correct order',
-        items:['Planning and preparation','Greeting the customer','Taking stock counts','Saying goodbye to the customer'] },
-      { title:'What is telesales?',
-        options:['Active sales made by phone','Emailing price lists to outlets','Visiting an outlet in person without calling first'] }
-    ],
-    step1: [
-      { title:'What should be prepared before starting calls along the route?',
-        options:['Phone numbers of all customers (sellers, decision-makers)','A notebook, pen, and charged phone','Full information on product stock at the warehouse','Cash to hand out bonuses to the customer'] },
-      { title:'What needs to be agreed with the distributor when planning the route?',
-        options:['The nearest route delivery date and the volume needed to load the transport',"The driver's personal vacation schedule",'The end-consumer price of the product'] },
-      { title:"What is the purpose of the 'Telesales' questionnaire?",
-        options:['It helps carry out all the actions needed to sell and promote products to and from the outlet','It replaces the need to call the customer','It is used only for new outlets'] },
-      { title:"Which of the following does the 'Telesales' questionnaire confirm?",
-        options:['Presentation and ordering of new products','Handling accounts receivable','Presence of price tags, planogram, display and visual merchandising',"The seller's personal social media contacts"] },
-      { title:"According to the training, what's important to do right at the start of the conversation?",
-        options:["Be as friendly and smiling as possible — it's audible even over the phone","Jump straight to the order total",'Warn the customer about a 2-minute time limit for the call'] }
-    ],
-    step2: [
-      { title:'What helps you sound convincing on the phone during a call?',
-        options:['Talking as fast as possible to cover more outlets','Friendliness and a smile at the start, confidence during the stock count',"Jumping straight into the customer's objections"] },
-      { title:'Which topics are appropriate for small talk at the start of a call?',
-        options:['How is your health?','How are things right now?','How is your family doing (if you know them)?',"The customer's personal financial problems"] },
-      { title:"What should you do if it's not convenient for the customer to talk right now?",
-        options:['Ask when to call back (ideally within an hour) and explain it’s temporary',"End the route immediately and don't call back",'Insist on continuing the conversation now'] },
-      { title:'Roughly how long does a call following the greeting script take?',
-        options:['10–15 minutes','1–2 minutes','Over an hour'] },
-      { title:"What's important to do right after a short personal chat with the customer?",
-        options:['Smoothly shift the customer from personal talk to business and state the purpose of the call','Continue the personal topic for another 10 minutes','Ask the customer to call back later themselves'] }
-    ],
-    step3: [
-      { title:'What does the customer need to do during the stock count over the phone?',
-        options:['Count the stock in the warehouse and the fridge and read it out to the rep','Fill out the delivery note themselves','Call the distributor'] },
-      { title:'Put the steps of taking stock during a call in the correct order',
-        items:['Customer reads out the stock over the phone','Entering the information into the PDA','Rep takes a pause to put together the order','Ending the call'] },
-      { title:'Where is all the stock information the customer reads out entered?',
-        options:['Into the PDA (handheld computer)','Into a paper notebook that gets thrown away later',"It doesn't need to be recorded at all"] },
-      { title:'In what order is it best to ask the customer to read out the stock?',
-        options:['Warehouse first, then the fridge equipment, SKU by SKU',"Competitors' prices first","The outlet's opening hours first"] },
-      { title:'What does the rep tell the customer right after getting the stock count?',
-        options:['That they need a few minutes to put together the correct order','That the order can no longer be changed','That the call is now over with no further action'] }
-    ],
-    step4: [
-      { title:'What helps you figure out where to place each SKU when merchandising?',
-        options:['The planogram, placed in the top-right corner','The order in which goods arrived at the warehouse',"The seller's personal preferences"] },
-      { title:'What does the rep ask the customer to do during merchandising over the phone?',
-        options:['Put the products into the fridge equipment','Check that every SKU has a price tag',"Swap out competitors' range on the shelf",'Remove other brands from the warehouse'] },
-      { title:'When does the customer carry out the merchandising task during the call?',
-        options:['While the rep is putting together the order based on the stock received','Only a few days after the call ends','Before reading out the stock'] },
-      { title:"What is the 'Telesales' questionnaire for at the merchandising stage?",
-        options:['It helps carry out all the actions needed to sell and promote products to the outlet','It replaces the need to call the customer',"It's used only once a year"] },
-      { title:'What does the rep say to the customer at the end of the merchandising conversation?',
-        options:['Thanks them and ends the call','Asks them to pay for the order immediately in cash','Suggests ending the contract'] }
-    ],
-    step5: [
-      { title:'What is a recommended order?',
-        options:['The forecast volume of product that can be sold from the outlet between the current and next visit','The minimum shipment batch from the distributor','An order the customer puts together entirely on their own'] },
-      { title:'How much product stock should an outlet have at the time of the visit?',
-        options:['Enough for 2 days of sales','Enough for 2 weeks of sales',"The stock level doesn't matter"] },
-      { title:'What formula is used to calculate average daily sales?',
-        options:['(Previous stock + previous order − current stock) / days of sales','Current stock × days of sales','Previous order / current stock'] },
-      { title:'What does using the recommended order give you?',
-        options:['Lets you calculate the order correctly','Helps avoid OOS or overloading the outlet','Gives you an argument for the decision-maker when discussing the order','Automatically lowers the price for the customer'] },
-      { title:"Put the steps for auto-calculating the recommended order in Monolit in the correct order",
-        items:['Fill in the stock questionnaire','Create a new order',"Click the 'Auto-fill recommended order' button",'The recommended order is rounded to shipment norms'] }
-    ],
-    step6: [
-      { title:'When is it appropriate to present a new product or promotion to the customer?',
-        options:['After the order has already been agreed',"Before the customer has read out the stock",'Instead of taking the stock count'] },
-      { title:'What should you do right after pitching the new product to the customer?',
-        options:['Pause and let the customer respond first','Immediately offer a discount','Repeat the pitch three times in a row'] },
-      { title:'In the example script, which channel does the rep use to send the customer information about the new product?',
-        options:['Viber','Mail to their home address','A mass SMS to all customers at once'] },
-      { title:'According to the rep\'s argument in the script, why will the new Miller 0.5 be in demand?',
-        options:['Because of active advertising on TV and online',"Because it's the only beer in the range",'Because competitors pulled their products off the shelves'] },
-      { title:'What does the rep ask the customer at the end of the new-product pitch?',
-        options:['How many bottles to ship — 5 or 10','Whether they want to keep working together at all','Whether the customer agrees to raise the price on the whole range'] }
-    ],
-    step7: [
-      { title:"What's a typical objection a customer raises about expanding the range?",
-        options:["'People are staying home right now, so I'm not interested in loading up the fridge'","'I don't have any fridge equipment at all'","'I don't know how to use the PDA'"] },
-      { title:'How does the rep counter this objection?',
-        options:['Explains that consumers visit outlets near home more often and need a wider range','Agrees and drops the offer','Offers to cut the price in half'] },
-      { title:"What's the essence of the 'third-party example' technique?",
-        options:["Referring to another customer's experience who got a positive result in a similar situation","Bringing the company's manager into the call",'Citing official statistics from the Ministry of Economy'] },
-      { title:'Why do consumers get tired of buying the same product while spending a lot of time at home?',
-        options:['They want to try something new','Because the product runs out faster','Because its price keeps rising'] },
-      { title:'What does the rep ask the customer to do once the objection is resolved?',
-        options:['Put the new product into the fridge equipment following the planogram sent over','Return the whole previous range to the supplier','Decide the date of the next call themselves'] }
-    ],
-    step8: [
-      { title:"What's worth doing when saying goodbye to the customer?",
-        options:['Repeat the order quantity and total','Remind them of the delivery day and the next call','Thank them for their time','Suggest switching distributor immediately'] },
-      { title:'What else is worth reminding the customer about, if relevant?',
-        options:['The amount owed on the account',"The rep's personal news","The company's plans for next year"] },
-      { title:'What approximate order total does the rep state in the closing script?',
-        options:['5,690 UAH','500 UAH','50,000 UAH'] },
-      { title:'According to the example script, on what day does the rep plan to call again?',
-        options:['On Thursday','The next day, unspecified','Only in a month'] },
-      { title:'What tone should be used to end the call?',
-        options:['Warm — wish them good health and a good day','Formal, with no well-wishes','Hang up right after stating the order total'] }
-    ]
-  };
-
-  var QUESTION_BANKS_KK = {
-    basics: [
-      { type:"single", title:"Маршрутқа «Телесейл» бару түрі қашан қосылады?",
-        options:[
-          {text:"Сауда өкілі сауда нүктесіне жеке бара алмаған жағдайда", correct:true},
-          {text:"Тапсырыссыз қосымша мерчандайзинг қажет болғанда", correct:false},
-          {text:"Нүкте жаңа және онымен әлі жұмыс жасалмаған кезде", correct:false}
-        ]},
-      { type:"multi", title:"FIT моделінің құрамдас бөліктері қандай?",
-        options:[
-          {text:"Track — орындалуды бақылау (KPI, коучинг, оқыту)", correct:true},
-          {text:"Focus — арналар мен процестерге басымдық беру", correct:true},
-          {text:"Implement — нүктеде стандарттарды орындау құралдары", correct:true},
-          {text:"Follow-up — дебиторлық берешекті бақылау", correct:false}
-        ]},
-      { type:"single", title:"Сауда өкілі үшін телесейлинг моделі неше қадамнан тұрады?",
-        options:[
-          {text:"5 қадам", correct:false},
-          {text:"8 қадам", correct:true},
-          {text:"12 қадам", correct:false}
-        ]},
-      { type:"order", title:"Сауда барысының қадамдарын дұрыс ретпен орналастырыңыз",
-        items:["Жоспарлау және дайындық","Клиентпен сәлемдесу","Қалдықтарды алу","Клиентпен қоштасу"]},
-      { type:"single", title:"Телесейлинг деген не?",
-        options:[
-          {text:"Телефон арқылы жасалатын белсенді сату", correct:true},
-          {text:"Сауда нүктелеріне баға тізімін электрондық поштамен тарату", correct:false},
-          {text:"Алдын ала қоңырау шалмай нүктеге жеке бару", correct:false}
-        ]}
-    ],
-    step1: [
-      { type:"multi", title:"Маршрут бойынша қоңыраулар басталар алдында тізімнен нені дайындау керек?",
-        options:[
-          {text:"Барлық клиенттердің телефон нөмірлері (сатушылар, ШҚТ)", correct:true},
-          {text:"Күнделік, қалам, зарядталған телефон", correct:true},
-          {text:"Қоймадағы өнім қалдықтары туралы толық ақпарат", correct:true},
-          {text:"Клиентке бонус беру үшін қолма-қол ақша", correct:false}
-        ]},
-      { type:"single", title:"Маршрутты жоспарлау кезінде дистрибьютормен нені келісу керек?",
-        options:[
-          {text:"Маршрут бойынша ең жақын әкету күнін және көлікті тиеу үшін қажетті өнім көлемін", correct:true},
-          {text:"Жүргізушінің жеке демалыс кестесін", correct:false},
-          {text:"Соңғы тұтынушыға арналған өнім бағасын", correct:false}
-        ]},
-      { type:"single", title:"«Телесейлинг» анкетасы не үшін арналған?",
-        options:[
-          {text:"Өнімді сауда нүктесіне және одан сатып, жылжыту үшін қажетті барлық әрекеттерді орындауға көмектеседі", correct:true},
-          {text:"Клиентке қоңырау шалу қажеттілігін алмастырады", correct:false},
-          {text:"Тек жаңа сауда нүктелері үшін ғана қолданылады", correct:false}
-        ]},
-      { type:"multi", title:"Тізімдегінің қайсысы «Телесейлинг» анкетасымен расталады?",
-        options:[
-          {text:"Жаңа өнімдердің презентациясы мен тапсырысы", correct:true},
-          {text:"Дебиторлық берешекпен жұмыс", correct:true},
-          {text:"Баға белгілерінің, планограмманың, дисплей мен визуализацияның болуы", correct:true},
-          {text:"Сатушының әлеуметтік желідегі жеке байланыстары", correct:false}
-        ]},
-      { type:"single", title:"Тренинг бойынша, әңгіменің ең басында не істеу маңызды?",
-        options:[
-          {text:"Барынша ізгі ниетті және күлімсіреп сөйлеу — бұл тұтқа арқылы да естіледі", correct:true},
-          {text:"Бірден тапсырыс сомасына көшу", correct:false},
-          {text:"Әңгіме 2 минутпен шектелетінін алдын ала ескерту", correct:false}
-        ]}
-    ],
-    step2: [
-      { type:"single", title:"Қоңырау кезінде телефон арқылы сенімді сөйлеуге не көмектеседі?",
-        options:[
-          {text:"Көбірек нүктеге үлгеру үшін барынша жылдам сөйлеу", correct:false},
-          {text:"Әңгіме басында ізгі ниет пен күлімсіреу, қалдықтарды алу кезінде — сенімділік", correct:true},
-          {text:"Клиенттің қарсылықтарына бірден көшу", correct:false}
-        ]},
-      { type:"multi", title:"Қоңырау басында «смолток» үшін қандай тақырыптар қолайлы?",
-        options:[
-          {text:"Денсаулығыңыз қалай?", correct:true},
-          {text:"Қазір жағдай қалай?", correct:true},
-          {text:"Туыстарыңыз қалай (сырттай таныс болса)?", correct:true},
-          {text:"Клиенттің жеке қаржылық мәселелері", correct:false}
-        ]},
-      { type:"single", title:"Клиентке қазір сөйлесу ыңғайсыз болса, не істеген жөн?",
-        options:[
-          {text:"Қашан қайта қоңырау шалу керектігін нақтылап (1 сағаттан аспаған дұрыс), бұл уақытша екенін түсіндіру", correct:true},
-          {text:"Маршрутты бірден аяқтап, қайта қоңырау шалмау", correct:false},
-          {text:"Әңгімені қазір жалғастыруды талап ету", correct:false}
-        ]},
-      { type:"single", title:"Сәлемдесу скрипті бойынша қоңырау шамамен қанша уақытқа созылады?",
-        options:[
-          {text:"10–15 минут", correct:true},
-          {text:"1–2 минут", correct:false},
-          {text:"Бір сағаттан астам", correct:false}
-        ]},
-      { type:"single", title:"Клиентпен қысқа жеке әңгімеден кейін бірден не істеу маңызды?",
-        options:[
-          {text:"Клиентті уақытылы жеке тақырыптан мәнге ауыстырып, қоңыраудың мақсатын айту", correct:true},
-          {text:"Жеке тақырыпты тағы 10 минутқа жалғастыру", correct:false},
-          {text:"Клиенттен өзі кейінірек қайта қоңырау шалуын сұрау", correct:false}
-        ]}
-    ],
-    step3: [
-      { type:"single", title:"Телефон арқылы қалдықтарды алу кезінде клиент не істеуі керек?",
-        options:[
-          {text:"Қоймадағы және суытқыштағы қалдықтарды санап, СӨ-ге айтып беру", correct:true},
-          {text:"Жүкқұжатты өз бетінше рәсімдеу", correct:false},
-          {text:"Дистрибьюторға қоңырау шалу", correct:false}
-        ]},
-      { type:"order", title:"Қоңырау кезінде қалдықтарды алу қадамдарын дұрыс ретпен орналастырыңыз",
-        items:["Клиент қалдықтарды телефон арқылы айтады","Ақпарат қалта компьютеріне енгізіледі","СӨ тапсырыс құру үшін үзіліс жасайды","Қоңырауды аяқтау"]},
-      { type:"single", title:"Клиент айтқан қалдықтар туралы барлық ақпарат қайда енгізіледі?",
-        options:[
-          {text:"Қалта компьютеріне (ҚК)", correct:true},
-          {text:"Кейін тасталатын қағаз дәптерге", correct:false},
-          {text:"Ақпаратты мүлдем тіркеудің қажеті жоқ", correct:false}
-        ]},
-      { type:"single", title:"Клиенттен қалдықтарды қай ретпен айтуын сұраған дұрыс?",
-        options:[
-          {text:"Алдымен қойма, содан кейін әр SKU бойынша суытқыш жабдық", correct:true},
-          {text:"Алдымен бәсекелестердің өнім бағалары", correct:false},
-          {text:"Алдымен сауда нүктесінің жұмыс кестесі", correct:false}
-        ]},
-      { type:"single", title:"Қалдықтарды алғаннан кейін СӨ клиентке бірден не айтады?",
-        options:[
-          {text:"Дұрыс тапсырыс құру үшін оған бірнеше минут керек екенін", correct:true},
-          {text:"Тапсырысты енді өзгерту мүлдем мүмкін емес екенін", correct:false},
-          {text:"Қоңырау бұдан былай ешбір әрекетсіз аяқталатынын", correct:false}
-        ]}
-    ],
-    step4: [
-      { type:"single", title:"Мерчандайзинг кезінде әр SKU-ні қайда қою керектігін бағдарлауға не көмектеседі?",
-        options:[
-          {text:"Оң жақ бұрышта орналасқан планограмма", correct:true},
-          {text:"Тауардың қоймаға түсу реті", correct:false},
-          {text:"Сатушының жеке қалауы", correct:false}
-        ]},
-      { type:"multi", title:"Телефон арқылы мерчандайзинг кезінде СӨ клиенттен нені сұрайды?",
-        options:[
-          {text:"Өнімді суытқыш жабдыққа қою", correct:true},
-          {text:"Әр SKU-де баға белгісінің бар-жоғын тексеру", correct:true},
-          {text:"Сөрелердегі бәсекелестердің ассортиментін өзгерту", correct:false},
-          {text:"Басқа брендтерді қоймадан алып тастау", correct:false}
-        ]},
-      { type:"single", title:"Клиент мерчандайзинг тапсырмасын қоңырау кезінде қашан орындайды?",
-        options:[
-          {text:"СӨ алынған қалдықтар негізінде тапсырыс құрып жатқанда", correct:true},
-          {text:"Тек әңгіме аяқталғаннан кейін, бірнеше күннен соң", correct:false},
-          {text:"Қалдықтарды айтпас бұрын", correct:false}
-        ]},
-      { type:"single", title:"Мерчандайзинг кезеңінде «Телесейлинг» анкетасы не үшін қажет?",
-        options:[
-          {text:"Өнімді нүктеде сату және жылжыту үшін қажетті барлық әрекеттерді орындауға көмектеседі", correct:true},
-          {text:"Клиентке қоңырау шалу қажеттілігін алмастырады", correct:false},
-          {text:"Жылына тек бір рет қана қолданылады", correct:false}
-        ]},
-      { type:"single", title:"Мерчандайзинг туралы әңгіменің соңында СӨ клиентке не айтады?",
-        options:[
-          {text:"Алғыс айтып, қоңырауды аяқтайды", correct:true},
-          {text:"Тапсырысты дереу қолма-қол ақшамен төлеуді сұрайды", correct:false},
-          {text:"Келісімшартты бұзуды ұсынады", correct:false}
-        ]}
-    ],
-    step5: [
-      { type:"single", title:"Ұсынылған тапсырыс деген не?",
-        options:[
-          {text:"Ағымдағы және келесі бару арасында СН-нен сатылуы мүмкін болжамды өнім көлемі", correct:true},
-          {text:"Дистрибьютордың ең аз жеткізу партиясы", correct:false},
-          {text:"Клиенттің СӨ қатысуынсыз өз бетінше құратын тапсырысы", correct:false}
-        ]},
-      { type:"single", title:"Бару сәтінде сауда нүктесінде қандай өнім қоры болуы керек?",
-        options:[
-          {text:"2 күндік сатуға жеткілікті", correct:true},
-          {text:"2 апталық сатуға жеткілікті", correct:false},
-          {text:"Қордың мөлшері маңызды емес", correct:false}
-        ]},
-      { type:"single", title:"Орташа күндік сату қандай формуламен есептеледі?",
-        options:[
-          {text:"(Өткен қалдық + өткен тапсырыс − ағымдағы қалдық) / сату күндері", correct:true},
-          {text:"Ағымдағы қалдық × сату күндері", correct:false},
-          {text:"Өткен тапсырыс / ағымдағы қалдық", correct:false}
-        ]},
-      { type:"multi", title:"Ұсынылған тапсырысты пайдалану нені қамтамасыз етеді?",
-        options:[
-          {text:"Тапсырысты дұрыс есептеуге мүмкіндік береді", correct:true},
-          {text:"OOS немесе ТСН-ді артық тиеуден аулақ болуға көмектеседі", correct:true},
-          {text:"ШҚТ-мен тапсырысты талқылауда дәлел береді", correct:true},
-          {text:"Клиент үшін бағаны автоматты түрде төмендетеді", correct:false}
-        ]},
-      { type:"order", title:"Монолитте ҰТ-ны автоматты есептеу қадамдарын дұрыс ретпен орналастырыңыз",
-        items:["Қалдықтар анкетасын толтыру","Жаңа тапсырыс құру","«Автоматты түрде ҰТ енгізу» батырмасын басу","ҰТ жеткізу нормаларына дейін дөңгелектенеді"]}
-    ],
-    step6: [
-      { type:"single", title:"Клиентке жаңа өнімді немесе акцияны қашан таныстырған жөн?",
-        options:[
-          {text:"Тапсырыс келісілгеннен кейін", correct:true},
-          {text:"Клиент қалдықтарды айтпас бұрын", correct:false},
-          {text:"Қалдықтарды алудың орнына", correct:false}
-        ]},
-      { type:"single", title:"Клиентке жаңа өнімді ұсынғаннан кейін бірден не істеу керек?",
-        options:[
-          {text:"Кідіріс жасап, клиенттің бірінші жауап беруіне мүмкіндік беру", correct:true},
-          {text:"Бірден жеңілдік ұсыну", correct:false},
-          {text:"Ұсынысты қатарынан үш рет қайталау", correct:false}
-        ]},
-      { type:"single", title:"Скрипт мысалында СӨ клиентке жаңа өнім туралы ақпаратты қандай арна арқылы жібереді?",
-        options:[
-          {text:"Viber", correct:true},
-          {text:"Үй мекенжайына поштамен", correct:false},
-          {text:"Барлық клиенттерге бірден SMS-таратумен", correct:false}
-        ]},
-      { type:"single", title:"Скриптте СӨ дәлелдеуі бойынша, Miller 0,5 жаңа өніміне неге сұраныс жоғары болады?",
-        options:[
-          {text:"ТБ мен интернетте белсенді жарнама жүріп жатқандықтан", correct:true},
-          {text:"Ассортименттегі жалғыз сыра сорты болғандықтан", correct:false},
-          {text:"Бәсекелестер өз өнімін сөреден алып тастағандықтан", correct:false}
-        ]},
-      { type:"single", title:"Жаңа өнімді ұсынудың соңында СӨ клиенттен нені сұрайды?",
-        options:[
-          {text:"Қанша бөтелке жіберу керек — 5 бе, әлде 10 ма", correct:true},
-          {text:"Ынтымақтастықты жалғастыру керек пе, керек емес пе", correct:false},
-          {text:"Клиент барлық өнімге бағаны көтеруге келісе ме", correct:false}
-        ]}
-    ],
-    step7: [
-      { type:"single", title:"Ассортиментті кеңейту туралы клиент қандай типтік қарсылық білдіреді?",
-        options:[
-          {text:"«Сатып алушы қазір үйде отыр, сондықтан суытқыш жабдықты толтыруға қызығушылығым жоқ»", correct:true},
-          {text:"«Менде суытқыш жабдық мүлдем жоқ»", correct:false},
-          {text:"«Мен қалта компьютерін пайдалана алмаймын»", correct:false}
-        ]},
-      { type:"single", title:"СӨ бұл қарсылықты қалай жоққа шығарады?",
-        options:[
-          {text:"Тұтынушылардың үйіне жақын СН-ге жиірек баратынын және кеңірек ассортимент қажет екенін түсіндіреді", correct:true},
-          {text:"Келіседі және ұсынысын алып тастайды", correct:false},
-          {text:"Бағаны екі есе төмендетуді ұсынады", correct:false}
-        ]},
-      { type:"single", title:"«Үшінші тарап мысалы» тәсілінің мәні неде?",
-        options:[
-          {text:"Ұқсас жағдайда оң нәтижеге жеткен басқа клиенттің тәжірибесіне сілтеме жасау", correct:true},
-          {text:"Компания басшысын қоңырауға қатыстыру", correct:false},
-          {text:"Экономика министрлігінің ресми статистикасына сілтеме жасау", correct:false}
-        ]},
-      { type:"single", title:"Ұзақ уақыт үйде отырған тұтынушыға неге бір өнімді сатып алу жалықтырады?",
-        options:[
-          {text:"Жаңа нәрсе көргісі келеді", correct:true},
-          {text:"Өнім тезірек таусылатындықтан", correct:false},
-          {text:"Оның құны артатындықтан", correct:false}
-        ]},
-      { type:"single", title:"Қарсылық шешілгеннен кейін СӨ клиенттен нені сұрайды?",
-        options:[
-          {text:"Жіберілген планограмма бойынша жаңа өнімді суытқыш жабдыққа қоюды", correct:true},
-          {text:"Бұрынғы ассортименттің барлығын жеткізушіге қайтаруды", correct:false},
-          {text:"Келесі қоңырау күнін өз бетінше белгілеуді", correct:false}
-        ]}
-    ],
-    step8: [
-      { type:"multi", title:"Клиентпен қоштасу кезінде не істеген жөн?",
-        options:[
-          {text:"Тапсырыс саны мен сомасын қайталау", correct:true},
-          {text:"Жеткізу күні мен келесі қоңырау күнін еске салу", correct:true},
-          {text:"Бөлген уақыты үшін алғыс айту", correct:true},
-          {text:"Дистрибьюторды дереу ауыстыруды ұсыну", correct:false}
-        ]},
-      { type:"single", title:"Қажет болса, клиентке тағы не еске салған жөн?",
-        options:[
-          {text:"Көлікке берешек сомасын", correct:true},
-          {text:"СӨ өміріндегі жеке жаңалықтарды", correct:false},
-          {text:"Компанияның келесі жылға жоспарларын", correct:false}
-        ]},
-      { type:"single", title:"Қоштасу скриптінде СӨ тапсырыстың қандай болжамды сомасын айтады?",
-        options:[
-          {text:"5690 грн", correct:true},
-          {text:"500 грн", correct:false},
-          {text:"50 000 грн", correct:false}
-        ]},
-      { type:"single", title:"Скрипт мысалы бойынша, СӨ қайта қоңырау шалуды қай күні жоспарлайды?",
-        options:[
-          {text:"Бейсенбіде", correct:true},
-          {text:"Нақтыламай, келесі күні", correct:false},
-          {text:"Тек бір айдан кейін", correct:false}
-        ]},
-      { type:"single", title:"Қоңырауды қандай көңіл-күймен аяқтаған жөн?",
-        options:[
-          {text:"Жылы — денсаулық және қайырлы күн тілеп", correct:true},
-          {text:"Ресми түрде, тілек айтпастан", correct:false},
-          {text:"Тапсырыс сомасын айтқаннан кейін бірден тұтқаны қою", correct:false}
-        ]}
-    ]
-  };
-
   var BLOCK_ORDER = ['basics','step1','step2','step3','step4','step5','step6','step7','step8'];
   var BLOCK_LABELS = {
     basics:'Основи', step1:'Крок 1 · Планування', step2:'Крок 2 · Привітання', step3:'Крок 3 · Зняття залишків',
     step4:'Крок 4 · Мерчандайзинг', step5:'Крок 5 · Замовлення', step6:'Крок 6 · Презентація',
     step7:'Крок 7 · Заперечення', step8:'Крок 8 · Прощання'
   };
-  var BLOCK_LABELS_EN = {
-    basics:'Basics', step1:'Step 1 · Planning', step2:'Step 2 · Greeting', step3:'Step 3 · Stock count',
-    step4:'Step 4 · Merchandising', step5:'Step 5 · Order', step6:'Step 6 · Presentation',
-    step7:'Step 7 · Objections', step8:'Step 8 · Goodbye'
-  };
-  var GATE_MSG_EN = {
-    'Відкрийте всі 4 типи візиту, щоб продовжити': 'Open all 4 visit types to continue',
-    'Розгорніть картку нижче': 'Expand the card below',
-    'Торкніться кожного з 8 кроків': 'Tap each of the 8 steps',
-    'Торкніться всіх трьох сегментів кола': 'Tap all three segments of the circle',
-    'Позначте обидва пункти чек-листа': 'Check off both checklist items',
-    'Позначте всі пункти чек-листа': 'Check off all checklist items',
-    'Торкніться виділеного кроку на карті': 'Tap the highlighted step on the map',
-    'Дочитайте діалог до кінця': 'Read the dialogue to the end',
-    'Позначте всі запитання': 'Check off all the questions',
-    'Позначте всі кроки': 'Check off all the steps',
-    'Дайте відповідь на запитання, щоб продовжити': 'Answer the question to continue'
-  };
-  var BLOCK_LABELS_KK = {
-    basics:'Негіздер', step1:'Қадам 1 · Жоспарлау', step2:'Қадам 2 · Сәлемдесу', step3:'Қадам 3 · Қалдықтарды алу',
-    step4:'Қадам 4 · Мерчандайзинг', step5:'Қадам 5 · Тапсырыс', step6:'Қадам 6 · Презентация',
-    step7:'Қадам 7 · Қарсылық', step8:'Қадам 8 · Қоштасу'
-  };
-  var GATE_MSG_KK = {
-    'Відкрийте всі 4 типи візиту, щоб продовжити': 'Жалғастыру үшін барудың барлық 4 түрін ашыңыз',
-    'Розгорніть картку нижче': 'Төмендегі карточканы жайыңыз',
-    'Торкніться кожного з 8 кроків': '8 қадамның әрқайсысын түртіңіз',
-    'Торкніться всіх трьох сегментів кола': 'Шеңбердің барлық үш сегментін түртіңіз',
-    'Позначте обидва пункти чек-листа': 'Чек-парақтың екі тармағын да белгілеңіз',
-    'Позначте всі пункти чек-листа': 'Чек-парақтың барлық тармағын белгілеңіз',
-    'Торкніться виділеного кроку на карті': 'Картадағы бөлектелген қадамды түртіңіз',
-    'Дочитайте діалог до кінця': 'Диалогты соңына дейін оқыңыз',
-    'Позначте всі запитання': 'Барлық сұрақты белгілеңіз',
-    'Позначте всі кроки': 'Барлық қадамды белгілеңіз',
-    'Дайте відповідь на запитання, щоб продовжити': 'Жалғастыру үшін сұраққа жауап беріңіз'
-  };
 
-  /* Master translation dictionary for every data-tid element in the DOM */
-  var I18N_EN = {
-    's-kicker-step2': 'STEP 2 · GREETING THE CUSTOMER',
-    's-kicker-step3': 'STEP 3 · STOCK COUNT',
-    's-kicker-step4': 'STEP 4 · MERCHANDISING',
-    's-kicker-step5': 'STEP 5 · ORDER',
-    's-kicker-step6': 'STEP 6 · PRESENTATION',
-    's-kicker-step7': 'STEP 7 · HANDLING OBJECTIONS',
-    's-kicker-step8': 'STEP 8 · SAYING GOODBYE',
-    's0-h1': '8 Steps of Telesales for a Sales Rep',
-    's0-note': 'An interactive course based on the presentation materials. Tap cards, expand items, and take the quiz at the end — your result is saved automatically.',
-    's0-org': 'Carlsberg Ukraine · Onboarding Course',
-    's1-h2': 'Visit Types for a Sales Rep',
-    's1-kicker': 'VISIT TYPES',
-    's1-lead': 'The main type is a <b>Standard visit</b>. If that is not possible, the rep adds one of four other options to the route.',
-    's10-h2': 'If It\'s Not Convenient for the Customer to Talk',
-    's10-situation': 'If the customer says it\'s not convenient to talk right now, ask when to call back (ideally within an hour). Explain that for reasons beyond your control you can\'t visit the outlet in person, but it\'s temporary and you\'ll be able to visit soon.',
-    's10-tip': 'Don\'t feed negativity — sow positivity!',
-    's10-you1': 'Good afternoon, my name is... I\'m a sales rep for (distributor name). This will only take a few minutes.',
-    's11-c0': 'How is your health?',
-    's11-c1': 'How is your family doing (if you know them)?',
-    's11-c2': 'How do you keep in touch with your loved ones?',
-    's11-c3': 'How are things right now?',
-    's11-h2': 'A Bit of Small Talk',
-    's11-lead': 'Check off which questions you\'ve already tried — pick one or two, not all at once.',
-    's11-tip': 'After a short personal chat, smoothly shift the customer to business: state the purpose of the call — putting together and confirming the order over the phone.',
-    's12-b0': 'Good afternoon, this is Serhii, a sales rep for Carlsberg, Ing Trans.',
-    's12-b1': 'Our conversation will take 10–15 minutes. Is it convenient for you to talk?',
-    's12-b2': 'How\'s your health? How\'s the family? I\'m glad everything\'s fine with you.',
-    's12-b3': 'I\'m calling to put together an order, because tomorrow we have a delivery run in your area.',
-    's12-h2': 'Greeting the Customer — Example',
-    's12-kicker': 'CALL EXAMPLE',
-    's13-h2': 'Next Step — Stock Count',
-    's14-accbody': 'We explain to the decision-maker that a larger stock buffer is needed — the delivery may be delayed for reasons beyond our control. But the customer still visits the store every day and buys the products they need.',
-    's14-acctitle': 'Important',
-    's14-h2': 'Taking the Stock Count',
-    's14-p': 'Politely ask the customer to go to the warehouse and read out the stock, then check the fridge equipment and read out what is available by SKU. Enter all the stock information into the PDA.',
-    's15-b0': 'I\'m calling to put together an order, because tomorrow we have a delivery run in your area. To put together the correct order I need to enter the stock into the PDA. I need your help.',
-    's15-b1': 'I know you have stock in the warehouse and in the fridge. Please go to the warehouse, count what is left, and read it out to me. Thank you.',
-    's15-b2': 'Now let\'s take a look at what\'s in the fridge… Thank you.',
-    's15-h2': 'Stock Count Script',
-    's16-b1': 'I need a few minutes to put together the correct order based on the stock you read out to me.',
-    's16-h2': 'Finishing the Stock Count',
-    's17-h2': 'Next Step — Merchandising',
-    's18-accbody': 'The "Telesales" questionnaire will help you complete all the tasks and actions needed to promote the products.',
-    's18-acctitle': 'Why the questionnaire',
-    's18-h2': 'Merchandising',
-    's18-p': 'After taking the stock count with the customer\'s help, politely ask them to put the products into the fridge equipment and check that every SKU has a price tag.',
-    's18-annot1': 'Branded Carlsberg fridge — this is where the brand\'s products belong',
-    's18-annot2': 'Every SKU needs a price tag',
-    's18-annot3': 'Layout by category: bottles, cans, brands — top to bottom',
-    's19-b1': 'While I put the order together, I have a favor to ask. Could you put the products into the fridge equipment and check that every SKU has a price tag? The planogram in the top-right corner will help you see where each SKU goes.',
-    's19-b2': 'Thank you, talk soon!',
-    's19-h2': 'Merchandising Script',
-    's2-accbody': 'It took us a long time to reach our current market position. But sometimes things get in the way of visiting outlets in person — a pandemic, military action, and so on. They change how we work, and we need to adapt effectively.',
-    's2-acctitle': 'Why now?',
-    's2-def': 'Telesales is <b>active sales made by phone</b>.',
-    's2-h2': 'What Is Telesales?',
-    's20-h2': 'Next Step — Order',
-    's21-accbody': 'This is the forecast volume of product that can be sold from the outlet between the current and next visit. It accounts for the stock at the outlet at the time of ordering and is calculated separately for each SKU. It lets you calculate the order correctly, avoid an out-of-stock or overloading the outlet, and gives you an argument with the decision-maker when discussing the order.',
-    's21-acctitle': 'What is a recommended order?',
-    's21-h2': 'Putting Together and Agreeing the Order',
-    's21-p': 'Once you have the stock figures for the outlet, take a pause to put together the correct order using the information in the PDA. Then call the outlet back if the order and total need to be agreed.',
-    's22-acctitle': 'How do you calculate average daily sales?',
-    's22-feq': '<b>Order</b> = Average daily sales × (Days until visit + 2) − Current stock',
-    's22-feq2': 'Average daily sales = (Previous stock + Previous order − Current stock) / Days of sales',
-    's22-flabel': 'Order',
-    's22-h2': 'The Order Calculation Formula',
-    's22-lead': 'At the time of the visit, the outlet should have enough product in stock for 2 days of sales.',
-    's23-accbody': 'Average sales per day: (7 + 20 − 1) / 7 = 4 bottles. Order needed: average daily sales 4 × 9 days (7 days until visit + 2) − current stock 1 = 35.',
-    's23-acctitle': 'The calculation, step by step',
-    's23-h2': 'A Worked Example',
-    's23-r0': 'Previous stock',
-    's23-r1': '+ Previous order',
-    's23-r2': '− Current stock',
-    's23-r3': 'Total / days of sales (7)',
-    's23-r4': 'Days until visit (7) + 2',
-    's23-r5': 'Order needed (4×9 − 1)',
-    's23-r3-label': 'Total / days of sales',
-    's23-r4-label': 'Days until visit',
-    's23-r5-label': 'Order needed',
-    's23-oc-hint': 'Try your own numbers — the result updates instantly.',
-    's24-c0': 'Fill in the stock questionnaire',
-    's24-c1': 'Create a new order',
-    's24-c2': 'Click the "Auto-fill RO" button',
-    's24-c3': 'The RO is rounded to the distributor\'s shipment norms',
-    's24-footnote': 'The RO will be entered based on the calculated sales minus the stock on hand.',
-    's24-h2': 'Auto-Calculation in Monolit',
-    's24-lead': 'Using the automatic recommended-order (RO) calculation tool for all SKUs.',
-    's25-b0': 'Thank you, talk soon! Good afternoon again, this is Serhii from Carlsberg again.',
-    's25-b1': 'Let me read out the calculated order, and you can correct me if needed.',
-    's25-b2': 'TUBORG 0.5 — I suggest 20 bottles, since you sell 3 bottles a day.',
-    's25-b3': '1715 0.45 — same as last order, I suggest 20 bottles, since 20 bottles sold.',
-    's25-h2': 'Agreeing the Order',
-    's25-tip': 'Order agreed, total came to 5,000 UAH ✓',
-    's26-h2': 'Next Step — Presentation',
-    's27-accbody': '"Stay quiet" — pause right after pitching the new product. This makes the customer respond first and doesn\'t come across as pushy.',
-    's27-acctitle': 'Important! After the pitch',
-    's27-h2': 'Presenting a New SKU',
-    's27-p': 'Once the order is agreed, it\'s a great opportunity to briefly present the customer with a new product or promotion relevant to their outlet.',
-    's28-b0': 'We\'ve agreed the order, the total came to 5,000 UAH, but I have one more offer for you.',
-    's28-b1': 'I\'ve sent you a new product we now carry — check Viber, open it, and I\'ll tell you about it now.',
-    's28-b2': 'We now have a new lager, Miller 0.5. There\'s an active TV and online ad campaign running right now — demand for it will be high.',
-    's28-b3': 'This will bring you extra sales and new customers. How many bottles should I ship — 5 or 10?',
-    's28-h2': 'Pitching the New Product',
-    's29-h2': 'Next Step — Objections',
-    's3-accbody': 'Before, you counted the stock at the outlet yourself. Over the phone, this requires the <b>help of the person on the other end of the line</b>.',
-    's3-acctitle': 'The key difference',
-    's3-h2': 'Experience with Telesales',
-    's3-p': 'Everyone already has some experience with phone sales — when the seller cannot make the decision and you have to call the decision-maker to make the sale.',
-    's30-accbody': '"Given the situation in the country, I\'m not interested in loading up the fridge equipment or taking a wider range — people are staying home." In reality, most consumers are more limited in moving around the city, so they visit outlets near home more often — and those need a good range and enough stock.',
-    's30-acctitle': 'A typical customer objection',
-    's30-h2': 'Handling Objections',
-    's30-p': 'If objections come up while agreeing the order or the new product, we use proven techniques for handling them.',
-    's31-accbody': '"I have a customer who, in the same conditions with everyone staying home, expanded their range and stock — and it led to more customers." Trust in a real example lowers resistance and helps the customer decide.',
-    's31-acctitle': 'What the response sounds like',
-    's31-h2': 'The Third-Party Example',
-    's31-lead': 'One of the most convincing techniques for handling an objection is referencing another customer\'s experience.',
-    's32-b0': 'Customer: "I\'m not interested in taking a wider range right now — people are staying home."',
-    's32-choice-prompt': 'How should the rep respond?',
-    's32-choice-good': 'Explain why it\'s worth trying a wider range right now',
-    's32-choice-weak': 'Insist: "Just trust me, I know better"',
-    's32-b1': 'That\'s exactly why — spending so much time at home, people get tired of drinking the same product every day, and want to try something new.',
-    's32-b2': 'I have a customer who, in the same conditions, expanded their range and stock — it led to more customers.',
-    's32-h2': 'Dialogue: Answering the Objection',
-    's32-ok': 'Customer: "OK."',
-    'ui-label-weak': 'Weak response',
-    's32-weak-text': 'Just trust me, I know better what you need.',
-    's32-weak-push': 'Customer: "No, that\'s not a reason. Try explaining more clearly why I\'d need this."',
-    's32-tip': 'You\'ve made the right call! The new product arrives tomorrow — please put it into the fridge equipment. I\'ve sent the planogram over messenger, set the price according to your markup.',
-    's33-h2': 'The Last Step — Saying Goodbye',
-    's33-lead': 'Let\'s check the visit map one last time.',
-    's34-c0': 'Repeating the order quantity and total to the customer',
-    's34-c1': 'Reminding them of the delivery day and the day of the next call',
-    's34-c2': 'Reminding the customer of the amount owed on the account',
-    's34-c3': 'Thanking them for their time',
-    's34-c4': 'Wishing them a good day and thanking them for productive work',
-    's34-c5': 'Wishing them good health and to take care',
-    's34-h2': 'Saying Goodbye to the Customer',
-    's34-lead': 'Depending on the situation, before ending the call it\'s worth:',
-    's35-b0': 'Thank you for your time.',
-    's35-b1': 'I\'ll call you again on Thursday, the goods will arrive tomorrow, the order total is approximately 5,690 UAH.',
-    's35-b2': 'Wishing you good health and a great day. Take care, goodbye!',
-    's35-h2': 'Ending the Call',
-    's36-footnote': 'A quote from "The Wolf of Wall Street"',
-    's36-h2': 'Act With Faith in Yourself',
-    's36-kicker': 'IN CLOSING',
-    's36-q0': 'Act with unshakeable faith in yourself, and people will believe in you.',
-    's36-q1': 'Act as if you have vast experience in telesales — and people will listen to your advice.',
-    's36-q2': 'Act as if you\'ve already achieved stunning success in telesales — and just as surely as I\'m standing before you now, you really will succeed!',
-    's37-h2': 'The 8 Steps of Telesales',
-    's37-kicker': 'SUMMARY',
-    's37-lead': 'Follow all 8 steps of the sales visit — this guarantees you results!',
-    's37-sc1': 'Planning & preparation',
-    's37-sc2': 'Greeting the customer',
-    's37-sc3': 'Taking the stock count',
-    's37-sc4': 'Merchandising',
-    's37-sc5': 'Order',
-    's37-sc6': 'Presentation',
-    's37-sc7': 'Objections',
-    's37-sc8': 'Saying goodbye',
-    's4-h2': 'Steps of a Sales Visit',
-    's4-kicker': 'VISIT STRUCTURE',
-    's4-lead': 'A structured approach is the best way to sell and execute FIT. Tap a step to see what it involves.',
-    's5-kicker': 'FIT MODEL',
-    's5-lead': 'The three pillars of a quality visit. Press a button to highlight a segment.',
-    's6-c0': 'Agree the nearest route delivery date with the distributor',
-    's6-c1': 'Work out the volume of product needed to load the transport',
-    's6-h2': 'Route Planning',
-    's6-kicker': 'STEP 1 · PLANNING & PREPARATION',
-    's7-c0': 'Phone numbers for all customers on the route (sellers, decision-makers)',
-    's7-c1': 'A notebook, pen, and charged phone',
-    's7-c2': 'Full information about product stock in the warehouse',
-    's7-c3': 'Plan vs. actual sales for the outlet',
-    's7-c4': 'Emotional readiness *',
-    's7-footnote': '* Start by being as friendly and cheerful as possible — it\'s audible even over the phone. Then, while taking the stock count and putting the order together, be confident — that should come through in your voice too.',
-    's7-h2': 'Get Ready to Make Calls',
-    's8-accbody': 'Each item is confirmed separately: presenting new products, ordering new products, handling accounts receivable, keeping price tags and the planogram up to date, and having displays and visual merchandising for the drinks.',
-    's8-acctitle': 'What\'s in the questionnaire',
-    's8-h2': 'The "Telesales" Questionnaire',
-    's8-kicker': 'TOOL',
-    's8-p': 'Filling in the "Telesales" questionnaire helps you carry out all the actions needed to sell and promote products to and from the outlet.',
-    's9-h2': 'Next Step — Greeting',
-    'ui-complete-correct': 'correct',
-    'ui-complete-fail-lead': 'You\'ll need to prepare and try again — review the steps and scripts once more, you\'ve got this! 💪',
-    'ui-complete-fail-title': 'Not quite there yet',
-    'ui-complete-pass-lead': 'You\'ve confidently completed the "8 Steps of Telesales" course.',
-    'ui-complete-pass-title': 'Congratulations! You\'ve passed the quiz 🎉',
-    'ui-kicker-basics': 'BASICS',
-    'ui-label-script': 'Script',
-    'ui-label-situation': 'Situation',
-    'ui-label-yousay': 'You say',
-    'ui-node-outlet': 'Outlet',
-    'ui-node-truck': 'Truck',
-    'ui-node-warehouse': 'Warehouse',
-    'ui-recap-here': 'YOU ARE HERE',
-    'ui-recap-lead': 'Let\'s check the visit map so we don\'t lose the structure of the conversation.',
-    'ui-resume-q': 'Continue where you left off?',
-    'ui-resume-yes': 'Yes',
-    'ui-settings-fontsize': 'Text size',
-    'ui-settings-fontsize-d': 'Increase the font if the text is too small',
-    'ui-settings-lang': 'Course language',
-    'ui-settings-lang-d': 'Switches all course and quiz text',
-    'ui-settings-lead': 'Adjust the course to suit you — text size, appearance, and language.',
-    'ui-settings-note': 'Settings are saved only on this device and do not affect your quiz result.',
-    'ui-speech-unavailable': "Voice playback isn't available in this language on your device.",
-    'ui-settings-to-platform': 'Back to platform home',
-    'ui-settings-theme': 'Appearance',
-    'ui-settings-theme-d': 'Light or dark interface theme',
-    'ui-settings-title': 'Settings',
-    'ui-settingsBtn-label': 'Settings',
-    'ui-stat-questions': 'quiz questions',
-    'ui-sectionmap-title': 'Progress by section',
-    'ui-do-brand': '8 Steps of Telesales',
-    'ui-stat-screens': 'screens',
-    'ui-stat-time': 'to complete',
-    'ui-stat-time-num': '~15 min',
-    'ui-tag-def': 'Definition',
-    'ui-theme-dark': 'Dark',
-    'ui-theme-light': 'Light',
-    'reg-org': 'Carlsberg Ukraine · Training course',
-    'reg-h1': 'This is the 8 Steps of Telesales course for sales reps — please register.',
-    'reg-l-region': 'Select Region',
-    'reg-o-region-1': 'North-Eastern',
-    'reg-o-region-2': 'Western',
-    'reg-l-asm': 'Select ASM',
-    'reg-l-sv': 'Select SV',
-    'reg-l-code': 'Select your position code',
-    'reg-note': 'Registration details are used only to take the course and to identify your test result.',
-    'reg-btn': 'Register'
-  };
-
-  var I18N_KK = {
-    "s-kicker-step2": "ҚАДАМ 2 · КЛИЕНТПЕН СӘЛЕМДЕСУ",
-    "s-kicker-step3": "ҚАДАМ 3 · ҚАЛДЫҚТАРДЫ АЛУ",
-    "s-kicker-step4": "ҚАДАМ 4 · МЕРЧАНДАЙЗИНГ",
-    "s-kicker-step5": "ҚАДАМ 5 · ТАПСЫРЫС",
-    "s-kicker-step6": "ҚАДАМ 6 · ПРЕЗЕНТАЦИЯ",
-    "s-kicker-step7": "ҚАДАМ 7 · ҚАРСЫЛЫҚПЕН ЖҰМЫС",
-    "s-kicker-step8": "ҚАДАМ 8 · КЛИЕНТПЕН ҚОШТАСУ",
-    "ui-complete-correct": "дұрыс жауап",
-    "ui-complete-fail-lead": "Дайындалып, қайта көру керек — қадамдар мен скрипттерді тағы бір рет қараңыз, сізде міндетті түрде шығады! 💪",
-    "ui-complete-fail-title": "Досым, тест әлі тапсырылған жоқ",
-    "ui-complete-pass-lead": "«Телесейлингтің 8 қадамы» курсын сенімді түрде аяқтадыңыз.",
-    "ui-complete-pass-title": "Құттықтаймыз! Тест сәтті тапсырылды 🎉",
-    "ui-do-brand": "Телесейлингтің 8 қадамы",
-    "ui-kicker-basics": "НЕГІЗДЕР",
-    "ui-label-script": "Скрипт",
-    "ui-label-situation": "Жағдаят",
-    "ui-label-weak": "Әлсіз жауап",
-    "ui-label-yousay": "Сіз айтасыз",
-    "ui-node-outlet": "Сауда нүктесі",
-    "ui-node-truck": "Көлік",
-    "ui-node-warehouse": "Қойма",
-    "ui-recap-here": "СІЗ ОСЫНДАСЫЗ",
-    "ui-recap-lead": "Әңгіме құрылымын жоғалтпау үшін бару картасымен салыстырып алайық.",
-    "ui-resume-q": "Тоқтаған жерден жалғастырасыз ба?",
-    "ui-resume-yes": "Иә",
-    "ui-sectionmap-title": "Бөлімдер бойынша прогресс",
-    "ui-settings-fontsize": "Мәтін өлшемі",
-    "ui-settings-fontsize-d": "Мәтін тым кішкентай болса, қаріпті үлкейтіңіз",
-    "ui-settings-lang": "Курс тілі",
-    "ui-settings-lang-d": "Курс пен тесттің бүкіл мәтінін ауыстырады",
-    "ui-settings-lead": "Курсты өзіңізге ыңғайлап баптаңыз — мәтін өлшемі, безендіру тақырыбы және тіл.",
-    "ui-settings-note": "Баптаулар тек осы құрылғыда сақталады және тест нәтижесіне әсер етпейді.",
-    "ui-speech-unavailable": "Бұл тілде дауыстап оқу осы құрылғыда қолжетімсіз.",
-    "ui-settings-to-platform": "Платформаның басты бетіне",
-    "ui-settings-theme": "Безендіру тақырыбы",
-    "ui-settings-theme-d": "Интерфейстің ашық немесе қараңғы тақырыбы",
-    "ui-settings-title": "Баптаулар",
-    "ui-stat-questions": "тест сұрағы",
-    "ui-stat-screens": "экран",
-    "ui-stat-time": "өту уақыты",
-    "ui-stat-time-num": "~15 мин",
-    "ui-tag-def": "Анықтама",
-    "ui-theme-dark": "Қараңғы",
-    "ui-theme-light": "Ашық",
-    "ui-settingsBtn-label": "Баптаулар",
-    "s0-h1": "Сауда өкілі үшін телесейлингтің 8 қадамы",
-    "s0-note": "Презентация материалдары негізіндегі интерактивті курс. Карточкаларды түртіңіз, тармақтарды ашыңыз және соңында тестті өтіңіз — нәтиже автоматты түрде сақталады.",
-    "s0-org": "Carlsberg Ukraine · Бейімделу курсы",
-    "s1-h2": "Сауда өкілі үшін барудың түрлері",
-    "s1-kicker": "БАРУ ТҮРЛЕРІ",
-    "s1-lead": "Негізгі түрі — <b>Стандартты бару</b>. Оны жүзеге асыру мүмкін болмаса, СӨ маршрутқа төрт нұсқаның бірін қосады.",
-    "s2-accbody": "Біз нарықтағы қазіргі деңгейге ұзақ жол жүрдік. Бірақ ТСН-ге тікелей баруға кедергі келтіретін жағдайлар болады — пандемия, соғыс қимылдары және т.б. Олар біздің жұмысымызды өзгертеді, ал біз тиімді бейімделуіміз керек.",
-    "s2-acctitle": "Неге қазір?",
-    "s2-def": "Телесейлинг — бұл <b>телефон арқылы жасалатын белсенді сату</b>.",
-    "s2-h2": "Телесейлинг деген не?",
-    "s3-accbody": "Бұрын сіз қалдықтарды сауда нүктесінде өзіңіз санап алатынсыз. Телефон арқылы бұл үшін желінің екінші ұшындағы <b>әңгімелесушінің көмегі</b> қажет болады.",
-    "s3-acctitle": "Негізгі айырмашылық",
-    "s3-h2": "Телесейлингтегі тәжірибе",
-    "s3-p": "Әркімде телефон арқылы сату тәжірибесі бар — сатушы шешім қабылдамайтын кезде, сатуды жүзеге асыру үшін ШҚТ-ға (шешім қабылдайтын тұлғаға) қоңырау шалуға тура келеді.",
-    "s4-h2": "Сауда барысының қадамдары",
-    "s4-kicker": "БАРУ ҚҰРЫЛЫМЫ",
-    "s4-lead": "Құрылымдық тәсіл — сату мен FIT орындаудың ең жақсы жолы. Мәнін көру үшін қадамды түртіңіз.",
-    "s5-kicker": "FIT МОДЕЛІ",
-    "s5-lead": "Сапалы барудың үш тірегі. Сегментті бөлектеу үшін батырманы басыңыз.",
-    "s6-c0": "Дистрибьютормен маршрут бойынша ең жақын әкету күнін келісу",
-    "s6-c1": "Көлікті тиеу үшін қажетті өнім көлемін анықтау",
-    "s6-h2": "Маршрутты жоспарлау",
-    "s6-kicker": "ҚАДАМ 1 · ЖОСПАРЛАУ ЖӘНЕ ДАЙЫНДЫҚ",
-    "s7-c0": "Маршрут бойынша барлық клиенттердің телефон нөмірлері (сатушылар, ШҚТ)",
-    "s7-c1": "Күнделік, қалам, зарядталған телефон",
-    "s7-c2": "Қоймадағы өнім қалдықтары туралы толық ақпарат",
-    "s7-c3": "ТСН бойынша жоспар – факт сату көрсеткіштері",
-    "s7-c4": "Эмоционалды дайындық *",
-    "s7-footnote": "* Алдымен барынша ізгі ниетті және күлімсіреп сөйлеңіз — бұл тұтқа арқылы да естіледі. Кейін, қалдықтарды алу және тапсырыс құру кезінде, сендірерлік болыңыз — бұл да дауыста сезілуі керек.",
-    "s7-h2": "Қоңырауларға дайындалыңыз",
-    "s8-accbody": "Әр тармақ бөлек расталады: жаңа өнімдердің презентациясы, жаңа өнімдерге тапсырыс, дебиторлық берешекпен жұмыс, баға белгілері мен планограмманы сақтау, сусындарда дисплей мен визуализацияның болуы.",
-    "s8-acctitle": "Анкетаға не кіреді",
-    "s8-h2": "«Телесейлинг» анкетасы",
-    "s8-kicker": "ҚҰРАЛ",
-    "s8-p": "«Телесейлинг» анкетасын толтыру — өнімді сауда нүктесіне және одан сатуды әрі жылжытуды қамтамасыз ету үшін қажетті барлық әрекеттерді орындауға көмектеседі.",
-    "s9-h2": "Келесі қадам — сәлемдесу",
-    "s10-h2": "Клиентке сөйлесу ыңғайсыз болса",
-    "s10-situation": "Клиент қазір сөйлесу ыңғайсыз дейтін болса — қашан қайта қоңырау шалу керектігін нақтылаңыз (1 сағаттан аспағаны дұрыс). Объективті себептерге байланысты ТСН-ге бара алмайтыныңызды, бірақ бұл уақытша екенін және жақын арада клиентке бара алатыныңызды түсіндіріңіз.",
-    "s10-tip": "Негативті қолдамаймыз, позитив себеміз!",
-    "s10-you1": "Қайырлы күн, менің атым... Мен (дистрибьютор атауы) компаниясының сауда өкілімін. Әңгімеміз бірнеше минутқа созылады.",
-    "s11-c0": "Денсаулығыңыз қалай?",
-    "s11-c1": "Туыстарыңыз қалай (сырттай таныс болса)?",
-    "s11-c2": "Жақындарыңызбен қалай араласасыз?",
-    "s11-c3": "Қазір жағдай қалай?",
-    "s11-h2": "«Өмір туралы» қысқа әңгіме",
-    "s11-lead": "Қандай сұрақтарды қолданып көргеніңізді белгілеңіз — бір-екеуін таңдаңыз, бәрін бірден емес.",
-    "s11-tip": "Қысқа жеке әңгімеден кейін клиентті уақытылы жеке тақырыптан мәнге ауыстырыңыз: қоңыраудың мақсатын айтыңыз — телефон арқылы тапсырыс құру және қабылдау.",
-    "s12-b0": "Қайырлы күн, бұл — Сергей, Carlsberg, Инг Транс компаниясының сауда өкілі.",
-    "s12-b1": "Әңгімеміз 10–15 минутқа созылады. Сөйлесуге ыңғайлы ма?",
-    "s12-b2": "Денсаулығыңыз қалай? Отбасыңыз қалай? Бәрі жақсы екеніне қуаныштымын.",
-    "s12-b3": "Сізге тапсырыс құру үшін қоңырау шалып отырмын, өйткені ертең сіздің бағытта жеткізу жоспарланып отыр.",
-    "s12-h2": "Клиентпен сәлемдесу — мысал",
-    "s12-kicker": "ҚОҢЫРАУ МЫСАЛЫ",
-    "s13-h2": "Келесі қадам — қалдықтарды алу",
-    "s14-accbody": "ШҚТ-мен тауар қорын көбейту қажет екенін талқылаймыз — жеткізу бізге байланысты емес себептермен кешігуі мүмкін. Бірақ клиент дүкенге күн сайын барады және қажетті өнімді сатып алады.",
-    "s14-acctitle": "Маңызды",
-    "s14-h2": "Қалдықтарды алу",
-    "s14-p": "Клиенттен қоймаға барып, қалдықтарды айтуын, содан соң суытқыш жабдыққа барып, SKU бойынша өнімнің барын айтуын сыпайы түрде сұраңыз. Қалдықтар туралы барлық ақпаратты қалта компьютеріне (ҚК) енгізіңіз.",
-    "s15-b0": "Сізге тапсырыс құру үшін қоңырау шалып отырмын, өйткені ертең сіздің бағытта жеткізу жоспарланып отыр. Дұрыс тапсырыс құру үшін маған қалдықтарды ҚК-ге енгізу керек. Көмегіңіз қажет.",
-    "s15-b1": "Сізде қоймада және тоңазытқышта қалдықтар бар екенін білемін. Қоймаға барып, не қалғанын санап, маған айтып беріңізші. Рахмет.",
-    "s15-b2": "Енді тоңазытқышта не барын көрейік… Рахмет.",
-    "s15-h2": "Қалдықтарды алу скрипті",
-    "s16-b1": "Сіз айтқан қалдықтарға сүйеніп, дұрыс тапсырыс құру үшін маған бірнеше минут керек.",
-    "s16-h2": "Қалдықтарды алуды аяқтау",
-    "s17-h2": "Келесі қадам — мерчандайзинг",
-    "s18-accbody": "Өнімді жылжыту үшін барлық тапсырмалар мен қажетті әрекеттерді орындауға «Телесейлинг» анкетасы көмектеседі.",
-    "s18-acctitle": "Анкета не үшін керек",
-    "s18-annot1": "Carlsberg брендтік суытқыш жабдығы — брендтің өнімін дәл осында қоямыз",
-    "s18-annot2": "Әр SKU-де баға белгісі тұруы керек",
-    "s18-annot3": "Санат бойынша орналастыру: бөтелкелер, банкалар, брендтер — жоғарыдан төменге қарай",
-    "s18-h2": "Мерчандайзинг",
-    "s18-p": "Клиенттің көмегімен қалдықтарды алғаннан кейін, өнімді суытқыш жабдыққа қоюын және әр SKU-де баға белгісінің бар-жоғын тексеруін сыпайы түрде сұраңыз.",
-    "s19-b1": "Мен тапсырысты құрып жатқанда сізден өтінішім бар еді. Өнімді суытқыш жабдыққа қойып, әр SKU-де баға белгісінің бар-жоғын тексере аласыз ба? Оң жақ бұрышта орналасқан планограмма қай SKU-ні қайда қою керектігін бағдарлауға көмектеседі.",
-    "s19-b2": "Рахмет, байланыста боламыз!",
-    "s19-h2": "Мерчандайзинг скрипті",
-    "s20-h2": "Келесі қадам — тапсырыс",
-    "s21-accbody": "Бұл — ағымдағы және келесі бару арасында сауда нүктесінен сатылуы мүмкін болжамды өнім көлемі. Тапсырыс кезіндегі ТСН-дегі тауар қалдықтарын ескереді және әр SKU үшін бөлек есептеледі. Тапсырысты дұрыс есептеуге, OOS-тан немесе ТСН-ді артық тиеуден аулақ болуға және ШҚТ-мен тапсырысты талқылау кезінде дәлел болуға мүмкіндік береді.",
-    "s21-acctitle": "Ұсынылған тапсырыс деген не?",
-    "s21-h2": "Тапсырысты құру және келісу",
-    "s21-p": "ТСН-дегі өнім қалдықтарын алғаннан кейін, ҚК-дегі ақпаратты пайдаланып дұрыс тапсырыс құру үшін үзіліс жасаңыз. Одан кейін тапсырыс пен соманы келісу қажет болса, ТСН-ге қайта қоңырау шалыңыз.",
-    "s22-acctitle": "Орташа күндік сатуды қалай есептеу керек?",
-    "s22-feq": "<b>Тапсырыс</b> = Орташа күндік сату × (Баруға дейінгі күндер + 2) − Ағымдағы қалдық",
-    "s22-feq2": "Орташа күндік сату = (Өткен қалдық + Өткен тапсырыс − Ағымдағы қалдық) / Сату күндері",
-    "s22-flabel": "Тапсырыс",
-    "s22-h2": "Тапсырысты есептеу формуласы",
-    "s22-lead": "Бару сәтінде сауда нүктесінде 2 күндік сатуға жететін өнім қоры болуы керек.",
-    "s23-accbody": "Күндік орташа сату: (7 + 20 − 1) / 7 = 4 бөтелке. Қажетті тапсырыс: орташа күндік сату 4 × 9 күн (баруға дейінгі 7 күн + 2) − ағымдағы қалдық 1 = 35.",
-    "s23-acctitle": "Есептеуді қадам бойынша талдау",
-    "s23-h2": "Өз бетінше есептеу мысалы",
-    "s23-oc-hint": "Өз сандарыңызды қойыңыз — нәтиже бірден есептеледі.",
-    "s23-r0": "Өткен қалдық",
-    "s23-r1": "+ Өткен тапсырыс",
-    "s23-r2": "− Ағымдағы қалдық",
-    "s23-r3": "Жиыны / сату күндері (7)",
-    "s23-r4": "Баруға дейінгі күндер (7) + 2",
-    "s23-r5": "Қажетті тапсырыс (4×9 − 1)",
-    "s23-r3-label": "Жиыны / сату күндері",
-    "s23-r4-label": "Баруға дейінгі күндер",
-    "s23-r5-label": "Қажетті тапсырыс",
-    "s24-c0": "Қалдықтар анкетасын толтыру",
-    "s24-c1": "Жаңа тапсырыс құру",
-    "s24-c2": "«ҰТ-ны автоматты енгізу» батырмасын басу",
-    "s24-c3": "ҰТ дистрибьютордың жеткізу нормаларына дейін дөңгелектенеді",
-    "s24-footnote": "ҰТ есептелген сатудан қалдықтарды шегеру арқылы енгізіледі.",
-    "s24-h2": "Монолитте автоматты есептеу",
-    "s24-lead": "Барлық SKU үшін ұсынылған тапсырысты (ҰТ) автоматты есептеу бағдарламасын пайдалану.",
-    "s25-b0": "Рахмет, байланыста боламыз! Тағы да қайырлы күн, бұл қайтадан Сергей, Carlsberg.",
-    "s25-b1": "Есептелген тапсырысты сізге айтып берейін, қажет болса түзетіп отырыңыз.",
-    "s25-b2": "TUBORG 0,5 — 20 бөтелке ұсынамын, өйткені сізде күніне 3 бөтелке сатылады.",
-    "s25-b3": "1715 0,45 — өткен тапсырыстағыдай, 20 бөтелке ұсынамын, себебі 20 бөтелке сатылған болатын.",
-    "s25-h2": "Тапсырысты келісу",
-    "s25-tip": "Тапсырыс келісілді, сомасы 5000 грн құрады ✓",
-    "s26-h2": "Келесі қадам — презентация",
-    "s27-accbody": "«Үндемеңіз» — жаңа өнімді ұсынғаннан кейін бірден кідіріс жасаңыз. Бұл клиентті бірінші болып жауап беруге мәжбүр етеді және жабысқақ болып көрінбейді.",
-    "s27-acctitle": "Маңызды! Ұсыныстан кейін",
-    "s27-h2": "Жаңа SKU презентациясы",
-    "s27-p": "Тапсырыс келісілген кезде, бұл клиентке оның нүктесіне сай жаңа өнімді немесе акцияны қысқаша таныстыруға тамаша мүмкіндік.",
-    "s28-b0": "Тапсырысты сізбен келістік, сомасы 5000 грн болды, бірақ менде сізге тағы бір ұсыныс бар.",
-    "s28-b1": "Мен сізге Viber мессенджеріне пайда болған жаңа өнімді жібердім — ашыңызшы, мен қазір ол туралы айтып беремін.",
-    "s28-b2": "Бізде жаңа жарық сыра Miller 0,5 пайда болды. Қазір теледидар мен интернетте белсенді жарнама жүріп жатыр — жаңа өнімге сұраныс жоғары болады.",
-    "s28-b3": "Бұл сізге қосымша сатылым мен жаңа сатып алушылар береді. Қанша бөтелке жіберейін — 5 ме, әлде 10 ма?",
-    "s28-h2": "Жаңа өнімді ұсыну",
-    "s29-h2": "Келесі қадам — қарсылық",
-    "s30-accbody": "«Елдегі қалыптасқан жағдайға байланысты, суытқыш жабдықты толтыруға немесе ассортиментті кеңейтуге қызығушылығым жоқ — сатып алушы үйде отыр.» Шын мәнінде, тұтынушылардың көбі қала бойынша қозғалуда шектеулі, сондықтан үйіне жақын ТСН-ге жиірек барады — ал онда жеткілікті ассортимент пен тауар қоры болуы керек.",
-    "s30-acctitle": "Клиенттің типтік қарсылығы",
-    "s30-h2": "Қарсылықтармен жұмыс",
-    "s30-p": "Тапсырысты немесе жаңа өнімді келісу кезінде қарсылықтар туындаса, қарсылықпен жұмыстың тексерілген әдістерін қолданамыз.",
-    "s31-accbody": "«Менде дәл осындай жағдайда, барлығы үйде отырғанда, ассортименті мен тауар қорын көбейткен клиент бар — бұл сатып алушылар санының артуына әсер етті.» Нақты мысалға сену қарсылықты азайтады және клиентке шешім қабылдауға көмектеседі.",
-    "s31-acctitle": "Жауап қалай айтылады",
-    "s31-h2": "Үшінші тарап мысалы",
-    "s31-lead": "Қарсылықпен жұмыстың ең сенімді тәсілдерінің бірі — басқа клиенттің тәжірибесіне сілтеме жасау.",
-    "s32-b0": "Клиент: «Қазір ассортиментті кеңейтуге қызығушылығым жоқ — сатып алушы үйде отыр.»",
-    "s32-b1": "Дәл сол себепті, ұзақ уақыт үйде отырған тұтынушы күн сайын бір өнімді ішуден жалығады — жаңа нәрсе көргісі келеді.",
-    "s32-b2": "Менде дәл осындай жағдайда ассортименті мен тауар қорын көбейткен клиент бар — бұл сатып алушылардың артуына әсер етті.",
-    "s32-choice-good": "Неге дәл қазір ассортиментті кеңейтіп көру керектігін түсіндіру",
-    "s32-choice-prompt": "Клиентке қалай жауап беруге болады?",
-    "s32-choice-weak": "Талап ету: «Жай ғана маған сеніңіз, мен жақсырақ білемін»",
-    "s32-h2": "Диалог: қарсылыққа жауап",
-    "s32-ok": "Клиент: «Жарайды.»",
-    "s32-tip": "Дұрыс шешім қабылдадыңыз! Ертең жаңа өнім келеді — оны суытқыш жабдыққа қоюды сұраймын. Планограмманы мессенджерге жібердім, бағаны өз үстемеңізге сай көрсетесіз.",
-    "s32-weak-push": "Клиент: «Жоқ, бұл дәлел емес. Бұл маған неге керек екенін нақтырақ түсіндіріп көріңізші.»",
-    "s32-weak-text": "Жай ғана маған сеніңіз, сізге не керек екенін мен жақсырақ білемін.",
-    "s33-h2": "Соңғы қадам — қоштасу",
-    "s33-lead": "Бару картасымен соңғы рет салыстырып алайық.",
-    "s34-c0": "Клиентке тапсырыс саны мен сомасын қайталау",
-    "s34-c1": "Жеткізу күні мен келесі қоңырау күнін еске салу",
-    "s34-c2": "Клиентке көлікке берешек сомасын еске салу",
-    "s34-c3": "Бөлген уақыты үшін алғыс айту",
-    "s34-c4": "Қайырлы күн тілеп, өнімді жұмыс үшін рахмет айту",
-    "s34-c5": "Денсаулық тілеп, өзін-өзі күтуін сұрау",
-    "s34-h2": "Клиентпен қоштасу",
-    "s34-lead": "Жағдайға байланысты, қоңырауды аяқтар алдында:",
-    "s35-b0": "Уақыт бөлгеніңіз үшін рахмет.",
-    "s35-b1": "Сізге бейсенбіде қоңырау шаламын, ертең күні бойы тауар келеді, тапсырыстың болжамды сомасы 5690 грн.",
-    "s35-b2": "Сізге денсаулық және қайырлы күн тілеймін. Бәрі жақсы болсын, көріскенше!",
-    "s35-h2": "Қоңырауды аяқтау",
-    "s36-footnote": "«Уолл-стриттің қасқыры» фильмінен дәйексөз",
-    "s36-h2": "Өзіңізге сеніммен әрекет етіңіз",
-    "s36-kicker": "СОҢЫНДА",
-    "s36-q0": "Өзіңізге шексіз сеніммен әрекет етіңіз, сонда адамдар сізге сенеді.",
-    "s36-q1": "Телесейлингте зор тәжірибеңіз бар сияқты әрекет етіңіз — сонда адамдар сіздің кеңесіңізге құлақ асады.",
-    "s36-q2": "Телесейлингте керемет табысқа жеткен сияқты әрекет етіңіз — және дәл қазір мен сіздің алдыңызда тұрғанымдай шындық, сіз шынымен де табысқа жетесіз!",
-    "s37-h2": "Телесейлингтің 8 қадамы",
-    "s37-kicker": "ҚОРЫТЫНДЫ",
-    "s37-lead": "Сауда барысының барлық 8 қадамын сақтаңыз — бұл сізге кепілді нәтиже береді!",
-    "s37-sc1": "Жоспарлау және дайындық",
-    "s37-sc2": "Клиентпен сәлемдесу",
-    "s37-sc3": "Қалдықтарды алу",
-    "s37-sc4": "Мерчандайзинг",
-    "s37-sc5": "Тапсырыс",
-    "s37-sc6": "Презентация",
-    "s37-sc7": "Қарсылық",
-    "s37-sc8": "Қоштасу",
-    "reg-org": "Carlsberg Ukraine · Оқу курсы",
-    "reg-h1": "Бұл — сауда өкілі үшін телесейлингтің 8 қадамы курсы, тіркеліңіз.",
-    "reg-l-region": "Аймақты таңдаңыз",
-    "reg-o-region-1": "Солтүстік-шығыс",
-    "reg-o-region-2": "Батыс",
-    "reg-l-asm": "АСМ таңдаңыз",
-    "reg-l-sv": "СВ таңдаңыз",
-    "reg-l-code": "Лауазым кодыңызды таңдаңыз",
-    "reg-note": "Тіркеу деректері тек курсты өту және тест нәтижесін анықтау үшін пайдаланылады.",
-    "reg-btn": "Тіркелу"
-  };
   var answered = {};       // qkey -> boolean correct
   var quizChoices = {};    // block -> array of bank indices chosen this attempt
   var quizMeta = [];       // ordered list of {block, bankIdx, qkey} for scoring/order reference
@@ -2506,7 +1606,7 @@ button{font-family:inherit;}
   var maxQuizStreak = 0;                 // longest correct-in-a-row streak, whole course
   var courseStartedAt = new Date().toISOString();
   var activeMs = 0, activeSince = Date.now(), pageVisible = !document.hidden;
-  var regData = { region:'', asm:'', sv:'', positionCode:'' };
+  var regData = { userId:'' };
   var streakToastTimer = null;
   function streakCopy(n){
     if(n===2) return { icon:'🎯', title:langPick(currentLang,'Чудовий старт!','Great start!','Тамаша бастама!'), sub:langPick(currentLang,'Дві правильні відповіді поспіль — саме так формується впевненість на реальних дзвінках.','Two correct in a row — that’s exactly how confidence on real calls is built.','Қатарынан екі дұрыс жауап — нақты қоңыраулардағы сенімділік дәл осылай қалыптасады.') };
@@ -2727,11 +1827,8 @@ button{font-family:inherit;}
       var qkey = section.dataset.qkey;
       var parts = qkey.split('-'); var bankIdx = parseInt(parts.pop(),10); var block = parts.join('-');
       var uk = QUESTION_BANKS[block][bankIdx];
-      var enO = QUESTION_BANKS_EN[block] && QUESTION_BANKS_EN[block][bankIdx];
-      var kkO = QUESTION_BANKS_KK[block] && QUESTION_BANKS_KK[block][bankIdx];
-      var altO = lang==='en' ? enO : (lang==='kk' ? kkO : null);
-      var title = (altO && altO.title) ? altO.title : uk.title;
-      var blockLabelDict = lang==='en' ? BLOCK_LABELS_EN : (lang==='kk' ? BLOCK_LABELS_KK : BLOCK_LABELS);
+      var title = uk.title;
+      var blockLabelDict = BLOCK_LABELS;
       var blockLabel = blockLabelDict[block] || langPick(lang, 'Перевірка знань', 'Knowledge check', 'Білімді тексеру');
       var chosen = quizChoices[block] || [];
       var orderInBlock = chosen.indexOf(bankIdx);
@@ -2752,7 +1849,7 @@ button{font-family:inherit;}
       if(uk.type==='order'){
         section.querySelectorAll('.order-item').forEach(function(it){
           var oi = parseInt(it.dataset.correctPos,10);
-          var txt = (altO && altO.items) ? altO.items[oi] : uk.items[oi];
+          var txt = uk.items[oi];
           var badge = it.querySelector('.order-badge');
           it.textContent = '';
           if(badge) it.appendChild(badge);
@@ -2761,10 +1858,7 @@ button{font-family:inherit;}
       } else {
         section.querySelectorAll('.opt').forEach(function(opt){
           var oi = parseInt(opt.dataset.optIndex,10);
-          // QUESTION_BANKS_EN stores plain-string options; QUESTION_BANKS_KK mirrors
-          // the uk source's {text,correct} object shape — accept either.
-          var altOpt = altO && altO.options ? altO.options[oi] : null;
-          var txt = altOpt ? (typeof altOpt==='string' ? altOpt : altOpt.text) : uk.options[oi].text;
+          var txt = uk.options[oi].text;
           var mark = opt.querySelector('.opt-mark');
           opt.textContent = '';
           if(mark) opt.appendChild(mark);
@@ -2807,7 +1901,7 @@ button{font-family:inherit;}
   function renderSectionMap(){
     var row = document.getElementById('sectionMapRow');
     if(!row) return;
-    var labelDict = currentLang==='en' ? BLOCK_LABELS_EN : (currentLang==='kk' ? BLOCK_LABELS_KK : BLOCK_LABELS);
+    var labelDict = BLOCK_LABELS;
     row.innerHTML = blockRanges.map(function(r){
       var done = maxIdxReached > r.end;
       var current = idx>=r.start && idx<=r.end;
@@ -2822,7 +1916,7 @@ button{font-family:inherit;}
   function renderDesktopOutline(){
     var list = document.getElementById('desktopOutlineList');
     if(!list) return;
-    var labelDict = currentLang==='en' ? BLOCK_LABELS_EN : (currentLang==='kk' ? BLOCK_LABELS_KK : BLOCK_LABELS);
+    var labelDict = BLOCK_LABELS;
     list.innerHTML = blockRanges.map(function(r,i){
       var done = maxIdxReached > r.end;
       var current = idx>=r.start && idx<=r.end;
@@ -2913,8 +2007,6 @@ button{font-family:inherit;}
     backBtn.style.visibility = idx===0 ? 'hidden' : 'visible';
     var unlocked = isScreenUnlocked(idx);
     var msg = screens[idx] && screens[idx].dataset.gateMsg;
-    if(msg && currentLang==='en' && GATE_MSG_EN[msg]) msg = GATE_MSG_EN[msg];
-    else if(msg && currentLang==='kk' && GATE_MSG_KK[msg]) msg = GATE_MSG_KK[msg];
     gateHint.classList.toggle('hide', unlocked || !msg);
     if(msg) document.getElementById('gateHintTxt').textContent = msg;
     document.getElementById('gateHintCount').textContent = unlocked ? '' : gateProgressText(screens[idx]);
@@ -3408,16 +2500,6 @@ button{font-family:inherit;}
           var frag = weakTpl.content.cloneNode(true);
           var newNodes = Array.prototype.slice.call(frag.children);
           newNodes.forEach(function(n){ n.classList.add('show'); });
-          // The template is authored in Ukrainian and inserted straight into the live
-          // DOM only when tapped, so a learner who already switched to English needs
-          // it translated right away rather than waiting for the next language toggle.
-          if(currentLang==='en' || currentLang==='kk'){
-            var wDict = currentLang==='en' ? I18N_EN : I18N_KK;
-            newNodes.forEach(function(n){
-              if(n.hasAttribute('data-tid') && wDict[n.getAttribute('data-tid')]!==undefined) n.innerHTML = wDict[n.getAttribute('data-tid')];
-              n.querySelectorAll('[data-tid]').forEach(function(el){ var tid=el.getAttribute('data-tid'); if(wDict[tid]!==undefined) el.innerHTML = wDict[tid]; });
-            });
-          }
           choiceEl.parentNode.insertBefore(frag, choiceEl);
           Array.prototype.forEach.call(choiceEl.parentNode.querySelectorAll('.weak-attempt'), addPlayButton);
         }
@@ -3444,7 +2526,7 @@ button{font-family:inherit;}
      Це тепер єдине місце, куди потрапляє результат курсу (немає LMS-фолбеку),
      тож невдалі відправки складаються в чергу в localStorage і повторюються
      при наступному завантаженні сторінки — жоден результат не губиться мовчки. */
-  var RESULTS_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwKK8VV20j107mPzkruFxosmvdeOWh3_zdQNxDAifrjxcTetoUNfNPgVqKZbPZ0wNOhRA/exec';
+  var RESULTS_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwfRB3y59t9LYlvgI4Qdc2c6CBEisKT9MZfYcHgdq3HPRWlgifkdaND2pphTt4oNOCM/exec';
   var RESULTS_SECRET      = 'stanislav.karmanov';
   var RESULTS_QUEUE_KEY   = 'telesale_pending_results';
 
@@ -3550,10 +2632,14 @@ button{font-family:inherit;}
     queueResultAndSend({
       secret: RESULTS_SECRET,
       sessionId: (Date.now() + '-' + Math.random().toString(36).slice(2,8)),
-      region: regData.region,
-      asm: regData.asm,
-      sv: regData.sv,
-      positionCode: regData.positionCode,
+      userId: regData.userId,
+      // Регіон/АСМ/СВ/код посади прибрано з реєстрації (замінено на User_Id +
+      // підтвердження керівником) — лишаємо порожніми, щоб не ламати наявні
+      // колонки вкладки "Результати" в Google Таблиці.
+      region: '',
+      asm: '',
+      sv: '',
+      positionCode: '',
       startedAt: courseStartedAt,
       completedAt: completedAt,
       durationSeconds: durationSeconds,
@@ -3589,7 +2675,7 @@ button{font-family:inherit;}
   function renderWeakAreas(answeredKeys){
     var box = document.getElementById('weakAreas');
     var list = document.getElementById('weakAreasList');
-    var labelDict = currentLang==='en' ? BLOCK_LABELS_EN : (currentLang==='kk' ? BLOCK_LABELS_KK : BLOCK_LABELS);
+    var labelDict = BLOCK_LABELS;
     document.getElementById('weakAreasTitle').textContent = langPick(currentLang, 'Варто повторити', 'Worth reviewing', 'Қайталаған жөн');
     var wrongByBlock = {}; // block -> {count, firstIdx}
     answeredKeys.forEach(function(qkey){
@@ -3635,27 +2721,23 @@ button{font-family:inherit;}
   }
 
   var ukCache = {};
-  function applyLanguage(lang){
-    currentLang = lang;
-    document.documentElement.lang = lang;
+  function applyLanguage(){
+    // Ukrainian-only now: just populates ukCache from the DOM's own text and
+    // re-runs the renderers below (kept so the initial call still paints
+    // everything) — no dict swap happens.
     var tidGroups = {};
     document.querySelectorAll('[data-tid]').forEach(function(el){
       var tid = el.getAttribute('data-tid');
       (tidGroups[tid] = tidGroups[tid] || []).push(el);
     });
-    var dict = lang==='en' ? I18N_EN : (lang==='kk' ? I18N_KK : null);
     Object.keys(tidGroups).forEach(function(tid){
       var els = tidGroups[tid];
       if(!ukCache[tid]) ukCache[tid] = els[0].innerHTML;
-      var target = (dict && dict[tid]!==undefined) ? dict[tid] : ukCache[tid];
-      els.forEach(function(el){ el.innerHTML = target; });
     });
-    var settingsBtn = document.getElementById('settingsBtn');
-    if(settingsBtn) settingsBtn.setAttribute('aria-label', (dict && dict['ui-settingsBtn-label']) || 'Налаштування');
-    translateVisitTypes(lang);
-    translateTimelines(lang);
-    translateQuizScreens(lang);
-    translateScriptChrome(lang);
+    translateVisitTypes('uk');
+    translateTimelines('uk');
+    translateQuizScreens('uk');
+    translateScriptChrome('uk');
     var activeFitBtn = document.querySelector('.fit-btn.active');
     selectFit(activeFitBtn ? activeFitBtn.dataset.k : 'track', false);
     if(!document.getElementById('weakAreas').hidden) renderWeakAreas(Object.keys(answered));
@@ -3670,19 +2752,6 @@ button{font-family:inherit;}
     currentFsStep = parseInt(fsSlider.value, 10) || 0;
     document.documentElement.style.setProperty('--fs-scale', FS_SCALES[currentFsStep]);
     try{ localStorage.setItem('telesale_fs_step', currentFsStep); }catch(e){}
-  });
-
-  var langToggle = document.getElementById('langToggle');
-  function refreshLangButtons(){
-    langToggle.querySelectorAll('.toggle-opt').forEach(function(btn){ btn.classList.toggle('active', btn.dataset.val===currentLang); });
-  }
-  refreshLangButtons();
-  langToggle.addEventListener('click', function(e){
-    var btn = e.target.closest('.toggle-opt'); if(!btn) return;
-    if(btn.dataset.val===currentLang) return;
-    applyLanguage(btn.dataset.val);
-    try{ localStorage.setItem('telesale_lang', currentLang); }catch(e){}
-    refreshLangButtons();
   });
 
   /* ===================== INTERACTIVE ORDER CALCULATOR (Step 5) ===================== */
@@ -3838,18 +2907,10 @@ button{font-family:inherit;}
     var ppRaw = localStorage.getItem('telesale_profile_v1');
     if(ppRaw) platformProfile = JSON.parse(ppRaw);
   }catch(e){}
-  var hasPlatformProfile = !!(platformProfile && platformProfile.region);
+  var hasPlatformProfile = !!(platformProfile && platformProfile.userId);
   if(hasPlatformProfile){
-    regData.region       = platformProfile.region;
-    regData.asm          = platformProfile.asm;
-    regData.sv           = platformProfile.sv;
-    regData.positionCode = platformProfile.positionCode;
+    regData.userId = platformProfile.userId;
   }
-
-  // Реєстраційний екран навмисно завжди світлий — тема курсу застосовується
-  // лише після реєстрації (див. showMainCourse нижче). Скасовуємо ранній
-  // data-theme, який міг виставитися вище за збереженими налаштуваннями.
-  document.documentElement.removeAttribute('data-theme');
 
   if(isResumingAttempt || hasPlatformProfile){
     // Учень уже проходив курс раніше (є локальний прогрес), або дані вже
@@ -3861,58 +2922,131 @@ button{font-family:inherit;}
 
   document.getElementById('regSettingsBtn').addEventListener('click', function(){ sheetOverlay.classList.add('open'); });
 
-  /* Каскадні списки: кожен наступний список — з усіма своїми варіантами —
-     розблоковується лише після заповнення попереднього. */
-  var REG_CASCADE = ['fRegion', 'fAsm', 'fSv', 'fCode'];
-  function regLockField(id){
-    var sel = document.getElementById(id);
-    var field = document.getElementById('fld' + id.slice(1));
-    var wrap = sel.closest('.reg-select-wrap');
-    sel.disabled = true;
-    sel.value = '';
-    if(field) field.classList.add('locked');
-    if(wrap) wrap.classList.add('locked');
+  /* ===================== REGISTRATION VIA GOOGLE SHEET (User_Id → PIN на пошту SV) =====================
+     Той самий флоу, що й на платформі (index.html): 1) юзер вводить код (User_Id) →
+     на пошту керівника (Email_SV) летить одноразовий PIN; 2) юзер вводить PIN →
+     бекенд звіряє з User_key, записує last_action і User_Name. */
+  var REG_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzlIiEkJ-xdeHbMjddWxBoQhiK3XiRleF29fIsD16R2P6rZH6XtT8QA6zYY-NKJWi3l/exec';
+  var codeHintOverlay = document.getElementById('codeHintOverlay');
+  document.getElementById('codeHintBtn').addEventListener('click', function(){ codeHintOverlay.classList.add('open'); });
+  codeHintOverlay.addEventListener('click', function(e){ if(e.target===codeHintOverlay) codeHintOverlay.classList.remove('open'); });
+
+  function postReg(payload){
+    return fetch(REG_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    }).then(function(r){ return r.json(); });
   }
-  function regUnlockField(id){
-    var sel = document.getElementById(id);
-    var field = document.getElementById('fld' + id.slice(1));
-    var wrap = sel.closest('.reg-select-wrap');
-    sel.disabled = false;
-    if(field) field.classList.remove('locked');
-    if(wrap) wrap.classList.remove('locked');
+
+  function setFieldError(fieldId, show, msg){
+    var field = document.getElementById(fieldId);
+    if(!field) return;
+    field.classList.toggle('has-error', !!show);
+    if(show && msg){
+      var errEl = field.querySelector('.field-error');
+      if(errEl) errEl.textContent = msg;
+    }
   }
-  REG_CASCADE.forEach(function(id, i){
-    var sel = document.getElementById(id);
-    sel.addEventListener('change', function(){
-      if(sel.value === '') return;
-      // Зміна вищого поля скидає й знову блокує все, що нижче — застарілий
-      // вибір (АСМ/СВ/код) не повинен лишитися від попереднього регіону.
-      for(var j=i+1; j<REG_CASCADE.length; j++) regLockField(REG_CASCADE[j]);
-      if(i+1 < REG_CASCADE.length) regUnlockField(REG_CASCADE[i+1]);
+
+  var regStepIdentity = document.getElementById('regStepIdentity');
+  var regStepPin = document.getElementById('regStepPin');
+  var regSubmitBtn = document.getElementById('regSubmit');
+  var regPinSubmitBtn = document.getElementById('regPinSubmit');
+  var pendingReg = null;
+
+  function setBtnBusy(btn, busy){ btn.disabled = busy; btn.classList.toggle('is-busy', busy); }
+
+  regSubmitBtn.addEventListener('click', function(){
+    var form = document.getElementById('regForm');
+    if(!form.checkValidity()){ form.reportValidity(); return; }
+    var name = document.getElementById('fName').value.trim();
+    var userId = document.getElementById('fUserId').value.trim();
+    setFieldError('fldUserId', false);
+    if(!REG_WEBHOOK_URL){
+      setFieldError('fldUserId', true, 'Реєстрацію ще не підключено до сервера. Зверніться до адміністратора.');
+      return;
+    }
+    setBtnBusy(regSubmitBtn, true);
+    postReg({ action:'register', userId: userId, name: name }).then(function(resp){
+      setBtnBusy(regSubmitBtn, false);
+      if(resp && resp.ok){
+        pendingReg = { userId: userId, name: name };
+        document.getElementById('fPin').value = '';
+        setFieldError('fldPin', false);
+        regStepIdentity.classList.remove('active');
+        regStepPin.classList.add('active');
+        regSubmitBtn.classList.remove('step-active');
+        regPinSubmitBtn.classList.add('step-active');
+        document.getElementById('fPin').focus();
+      } else if(resp && resp.error==='no_sv_email'){
+        setFieldError('fldUserId', true, 'Для цього коду не вказано керівника. Зверніться до адміністратора.');
+      } else if(resp && resp.error && resp.error!=='not_found'){
+        setFieldError('fldUserId', true, 'Помилка сервера: ' + (resp.message || resp.error));
+      } else {
+        setFieldError('fldUserId', true, 'Код не знайдено. Перевірте правильність і спробуйте ще раз.');
+      }
+    }).catch(function(){
+      setBtnBusy(regSubmitBtn, false);
+      setFieldError('fldUserId', true, "Не вдалося надіслати запит. Перевірте інтернет-з'єднання і спробуйте ще раз.");
     });
   });
 
-  document.getElementById('regSubmit').addEventListener('click', function(){
-    var form = document.getElementById('regForm');
-    if(!form.checkValidity()){ form.reportValidity(); return; }
-
-    regData.region       = document.getElementById('fRegion').value;
-    regData.asm          = document.getElementById('fAsm').value;
-    regData.sv           = document.getElementById('fSv').value;
-    regData.positionCode = document.getElementById('fCode').value;
-    courseStartedAt = new Date().toISOString();
-
-    try{
-      localStorage.setItem('telesale_profile_v1', JSON.stringify({
-        region: regData.region, asm: regData.asm, sv: regData.sv, positionCode: regData.positionCode,
-        registeredAt: new Date().toISOString()
-      }));
-    }catch(e){}
-
-    showMainCourse();
+  regPinSubmitBtn.addEventListener('click', function(){
+    if(!pendingReg) return;
+    var pin = document.getElementById('fPin').value.trim();
+    setFieldError('fldPin', false);
+    if(!pin){ setFieldError('fldPin', true, 'Введіть PIN-код.'); return; }
+    setBtnBusy(regPinSubmitBtn, true);
+    postReg({ action:'confirm', userId: pendingReg.userId, name: pendingReg.name, pin: pin }).then(function(resp){
+      setBtnBusy(regPinSubmitBtn, false);
+      if(resp && resp.ok){
+        regData.userId = pendingReg.userId;
+        courseStartedAt = new Date().toISOString();
+        try{
+          localStorage.setItem('telesale_profile_v1', JSON.stringify({
+            name: pendingReg.name,
+            userId: pendingReg.userId,
+            svEmail: resp.svEmail || '',
+            registeredAt: new Date().toISOString()
+          }));
+        }catch(e){}
+        pendingReg = null;
+        showMainCourse();
+      } else {
+        setFieldError('fldPin', true, 'Невірний PIN-код. Спробуйте ще раз.');
+      }
+    }).catch(function(){
+      setBtnBusy(regPinSubmitBtn, false);
+      setFieldError('fldPin', true, "Не вдалося надіслати запит. Перевірте інтернет-з'єднання і спробуйте ще раз.");
+    });
   });
 
-  applyLanguage(currentLang);
+  document.getElementById('regPinBack').addEventListener('click', function(){
+    pendingReg = null;
+    regStepPin.classList.remove('active');
+    regStepIdentity.classList.add('active');
+    regPinSubmitBtn.classList.remove('step-active');
+    regSubmitBtn.classList.add('step-active');
+  });
+
+  var regPinResendBtn = document.getElementById('regPinResend');
+  regPinResendBtn.addEventListener('click', function(){
+    if(!pendingReg || regPinResendBtn.disabled) return;
+    setBtnBusy(regPinResendBtn, true);
+    postReg({ action:'register', userId: pendingReg.userId, name: pendingReg.name }).then(function(resp){
+      if(resp && resp.ok){
+        var span = regPinResendBtn.querySelector('span') || regPinResendBtn;
+        var original = span.textContent;
+        span.textContent = 'Надіслано ✓';
+        setTimeout(function(){ span.textContent = original; regPinResendBtn.disabled = false; }, 20000);
+      } else {
+        regPinResendBtn.disabled = false;
+      }
+    }).catch(function(){ regPinResendBtn.disabled = false; });
+  });
+
+  applyLanguage();
 })();
 </script>
 

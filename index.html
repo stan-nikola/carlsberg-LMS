@@ -29,11 +29,6 @@
   --font-display:'Sora',system-ui,sans-serif; --font-body:'Source Sans 3',system-ui,sans-serif; --font-mono:'IBM Plex Mono',ui-monospace,monospace;
   --fs-scale:1;
 }
-:root[data-theme="dark"]{
-  --ink:#EAE7DA; --ink-soft:#B7C2B9; --surface:#0E1712; --surface-1:#152019; --surface-2:#1C2A21; --line:#28362C;
-  --green-700:#1C7C55; --green-500:#2FA873; --green-tint:#132A1F; --gold:#D8B876; --gold-soft:#2A2517; --danger:#D97563;
-  --shadow: 0 20px 50px -18px rgba(0,0,0,.6);
-}
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
 body{
@@ -434,10 +429,6 @@ button{font-family:inherit;}
 #fsSlider{-webkit-appearance:none; appearance:none; width:74px; height:4px; border-radius:99px; background:var(--surface-2); outline:none; cursor:pointer;}
 #fsSlider::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%; background:var(--green-700); border:2px solid var(--surface); box-shadow:0 2px 6px rgba(0,0,0,.25); cursor:pointer;}
 #fsSlider::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:var(--green-700); border:2px solid var(--surface); box-shadow:0 2px 6px rgba(0,0,0,.25); cursor:pointer; border-width:2px;}
-.toggle-grp{display:flex; background:var(--surface-2); border-radius:99px; padding:3px; flex-shrink:0; gap:2px;}
-.toggle-opt{border:none; background:transparent; color:var(--ink-soft); font-family:inherit; font-weight:600; font-size:calc(11.5px * var(--fs-scale)); padding:6px 9px; border-radius:99px; cursor:pointer; transition:background .2s ease, color .2s ease;}
-.toggle-opt.active{background:var(--green-700); color:#fff;}
-.toggle-opt:disabled{opacity:.4; cursor:not-allowed;}
 
 /* ===== Registration screen (shown before the course itself starts) ===== */
 .reg-viewport{flex:1; overflow-y:auto; padding:14px 22px 20px; display:flex; flex-direction:column; align-items:center; text-align:center;}
@@ -480,6 +471,26 @@ button{font-family:inherit;}
 .reg-select-wrap.locked select{padding-left:34px;}
 .reg-note{font-size:calc(12.5px * var(--fs-scale)); color:var(--ink-soft); background:var(--green-tint); border-radius:12px; padding:11px 13px; text-align:left; margin-top:6px; width:100%;}
 .reg-footer{flex-shrink:0; padding:14px 22px calc(20px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--surface);}
+.field-error{font-size:calc(12px * var(--fs-scale)); color:var(--danger); margin-top:-2px; display:none;}
+.field.has-error .field-error{display:block;}
+.field.has-error input[type="text"]{border-color:var(--danger);}
+.reg-form .field label{display:flex; align-items:center; gap:6px;}
+.reg-info-btn{width:18px; height:18px; border-radius:50%; border:1px solid var(--ink-soft); background:transparent; color:var(--ink-soft); display:inline-flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:11px; font-weight:700; cursor:pointer; padding:0; flex-shrink:0;}
+.reg-info-btn:active{transform:scale(.9);}
+.reg-step{display:none; width:100%;}
+.reg-step.active{display:flex; flex-direction:column;}
+.reg-pin-input{letter-spacing:.5em; text-align:center; font-family:var(--font-mono) !important; font-size:calc(20px * var(--fs-scale)) !important;}
+.reg-step-links{display:flex; justify-content:space-between; margin-top:2px;}
+.reg-link-btn{background:none; border:none; padding:6px 2px; font-size:calc(12.5px * var(--fs-scale)); color:var(--green-700); font-weight:600; cursor:pointer; font-family:inherit;}
+.reg-link-btn:disabled{opacity:.5; cursor:not-allowed;}
+.reg-footer .btn-primary-full{display:none;}
+.reg-footer .btn-primary-full.step-active{display:flex;}
+.btn-primary-full:disabled{opacity:.5; cursor:not-allowed;}
+.btn-spinner{display:none; width:18px; height:18px; border-radius:50%; border:2.5px solid rgba(255,255,255,.35); border-top-color:#fff; flex-shrink:0; animation:btnSpin .7s linear infinite;}
+@keyframes btnSpin{to{transform:rotate(360deg);}}
+.btn-primary-full.is-busy .btn-label,
+.btn-primary-full.is-busy .btn-arrow{display:none;}
+.btn-primary-full.is-busy .btn-spinner{display:inline-block;}
 .btn-primary-full{
   width:100%; border:none; border-radius:14px; padding:15px 16px; font-weight:700;
   font-size:calc(15px * var(--fs-scale)); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px;
@@ -670,65 +681,52 @@ button{font-family:inherit;}
       <div class="reg-org" data-tid="reg-org">Carlsberg Ukraine · Платформа адаптації</div>
       <h1 class="reg-h1" data-tid="reg-h1">Ласкаво просимо! Зареєструйтесь, щоб відкрити свій особистий кабінет навчання.</h1>
 
-      <form class="reg-form" id="regForm">
-        <div class="field" id="fldName">
-          <label for="fName" data-tid="reg-l-name">Ваше ім'я</label>
-          <input type="text" id="fName" required placeholder="Наприклад: Олена Коваль" autocomplete="name">
-        </div>
-
-        <div class="field" id="fldRegion">
-          <label for="fRegion" data-tid="reg-l-region">Оберіть Регіон</label>
-          <div class="reg-select-wrap">
-            <select id="fRegion" required>
-              <option value="" selected disabled hidden></option>
-              <option value="pivnichno-shidnyi" data-tid="reg-o-region-1">Північно-східний</option>
-              <option value="zahidnyi" data-tid="reg-o-region-2">Західний</option>
-            </select>
+      <div class="reg-step active" id="regStepIdentity">
+        <form class="reg-form" id="regForm">
+          <div class="field" id="fldName">
+            <label for="fName" data-tid="reg-l-name">Ваше ім'я</label>
+            <input type="text" id="fName" required placeholder="Наприклад: Олена Коваль" autocomplete="name">
           </div>
-        </div>
 
-        <div class="field locked" id="fldAsm">
-          <label for="fAsm" data-tid="reg-l-asm">Оберіть АСМ</label>
-          <div class="reg-select-wrap locked">
-            <select id="fAsm" required disabled>
-              <option value="" selected disabled hidden></option>
-              <option value="asm-1">АСМ-1</option>
-              <option value="asm-2">АСМ-2</option>
-            </select>
+          <div class="field" id="fldUserId">
+            <label for="fUserId">
+              <span data-tid="reg-l-userid">Ваш код</span>
+              <button type="button" class="reg-info-btn" id="codeHintBtn" aria-label="Де знайти код">i</button>
+            </label>
+            <input type="text" id="fUserId" required placeholder="Наприклад: ml03005" autocomplete="off" autocapitalize="off" spellcheck="false">
+            <div class="field-error" id="fUserIdError" data-tid="reg-err-notfound">Код не знайдено. Перевірте правильність і спробуйте ще раз.</div>
           </div>
+        </form>
+
+        <div class="reg-note" data-tid="reg-note">Дані реєстрації зберігаються лише на цьому пристрої й використовуються для проходження курсів та ідентифікації результатів тестів.</div>
+      </div>
+
+      <div class="reg-step" id="regStepPin">
+        <div class="field" id="fldPin">
+          <label for="fPin" data-tid="reg-l-pin">PIN-код підтвердження</label>
+          <input type="text" inputmode="numeric" maxlength="4" id="fPin" class="reg-pin-input" placeholder="••••" autocomplete="one-time-code">
+          <div class="field-error" id="fPinError" data-tid="reg-err-pin">Невірний PIN-код. Спробуйте ще раз.</div>
         </div>
 
-        <div class="field locked" id="fldSv">
-          <label for="fSv" data-tid="reg-l-sv">Оберіть СВ</label>
-          <div class="reg-select-wrap locked">
-            <select id="fSv" required disabled>
-              <option value="" selected disabled hidden></option>
-              <option value="sv-1">СВ-1</option>
-              <option value="sv-2">СВ-2</option>
-              <option value="sv-3">СВ-3</option>
-            </select>
-          </div>
-        </div>
+        <div class="reg-note" data-tid="reg-pin-note">PIN-код надіслано на пошту вашого керівника (СВ). Уточніть код у нього і введіть тут.</div>
 
-        <div class="field locked" id="fldCode">
-          <label for="fCode" data-tid="reg-l-code">Оберіть свій код посади</label>
-          <div class="reg-select-wrap locked">
-            <select id="fCode" required disabled>
-              <option value="" selected disabled hidden></option>
-              <option value="sv001">SV001</option>
-              <option value="sv002">SV002</option>
-            </select>
-          </div>
+        <div class="reg-step-links">
+          <button type="button" class="reg-link-btn" id="regPinBack" data-tid="reg-pin-back">← Змінити код</button>
+          <button type="button" class="reg-link-btn" id="regPinResend" data-tid="reg-pin-resend">Надіслати ще раз</button>
         </div>
-      </form>
-
-      <div class="reg-note" data-tid="reg-note">Дані реєстрації зберігаються лише на цьому пристрої й використовуються для проходження курсів та ідентифікації результатів тестів.</div>
+      </div>
     </div>
 
     <div class="reg-footer">
-      <button class="btn-primary-full" id="regSubmit" type="button">
-        <span data-tid="reg-btn">Створити кабінет</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      <button class="btn-primary-full step-active" id="regSubmit" type="button">
+        <span class="btn-label" data-tid="reg-btn">Зареєструватись</span>
+        <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        <span class="btn-spinner" aria-hidden="true"></span>
+      </button>
+      <button class="btn-primary-full" id="regPinSubmit" type="button">
+        <span class="btn-label" data-tid="reg-pin-btn">Підтвердити</span>
+        <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        <span class="btn-spinner" aria-hidden="true"></span>
       </button>
     </div>
   </div>
@@ -895,10 +893,8 @@ button{font-family:inherit;}
         </div>
 
         <div class="profile-detail-list">
-          <div class="pd-row"><span class="pd-k" data-tid="reg-l-region">Оберіть Регіон</span><span class="pd-v" id="pdRegion">—</span></div>
-          <div class="pd-row"><span class="pd-k" data-tid="reg-l-asm">Оберіть АСМ</span><span class="pd-v" id="pdAsm">—</span></div>
-          <div class="pd-row"><span class="pd-k" data-tid="reg-l-sv">Оберіть СВ</span><span class="pd-v" id="pdSv">—</span></div>
-          <div class="pd-row"><span class="pd-k" data-tid="reg-l-code">Оберіть свій код посади</span><span class="pd-v" id="pdCode">—</span></div>
+          <div class="pd-row"><span class="pd-k" data-tid="reg-l-userid">Ваш код</span><span class="pd-v" id="pdUserId">—</span></div>
+          <div class="pd-row"><span class="pd-k" data-tid="pd-l-sv-email">Керівник (email)</span><span class="pd-v" id="pdSvEmail">—</span></div>
           <div class="pd-row"><span class="pd-k" data-tid="hub-pd-registered">Зареєстровано</span><span class="pd-v" id="pdRegisteredAt">—</span></div>
         </div>
         <p class="hub-empty-note" data-tid="hub-profile-note">Дані використовуються лише для проходження курсів і зберігаються на цьому пристрої.</p>
@@ -945,17 +941,6 @@ button{font-family:inherit;}
           <span class="fs-a big">A</span>
         </div>
       </div>
-      <div class="settings-row">
-        <div class="settings-label">
-          <span class="settings-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 4 9 15 15 0 0 1-4 9 15 15 0 0 1-4-9 15 15 0 0 1 4-9Z"/></svg></span>
-          <div><div class="settings-t" data-tid="ui-settings-lang">Мова платформи</div><div class="settings-d" data-tid="ui-settings-lang-d">Перемикає весь текст платформи та курсів</div></div>
-        </div>
-        <div class="toggle-grp" id="langToggle" role="group" aria-label="Мова">
-          <button class="toggle-opt" data-val="uk">UA</button>
-          <button class="toggle-opt" data-val="en">EN</button>
-          <button class="toggle-opt" data-val="kk">KZ</button>
-        </div>
-      </div>
     </div>
     <p class="footnote" data-tid="ui-settings-note">Налаштування зберігаються лише на цьому пристрої й не впливають на результат тесту.</p>
 
@@ -966,119 +951,47 @@ button{font-family:inherit;}
   </div>
 </div>
 
+<div class="sheet-overlay" id="codeHintOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3 data-tid="reg-hint-title">Де знайти ваш код?</h3>
+    <p class="lead" data-tid="reg-hint-lead">Відкрийте застосунок Monolit Agent — ваш код показано поруч із номером версії у верхній частині екрана.</p>
+    <div class="photo-frame">
+      <img src="assets/monolit-code-hint.png" alt="Скріншот Monolit Agent із виділеним кодом">
+    </div>
+    <p class="footnote" data-tid="reg-hint-note">Код виглядає як комбінація літер і цифр у квадратних дужках, наприклад [ml03005].</p>
+  </div>
+</div>
+
 <script>
 (function(){
-  /* ===================== SETTINGS: THEME / FONT SCALE / LANGUAGE =====================
-     Same persisted keys as the course pages, so theme/language/text-size stay in
-     sync across the whole platform (hub + every course opened from it). */
+  /* ===================== SETTINGS: FONT SCALE =====================
+     Same persisted keys as the course pages, so text-size stays in
+     sync across the whole platform (hub + every course opened from it).
+     Platform is Ukrainian-only, light theme only — no language/theme switching. */
   var FS_SCALES = [1, 1.15, 1.3, 1.45];
   var currentLang = 'uk', currentFsStep = 0;
-  function langPick(lang, uk, en, kk){
-    if(lang==='en') return (en!==undefined && en!==null) ? en : uk;
-    if(lang==='kk') return (kk!==undefined && kk!==null) ? kk : uk;
-    return uk;
-  }
+  function langPick(lang, uk, en, kk){ return uk; }
   try{
-    var savedLang = localStorage.getItem('telesale_lang'); if(savedLang==='en'||savedLang==='uk'||savedLang==='kk') currentLang = savedLang;
     var savedFs = parseInt(localStorage.getItem('telesale_fs_step'),10); if(!isNaN(savedFs) && savedFs>=0 && savedFs<=3) currentFsStep = savedFs;
   }catch(e){}
-  document.documentElement.lang = currentLang;
   document.documentElement.style.setProperty('--fs-scale', FS_SCALES[currentFsStep]);
 
   var ukCache = {};
-  var I18N_EN = {
-    'reg-org':'Carlsberg Ukraine · Onboarding platform',
-    'reg-h1':"Welcome! Register to open your personal learning cabinet.",
-    'reg-l-name':"Your name",
-    'reg-l-region':'Select Region', 'reg-o-region-1':'North-Eastern', 'reg-o-region-2':'Western',
-    'reg-l-asm':'Select ASM', 'reg-l-sv':'Select SV', 'reg-l-code':'Select your position code',
-    'reg-note':'Registration details are stored only on this device and used to take courses and identify test results.',
-    'reg-btn':'Create my cabinet',
-    'ui-settings-title':'Settings', 'ui-settings-lead':'Adjust the platform to suit you — text size, appearance, and language.',
-    'ui-settings-fontsize':'Text size', 'ui-settings-fontsize-d':'Increase the font if the text is too small',
-    'ui-settings-theme':'Appearance', 'ui-settings-theme-d':'Light or dark interface theme',
-    'ui-settings-lang':'Platform language', 'ui-settings-lang-d':'Switches all platform and course text',
-    'ui-settings-note':'Settings are saved only on this device and do not affect your quiz result.',
-    'ui-theme-light':'Light', 'ui-theme-dark':'Dark',
-    'hub-brand':'Onboarding Platform', 'hub-logout':'Log out',
-    'hub-greeting-kicker':'GOOD TO SEE YOU', 'hub-level-1':'Beginner',
-    'hub-xp-label':'Onboarding progress', 'hub-stat-courses':'Courses', 'hub-stat-score':'Last score', 'hub-stat-badges':'Achievements',
-    'hub-continue-title':'Continue learning', 'hub-course-title':'8 Steps of Telesales', 'hub-course-tag':'Onboarding',
-    'hub-course-desc':'An interactive course for sales reps.', 'hub-course-desc2':'39 screens · 18 quiz questions · ~15 min',
-    'hub-more-soon':"New courses and sections will appear here soon.",
-    'hub-learning-kicker':'LEARNING SECTIONS', 'hub-learning-h1':'Learning',
-    'hub-sec-adaptation':'Onboarding', 'hub-sec-mandatory':'mandatory', 'hub-sec-skills':'Sales skills',
-    'hub-soon':'soon',
-    'hub-ph-welcome':'Meet the company', 'hub-ph-welcome-d':'Carlsberg Ukraine history, values and team structure.',
-    'hub-ph-product':'Product knowledge', 'hub-ph-product-d':'Brand portfolio, pack formats and key selling points.',
-    'hub-ph-merch':'Shelf merchandising', 'hub-ph-merch-d':'Display standards and POS materials at the outlet.',
-    'hub-ph-objection':'Handling objections', 'hub-ph-objection-d':'Common client objections and strong responses.',
-    'hub-ph-negot':'Negotiation skills', 'hub-ph-negot-d':'Agreeing extra volumes with the outlet.',
-    'hub-ach-kicker':'YOUR PROGRESS', 'hub-ach-h1':'Achievements', 'hub-ach-badges':'Badges', 'hub-ach-leaderboard':'Regional leaderboard',
-    'hub-badge-1':'First login', 'hub-badge-2':'Course completed', 'hub-badge-3':'No mistakes', 'hub-badge-4':'3-day streak',
-    'hub-badge-5':'5 courses done', 'hub-badge-6':'Top of region',
-    'hub-lb-soon-title':"Leaderboard is coming soon", 'hub-lb-soon-d':'Compare progress with colleagues in your region',
-    'hub-profile-kicker':'PERSONAL CABINET', 'hub-profile-h1':'Profile', 'hub-pd-registered':'Registered on',
-    'hub-profile-note':'Your data is used only to take courses and is stored on this device.',
-    'hub-tab-home':'Home', 'hub-tab-learning':'Learning', 'hub-tab-achievements':'Achievements', 'hub-tab-profile':'Profile'
-  };
-  var I18N_KK = {
-    'reg-org':'Carlsberg Ukraine · Бейімделу платформасы',
-    'reg-h1':'Қош келдіңіз! Жеке оқу кабинетіңізді ашу үшін тіркеліңіз.',
-    'reg-l-name':'Аты-жөніңіз',
-    'reg-l-region':'Аймақты таңдаңыз', 'reg-o-region-1':'Солтүстік-шығыс', 'reg-o-region-2':'Батыс',
-    'reg-l-asm':'АСМ таңдаңыз', 'reg-l-sv':'СВ таңдаңыз', 'reg-l-code':'Лауазым кодыңызды таңдаңыз',
-    'reg-note':'Тіркеу деректері тек осы құрылғыда сақталады және курстарды өту мен тест нәтижесін анықтау үшін пайдаланылады.',
-    'reg-btn':'Кабинет ашу',
-    'ui-settings-title':'Баптаулар', 'ui-settings-lead':'Платформаны өзіңізге ыңғайлап баптаңыз — мәтін өлшемі, тақырып және тіл.',
-    'ui-settings-fontsize':'Мәтін өлшемі', 'ui-settings-fontsize-d':'Мәтін тым кішкентай болса, қаріпті үлкейтіңіз',
-    'ui-settings-theme':'Безендіру тақырыбы', 'ui-settings-theme-d':'Интерфейстің ашық немесе қараңғы тақырыбы',
-    'ui-settings-lang':'Платформа тілі', 'ui-settings-lang-d':'Платформа мен курстардың бүкіл мәтінін ауыстырады',
-    'ui-settings-note':'Баптаулар тек осы құрылғыда сақталады және тест нәтижесіне әсер етпейді.',
-    'ui-theme-light':'Ашық', 'ui-theme-dark':'Қараңғы',
-    'hub-brand':'Бейімделу платформасы', 'hub-logout':'Шығу',
-    'hub-greeting-kicker':'ҚОШ КЕЛДІҢІЗ', 'hub-level-1':'Жаңадан келген',
-    'hub-xp-label':'Бейімделу барысы', 'hub-stat-courses':'Курстар', 'hub-stat-score':'Соңғы балл', 'hub-stat-badges':'Жетістіктер',
-    'hub-continue-title':'Оқуды жалғастыру', 'hub-course-title':'Телесейлингтің 8 қадамы', 'hub-course-tag':'Бейімделу',
-    'hub-course-desc':'Сауда өкілдеріне арналған интерактивті курс.', 'hub-course-desc2':'39 экран · 18 тест сұрағы · ~15 мин',
-    'hub-more-soon':'Жаңа курстар мен бөлімдер жақында осында пайда болады.',
-    'hub-learning-kicker':'ОҚУ БӨЛІМДЕРІ', 'hub-learning-h1':'Оқу',
-    'hub-sec-adaptation':'Бейімделу', 'hub-sec-mandatory':'міндетті', 'hub-sec-skills':'Сату дағдылары',
-    'hub-soon':'жақында',
-    'hub-ph-welcome':'Компаниямен танысу', 'hub-ph-welcome-d':'Carlsberg Ukraine тарихы, құндылықтары және топ құрылымы.',
-    'hub-ph-product':'Өнім туралы білім', 'hub-ph-product-d':'Бренд портфелі, орама форматтары және басты артықшылықтар.',
-    'hub-ph-merch':'Сөреде мерчандайзинг', 'hub-ph-merch-d':'Дүкендегі көрсету стандарттары мен POS материалдары.',
-    'hub-ph-objection':'Қарсылықпен жұмыс', 'hub-ph-objection-d':'Клиенттің типтік қарсылықтары және күшті жауаптар.',
-    'hub-ph-negot':'Келіссөз дағдылары', 'hub-ph-negot-d':'Дүкенмен қосымша көлемдер туралы келісу.',
-    'hub-ach-kicker':'СІЗДІҢ ІЛГЕРІЛЕУІҢІЗ', 'hub-ach-h1':'Жетістіктер', 'hub-ach-badges':'Белгішелер', 'hub-ach-leaderboard':'Аймақ рейтингі',
-    'hub-badge-1':'Алғашқы кіру', 'hub-badge-2':'Курс аяқталды', 'hub-badge-3':'Қатесіз', 'hub-badge-4':'3 күндік серия',
-    'hub-badge-5':'5 курс аяқталды', 'hub-badge-6':'Аймақ көшбасшысы',
-    'hub-lb-soon-title':'Рейтинг жақында қосылады', 'hub-lb-soon-d':'Аймағыңыздағы әріптестермен ілгерілеуді салыстырыңыз',
-    'hub-profile-kicker':'ЖЕКЕ КАБИНЕТ', 'hub-profile-h1':'Профиль', 'hub-pd-registered':'Тіркелген күні',
-    'hub-profile-note':'Деректеріңіз тек курстарды өту үшін пайдаланылады және осы құрылғыда сақталады.',
-    'hub-tab-home':'Басты', 'hub-tab-learning':'Оқу', 'hub-tab-achievements':'Жетістіктер', 'hub-tab-profile':'Профиль'
-  };
-
-  function applyLanguage(lang){
-    currentLang = lang;
-    document.documentElement.lang = lang;
+  function applyLanguage(){
+    // Ukrainian-only now: this just populates ukCache from the DOM's own text
+    // (kept so renderCabinet() still runs on init) — no dict swap happens.
     var tidGroups = {};
     document.querySelectorAll('[data-tid]').forEach(function(el){
       var tid = el.getAttribute('data-tid');
       (tidGroups[tid] = tidGroups[tid] || []).push(el);
     });
-    var dict = lang==='en' ? I18N_EN : (lang==='kk' ? I18N_KK : null);
     Object.keys(tidGroups).forEach(function(tid){
       var els = tidGroups[tid];
       if(!ukCache[tid]) ukCache[tid] = els[0].innerHTML;
-      var target = (dict && dict[tid]!==undefined) ? dict[tid] : ukCache[tid];
-      els.forEach(function(el){ el.innerHTML = target; });
     });
-    var fNameEl = document.getElementById('fName');
-    if(fNameEl && dict && dict['reg-l-name']) fNameEl.placeholder = fNameEl.placeholder; // name stays as typed; label handled by data-tid
     renderCabinet();
   }
-  document.documentElement.removeAttribute('data-theme');
 
   var fsSlider = document.getElementById('fsSlider');
   fsSlider.value = currentFsStep;
@@ -1088,31 +1001,12 @@ button{font-family:inherit;}
     try{ localStorage.setItem('telesale_fs_step', currentFsStep); }catch(e){}
   });
 
-  var langToggle = document.getElementById('langToggle');
-  function refreshLangButtons(){
-    langToggle.querySelectorAll('.toggle-opt').forEach(function(btn){ btn.classList.toggle('active', btn.dataset.val===currentLang); });
-  }
-  refreshLangButtons();
-  langToggle.addEventListener('click', function(e){
-    var btn = e.target.closest('.toggle-opt'); if(!btn) return;
-    if(btn.dataset.val===currentLang) return;
-    applyLanguage(btn.dataset.val);
-    try{ localStorage.setItem('telesale_lang', currentLang); }catch(e){}
-    refreshLangButtons();
-  });
-
   var sheetOverlay = document.getElementById('sheetOverlay');
   document.getElementById('settingsBtn').addEventListener('click', function(){ sheetOverlay.classList.add('open'); });
   document.getElementById('regSettingsBtn').addEventListener('click', function(){ sheetOverlay.classList.add('open'); });
   sheetOverlay.addEventListener('click', function(e){ if(e.target===sheetOverlay) sheetOverlay.classList.remove('open'); });
 
   /* ===================== CABINET RENDER (avatar, level/XP, course progress) ===================== */
-  function regionLabel(code){
-    if(code==='pivnichno-shidnyi') return langPick(currentLang, 'Північно-східний', 'North-Eastern', 'Солтүстік-шығыс');
-    if(code==='zahidnyi') return langPick(currentLang, 'Західний', 'Western', 'Батыс');
-    return code || '—';
-  }
-
   function initials(name){
     if(!name) return '🙂';
     var parts = name.trim().split(/\s+/).filter(Boolean);
@@ -1144,13 +1038,12 @@ button{font-family:inherit;}
   function renderCabinet(){
     if(!profile) return;
     var name = profile.name || '';
-    var reg = regionLabel(profile.region);
     var initEl = initials(name);
     document.getElementById('avatarInitials').textContent = initEl;
     document.getElementById('avatarInitialsProfile').textContent = initEl;
     document.getElementById('profileNameHome').textContent = name || '—';
     document.getElementById('profileNameProfile').textContent = name || '—';
-    var metaTxt = reg + ' · ' + (profile.positionCode || '').toUpperCase();
+    var metaTxt = (profile.userId || '').toUpperCase();
     document.getElementById('profileMetaHome').textContent = metaTxt;
     document.getElementById('profileMetaProfile').textContent = metaTxt;
 
@@ -1199,11 +1092,9 @@ button{font-family:inherit;}
     var badgeEl = document.getElementById('badgeCourseDone');
     if(badgeEl) badgeEl.classList.toggle('locked', cs.status!=='completed');
 
-    document.getElementById('pdRegion').textContent = reg;
-    document.getElementById('pdAsm').textContent = (profile.asm||'—').toUpperCase();
-    document.getElementById('pdSv').textContent = (profile.sv||'—').toUpperCase();
-    document.getElementById('pdCode').textContent = (profile.positionCode||'—').toUpperCase();
-    document.getElementById('pdRegisteredAt').textContent = profile.registeredAt ? new Date(profile.registeredAt).toLocaleDateString(currentLang==='en'?'en-GB':(currentLang==='kk'?'kk-KZ':'uk-UA')) : '—';
+    document.getElementById('pdUserId').textContent = (profile.userId||'—').toUpperCase();
+    document.getElementById('pdSvEmail').textContent = profile.svEmail||'—';
+    document.getElementById('pdRegisteredAt').textContent = profile.registeredAt ? new Date(profile.registeredAt).toLocaleDateString('uk-UA') : '—';
   }
 
   /* ===================== REGISTRATION (shared with course pages via telesale_profile_v1) ===================== */
@@ -1223,52 +1114,139 @@ button{font-family:inherit;}
     renderCabinet();
   }
 
-  document.documentElement.removeAttribute('data-theme');
-  if(profile && profile.region){
+  if(profile && profile.userId){
     showHome();
   } else {
     document.body.classList.add('pre-registration');
   }
 
-  var REG_CASCADE = ['fRegion', 'fAsm', 'fSv', 'fCode'];
-  function regLockField(id){
-    var sel = document.getElementById(id);
-    var field = document.getElementById('fld' + id.slice(1));
-    var wrap = sel.closest('.reg-select-wrap');
-    sel.disabled = true; sel.value = '';
-    if(field) field.classList.add('locked');
-    if(wrap) wrap.classList.add('locked');
+  /* ===================== REGISTRATION VIA GOOGLE SHEET (User_Id → PIN на пошту SV) =====================
+     Двоетапний вхід: 1) юзер вводить код (User_Id) → на пошту його керівника (Email_SV)
+     летить одноразовий PIN; 2) юзер вводить цей PIN → бекенд звіряє його з User_key,
+     записує last_action і User_Name у таблицю. REG_WEBHOOK_URL — окремий Apps Script
+     Web App (доробіть код у /apps-script/registration.gs і вставте /exec URL сюди). */
+  var REG_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbzlIiEkJ-xdeHbMjddWxBoQhiK3XiRleF29fIsD16R2P6rZH6XtT8QA6zYY-NKJWi3l/exec';
+  var codeHintOverlay = document.getElementById('codeHintOverlay');
+  document.getElementById('codeHintBtn').addEventListener('click', function(){ codeHintOverlay.classList.add('open'); });
+  codeHintOverlay.addEventListener('click', function(e){ if(e.target===codeHintOverlay) codeHintOverlay.classList.remove('open'); });
+
+  function postReg(payload){
+    return fetch(REG_WEBHOOK_URL, {
+      method: 'POST',
+      // text/plain навмисно — щоб запит лишався "simple" і браузер не робив
+      // CORS-preflight, який Apps Script не обробляє (той самий трюк, що й у курсі).
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    }).then(function(r){ return r.json(); });
   }
-  function regUnlockField(id){
-    var sel = document.getElementById(id);
-    var field = document.getElementById('fld' + id.slice(1));
-    var wrap = sel.closest('.reg-select-wrap');
-    sel.disabled = false;
-    if(field) field.classList.remove('locked');
-    if(wrap) wrap.classList.remove('locked');
+
+  function setFieldError(fieldId, show, msg){
+    var field = document.getElementById(fieldId);
+    if(!field) return;
+    field.classList.toggle('has-error', !!show);
+    if(show && msg){
+      var errEl = field.querySelector('.field-error');
+      if(errEl) errEl.textContent = msg;
+    }
   }
-  REG_CASCADE.forEach(function(id, i){
-    var sel = document.getElementById(id);
-    sel.addEventListener('change', function(){
-      if(sel.value === '') return;
-      for(var j=i+1; j<REG_CASCADE.length; j++) regLockField(REG_CASCADE[j]);
-      if(i+1 < REG_CASCADE.length) regUnlockField(REG_CASCADE[i+1]);
+
+  var regStepIdentity = document.getElementById('regStepIdentity');
+  var regStepPin = document.getElementById('regStepPin');
+  var regSubmitBtn = document.getElementById('regSubmit');
+  var regPinSubmitBtn = document.getElementById('regPinSubmit');
+  var pendingReg = null; // { userId, name } между кроками register → confirm
+
+  function setBtnBusy(btn, busy){
+    btn.disabled = busy;
+    btn.classList.toggle('is-busy', busy);
+  }
+
+  regSubmitBtn.addEventListener('click', function(){
+    var form = document.getElementById('regForm');
+    if(!form.checkValidity()){ form.reportValidity(); return; }
+    var name = document.getElementById('fName').value.trim();
+    var userId = document.getElementById('fUserId').value.trim();
+    setFieldError('fldUserId', false);
+    if(!REG_WEBHOOK_URL){
+      setFieldError('fldUserId', true, 'Реєстрацію ще не підключено до сервера. Зверніться до адміністратора.');
+      return;
+    }
+    setBtnBusy(regSubmitBtn, true);
+    postReg({ action:'register', userId: userId, name: name }).then(function(resp){
+      setBtnBusy(regSubmitBtn, false);
+      if(resp && resp.ok){
+        pendingReg = { userId: userId, name: name };
+        document.getElementById('fPin').value = '';
+        setFieldError('fldPin', false);
+        regStepIdentity.classList.remove('active');
+        regStepPin.classList.add('active');
+        regSubmitBtn.classList.remove('step-active');
+        regPinSubmitBtn.classList.add('step-active');
+        document.getElementById('fPin').focus();
+      } else if(resp && resp.error==='no_sv_email'){
+        setFieldError('fldUserId', true, 'Для цього коду не вказано керівника. Зверніться до адміністратора.');
+      } else if(resp && resp.error && resp.error!=='not_found'){
+        // server_error / sheet_not_found / unknown_action тощо — показуємо реальний
+        // текст, а не узагальнене "код не знайдено", щоб проблему було видно одразу.
+        setFieldError('fldUserId', true, 'Помилка сервера: ' + (resp.message || resp.error));
+      } else {
+        setFieldError('fldUserId', true, 'Код не знайдено. Перевірте правильність і спробуйте ще раз.');
+      }
+    }).catch(function(){
+      setBtnBusy(regSubmitBtn, false);
+      setFieldError('fldUserId', true, "Не вдалося надіслати запит. Перевірте інтернет-з'єднання і спробуйте ще раз.");
     });
   });
 
-  document.getElementById('regSubmit').addEventListener('click', function(){
-    var form = document.getElementById('regForm');
-    if(!form.checkValidity()){ form.reportValidity(); return; }
-    profile = {
-      name: document.getElementById('fName').value.trim(),
-      region: document.getElementById('fRegion').value,
-      asm: document.getElementById('fAsm').value,
-      sv: document.getElementById('fSv').value,
-      positionCode: document.getElementById('fCode').value,
-      registeredAt: new Date().toISOString()
-    };
-    try{ localStorage.setItem('telesale_profile_v1', JSON.stringify(profile)); }catch(e){}
-    showHome();
+  regPinSubmitBtn.addEventListener('click', function(){
+    if(!pendingReg) return;
+    var pin = document.getElementById('fPin').value.trim();
+    setFieldError('fldPin', false);
+    if(!pin){ setFieldError('fldPin', true, 'Введіть PIN-код.'); return; }
+    setBtnBusy(regPinSubmitBtn, true);
+    postReg({ action:'confirm', userId: pendingReg.userId, name: pendingReg.name, pin: pin }).then(function(resp){
+      setBtnBusy(regPinSubmitBtn, false);
+      if(resp && resp.ok){
+        profile = {
+          name: pendingReg.name,
+          userId: pendingReg.userId,
+          svEmail: resp.svEmail || '',
+          registeredAt: new Date().toISOString()
+        };
+        try{ localStorage.setItem('telesale_profile_v1', JSON.stringify(profile)); }catch(e){}
+        pendingReg = null;
+        showHome();
+      } else {
+        setFieldError('fldPin', true, 'Невірний PIN-код. Спробуйте ще раз.');
+      }
+    }).catch(function(){
+      setBtnBusy(regPinSubmitBtn, false);
+      setFieldError('fldPin', true, "Не вдалося надіслати запит. Перевірте інтернет-з'єднання і спробуйте ще раз.");
+    });
+  });
+
+  document.getElementById('regPinBack').addEventListener('click', function(){
+    pendingReg = null;
+    regStepPin.classList.remove('active');
+    regStepIdentity.classList.add('active');
+    regPinSubmitBtn.classList.remove('step-active');
+    regSubmitBtn.classList.add('step-active');
+  });
+
+  var regPinResendBtn = document.getElementById('regPinResend');
+  regPinResendBtn.addEventListener('click', function(){
+    if(!pendingReg || regPinResendBtn.disabled) return;
+    setBtnBusy(regPinResendBtn, true);
+    postReg({ action:'register', userId: pendingReg.userId, name: pendingReg.name }).then(function(resp){
+      if(resp && resp.ok){
+        var span = regPinResendBtn.querySelector('span') || regPinResendBtn;
+        var original = span.textContent;
+        span.textContent = 'Надіслано ✓';
+        setTimeout(function(){ span.textContent = original; regPinResendBtn.disabled = false; }, 20000);
+      } else {
+        regPinResendBtn.disabled = false;
+      }
+    }).catch(function(){ regPinResendBtn.disabled = false; });
   });
 
   document.getElementById('logoutBtn').addEventListener('click', function(){
@@ -1289,7 +1267,7 @@ button{font-family:inherit;}
     document.querySelectorAll('.hub-screen').forEach(function(s){ s.classList.toggle('active', s.dataset.tab===tab); });
   });
 
-  applyLanguage(currentLang);
+  applyLanguage();
 })();
 </script>
 
