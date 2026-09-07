@@ -1,5 +1,22 @@
 {
+  "name": "carlsberg-lms-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.10.0",
+    "next": "16.3.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
   "devDependencies": {
-    "live-server": "^1.2.2"
+    "eslint": "^9",
+    "eslint-config-next": "16.3.4",
+    "prisma": "^7.10.0"
   }
 }
