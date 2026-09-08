@@ -119,6 +119,8 @@ export default function RegisterPage() {
         }
         router.push("/hub");
         router.refresh();
+      } else if (resp.error === "pin_expired") {
+        setPinError("Час дії PIN-коду минув (діє 1 годину). Натисніть «Надіслати ще раз».");
       } else {
         setPinError("Невірний PIN-код. Спробуйте ще раз.");
       }
@@ -250,8 +252,8 @@ export default function RegisterPage() {
               {pinWarning && <div className="footnote">{pinWarning}</div>}
 
               <div className="reg-note">
-                PIN-код надіслано на пошту, вказану для вас у системі. Якщо це не ваша особиста
-                пошта — уточніть код у керівника.
+                PIN-код надіслано на пошту, вказану для вас у системі, і діє 1 годину. Якщо це не
+                ваша особиста пошта — уточніть код у керівника.
               </div>
 
               <div className="reg-step-links">

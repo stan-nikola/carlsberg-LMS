@@ -26,6 +26,8 @@ export async function POST(request) {
 
   const result = await confirmLoginPin(externalCode, pin);
   if (!result.ok) {
+    // pin_expired — тоже 401 (не найдено что-то отдельное, PIN просто
+    // больше не действителен), но полезно как отдельный код ошибки для UI.
     const status = result.error === "not_found" ? 404 : 401;
     return NextResponse.json(result, { status });
   }
