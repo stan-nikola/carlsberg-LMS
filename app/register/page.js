@@ -68,11 +68,11 @@ export default function RegisterPage() {
         setStep("pin");
         setTimeout(() => pinInputRef.current?.focus(), 0);
       } else if (resp.error === "no_manager_email") {
-        setCodeError("Для цього коду не вказано керівника. Зверніться до адміністратора.");
+        setCodeError("Для цього коду не вказано пошту для отримання PIN. Зверніться до адміністратора.");
       } else if (resp.error === "not_found") {
         setCodeError("Код не знайдено. Перевірте правильність і спробуйте ще раз.");
       } else if (resp.error === "email_send_failed") {
-        setCodeError("Не вдалося надіслати PIN на пошту керівника. Спробуйте ще раз пізніше або зверніться до адміністратора.");
+        setCodeError("Не вдалося надіслати PIN. Спробуйте ще раз пізніше або зверніться до адміністратора.");
       } else {
         setCodeError("Помилка сервера: " + (resp.error || "unknown"));
       }
@@ -234,7 +234,8 @@ export default function RegisterPage() {
               </div>
 
               <div className="reg-note">
-                PIN-код надіслано на пошту вашого керівника (СВ). Уточніть код у нього і введіть тут.
+                PIN-код надіслано на пошту, вказану для вас у системі. Якщо це не ваша особиста
+                пошта — уточніть код у керівника.
               </div>
 
               <div className="reg-step-links">
