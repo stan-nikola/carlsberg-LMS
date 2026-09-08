@@ -84,3 +84,77 @@
   color: var(--danger);
   font-size: 12.5px;
 }
+
+.admin-field {
+  margin-bottom: 12px;
+}
+.admin-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ink-soft);
+  margin-bottom: 5px;
+}
+.admin-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink-soft);
+  opacity: 0.75;
+}
+.admin-title-input {
+  font-weight: 600;
+}
+.admin-input-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.admin-image-row,
+.admin-option-row {
+  align-items: center;
+  margin-bottom: 6px;
+}
+.admin-icon-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+.admin-btn-link {
+  background: none;
+  border: none;
+  color: var(--green-700);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.admin-radio-group {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+.admin-radio,
+.admin-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.admin-checkbox {
+  color: var(--green-700);
+  font-weight: 600;
+  font-size: 12px;
+}

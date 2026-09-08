@@ -3,33 +3,203 @@
 import { useEffect, useState } from "react";
 
 // Мінімальний, навмисно "чисто функціональний" (без брендового UI
-// courses-card) редактор контенту курсу: raw-JSON textarea на екран.
-// Це і є "можливість редагування курсів окремо" з ШАГ 3 — далі можна
-// замінити на щось приємніше, коли з'явиться реальний контент і буде
-// зрозуміло, які поля частіше редагують.
+// course-card) редактор контенту курсу. Поля структуровані під те, що
+// реально бачить CoursePlayer (lib/courseContent.js) — kicker/lead/body/
+// images/note для "info" і questionType/options для "quiz" — а не сирий
+// JSON, щоб редагувати міг не тільки розробник.
+
+const emptyContent = {
+  info: { kicker: "", lead: "", body: "", note: "", images: [] },
+  quiz: { questionType: "single", options: [] },
+};
+
+function ImageListEditor({ images, onChange }) {
+  function updateImage(index, field, value) {
+    const next = images.map((img, i) => (i === index ? { ...img, [field]: value } : img));
+    onChange(next);
+  }
+  function removeImage(index) {
+    onChange(images.filter((_, i) => i !== index));
+  }
+  function addImage() {
+    onChange([...images, { url: "", caption: "" }]);
+  }
+
+  return (
+    <div className="admin-field">
+      <label className="admin-label">Зображення</label>
+      {images.map((img, i) => (
+        <div className="admin-row admin-image-row" key={i}>
+          <input
+            placeholder="/assets/…"
+            value={img.url}
+            onChange={(e) => updateImage(i, "url", e.target.value)}
+            className="admin-input-flex admin-input-mono"
+          />
+          <input
+            placeholder="підпис (необов'язково)"
+            value={img.caption}
+            onChange={(e) => updateImage(i, "caption", e.target.value)}
+            className="admin-input-flex"
+          />
+          <button type="button" onClick={() => removeImage(i)} className="admin-icon-btn" aria-label="Видалити зображення">
+            ✕
+          </button>
+        </div>
+      ))}
+      <button type="button" onClick={addImage} className="admin-btn-link">
+        + Додати зображення
+      </button>
+    </div>
+  );
+}
+
+function OptionListEditor({ options, onChange }) {
+  function updateOption(index, field, value) {
+    const next = options.map((opt, i) => (i === index ? { ...opt, [field]: value } : opt));
+    onChange(next);
+  }
+  function removeOption(index) {
+    onChange(options.filter((_, i) => i !== index));
+  }
+  function addOption() {
+    onChange([...options, { text: "", correct: false }]);
+  }
+
+  return (
+    <div className="admin-field">
+      <label className="admin-label">Варіанти відповіді</label>
+      {options.map((opt, i) => (
+        <div className="admin-row admin-option-row" key={i}>
+          <label className="admin-checkbox">
+            <input
+              type="checkbox"
+              checked={opt.correct}
+              onChange={(e) => updateOption(i, "correct", e.target.checked)}
+            />
+            <span>правильний</span>
+          </label>
+          <input
+            placeholder="Текст варіанту"
+            value={opt.text}
+            onChange={(e) => updateOption(i, "text", e.target.value)}
+            className="admin-input-flex"
+          />
+          <button type="button" onClick={() => removeOption(i)} className="admin-icon-btn" aria-label="Видалити варіант">
+            ✕
+          </button>
+        </div>
+      ))}
+      <button type="button" onClick={addOption} className="admin-btn-link">
+        + Додати варіант
+      </button>
+    </div>
+  );
+}
+
+function InfoFields({ content, onChange }) {
+  const c = { ...emptyContent.info, ...content, images: content.images || [] };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+
+  return (
+    <>
+      <div className="admin-field">
+        <label className="admin-label">Рубрика (kicker)</label>
+        <input
+          value={c.kicker}
+          onChange={(e) => set("kicker")(e.target.value)}
+          placeholder="Наприклад: ПРО КОМПАНІЮ"
+          className="admin-input-flex"
+        />
+      </div>
+      <div className="admin-field">
+        <label className="admin-label">Вступний рядок (lead)</label>
+        <textarea
+          value={c.lead}
+          onChange={(e) => set("lead")(e.target.value)}
+          rows={2}
+          className="admin-textarea"
+        />
+      </div>
+      <div className="admin-field">
+        <label className="admin-label">
+          Текст екрану <span className="admin-hint">— **так** для жирного, порожній рядок = новий абзац</span>
+        </label>
+        <textarea
+          value={c.body}
+          onChange={(e) => set("body")(e.target.value)}
+          rows={5}
+          className="admin-textarea"
+        />
+      </div>
+      <ImageListEditor images={c.images} onChange={set("images")} />
+      <div className="admin-field">
+        <label className="admin-label">Підказка (завжди видима замітка)</label>
+        <textarea
+          value={c.note}
+          onChange={(e) => set("note")(e.target.value)}
+          rows={2}
+          className="admin-textarea"
+        />
+      </div>
+    </>
+  );
+}
+
+function QuizFields({ content, onChange, radioGroupName }) {
+  const c = { ...emptyContent.quiz, ...content, options: content.options || [] };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+
+  return (
+    <>
+      <div className="admin-field">
+        <label className="admin-label">Тип питання</label>
+        <div className="admin-radio-group">
+          <label className="admin-radio">
+            <input
+              type="radio"
+              name={radioGroupName}
+              checked={c.questionType === "single"}
+              onChange={() => set("questionType")("single")}
+            />
+            <span>одна правильна відповідь</span>
+          </label>
+          <label className="admin-radio">
+            <input
+              type="radio"
+              name={radioGroupName}
+              checked={c.questionType === "multi"}
+              onChange={() => set("questionType")("multi")}
+            />
+            <span>декілька правильних</span>
+          </label>
+        </div>
+      </div>
+      <OptionListEditor options={c.options} onChange={set("options")} />
+    </>
+  );
+}
 
 function LessonEditor({ lesson, onSaved, onDeleted }) {
   const [title, setTitle] = useState(lesson.title);
   const [type, setType] = useState(lesson.type);
-  const [contentText, setContentText] = useState(JSON.stringify(lesson.content, null, 2));
+  const [content, setContent] = useState(lesson.content);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  function handleTypeChange(newType) {
+    setType(newType);
+    setContent(emptyContent[newType]);
+  }
+
   async function handleSave() {
-    let parsed;
-    try {
-      parsed = JSON.parse(contentText);
-    } catch (err) {
-      setError("Некоректний JSON: " + err.message);
-      return;
-    }
     setError("");
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/lessons/${lesson.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, type, content: parsed }),
+        body: JSON.stringify({ title, type, content }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       onSaved(await res.json());
@@ -49,18 +219,19 @@ function LessonEditor({ lesson, onSaved, onDeleted }) {
   return (
     <div className="admin-lesson-card">
       <div className="admin-row">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" />
-        <select value={type} onChange={(e) => setType(e.target.value)} className="admin-select">
-          <option value="info">info</option>
-          <option value="quiz">quiz</option>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex admin-title-input" />
+        <select value={type} onChange={(e) => handleTypeChange(e.target.value)} className="admin-select">
+          <option value="info">інфо-екран</option>
+          <option value="quiz">питання</option>
         </select>
       </div>
-      <textarea
-        value={contentText}
-        onChange={(e) => setContentText(e.target.value)}
-        rows={8}
-        className="admin-textarea"
-      />
+
+      {type === "quiz" ? (
+        <QuizFields content={content} onChange={setContent} radioGroupName={`qtype-${lesson.id}`} />
+      ) : (
+        <InfoFields content={content} onChange={setContent} />
+      )}
+
       {error && <p className="admin-error">{error}</p>}
       <div className="admin-row">
         <button type="button" onClick={handleSave} disabled={saving} className="admin-btn">
@@ -80,11 +251,10 @@ function NewLessonForm({ moduleId, nextOrder, onCreated }) {
 
   async function handleCreate() {
     if (!title.trim()) return;
-    const defaultContent = type === "quiz" ? { questionType: "single", options: [] } : { body: "" };
     const res = await fetch("/api/admin/lessons", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ moduleId, title, type, order: nextOrder, content: defaultContent }),
+      body: JSON.stringify({ moduleId, title, type, order: nextOrder, content: emptyContent[type] }),
     });
     if (res.ok) {
       setTitle("");
@@ -101,8 +271,8 @@ function NewLessonForm({ moduleId, nextOrder, onCreated }) {
         className="admin-input-flex"
       />
       <select value={type} onChange={(e) => setType(e.target.value)} className="admin-select">
-        <option value="info">info</option>
-        <option value="quiz">quiz</option>
+        <option value="info">інфо-екран</option>
+        <option value="quiz">питання</option>
       </select>
       <button type="button" onClick={handleCreate} className="admin-btn">
         + Додати екран
