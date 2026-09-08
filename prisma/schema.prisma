@@ -51,10 +51,14 @@ enum Role {
 }
 
 model Employee {
-  id    Int    @id @default(autoincrement())
+  id    Int     @id @default(autoincrement())
   name  String
-  email String @unique
-  role  Role   @default(employee)
+  /// Опційна: у польових ролей (МЧ, ТП, Технік тощо) особистої пошти
+  /// зазвичай немає — PIN для входу йде на пошту керівника
+  /// (employee.manager.email), не на власну. Реальна пошта є лише в
+  /// менеджерського шару (SV/ASM/LKAM/RM HoReCa) — див. import-employees.js.
+  email String? @unique
+  role  Role    @default(employee)
 
   /// Код із зовнішньої системи (Monolit Agent) — те, що в legacy називалось
   /// User_Id. Разом із loginPin використовується для входу (ШАГ 3, вопрос А).
