@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, migrate-to-nextjs]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # prisma generate/validate не потребують РЕАЛЬНОГО з'єднання з базою
+    # (тільки коректний рядок підключення) — next build теж не повинен,
+    # усі сторінки зараз динамічні (session-gated, без запитів під час
+    # білда). Якщо це колись зміниться і білд почне падати саме тут —
+    # заведіть секрет DATABASE_URL зі справжнім (readonly!) рядком
+    # підключення в Settings → Secrets репозиторію замість заглушки нижче.
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://ci:ci@localhost:5432/ci' }}
+      SESSION_SECRET: ci-placeholder-secret
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # npm ci запускає postinstall (prisma generate) автоматично
+      - run: npm ci
+
+      - name: Prisma schema validate
+        run: npx prisma validate
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Next.js build
+        run: npm run build

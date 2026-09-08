@@ -264,9 +264,14 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onLiveChange }) {
   const [saving, setSaving] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
 
-  // Обраний екран змінився ззовні (клік по іншому в навігації) — підхопити
-  // його поля в форму заново.
+  // Батько рендерить <LessonEditForm key={lesson.id} .../> — зміна
+  // lesson.id вже сама по собі перемонтовує форму (useState підхопить
+  // нові initial values). Цей ефект — для іншого випадку: той самий
+  // lesson.id, але вміст оновився ЗЗОВНІ (сервер повернув нормалізовані
+  // дані після handleSave) — синхронізуємо форму з тим, що реально
+  // зберіглося.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTitle(lesson.title);
     setType(lesson.type);
     setContent(lesson.content);
@@ -406,6 +411,10 @@ function LessonPreview({ lesson, stepNumber, totalSteps, onBack, onNext, canGoBa
  * не чіпаючи реальний Enrollment. */
 function PreviewQuiz({ lesson }) {
   const [answer, setAnswer] = useState(undefined);
+  // Скидаємо відповідь у прев'ю щоразу, як екран/його вміст змінюється —
+  // ефект, а не похідний стан, бо триґериться і зі стабільним lesson.id
+  // (правки контенту вживу), не тільки при зміні обраного екрана.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setAnswer(undefined), [lesson.id, lesson.content]);
   return <QuizScreen lesson={lesson} screenNumber={1} answer={answer} onAnswer={setAnswer} />;
 }

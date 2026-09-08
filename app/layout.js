@@ -10,7 +10,15 @@ import "@/app/styles/admin.css";
 // віддає CSS-змінні, підключені нижче до токенів --font-display/body/mono
 // у app/globals.css (це колишній css/base.css).
 const sora = Sora({
-  subsets: ["latin", "cyrillic"],
+  // Sora на Google Fonts не має cyrillic-підмножини (лише latin/latin-ext) —
+  // next/font кидає build error, якщо її запросити. Кириличні заголовки
+  // (--font-sora використовується в h1/h2/h3) через це підуть у фолбек
+  // шрифт з --font-display (system-ui, sans-serif — див. globals.css), не
+  // в сам Sora, коли текст кириличний. Це не ідеально, але коректно і не
+  // ламає збірку; якщо потрібен саме Sora-вигляд і для кирилиці —
+  // доведеться самостійно хостити локальний файл шрифта з потрібними
+  // гліфами замість next/font/google.
+  subsets: ["latin"],
   weight: ["500", "600", "700", "800"],
   variable: "--font-sora",
 });

@@ -46,8 +46,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Claude Code local settings
-.claude/
+# Claude Code local settings (сесійні дані тощо — машинно-специфічне)
+.claude/*
+# ...але команда-скіли (workflow-и на кшталт /restart-dev, /db-migrate) і
+# permissions.json (дозволи на рутинні команди) — спільні для всіх, хто
+# клонує репо, тому їх з ігнору виключаємо. settings.local.json (особисті
+# налаштування, якщо з'являться) лишається проігнорованим блоковим правилом.
+!.claude/skills/
+!.claude/settings.json
 
 # сгенерированный Prisma Client — пересоздаётся `prisma generate`
 # (запускается автоматически через postinstall), в git не нужен
