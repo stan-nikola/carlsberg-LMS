@@ -1,0 +1,166 @@
+// Это файл схемы Prisma. Подробнее: https://pris.ly/d/prisma-schema
+//
+// Строка подключения к БД задаётся в prisma7.config.mjs (Prisma 7),
+// а не здесь через url = env(...).
+
+// Проект на JS без TypeScript: "prisma-client" (генератор по умолчанию в v7)
+// эмитит .ts-исходники, поэтому используем "prisma-client-js" — тот же
+// генератор, что был в v6, официально оставлен в v7 для JS-проектов
+// (эмитит обычный .js + .d.ts, без исходников на TypeScript).
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------
+// Роли и иерархия
+// ---------------------------------------------------------------------
+
+/// Должность в иерархии (RM → ASM → SV → SR → MR).
+model Position {
+  id    Int    @id @default(autoincrement())
+  /// Код должности: "RM" | "ASM" | "SV" | "SR" | "MR"
+  code  String @unique
+  name  String
+  /// Уровень в иерархии: 1 = RM (верх), 5 = MR (низ)
+  level Int
+
+  employees Employee[]
+}
+
+/// Территория/регион — используется для видимости и назначения курсов.
+model Territory {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  employees Employee[]
+}
+
+/// Системная роль поверх иерархии должностей.
+/// employee   — видимость по иерархии (managerId)
+/// admin      — полный доступ
+/// hr_manager — полный доступ (равнозначно admin, другая подпись в UI)
+enum Role {
+  employee
+  admin
+  hr_manager
+}
+
+model Employee {
+  id    Int    @id @default(autoincrement())
+  name  String
+  email String @unique
+  role  Role   @default(employee)
+
+  positionId Int?
+  position   Position? @relation(fields: [positionId], references: [id])
+
+  territoryId Int?
+  territory   Territory? @relation(fields: [territoryId], references: [id])
+
+  /// Руководитель этого сотрудника (следующая ступень вверх по иерархии).
+  managerId    Int?
+  manager      Employee?  @relation("EmployeeHierarchy", fields: [managerId], references: [id])
+  /// Прямые подчинённые (следующая ступень вниз по иерархии).
+  subordinates Employee[] @relation("EmployeeHierarchy")
+
+  enrollments         Enrollment[]   @relation("EnrollmentEmployee")
+  assignedEnrollments Enrollment[]   @relation("EnrollmentAssignedBy")
+  notifications       Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------
+// Курсы
+// ---------------------------------------------------------------------
+
+model Course {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String?
+
+  isMandatory  Boolean @default(false)
+  /// Сколько дней даётся на прохождение с момента назначения (используется
+  /// для расчёта Enrollment.dueDate).
+  deadlineDays Int?
+
+  modules     Module[]
+  enrollments Enrollment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Module {
+  id       Int    @id @default(autoincrement())
+  courseId Int
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  title String
+  order Int    @default(0)
+
+  lessons Lesson[]
+}
+
+model Lesson {
+  id       Int    @id @default(autoincrement())
+  moduleId Int
+  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  title   String
+  content String?
+  order   Int     @default(0)
+}
+
+// ---------------------------------------------------------------------
+// Назначения курсов
+// ---------------------------------------------------------------------
+
+enum EnrollmentStatus {
+  not_started
+  in_progress
+  completed
+  overdue
+}
+
+model Enrollment {
+  id Int @id @default(autoincrement())
+
+  employeeId Int
+  employee   Employee @relation("EnrollmentEmployee", fields: [employeeId], references: [id])
+
+  courseId Int
+  course   Course @relation(fields: [courseId], references: [id])
+
+  /// Кто назначил курс (обычно admin/RM). Не заполняется для
+  /// самостоятельной записи сотрудника на курс.
+  assignedById Int?
+  assignedBy   Employee? @relation("EnrollmentAssignedBy", fields: [assignedById], references: [id])
+
+  enrolledAt DateTime         @default(now())
+  status     EnrollmentStatus @default(not_started)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, courseId])
+}
+
+model Notification {
+  id Int @id @default(autoincrement())
+
+  employeeId Int
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  type    String
+  message String
+  isRead  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}

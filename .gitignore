@@ -48,3 +48,7 @@ next-env.d.ts
 
 # Claude Code local settings
 .claude/
+
+# сгенерированный Prisma Client — пересоздаётся `prisma generate`
+# (запускается автоматически через postinstall), в git не нужен
+/app/generated/prisma
