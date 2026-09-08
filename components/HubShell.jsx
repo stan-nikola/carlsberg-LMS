@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SettingsSheet } from "@/components/SettingsSheet";
-import { GearIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
+import { GearIcon, LockIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
 
 const TABS = [
   { href: "/hub", label: "Головна", Icon: HomeIcon },
@@ -19,7 +19,7 @@ const TABS = [
  * Дані сотрудника отримує layout (Server Component) і сюди не потрібні —
  * логаут працює через сесію-cookie на сервері.
  */
-export function HubShell({ children }) {
+export function HubShell({ children, isAdmin = false }) {
   const pathname = usePathname();
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -46,6 +46,11 @@ export function HubShell({ children }) {
             >
               Платформа адаптації
             </div>
+            {isAdmin && (
+              <Link className="iconbtn" aria-label="Адмін-панель" href="/admin">
+                <LockIcon />
+              </Link>
+            )}
             <button className="iconbtn" aria-label="Налаштування" onClick={() => setSettingsOpen(true)}>
               <GearIcon />
             </button>

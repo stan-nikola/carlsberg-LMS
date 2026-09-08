@@ -79,13 +79,42 @@
   font-size: calc(13.6px * var(--fs-scale));
   margin-bottom: 11px;
 }
-.cp-note {
-  font-size: calc(12.5px * var(--fs-scale));
-  color: var(--ink-soft);
+.cp-note-accordion {
   background: var(--green-tint);
   border-radius: 12px;
-  padding: 11px 13px;
   margin-top: 6px;
+  overflow: hidden;
+}
+.cp-note-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 13px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: calc(12.5px * var(--fs-scale));
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+.cp-note-chevron {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.cp-note-accordion.open .cp-note-chevron {
+  transform: rotate(90deg);
+}
+.cp-note-body {
+  font-size: calc(12.5px * var(--fs-scale));
+  color: var(--ink-soft);
+  padding: 0 13px 13px;
 }
 .cp-photo-caption {
   font-size: calc(11px * var(--fs-scale));

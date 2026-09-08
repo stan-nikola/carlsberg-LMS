@@ -23,22 +23,50 @@ function quizLesson(order, title, questionType, options) {
   return { type: "quiz", order, title, content: { questionType, options } };
 }
 
-async function main() {
-  const course = await prisma.course.upsert({
-    where: { slug: "assortment" },
+// externalCode должен совпадать с SYSTEM_ADMIN_EXTERNAL_CODE в
+// lib/adminAuth.js — "актор" для Enrollment.assignedById, когда курс
+// назначают через /admin (отдельный вход по паролю, без employee-сессии,
+// так что писать реального Employee.id неоткуда).
+const SYSTEM_ADMIN_EXTERNAL_CODE = "SYSTEM-ADMIN";
+
+async function seedSystemAdmin() {
+  const employee = await prisma.employee.upsert({
+    where: { externalCode: SYSTEM_ADMIN_EXTERNAL_CODE },
     update: {},
     create: {
-      slug: "assortment",
-      title: "Асортимент Carlsberg Ukraine",
-      description:
-        "Категорії, бренди, тара і терміни придатності — коротко про кожну тему, а наприкінці кожного розділу невеликий тест.",
+      externalCode: SYSTEM_ADMIN_EXTERNAL_CODE,
+      name: "Система (Адмін-панель)",
+      role: "admin",
+    },
+  });
+  console.log("Seeded system admin employee:", employee.externalCode, "(id", employee.id + ")");
+}
+
+async function main() {
+  await seedSystemAdmin();
+
+  // Курс -> Блок -> Модуль -> Екран (див. schema.prisma). "Асортимент" —
+  // перший блок курсу "Адаптація мерчендайзерів"; надалі до цього ж курсу
+  // додаються ще блоки (вручну через /admin, не тут).
+  const course = await prisma.course.upsert({
+    where: { slug: "merchandiser-adaptation" },
+    update: {},
+    create: {
+      slug: "merchandiser-adaptation",
+      title: "Адаптація мерчендайзерів",
+      description: null,
       isMandatory: true,
       deadlineDays: 14,
-      modules: {
+      blocks: {
         create: [
           {
-            title: "Категорії та бренди",
+            title: "Асортимент",
             order: 1,
+            modules: {
+              create: [
+                {
+                  title: "Категорії та бренди",
+                  order: 1,
             lessons: {
               create: [
                 infoLesson(1, "Carlsberg Ukraine сьогодні", {
@@ -239,6 +267,8 @@ async function main() {
             },
           },
         ],
+      },
+        }],
       },
     },
   });

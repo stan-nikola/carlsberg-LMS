@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { hasFullAccess } from "@/lib/permissions";
+import { requireAdmin, SYSTEM_ADMIN_EXTERNAL_CODE } from "@/lib/adminAuth";
 import { assignCourseToPositionsAndTerritories } from "@/lib/courseAssignment";
-import { getCurrentUser } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 
 /**
  * POST /api/admin/courses/:courseId/assign
@@ -11,8 +11,8 @@ import { getCurrentUser } from "@/lib/session";
  * действием (не по одному сотруднику).
  */
 export async function POST(request, { params }) {
-  const currentUser = await getCurrentUser();
-  if (!hasFullAccess(currentUser)) {
+  const admin = await requireAdmin();
+  if (!admin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -27,10 +27,22 @@ export async function POST(request, { params }) {
     );
   }
 
+  // /admin — отдельный вход по паролю (см. lib/adminAuth.js), у запроса
+  // нет "своего" Employee — Enrollment.assignedById пишем от системного.
+  const systemAdmin = await prisma.employee.findFirst({
+    where: { externalCode: SYSTEM_ADMIN_EXTERNAL_CODE },
+  });
+  if (!systemAdmin) {
+    return NextResponse.json(
+      { error: "System admin employee not found — run prisma/seed.js" },
+      { status: 500 }
+    );
+  }
+
   const result = await assignCourseToPositionsAndTerritories(Number(courseId), {
     positionCodes,
     territoryIds,
-    assignedByUserId: currentUser.id,
+    assignedByUserId: systemAdmin.id,
   });
 
   return NextResponse.json(result);

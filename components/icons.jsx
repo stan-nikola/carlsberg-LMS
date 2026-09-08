@@ -142,3 +142,19 @@ export function LockIcon() {
     </svg>
   );
 }
+
+/** Ручка для drag-and-drop перетягування (/admin) — шість крапок, стандартний
+ * "grip" візуал. SVG замість символу Brailleю (⠿), той не у всіх шрифтах
+ * має гліф і міг взагалі не бути видимим. */
+export function GripIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="9" cy="6" r="1.6" />
+      <circle cx="9" cy="12" r="1.6" />
+      <circle cx="9" cy="18" r="1.6" />
+      <circle cx="15" cy="6" r="1.6" />
+      <circle cx="15" cy="12" r="1.6" />
+      <circle cx="15" cy="18" r="1.6" />
+    </svg>
+  );
+}

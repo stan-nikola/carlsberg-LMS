@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
+import { hasFullAccess } from "@/lib/permissions";
 import { HubShell } from "@/components/HubShell";
 
 // Гейт хаба: без валідної сесії — на реєстрацію (аналог перевірки
@@ -11,5 +12,8 @@ export default async function HubLayout({ children }) {
     redirect("/register");
   }
 
-  return <HubShell>{children}</HubShell>;
+  // isAdmin тут — лише щоб показати/сховати іконку-ярлик на /admin у
+  // шапці; сам /admin захищений окремим паролем (lib/adminSession.js) і
+  // не довіряє цій ролі напряму.
+  return <HubShell isAdmin={hasFullAccess(employee)}>{children}</HubShell>;
 }
