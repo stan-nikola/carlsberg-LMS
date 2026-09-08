@@ -7,7 +7,10 @@ import { createSession } from "@/lib/session";
  * Body: { externalCode: string, pin: string }
  *
  * Шаг 2 входа (было action:"confirm" в legacy registration.gs): сверяет
- * PIN, при успехе выдаёт сессию (cookie) и профиль сотрудника.
+ * PIN, при успехе выдаёт сессию (cookie) и профиль сотрудника. Имя,
+ * введённое на экране входа, сюда не отправляется вообще - см.
+ * app/register/page.js, оно остаётся только в localStorage на
+ * устройстве сотрудника, если у него нет email в базе.
  */
 export async function POST(request) {
   const body = await request.json();

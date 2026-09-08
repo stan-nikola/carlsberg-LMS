@@ -11,11 +11,15 @@ import { GearIcon } from "@/components/icons";
 // власні API routes (/api/auth/register, /api/auth/confirm), а замість
 // localStorage-профілю — cookie-сесія (див. lib/session.js).
 //
-// Поле "Ваше ім'я" лишили для тієї ж UX, що й раніше, але воно НЕ
-// відправляється на сервер: Employee.name тепер заводить адмін заздалегідь
-// (разом з посадою/територією/керівником), а не сам співробітник при вході.
+// Поле "Ваше ім'я" на сервер НЕ відправляється — Employee.name в базі
+// правиться лише з email (керівний шар, lib/auth.js). Введене тут ім'я
+// зберігається лише в localStorage цього пристрою (LOCAL_NAME_KEY) -
+// для співробітників без email у базі лишається заглушка з посади/
+// території, а особисте ім'я так і залишається приватним для пристрою,
+// як і в legacy (telesale_profile_v1).
 
 const RESEND_COOLDOWN_MS = 20000;
+const LOCAL_NAME_KEY = "employee_display_name_v1";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -93,6 +97,13 @@ export default function RegisterPage() {
         pin: pin.trim(),
       });
       if (resp.ok) {
+        // Тільки на цей пристрій - в базу ім'я з цього поля не йде
+        // взагалі (див. коментар зверху файлу).
+        try {
+          localStorage.setItem(LOCAL_NAME_KEY, name.trim());
+        } catch {
+          // localStorage недоступний - просто не запам'ятається, не критично
+        }
         router.push("/hub");
         router.refresh();
       } else {
