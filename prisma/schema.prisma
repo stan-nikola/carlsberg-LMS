@@ -33,9 +33,15 @@ model Position {
 }
 
 /// Территория/регион — используется для видимости и назначения курсов.
+/// Иерархична (как Employee.managerId): RM-регион -> ASM-область ->
+/// SV-район/город (см. prisma/import-territories.js).
 model Territory {
   id   Int    @id @default(autoincrement())
   name String
+
+  parentId Int?
+  parent   Territory?  @relation("TerritoryHierarchy", fields: [parentId], references: [id])
+  children Territory[] @relation("TerritoryHierarchy")
 
   employees Employee[]
 }
