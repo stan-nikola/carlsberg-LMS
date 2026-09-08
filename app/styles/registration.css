@@ -1,0 +1,193 @@
+/* ===================== REGISTRATION SCREEN =====================
+   Портовано з legacy/css/registration.css без змін. Залежить від токенів
+   та .btn-primary-full/.sheet* з app/globals.css (колишній base.css). */
+
+@keyframes logoPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.75) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.reg-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.reg-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  animation: logoPop 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+.reg-badge img {
+  width: 190px;
+  max-width: 66%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 22px rgba(11, 74, 52, 0.22));
+}
+.reg-org {
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--fs-scale));
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+.reg-h1 {
+  font-size: calc(20px * var(--fs-scale));
+  line-height: 1.35;
+  margin-bottom: 26px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.reg-form {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+.reg-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.reg-form .field label {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--fs-scale));
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 600;
+  padding-left: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.reg-form input[type="text"] {
+  width: 100%;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: calc(14px * var(--fs-scale));
+  font-weight: 600;
+  padding: 13px 14px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.reg-form input[type="text"]:focus {
+  outline: none;
+  border-color: var(--green-500);
+  background: var(--surface);
+}
+.reg-form input[type="text"]::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.65;
+  font-weight: 500;
+}
+
+.reg-note {
+  font-size: calc(12.5px * var(--fs-scale));
+  color: var(--ink-soft);
+  background: var(--green-tint);
+  border-radius: 12px;
+  padding: 11px 13px;
+  text-align: left;
+  margin-top: 6px;
+  width: 100%;
+}
+.reg-footer {
+  flex-shrink: 0;
+  padding: 14px 22px calc(20px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.reg-footer .btn-primary-full {
+  display: none;
+}
+.reg-footer .btn-primary-full.step-active {
+  display: flex;
+}
+
+.field-error {
+  font-size: calc(12px * var(--fs-scale));
+  color: var(--danger);
+  margin-top: -2px;
+  display: none;
+}
+.field.has-error .field-error {
+  display: block;
+}
+.field.has-error input[type="text"] {
+  border-color: var(--danger);
+}
+
+.reg-info-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-soft);
+  background: transparent;
+  color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+.reg-info-btn:active {
+  transform: scale(0.9);
+}
+
+/* two-step flow: identity (name + code) -> pin confirmation */
+.reg-step {
+  display: none;
+  width: 100%;
+}
+.reg-step.active {
+  display: flex;
+  flex-direction: column;
+}
+.reg-pin-input {
+  letter-spacing: 0.5em;
+  text-align: center;
+  font-family: var(--font-mono) !important;
+  font-size: calc(20px * var(--fs-scale)) !important;
+}
+.reg-step-links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.reg-link-btn {
+  background: none;
+  border: none;
+  padding: 6px 2px;
+  font-size: calc(12.5px * var(--fs-scale));
+  color: var(--green-700);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.reg-link-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

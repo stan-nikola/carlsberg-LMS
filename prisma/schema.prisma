@@ -64,6 +64,11 @@ model Employee {
   /// повторна відправка шле той самий PIN, а не новий.
   loginPin     String?
   pinIssuedAt  DateTime?
+  /// Момент першого успішного входу (перше підтвердження PIN) — те, що в
+  /// legacy показувалось як profile.registeredAt. createdAt тут не підходить:
+  /// той проставляється, коли адмін заводить рядок Employee, а не коли
+  /// співробітник вперше увійшов.
+  firstLoginAt DateTime?
 
   positionId Int?
   position   Position? @relation(fields: [positionId], references: [id])
@@ -91,6 +96,8 @@ model Employee {
 
 model Course {
   id          Int     @id @default(autoincrement())
+  /// Для чистых URL курса (/courses/[slug]) — например "assortment".
+  slug        String  @unique
   title       String
   description String?
 
