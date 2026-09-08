@@ -90,6 +90,11 @@ model Course {
   /// для расчёта Enrollment.dueDate).
   deadlineDays Int?
 
+  /// Код должностей, кому курс назначается по умолчанию (например ["SR","MR"]).
+  targetPositions   String[] @default([])
+  /// Id территорий, если курс назначается не всем, а конкретному региону.
+  targetTerritories Int[]    @default([])
+
   modules     Module[]
   enrollments Enrollment[]
 
@@ -138,18 +143,30 @@ model Enrollment {
   courseId Int
   course   Course @relation(fields: [courseId], references: [id])
 
-  /// Кто назначил курс (обычно admin/RM). Не заполняется для
-  /// самостоятельной записи сотрудника на курс.
-  assignedById Int?
-  assignedBy   Employee? @relation("EnrollmentAssignedBy", fields: [assignedById], references: [id])
+  /// Кто назначил курс (обычно admin/RM).
+  assignedById Int
+  assignedBy   Employee @relation("EnrollmentAssignedBy", fields: [assignedById], references: [id])
 
-  enrolledAt DateTime         @default(now())
-  status     EnrollmentStatus @default(not_started)
+  /// Дата назначения (было enrolledAt — переименовано для ясности: это
+  /// момент назначения курса, а не момент, когда сотрудник сам начал его
+  /// проходить).
+  assignedAt  DateTime  @default(now())
+  /// Дедлайн = assignedAt + course.deadlineDays на момент назначения
+  /// (пересчитывается только при новом назначении, не задним числом).
+  dueDate     DateTime?
+  /// Копия course.isMandatory на момент назначения — чтобы будущие
+  /// изменения course.isMandatory не меняли задним числом уже созданные
+  /// назначения.
+  isMandatory Boolean   @default(false)
+
+  status EnrollmentStatus @default(not_started)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([employeeId, courseId])
+  /// Для дневной cron-задачи, которая ищет просроченные назначения.
+  @@index([status, dueDate])
 }
 
 model Notification {
