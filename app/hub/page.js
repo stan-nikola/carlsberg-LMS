@@ -1,8 +1,9 @@
 import { getCurrentUser } from "@/lib/session";
 import { getEmployeeEnrollments } from "@/lib/employeeProgress";
-import { initials } from "@/lib/initials";
 import { computeXp } from "@/lib/progress";
 import { CourseTile } from "@/components/CourseTile";
+import { ProfileCard } from "@/components/ProfileCard";
+import { GreetingHeading } from "@/components/GreetingHeading";
 
 // Портовано з .hub-screen[data-tab="home"] в legacy index.html +
 // js/cabinet.js. Дані — з БД (Enrollment) замість localStorage.
@@ -25,21 +26,14 @@ export default async function HubHomePage() {
   return (
     <section className="hub-screen">
       <div className="greeting">{greet.toUpperCase()}</div>
-      <h1 className="hub-h1">
-        {employee.name ? `Вітаємо, ${employee.name.split(" ")[0]}!` : `${greet}!`}
-      </h1>
+      <GreetingHeading dbName={employee.name} hasEmail={Boolean(employee.email)} greet={greet} />
 
-      <div className="profile-card">
-        <div className="avatar">{initials(employee.name)}</div>
-        <div className="profile-info">
-          <div className="profile-name">{employee.name || "—"}</div>
-          <div className="profile-meta">{(employee.externalCode || "").toUpperCase()}</div>
-          <div className="profile-level">
-            <span className="lv-star">★</span>
-            <span>{levelLabel}</span>
-          </div>
-        </div>
-      </div>
+      <ProfileCard
+        dbName={employee.name}
+        hasEmail={Boolean(employee.email)}
+        externalCode={employee.externalCode}
+        levelLabel={levelLabel}
+      />
 
       <div className="xp-wrap">
         <div className="xp-top">

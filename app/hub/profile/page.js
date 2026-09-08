@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { initials } from "@/lib/initials";
 import { computeXp } from "@/lib/progress";
 import { getEmployeeEnrollments } from "@/lib/employeeProgress";
+import { ProfileCard } from "@/components/ProfileCard";
 
 // Портовано з .hub-screen[data-tab="profile"] в legacy index.html.
 // pdSvEmail ("Керівник (email)") тепер employee.manager.email замість
@@ -22,17 +22,12 @@ export default async function HubProfilePage() {
       <div className="greeting">ОСОБИСТИЙ КАБІНЕТ</div>
       <h1 className="hub-h1">Профіль</h1>
 
-      <div className="profile-card">
-        <div className="avatar">{initials(employee.name)}</div>
-        <div className="profile-info">
-          <div className="profile-name">{employee.name || "—"}</div>
-          <div className="profile-meta">{(employee.externalCode || "").toUpperCase()}</div>
-          <div className="profile-level">
-            <span className="lv-star">★</span>
-            <span>{levelLabel}</span>
-          </div>
-        </div>
-      </div>
+      <ProfileCard
+        dbName={employee.name}
+        hasEmail={Boolean(employee.email)}
+        externalCode={employee.externalCode}
+        levelLabel={levelLabel}
+      />
 
       <div className="profile-detail-list">
         <div className="pd-row">
