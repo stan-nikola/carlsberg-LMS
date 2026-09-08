@@ -56,6 +56,15 @@ model Employee {
   email String @unique
   role  Role   @default(employee)
 
+  /// Код із зовнішньої системи (Monolit Agent) — те, що в legacy називалось
+  /// User_Id. Разом із loginPin використовується для входу (ШАГ 3, вопрос А).
+  externalCode String    @unique
+  /// Поточний PIN для входу. Статичний, як у legacy: генерується один раз
+  /// (якщо ще порожній) і висилається на пошту керівника (employee.manager.email);
+  /// повторна відправка шле той самий PIN, а не новий.
+  loginPin     String?
+  pinIssuedAt  DateTime?
+
   positionId Int?
   position   Position? @relation(fields: [positionId], references: [id])
 
@@ -113,14 +122,29 @@ model Module {
   lessons Lesson[]
 }
 
+/// info — информационный экран (текст/картинка); quiz — вопрос с вариантами
+/// ответа (тянется в квиз-банк модуля, из которого во время прохождения
+/// курса случайно выбирается несколько штук — как в legacy).
+enum LessonType {
+  info
+  quiz
+}
+
 model Lesson {
   id       Int    @id @default(autoincrement())
   moduleId Int
   module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
-  title   String
-  content String?
-  order   Int     @default(0)
+  type  LessonType @default(info)
+  title String
+  order Int        @default(0)
+
+  /// Структура зависит от type — редактируется отдельно от кода (без
+  /// редеплоя):
+  /// info: { body: string, imageUrl?: string }
+  /// quiz: { questionType: "single" | "multi",
+  ///         options: [{ text: string, correct: boolean }] }
+  content Json
 }
 
 // ---------------------------------------------------------------------
@@ -161,12 +185,50 @@ model Enrollment {
 
   status EnrollmentStatus @default(not_started)
 
+  /// Сводка по последней попытке (полная история — в EnrollmentAttempt).
+  /// Заполняется при завершении курса из данных попытки.
+  completedAt          DateTime?
+  scoreRaw             Int?
+  scoreMax             Int?
+  scorePercent         Int?
+  passed               Boolean?
+  durationSeconds      Int?
+  activeTimeSeconds    Int?
+  longestCorrectStreak Int?
+
+  attempts EnrollmentAttempt[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([employeeId, courseId])
   /// Для дневной cron-задачи, которая ищет просроченные назначения.
   @@index([status, dueDate])
+}
+
+/// Полная история попыток прохождения курса (курс можно проходить
+/// повторно — "Пройти ще раз" в legacy). Enrollment хранит только сводку
+/// по последней попытке для быстрого доступа (карточки/отчёты); сюда
+/// пишется каждая попытка отдельной строкой.
+model EnrollmentAttempt {
+  id           Int        @id @default(autoincrement())
+  enrollmentId Int
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  startedAt   DateTime
+  completedAt DateTime
+
+  durationSeconds      Int
+  activeTimeSeconds    Int
+  scoreRaw             Int
+  scoreMax             Int
+  scorePercent         Int
+  passed               Boolean
+  longestCorrectStreak Int
+
+  createdAt DateTime @default(now())
+
+  @@index([enrollmentId])
 }
 
 model Notification {
