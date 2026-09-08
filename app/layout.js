@@ -2,6 +2,8 @@ import { Sora, Source_Sans_3, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import "@/app/styles/registration.css";
 import "@/app/styles/hub.css";
+import "@/app/styles/course-player.css";
+import "@/app/styles/admin.css";
 
 // Три шрифти, які legacy тягнув через <link> на fonts.googleapis.com —
 // next/font сам їх самохостить (без зовнішнього запиту в браузері) і
