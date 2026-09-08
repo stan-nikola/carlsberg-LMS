@@ -31,6 +31,7 @@ export default function RegisterPage() {
 
   const [codeError, setCodeError] = useState("");
   const [pinError, setPinError] = useState("");
+  const [pinWarning, setPinWarning] = useState("");
 
   const [submitBusy, setSubmitBusy] = useState(false);
   const [pinSubmitBusy, setPinSubmitBusy] = useState(false);
@@ -65,14 +66,26 @@ export default function RegisterPage() {
       if (resp.ok) {
         setPin("");
         setPinError("");
+        setPinWarning("");
+        setStep("pin");
+        setTimeout(() => pinInputRef.current?.focus(), 0);
+      } else if (resp.error === "email_send_failed") {
+        // PIN вже згенеровано і збережено на сервері (lib/auth.js) -
+        // впав лише лист. Не блокуємо тут намертво: пускаємо далі на
+        // екран вводу PIN з попередженням, а не залишаємо на кроці 1
+        // без жодного способу рухатись, якщо PIN відомий якимось іншим
+        // каналом (адміністратор, консоль сервера в dev-режимі тощо).
+        setPin("");
+        setPinError("");
+        setPinWarning(
+          "Не вдалося надіслати лист з PIN-кодом. Якщо ви дізналися код іншим способом — введіть його нижче."
+        );
         setStep("pin");
         setTimeout(() => pinInputRef.current?.focus(), 0);
       } else if (resp.error === "no_manager_email") {
         setCodeError("Для цього коду не вказано пошту для отримання PIN. Зверніться до адміністратора.");
       } else if (resp.error === "not_found") {
         setCodeError("Код не знайдено. Перевірте правильність і спробуйте ще раз.");
-      } else if (resp.error === "email_send_failed") {
-        setCodeError("Не вдалося надіслати PIN. Спробуйте ще раз пізніше або зверніться до адміністратора.");
       } else {
         setCodeError("Помилка сервера: " + (resp.error || "unknown"));
       }
@@ -119,6 +132,7 @@ export default function RegisterPage() {
   function handleBackToIdentity() {
     setStep("identity");
     setPinError("");
+    setPinWarning("");
   }
 
   async function handleResend() {
@@ -232,6 +246,8 @@ export default function RegisterPage() {
                 />
                 {pinError && <div className="field-error">{pinError}</div>}
               </div>
+
+              {pinWarning && <div className="footnote">{pinWarning}</div>}
 
               <div className="reg-note">
                 PIN-код надіслано на пошту, вказану для вас у системі. Якщо це не ваша особиста
