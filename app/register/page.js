@@ -67,6 +67,8 @@ export default function RegisterPage() {
         setCodeError("Для цього коду не вказано керівника. Зверніться до адміністратора.");
       } else if (resp.error === "not_found") {
         setCodeError("Код не знайдено. Перевірте правильність і спробуйте ще раз.");
+      } else if (resp.error === "email_send_failed") {
+        setCodeError("Не вдалося надіслати PIN на пошту керівника. Спробуйте ще раз пізніше або зверніться до адміністратора.");
       } else {
         setCodeError("Помилка сервера: " + (resp.error || "unknown"));
       }
@@ -111,6 +113,7 @@ export default function RegisterPage() {
   async function handleResend() {
     if (resendBusy) return;
     setResendBusy(true);
+    setPinError("");
     try {
       const resp = await callAuth("/api/auth/register", { externalCode: externalCode.trim() });
       if (resp.ok) {
@@ -121,9 +124,15 @@ export default function RegisterPage() {
         }, RESEND_COOLDOWN_MS);
       } else {
         setResendBusy(false);
+        setPinError(
+          resp.error === "email_send_failed"
+            ? "Не вдалося надіслати PIN. Спробуйте ще раз пізніше або зверніться до адміністратора."
+            : "Не вдалося надіслати PIN. Спробуйте ще раз."
+        );
       }
     } catch {
       setResendBusy(false);
+      setPinError("Не вдалося надіслати запит. Перевірте інтернет-з'єднання і спробуйте ще раз.");
     }
   }
 

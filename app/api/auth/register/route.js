@@ -17,6 +17,12 @@ export async function POST(request) {
   }
 
   const result = await requestLoginPin(externalCode);
-  const status = result.ok ? 200 : result.error === "not_found" ? 404 : 400;
+  const status = result.ok
+    ? 200
+    : result.error === "not_found"
+      ? 404
+      : result.error === "email_send_failed"
+        ? 502 // не наша помилка, а провайдер листів - Bad Gateway точніше за 400
+        : 400;
   return NextResponse.json(result, { status });
 }
