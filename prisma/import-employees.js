@@ -15,7 +15,10 @@
 // нерезолвленных managerId именно на МЧ RKA, потому что их email
 // указывал на SV RKA, а SV RKA ошибочно не считался менеджерским типом.
 // Порог 0.7 отделяет чётко, без пограничных случаев (ближайшие — ТП RKA
-// 0.90 и МЧ ТТ 0.53).
+// 0.90 и МЧ ТТ 0.53) — но ТП RKA всё равно принудительно исключён из
+// менеджерского слоя (FORCE_NON_MANAGER_TYPES): по прямому подчинению
+// это позиция ниже SV, личной почты в базе быть не должно, чем бы ни
+// объяснялась уникальность email в файле (подтверждено пользователем).
 //
 // У "менеджерского" слоя Employee.email = их реальная почта. У всех
 // остальных — Employee.email = null, Employee.externalCode = "Код
@@ -60,6 +63,14 @@ const { PrismaPg } = require("@prisma/adapter-pg");
 // "менеджерским" (реальная личная почта, не дубль на руководителя).
 const MANAGER_TIER_UNIQUE_RATIO_THRESHOLD = 0.7;
 
+// "ТП RKA" по коэффициенту (0.90) формально проходит порог, но по
+// прямому подчинению (ASM -> SV -> ТП -> МР, подтверждено пользователем)
+// это позиция НИЖЕ SV - личной почты в базе быть не должно, даже если у
+// людей в файле она уникальна (похоже, кто-то держит несколько
+// территорий, а не что это "менеджерский" уровень). Явное исключение,
+// а не по коэффициенту.
+const FORCE_NON_MANAGER_TYPES = new Set(["ТП RKA"]);
+
 function computeManagerTypes(dataRows, col) {
   const byType = new Map();
   for (const r of dataRows) {
@@ -70,6 +81,7 @@ function computeManagerTypes(dataRows, col) {
   }
   const managerTypes = new Set();
   for (const [type, emails] of byType) {
+    if (FORCE_NON_MANAGER_TYPES.has(type)) continue;
     const ratio = emails.length ? new Set(emails).size / emails.length : 0;
     if (ratio > MANAGER_TIER_UNIQUE_RATIO_THRESHOLD) managerTypes.add(type);
   }
