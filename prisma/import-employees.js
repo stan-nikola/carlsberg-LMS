@@ -22,15 +22,26 @@
 // посади" (100% уникален в файле), managerId резолвится по совпадению
 // их "E Mail" с email кого-то из менеджерского слоя.
 //
-// Для самого менеджерского слоя managerId восстановлен ЭВРИСТИКОЙ по
-// территории (см. resolveManagerTierManager) — прямой ссылки "кто чей
-// руководитель" в файле нет вообще. Работает для основной ветки
-// (ASM->RM HoReCa, SV->ASM по совпадению Регіон). НЕ работает для
-// FSM MT/SV RKA/ТП RKA (параллельная "SFSM MT Україна" ветка — регион
-// зашит в текст "Посада", а не в колонку "Регіон", группировать по
-// колонке region бессмысленно) — их managerId сознательно оставлен
-// null, это ~44 записи, руками через Prisma Studio дорезолвить быстрее,
-// чем гадать по тексту должности.
+// managerId для менеджерского слоя (реальная иерархия, уточнено с
+// пользователем лично — прямой ссылки "хто чий керівник" в файлі нема,
+// перша версія скрипта тут гадала по території й вгадала НЕВІРНО для
+// SV->ASM, перевірено на реальному прикладі RNE104):
+// - прямое подчинение только ASM -> SV -> ТП -> МР (email-match для
+//   SV->ТП/МЧ, надёжно, подтверждено пользователем);
+// - ASM, LKAM, RM HoReCa, FSM MT — верх своих веток, managerId всегда
+//   null (RM HoReCa <-> SV/ТП HoReCa - отдельная "пунктирная" связь по
+//   каналу, не managerId, в базе сейчас не хранится);
+// - SV -> ASM НЕ резолвится вообще (ни email, ні надійної евристики
+//   немає — territoryId неоднозначний, на регіон часто кілька ASM);
+// - Технік HoReCa UA -> RM HoReCa (по каналу, не по місцевому SV) -
+//   резолвится по territoryId, але ТІЛЬКИ якщо на території рівно один
+//   RM HoReCa (для 4 з 6 регіонів; регіон 3 без RM HoReCa взагалі,
+//   регіон 6 має двох - там теж null);
+// - SV RKA -> FSM MT (підтверджений напрямок) не резолвиться: уся
+//   "SFSM MT Україна" гілка ділить одну Regionколонку, реальний регіон
+//   зашитий у вільний текст "Посада" (міста типу "SV MT Черкаси" проти
+//   "FSM MT Центральний регіон 2") - зіставляти геотекстом ризиковано,
+//   лишається null.
 //
 // Имя (Employee.name) для менеджерского слоя выводится из email
 // (Ivan.Petrenko@carlsberg.ua -> "Ivan Petrenko"); для остальных —
@@ -201,36 +212,36 @@ async function main() {
 
     let managerId = null;
 
-    if (!meta.isManagerTier) {
+    if (meta.type === "Технік HoReCa UA") {
+      // По каналу до RM HoReCa на тій самій території, а НЕ email-match
+      // (email тут здебільшого дублюється на місцевого SV, а це не той,
+      // кому підпорядкований Технік за підтвердженою логікою) - тільки
+      // коли рівно один кандидат RM HoReCa на цій території (див.
+      // коментар в шапці файлу).
+      const territoryId = self.territoryId;
+      const candidates = allEmployees.filter(
+        (e) => e.positionId === positionIdByCode.get("RM_HORECA") && e.territoryId === territoryId
+      );
+      if (candidates.length === 1) {
+        managerId = candidates[0].id;
+        resolvedByHeuristic++;
+      }
+    } else if (!meta.isManagerTier) {
       // Надёжный путь: email в строке = email руководителя.
       const manager = employeeByEmail.get(meta.rawEmail);
       if (manager && manager.id !== self.id) {
         managerId = manager.id;
         resolvedByEmail++;
       }
-    } else {
-      // Эвристика по территории для менеджерского слоя (см. комментарий
-      // в шапке файла — самое ненадёжное место импорта).
-      const territoryId = self.territoryId;
-      if (meta.type === "ASM" || meta.type === "LKAM") {
-        const rmHoreca = allEmployees.find(
-          (e) => e.positionId === positionIdByCode.get("RM_HORECA") && e.territoryId === territoryId
-        );
-        if (rmHoreca) managerId = rmHoreca.id;
-      } else if (meta.type === "SV") {
-        const asm = allEmployees.find(
-          (e) => e.positionId === positionIdByCode.get("ASM") && e.territoryId === territoryId
-        );
-        if (asm) managerId = asm.id;
-      }
-      if (managerId) resolvedByHeuristic++;
     }
+    // ASM/LKAM/RM HoReCa/FSM MT (верх своїх гілок) і SV/SV RKA (немає
+    // надійного способу резолвити) - managerId лишається null навмисно.
 
     if (managerId) {
       await prisma.employee.update({ where: { id: self.id }, data: { managerId } });
-    } else if (meta.type === "RM HoReCa" || meta.type === "FSM MT") {
-      // Верх своей ветки (основной или "SFSM MT Україна") - без менеджера
-      // по определению, это не ошибка резолва.
+    } else if (["RM HoReCa", "FSM MT", "ASM", "LKAM", "SV", "SV RKA"].includes(meta.type)) {
+      // Верх власної гілки або немає надійного способу резолвити - не
+      // помилка, а свідоме рішення (див. шапку файлу).
     } else {
       unresolved++;
     }
