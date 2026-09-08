@@ -1,19 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { hasFullAccess } from "@/lib/permissions";
 import { assignCourseToPositionsAndTerritories } from "@/lib/courseAssignment";
-
-// ВРЕМЕННАЯ ЗАГЛУШКА, НЕБЕЗОПАСНО ДЛЯ ПРОДА: сейчас currentUser берётся по
-// id из заголовка x-user-id, который присылает клиент — это легко
-// подделать (любой может прислать чужой id/роль admin). Реальной
-// аутентификации в проекте ещё нет (её перенос — Шаг 3 миграции). Как
-// только появится сессия/токен — заменить на чтение currentUser оттуда,
-// а не из заголовка запроса.
-async function getCurrentUser(request) {
-  const userId = request.headers.get("x-user-id");
-  if (!userId) return null;
-  return prisma.employee.findUnique({ where: { id: Number(userId) } });
-}
+import { getCurrentUser } from "@/lib/session";
 
 /**
  * POST /api/admin/courses/:courseId/assign
@@ -23,7 +11,7 @@ async function getCurrentUser(request) {
  * действием (не по одному сотруднику).
  */
 export async function POST(request, { params }) {
-  const currentUser = await getCurrentUser(request);
+  const currentUser = await getCurrentUser();
   if (!hasFullAccess(currentUser)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
