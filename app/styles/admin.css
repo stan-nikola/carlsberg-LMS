@@ -1,0 +1,523 @@
+/* ===================== ADMIN (мінімальний, функціональний) =====================
+   Свідомо не використовує брендовий .course-card shell — це внутрішній
+   інструмент, а не екран для співробітників. */
+
+.admin-page {
+  /* На весь екран — це десктопний інструмент для адміна, не мобільний
+     екран співробітника (звідси й немає max-width, як у .stage). */
+  width: 100%;
+  padding: 32px 40px 80px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--surface);
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+.admin-subtitle {
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin-bottom: 28px;
+}
+.admin-module {
+  margin-bottom: 32px;
+}
+.admin-module h2 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.admin-lesson-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: var(--surface-1);
+}
+.admin-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.admin-input-flex {
+  flex: 1;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+}
+.admin-select {
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+}
+.admin-textarea {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.admin-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--green-700);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.admin-new-lesson {
+  margin-top: 4px;
+}
+.admin-error {
+  color: var(--danger);
+  font-size: 12.5px;
+}
+
+.admin-field {
+  margin-bottom: 12px;
+}
+.admin-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ink-soft);
+  margin-bottom: 5px;
+}
+.admin-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink-soft);
+  opacity: 0.75;
+}
+.admin-title-input {
+  font-weight: 600;
+}
+.admin-input-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.admin-image-row,
+.admin-option-row {
+  align-items: center;
+  margin-bottom: 6px;
+}
+.admin-icon-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+.admin-btn-link {
+  background: none;
+  border: none;
+  color: var(--green-700);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.admin-radio-group {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+.admin-radio,
+.admin-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.admin-checkbox {
+  color: var(--green-700);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ---- /admin вхід + дашборд (login page, AdminShell, course list) ---- */
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-1);
+}
+.admin-topbar-title {
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+}
+.admin-course-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.admin-course-list-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-1);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+.admin-course-list-link:hover {
+  border-color: var(--green-700);
+}
+
+/* ---- Редактор курсу: десктопний спліт-екран (правка / жива прев'ю) ---- */
+.admin-editor {
+  /* На весь екран (десктопний інструмент, не мобільний .stage) */
+  width: 100%;
+  padding: 28px 40px 80px;
+  box-sizing: border-box;
+}
+.admin-editor-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.admin-editor-header h1 {
+  margin: 0;
+}
+.admin-editor-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.admin-course-settings {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-1);
+  margin: 16px 0 24px;
+}
+.admin-course-settings .admin-field {
+  margin-bottom: 0;
+}
+.admin-course-settings-span2 {
+  grid-column: span 2;
+}
+.admin-checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  max-height: 92px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.admin-status-line {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.admin-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 24px;
+  align-items: start;
+}
+.admin-editor-edit {
+  min-width: 0;
+}
+.admin-editor-preview {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  justify-content: center;
+}
+.admin-editor-preview .stage {
+  max-width: 375px;
+}
+.admin-editor-preview .course-card {
+  height: min(720px, 82vh);
+}
+.admin-preview-empty {
+  color: var(--ink-soft);
+  font-size: 13px;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.admin-lesson-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.admin-lesson-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 8px;
+}
+.admin-lesson-nav-row .admin-lesson-nav-item {
+  flex: 1;
+}
+.admin-lesson-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+}
+.admin-lesson-nav-item:hover {
+  background: var(--surface-1);
+}
+.admin-lesson-nav-item.active {
+  background: var(--surface-1);
+  border-color: var(--green-700);
+  font-weight: 600;
+}
+.admin-lesson-nav-type {
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+}
+.admin-module-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.admin-module-header h2 {
+  margin: 0;
+  flex: 1;
+  min-width: 160px;
+}
+.admin-module-unlock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.admin-module-unlock input {
+  width: 52px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+  text-align: center;
+}
+
+.admin-image-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+.admin-image-preview {
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+
+.admin-block {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  background: var(--surface);
+}
+.admin-block .admin-module {
+  margin-left: 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--line);
+}
+
+/* ---- Дашборд /admin: курси -> блоки (components/AdminDashboard.jsx) ---- */
+.admin-course-row {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.admin-course-row-toggle {
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  border-radius: 0;
+}
+.admin-course-row-caret {
+  display: inline-block;
+  width: 14px;
+  color: var(--ink-soft);
+}
+.admin-course-row-body {
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.admin-block-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.admin-block-list-link {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-1);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.admin-block-list-link:hover {
+  border: 1px solid var(--green-700);
+  padding: 7px 9px;
+}
+.admin-block-list-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  transition: outline 0.1s ease;
+}
+.admin-block-list-item .admin-block-list-link {
+  flex: 1;
+}
+.admin-drag-handle {
+  cursor: grab;
+  color: var(--ink-soft);
+  padding: 0 2px;
+  user-select: none;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+.admin-drag-handle svg {
+  width: 16px;
+  height: 16px;
+}
+.admin-drag-handle:active {
+  cursor: grabbing;
+}
+.admin-drag-over {
+  outline: 2px dashed var(--green-700);
+  outline-offset: 2px;
+}
+
+/* ---- Акордеон Блок -> Модуль у редакторі курсу ---- */
+.admin-accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  flex-wrap: wrap;
+}
+.admin-accordion-header-sub {
+  padding: 6px 0;
+}
+.admin-accordion-header-sub h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.admin-accordion-caret {
+  color: var(--ink-soft);
+  font-size: 12px;
+  width: 12px;
+  flex-shrink: 0;
+}
+.admin-accordion-summary {
+  white-space: nowrap;
+}
+.admin-accordion-body {
+  padding: 10px 0 0 22px;
+}
+.admin-block > .admin-accordion-body {
+  border-top: 1px solid var(--line);
+  margin-top: 10px;
+}
+
+/* ---- Панель правки обраного екрану (хлібні крихти + Далі/Назад) ---- */
+.admin-lesson-editor-panel {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 2px solid var(--green-700);
+}
+.admin-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.admin-breadcrumb-sep {
+  opacity: 0.5;
+}
+.admin-lesson-step-nav {
+  justify-content: space-between;
+  margin-top: 10px;
+}

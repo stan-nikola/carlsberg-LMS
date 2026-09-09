@@ -1,43 +1,27 @@
 # carlsberg-LMS
 
-Платформа адаптації Carlsberg Ukraine — статичний PWA-сайт без збірки (Node потрібен лише для `live-server` під час розробки).
+Платформа адаптації Carlsberg Ukraine. В процесі міграції з vanilla
+JS + Google Sheets (див. [`/legacy`](./legacy)) на **Next.js (App Router) +
+Prisma + Postgres**, з прицілом на деплой у Vercel.
 
-## Структура
+## Стан міграції
 
-```
-index.html              розмітка (реєстрація + кабінет/хаб), підключає css/ і js/
-manifest.json, sw.js     PWA-маніфест і service worker (офлайн-кеш)
-
-css/
-  base.css               токени, reset, каркас картки, кнопки, bottom sheet
-  registration.css        екран реєстрації (ім'я + код → PIN)
-  hub.css                 кабінет: профіль, XP, вкладки, досягнення
-
-js/                       нативні ES-модулі (без бандлера, <script type="module">)
-  main.js                 точка входу: завантажує профіль, показує потрібний екран
-  registration.js         флоу реєстрації, виклики Apps Script webhook
-  cabinet.js              renderCabinet(profile) — малює кабінет
-  settings.js             розмір тексту + bottom sheet налаштувань
-  helpers.js               дрібні утиліти (initials тощо)
-
-apps-script/
-  registration.gs         Google Apps Script Web App (User_Id → PIN на пошту SV).
-                          Не виконується цим репо — вставляється в редактор
-                          Apps Script і деплоїться окремо (інструкція у файлі).
-
-assets/
-  monolit-code-hint.png   скріншот для підказки "де знайти код"
-```
+- [x] Крок 1 — Next.js ініціалізовано, старий застосунок перенесено в `/legacy`
+- [ ] Крок 2 — Prisma schema + підключення БД
+- [ ] Крок 3 — перенесення екранів/логіки з `/legacy`
+- [ ] Крок 4 — підготовка до деплою на Vercel
 
 ## Розробка
 
-```
+```bash
 npm install
-npx live-server
+npm run dev
 ```
 
-## Бекенд
+Відкрийте [http://localhost:3000](http://localhost:3000).
 
-Реєстрація і результати курсів пишуться у Google Таблицю через окремо задеплоєні
-Apps Script Web Apps (URL-и прописані в `js/registration.js`). Структура вкладки
-`Users` та інструкція деплою — на початку `apps-script/registration.gs`.
+## Стара версія (vanilla JS)
+
+Повністю робоча версія на vanilla JS + Google Sheets лежить у
+[`/legacy`](./legacy) — використовується лише як довідка під час
+перенесення логіки, окремо не деплоїться.

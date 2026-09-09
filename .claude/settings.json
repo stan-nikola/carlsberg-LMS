@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(npx prisma generate)",
+      "Bash(npx prisma format)",
+      "Bash(npx prisma validate)",
+      "Bash(npx prisma studio)",
+      "Bash(npx prisma migrate deploy)",
+      "Bash(npx prisma migrate dev *)",
+      "Bash(node *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(mkdir -p *)"
+    ],
+    "ask": [
+      "Bash(git push *)"
+    ],
+    "deny": [
+      "Bash(npx prisma migrate reset *)",
+      "Bash(npx prisma db push --accept-data-loss *)",
+      "Bash(* DROP TABLE *)",
+      "Bash(* drop table *)",
+      "Bash(rm -rf *)",
+      "Bash(git reset --hard *)"
+    ]
+  }
+}

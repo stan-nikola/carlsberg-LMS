@@ -1,5 +1,39 @@
 {
+  "name": "carlsberg-lms-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "postinstall": "prisma generate",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "@vercel/blob": "^2.8.0",
+    "dotenv": "^17.4.2",
+    "next": "16.3.4",
+    "nodemailer": "^10.0.1",
+    "pg": "^8.23.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "resend": "^6.26.0"
+  },
   "devDependencies": {
-    "live-server": "^1.2.2"
+    "eslint": "^9",
+    "eslint-config-next": "16.3.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.0",
+    "prisma": "^7.10.0",
+    "vitest": "^5.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "lint-staged": {
+    "*.{js,jsx}": "eslint --fix"
   }
 }

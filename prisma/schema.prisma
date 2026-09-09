@@ -1,0 +1,332 @@
+// Это файл схемы Prisma. Подробнее: https://pris.ly/d/prisma-schema
+//
+// Строка подключения к БД задаётся в prisma7.config.mjs (Prisma 7),
+// а не здесь через url = env(...).
+
+// Проект на JS без TypeScript: "prisma-client" (генератор по умолчанию в v7)
+// эмитит .ts-исходники, поэтому используем "prisma-client-js" — тот же
+// генератор, что был в v6, официально оставлен в v7 для JS-проектов
+// (эмитит обычный .js + .d.ts, без исходников на TypeScript).
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------
+// Роли и иерархия
+// ---------------------------------------------------------------------
+
+/// Должность в иерархии (RM → ASM → SV → SR → MR).
+model Position {
+  id    Int    @id @default(autoincrement())
+  /// Код должности: "RM" | "ASM" | "SV" | "SR" | "MR"
+  code  String @unique
+  name  String
+  /// Уровень в иерархии: 1 = RM (верх), 5 = MR (низ)
+  level Int
+
+  employees Employee[]
+}
+
+/// Территория/регион — используется для видимости и назначения курсов.
+/// Иерархична (как Employee.managerId): RM-регион -> ASM-область ->
+/// SV-район/город (см. prisma/import-territories.js).
+model Territory {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  parentId Int?
+  parent   Territory?  @relation("TerritoryHierarchy", fields: [parentId], references: [id])
+  children Territory[] @relation("TerritoryHierarchy")
+
+  employees Employee[]
+}
+
+/// Системная роль поверх иерархии должностей.
+/// employee   — видимость по иерархии (managerId)
+/// admin      — полный доступ
+/// hr_manager — полный доступ (равнозначно admin, другая подпись в UI)
+enum Role {
+  employee
+  admin
+  hr_manager
+}
+
+model Employee {
+  id    Int     @id @default(autoincrement())
+  name  String
+  /// Опційна: у польових ролей (МЧ, ТП, Технік тощо) особистої пошти
+  /// зазвичай немає — PIN для входу йде на пошту керівника
+  /// (employee.manager.email), не на власну. Реальна пошта є лише в
+  /// менеджерського шару (SV/ASM/LKAM/RM HoReCa) — див. import-employees.js.
+  email String? @unique
+  role  Role    @default(employee)
+
+  /// Код із зовнішньої системи (Monolit Agent) — те, що в legacy називалось
+  /// User_Id. Разом із loginPin використовується для входу (ШАГ 3, вопрос А).
+  externalCode String    @unique
+  /// Поточний PIN для входу. Генерується заново при КОЖНОМУ запиті (в т.ч.
+  /// "Надіслати ще раз") і одразу ж перезаписує попередній — а сам живе не
+  /// довше pinIssuedAt + 1 година (PIN_TTL_MS у lib/auth.js), далі
+  /// недійсний. Висилається на пошту самого співробітника, якщо вона є, або
+  /// на пошту керівника (employee.manager.email) — див. lib/auth.js.
+  loginPin     String?
+  pinIssuedAt  DateTime?
+  /// Момент першого успішного входу (перше підтвердження PIN) — те, що в
+  /// legacy показувалось як profile.registeredAt. createdAt тут не підходить:
+  /// той проставляється, коли адмін заводить рядок Employee, а не коли
+  /// співробітник вперше увійшов.
+  firstLoginAt DateTime?
+
+  positionId Int?
+  position   Position? @relation(fields: [positionId], references: [id])
+
+  territoryId Int?
+  territory   Territory? @relation(fields: [territoryId], references: [id])
+
+  /// Руководитель этого сотрудника (следующая ступень вверх по иерархии).
+  managerId    Int?
+  manager      Employee?  @relation("EmployeeHierarchy", fields: [managerId], references: [id])
+  /// Прямые подчинённые (следующая ступень вниз по иерархии).
+  subordinates Employee[] @relation("EmployeeHierarchy")
+
+  enrollments         Enrollment[]   @relation("EnrollmentEmployee")
+  assignedEnrollments Enrollment[]   @relation("EnrollmentAssignedBy")
+  notifications       Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------
+// Курсы
+// ---------------------------------------------------------------------
+
+model Course {
+  id          Int     @id @default(autoincrement())
+  /// Для чистых URL курса (/courses/[slug]) — например "assortment".
+  slug        String  @unique
+  title       String
+  description String?
+
+  isMandatory  Boolean @default(false)
+  /// Сколько дней даётся на прохождение с момента назначения (используется
+  /// для расчёта Enrollment.dueDate).
+  deadlineDays Int?
+
+  /// Код должностей, кому курс назначается по умолчанию (например ["SR","MR"]).
+  targetPositions   String[] @default([])
+  /// Id территорий, если курс назначается не всем, а конкретному региону.
+  targetTerritories Int[]    @default([])
+
+  /// Дата, с которой курс нужно авто-назначить сотрудникам по
+  /// targetPositions/targetTerritories — обрабатывается ежедневным cron
+  /// (lib/courseAssignment.js publishScheduledCourses, вызывается из
+  /// app/api/cron/check-overdue-enrollments/route.js). null — не
+  /// запланировано, назначается только вручную кнопкой в /admin.
+  publishAt      DateTime?
+  /// Момент, когда авто-назначение по publishAt реально сработало — чтобы
+  /// cron не назначал курс повторно каждый день (Enrollment.createMany и
+  /// так skipDuplicates, но это лишняя работа + нужен явный статус
+  /// "заплановано"/"опубліковано" в /admin).
+  autoAssignedAt DateTime?
+
+  blocks      Block[]
+  enrollments Enrollment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Блок курсу — проміжне угруповання між Course і Module (Курс -> Блок ->
+/// Модуль -> Екран), напр. курс "Адаптація мерчендайзерів" з блоками
+/// "Асортимент", далі ще блоки. Прогрес/залік (Enrollment) рахується по
+/// КУРСУ в цілому, не по блоку — блок лише групує модулі для навігації
+/// (як розділи книги), не окрема залікова одиниця.
+model Block {
+  id       Int    @id @default(autoincrement())
+  courseId Int
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  title String
+  order Int    @default(0)
+
+  /// "Пауза між блоками" — скільки днів має минути з моменту, як
+  /// співробітник СКЛАВ (пройшов з прохідним балом) ПОПЕРЕДНІЙ блок курсу,
+  /// перш ніж цей блок відкриється. null/0 — відкривається одразу, як
+  /// тільки попередній складено (без додаткової паузи). На перший блок
+  /// курсу не впливає (немає попереднього). Не плутати з
+  /// Module.unlockAfterDays — той відлічує від дати ПРИЗНАЧЕННЯ курсу
+  /// (календарний графік для всіх однаково), а cooldownDays — від
+  /// РЕАЛЬНОГО факту складання попереднього блоку (індивідуально для
+  /// кожного співробітника, залежить від темпу проходження). Обчислення —
+  /// app/courses/[slug]/page.js, факт складання — BlockCompletion.
+  cooldownDays Int?
+
+  modules    Module[]
+  completions BlockCompletion[]
+}
+
+/// Факт складання блоку конкретним співробітником (в рамках конкретного
+/// Enrollment) — потрібен, щоб рахувати "Паузу між блоками" (Block.cooldownDays)
+/// від РЕАЛЬНОЇ дати, коли людина склала тести блоку, а не від дати
+/// призначення курсу. passed=false лишається в історії (спроба була,
+/// не склав) — при повторній спробі перезаписується (upsert), тому
+/// completedAt/scorePercent завжди відображають ОСТАННЮ спробу.
+model BlockCompletion {
+  id           Int        @id @default(autoincrement())
+  enrollmentId Int
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  blockId      Int
+  block        Block      @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  scorePercent Int
+  passed       Boolean
+  completedAt  DateTime @default(now())
+
+  @@unique([enrollmentId, blockId])
+}
+
+model Module {
+  id      Int   @id @default(autoincrement())
+  blockId Int
+  block   Block @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  title String
+  order Int    @default(0)
+
+  /// Через сколько дней после Enrollment.assignedAt этот модуль становится
+  /// доступен сотруднику (последовательное открытие модулей). null/0 —
+  /// доступен сразу. Считается от даты назначения КУРСА, а не от
+  /// завершения предыдущего модуля — см. app/courses/[slug]/page.js.
+  unlockAfterDays Int?
+
+  lessons Lesson[]
+}
+
+/// info — информационный экран (текст/картинка); quiz — вопрос с вариантами
+/// ответа (тянется в квиз-банк модуля, из которого во время прохождения
+/// курса случайно выбирается несколько штук — как в legacy).
+enum LessonType {
+  info
+  quiz
+}
+
+model Lesson {
+  id       Int    @id @default(autoincrement())
+  moduleId Int
+  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  type  LessonType @default(info)
+  title String
+  order Int        @default(0)
+
+  /// Структура зависит от type — редактируется отдельно от кода (без
+  /// редеплоя):
+  /// info: { body: string, imageUrl?: string }
+  /// quiz: { questionType: "single" | "multi",
+  ///         options: [{ text: string, correct: boolean }] }
+  content Json
+}
+
+// ---------------------------------------------------------------------
+// Назначения курсов
+// ---------------------------------------------------------------------
+
+enum EnrollmentStatus {
+  not_started
+  in_progress
+  completed
+  overdue
+}
+
+model Enrollment {
+  id Int @id @default(autoincrement())
+
+  employeeId Int
+  employee   Employee @relation("EnrollmentEmployee", fields: [employeeId], references: [id])
+
+  courseId Int
+  course   Course @relation(fields: [courseId], references: [id])
+
+  /// Кто назначил курс (обычно admin/RM).
+  assignedById Int
+  assignedBy   Employee @relation("EnrollmentAssignedBy", fields: [assignedById], references: [id])
+
+  /// Дата назначения (было enrolledAt — переименовано для ясности: это
+  /// момент назначения курса, а не момент, когда сотрудник сам начал его
+  /// проходить).
+  assignedAt  DateTime  @default(now())
+  /// Дедлайн = assignedAt + course.deadlineDays на момент назначения
+  /// (пересчитывается только при новом назначении, не задним числом).
+  dueDate     DateTime?
+  /// Копия course.isMandatory на момент назначения — чтобы будущие
+  /// изменения course.isMandatory не меняли задним числом уже созданные
+  /// назначения.
+  isMandatory Boolean   @default(false)
+
+  status EnrollmentStatus @default(not_started)
+
+  /// Сводка по последней попытке (полная история — в EnrollmentAttempt).
+  /// Заполняется при завершении курса из данных попытки.
+  completedAt          DateTime?
+  scoreRaw             Int?
+  scoreMax             Int?
+  scorePercent         Int?
+  passed               Boolean?
+  durationSeconds      Int?
+  activeTimeSeconds    Int?
+  longestCorrectStreak Int?
+
+  attempts         EnrollmentAttempt[]
+  blockCompletions BlockCompletion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, courseId])
+  /// Для дневной cron-задачи, которая ищет просроченные назначения.
+  @@index([status, dueDate])
+}
+
+/// Полная история попыток прохождения курса (курс можно проходить
+/// повторно — "Пройти ще раз" в legacy). Enrollment хранит только сводку
+/// по последней попытке для быстрого доступа (карточки/отчёты); сюда
+/// пишется каждая попытка отдельной строкой.
+model EnrollmentAttempt {
+  id           Int        @id @default(autoincrement())
+  enrollmentId Int
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  startedAt   DateTime
+  completedAt DateTime
+
+  durationSeconds      Int
+  activeTimeSeconds    Int
+  scoreRaw             Int
+  scoreMax             Int
+  scorePercent         Int
+  passed               Boolean
+  longestCorrectStreak Int
+
+  createdAt DateTime @default(now())
+
+  @@index([enrollmentId])
+}
+
+model Notification {
+  id Int @id @default(autoincrement())
+
+  employeeId Int
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  type    String
+  message String
+  isRead  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}

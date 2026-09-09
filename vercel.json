@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/check-overdue-enrollments",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
