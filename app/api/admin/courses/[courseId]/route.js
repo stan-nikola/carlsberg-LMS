@@ -30,7 +30,8 @@ export async function GET(request, { params }) {
 }
 
 // PATCH /api/admin/courses/:courseId — { title?, description?, isMandatory?,
-// deadlineDays?, targetPositions?, targetTerritories?, publishAt? }
+// deadlineDays?, targetPositions?, targetTerritories?, targetEmployeeIds?,
+// publishAt? }
 // Курсовий рівень налаштувань (хто і коли отримує курс) — не плутати з
 // призначенням "тут і зараз" через /assign. Зміна title перегенеровує slug
 // (транслітерація), якщо на курс ще нема жодного Enrollment.
@@ -66,6 +67,7 @@ export async function PATCH(request, { params }) {
   if (body.deadlineDays !== undefined) data.deadlineDays = body.deadlineDays;
   if (body.targetPositions !== undefined) data.targetPositions = body.targetPositions;
   if (body.targetTerritories !== undefined) data.targetTerritories = body.targetTerritories;
+  if (body.targetEmployeeIds !== undefined) data.targetEmployeeIds = body.targetEmployeeIds;
   if (body.publishAt !== undefined) {
     data.publishAt = body.publishAt ? new Date(body.publishAt) : null;
     // Дату публікації змінили вручну — скидаємо позначку "вже
@@ -94,7 +96,8 @@ export async function DELETE(request, { params }) {
   if (enrollmentCount > 0) {
     return NextResponse.json(
       {
-        error: `Курс не видалено: на нього вже призначено ${enrollmentCount} співробітник(ів). Спершу зніміть призначення.`,
+        error: `На курс призначено ${enrollmentCount} співробітник(ів). Спершу зніміть призначення.`,
+        enrollmentCount,
       },
       { status: 409 }
     );

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GripIcon } from "@/components/icons";
+import { GripIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
+import { TerritoryPicker } from "@/components/TerritoryPicker";
 
 // Дашборд /admin: курси розгортаються списком своїх блоків (клік по
 // заголовку курсу), клік по блоку веде в редактор курсу (components/
@@ -17,40 +18,114 @@ function toDatetimeLocalValue(iso) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** Список територій із відступами за ієрархією (RM -> ASM -> SV). */
-function buildTerritoryOptions(territories) {
-  const byId = new Map(territories.map((t) => [t.id, t]));
-  function depth(t) {
-    let d = 0;
-    let cur = t;
-    while (cur.parentId) {
-      cur = byId.get(cur.parentId);
-      if (!cur) break;
-      d++;
-    }
-    return d;
-  }
-  return territories
-    .map((t) => ({ id: t.id, label: `${"— ".repeat(depth(t))}${t.name}` }))
-    .sort((a, b) => a.label.localeCompare(b.label, "uk"));
+/** Спільний заголовок-акордеон для обох полів "Кому призначати" (посади /
+ * співробітники) — та сама caret+summary поведінка, щоб обидва блоки
+ * виглядали однаково: згорнуто за замовчуванням (другорядні, необов'язкові
+ * поля), згорнутий заголовок все одно показує, що вже обрано. */
+function AccordionField({ title, summary, children, footer }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`admin-field admin-target-card${open ? " admin-target-card-open" : ""}`}>
+      <div className="admin-accordion-header admin-territory-accordion-header" onClick={() => setOpen((v) => !v)}>
+        <span className={`territory-caret${open ? " territory-caret-open" : ""}`}>
+          <ChevronIcon />
+        </span>
+        <span className="admin-label" style={{ marginBottom: 0 }}>
+          {title}
+        </span>
+        {!open && summary && <span className="admin-hint admin-accordion-summary">{summary}</span>}
+      </div>
+      {open && (
+        <div className="admin-accordion-body" style={{ paddingLeft: 0, paddingTop: 10 }}>
+          {children}
+          {footer && (
+            <p className="admin-hint" style={{ marginTop: 6 }}>
+              {footer}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
-function CourseCreateForm({ positions, territories, onCreated, onCancel }) {
+// otherSelected: чи вже щось обрано в сусідній картці ("За
+// співробітниками") — якщо так, "не обрано" тут не показуємо: людина вже
+// бачить, що призначення налаштовано (через конкретних людей), і друге
+// "не обрано" поруч лише плутає, ніби взагалі нічого не вибрано.
+function PositionsAccordionField({ positions, value, onChange, otherSelected }) {
+  const names = positions.filter((p) => value.includes(p.code)).map((p) => p.name);
+  const summary =
+    names.length > 0
+      ? names.length <= 2
+        ? names.join(", ")
+        : `${names.slice(0, 2).join(", ")} +${names.length - 2}`
+      : otherSelected
+        ? ""
+        : "не обрано";
+
+  function toggle(code) {
+    onChange(value.includes(code) ? value.filter((c) => c !== code) : [...value, code]);
+  }
+
+  return (
+    <AccordionField title="За посадами" summary={summary}>
+      <div className="admin-checkbox-grid">
+        {positions.map((p) => (
+          <label key={p.code} className="admin-checkbox">
+            <input type="checkbox" checked={value.includes(p.code)} onChange={() => toggle(p.code)} />
+            <span>{p.name}</span>
+          </label>
+        ))}
+      </div>
+    </AccordionField>
+  );
+}
+
+// positionsSelected: чи вже обрано хоч одну посаду в сусідній картці —
+// тоді порожній вибір тут означає щось конкретне ("всім із посади"), а не
+// голе "не обрано" (та ж логіка узгодженості, що й у PositionsAccordionField).
+function TerritoryAccordionField({ territories, employees, value, onChange, employeeValue, onEmployeeChange, positionsSelected }) {
+  const byId = new Map(territories.map((t) => [t.id, t]));
+  const employeesById = new Map(employees.map((e) => [e.id, e]));
+  const names = [
+    ...value.map((id) => byId.get(id)?.name),
+    ...employeeValue.map((id) => employeesById.get(id)?.name),
+  ].filter(Boolean);
+  const summary =
+    names.length > 0
+      ? names.length <= 2
+        ? names.join(", ")
+        : `${names.slice(0, 2).join(", ")} +${names.length - 2}`
+      : positionsSelected
+        ? "всім із посади"
+        : "";
+
+  return (
+    <AccordionField title="За співробітниками" summary={summary} footer="Порожньо = всім із обраної посади.">
+      <TerritoryPicker
+        territories={territories}
+        employees={employees}
+        value={value}
+        onChange={onChange}
+        employeeValue={employeeValue}
+        onEmployeeChange={onEmployeeChange}
+      />
+    </AccordionField>
+  );
+}
+
+function CourseCreateForm({ positions, territories, employees, onCreated, onCancel }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isMandatory, setIsMandatory] = useState(false);
   const [deadlineDays, setDeadlineDays] = useState("");
   const [targetPositions, setTargetPositions] = useState([]);
   const [targetTerritories, setTargetTerritories] = useState([]);
+  const [targetEmployeeIds, setTargetEmployeeIds] = useState([]);
   const [publishAt, setPublishAt] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
-  const territoryOptions = useMemo(() => buildTerritoryOptions(territories), [territories]);
-
-  function togglePosition(code) {
-    setTargetPositions((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
-  }
 
   async function handleCreate() {
     if (!title.trim()) return;
@@ -66,7 +141,8 @@ function CourseCreateForm({ positions, territories, onCreated, onCancel }) {
           isMandatory,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
           targetPositions,
-          targetTerritories: targetTerritories.map(Number),
+          targetTerritories,
+          targetEmployeeIds,
           publishAt: publishAt ? new Date(publishAt).toISOString() : null,
         }),
       });
@@ -81,72 +157,74 @@ function CourseCreateForm({ positions, territories, onCreated, onCancel }) {
 
   return (
     <div className="admin-course-settings" style={{ marginTop: 0 }}>
-      <div className="admin-field admin-course-settings-span2">
-        <label className="admin-label">Назва курсу</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" autoFocus />
-      </div>
-      <div className="admin-field admin-course-settings-span2">
-        <label className="admin-label">Опис (необов&apos;язково)</label>
-        <input value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input-flex" />
-      </div>
+      <div className="admin-form-columns">
+        <div className="admin-form-section">
+          <span className="admin-form-section-title">Загальна інформація</span>
+          <div className="admin-form-row">
+            <div className="admin-field">
+              <label className="admin-label">Назва курсу</label>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" autoFocus />
+            </div>
+            <div className="admin-field">
+              <label className="admin-label">Опис (необов&apos;язково)</label>
+              <input value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input-flex" />
+            </div>
+          </div>
+        </div>
 
-      <div className="admin-field">
-        <label className="admin-label">Дедлайн (днів на проходження)</label>
-        <input
-          type="number"
-          min="0"
-          value={deadlineDays}
-          onChange={(e) => setDeadlineDays(e.target.value)}
-          className="admin-input-flex"
-          placeholder="без дедлайну"
-        />
-      </div>
-      <div className="admin-field">
-        <label className="admin-label">Дата публікації (авто-призначення)</label>
-        <input type="datetime-local" value={publishAt} onChange={(e) => setPublishAt(e.target.value)} className="admin-input-flex" />
-      </div>
+        <div className="admin-form-section">
+          <span className="admin-form-section-title">Розклад</span>
+          <div className="admin-form-row">
+            <div className="admin-field">
+              <label className="admin-label">Дедлайн (днів на проходження)</label>
+              <input
+                type="number"
+                min="0"
+                value={deadlineDays}
+                onChange={(e) => setDeadlineDays(e.target.value)}
+                className="admin-input-flex"
+                placeholder="без дедлайну"
+              />
+            </div>
+            <div className="admin-field">
+              <label className="admin-label">Дата публікації (авто-призначення)</label>
+              <input type="datetime-local" value={publishAt} onChange={(e) => setPublishAt(e.target.value)} className="admin-input-flex" />
+            </div>
+          </div>
+          <label className="admin-checkbox">
+            <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
+            <span>Обов&apos;язковий курс</span>
+          </label>
+        </div>
 
-      <div className="admin-field admin-course-settings-span2">
-        <label className="admin-label">Кому призначати — посади</label>
-        <div className="admin-checkbox-grid">
-          {positions.map((p) => (
-            <label key={p.code} className="admin-checkbox">
-              <input type="checkbox" checked={targetPositions.includes(p.code)} onChange={() => togglePosition(p.code)} />
-              <span>{p.name}</span>
-            </label>
-          ))}
+        <div className="admin-form-section">
+          <span className="admin-form-section-title">Кому призначати</span>
+          <PositionsAccordionField
+            positions={positions}
+            value={targetPositions}
+            onChange={setTargetPositions}
+            otherSelected={targetTerritories.length > 0 || targetEmployeeIds.length > 0}
+          />
+          <TerritoryAccordionField
+            territories={territories}
+            employees={employees}
+            value={targetTerritories}
+            onChange={setTargetTerritories}
+            employeeValue={targetEmployeeIds}
+            onEmployeeChange={setTargetEmployeeIds}
+            positionsSelected={targetPositions.length > 0}
+          />
         </div>
       </div>
 
-      <div className="admin-field admin-course-settings-span2">
-        <label className="admin-label">Кому призначати — території (необов&apos;язково)</label>
-        <select
-          multiple
-          className="admin-select"
-          style={{ width: "100%", height: 92 }}
-          value={targetTerritories}
-          onChange={(e) => setTargetTerritories(Array.from(e.target.selectedOptions, (o) => o.value))}
-        >
-          {territoryOptions.map((t) => (
-            <option key={t.id} value={String(t.id)}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <label className="admin-checkbox">
-        <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
-        <span>Обов&apos;язковий курс</span>
-      </label>
-
       <div className="admin-status-line">
         {error && <span className="admin-error">{error}</span>}
-        <span>
+        <span className="admin-btn-group">
           <button type="button" onClick={onCancel} className="admin-btn-link">
             Скасувати
-          </button>{" "}
+          </button>
           <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn">
+            {saving && <SpinnerIcon />}
             {saving ? "Створення…" : "Створити курс"}
           </button>
         </span>
@@ -157,23 +235,24 @@ function CourseCreateForm({ positions, territories, onCreated, onCancel }) {
 
 /** Редагування налаштувань уже наявного курсу — той самий набір полів, що
  * й у CourseCreateForm, просто передзаповнений і зберігає через PATCH. */
-function CourseSettingsBar({ course, positions, territories, onSaved, onDeleted }) {
+function CourseSettingsBar({ course, positions, territories, employees, onSaved, onDeleted }) {
   const [title, setTitle] = useState(course.title);
+  const [description, setDescription] = useState(course.description || "");
   const [isMandatory, setIsMandatory] = useState(course.isMandatory);
   const [deadlineDays, setDeadlineDays] = useState(course.deadlineDays ?? "");
   const [targetPositions, setTargetPositions] = useState(course.targetPositions);
-  const [targetTerritories, setTargetTerritories] = useState(course.targetTerritories.map(String));
+  const [targetTerritories, setTargetTerritories] = useState(course.targetTerritories);
+  const [targetEmployeeIds, setTargetEmployeeIds] = useState(course.targetEmployeeIds || []);
   const [publishAt, setPublishAt] = useState(toDatetimeLocalValue(course.publishAt));
   const [saving, setSaving] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [assignResult, setAssignResult] = useState("");
   const [error, setError] = useState("");
-
-  const territoryOptions = useMemo(() => buildTerritoryOptions(territories), [territories]);
-
-  function togglePosition(code) {
-    setTargetPositions((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
-  }
+  // Заблокований на видаленні курс (409 — є Enrollment) тримає тут їх
+  // кількість, щоб показати ОКРЕМУ явну кнопку "Зняти призначення й
+  // видалити" замість голого тексту помилки без жодної дії під нею.
+  const [blockedEnrollmentCount, setBlockedEnrollmentCount] = useState(0);
+  const [unassigning, setUnassigning] = useState(false);
 
   // "Кому призначати" вище — це лише збережений НАМІР (Course.targetPositions/
   // targetTerritories), сам по собі він НЕ створює Enrollment (звідси баг:
@@ -181,8 +260,8 @@ function CourseSettingsBar({ course, positions, territories, onSaved, onDeleted 
   // призначення відбувається або тут, вручну, або автоматично по даті
   // публікації (cron, lib/courseAssignment.js publishScheduledCourses).
   async function handleAssignNow() {
-    if (targetPositions.length === 0) {
-      setError("Спочатку оберіть хоча б одну посаду в «Кому призначати».");
+    if (targetPositions.length === 0 && targetEmployeeIds.length === 0) {
+      setError("Спочатку оберіть хоча б одну посаду або хоча б одну конкретну людину.");
       return;
     }
     setError("");
@@ -192,7 +271,7 @@ function CourseSettingsBar({ course, positions, territories, onSaved, onDeleted 
       const res = await fetch(`/api/admin/courses/${course.id}/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ positionCodes: targetPositions, territoryIds: targetTerritories.map(Number) }),
+        body: JSON.stringify({ positionCodes: targetPositions, territoryIds: targetTerritories, employeeIds: targetEmployeeIds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -206,6 +285,34 @@ function CourseSettingsBar({ course, positions, territories, onSaved, onDeleted 
     }
   }
 
+  // Сам виклик DELETE, без confirm() — щоб handleUnassignAndDelete міг
+  // повторити його одразу після зняття призначень, не показуючи другий
+  // "ви впевнені?" одразу слідом за першим (той уже все сказав).
+  async function performDelete() {
+    setError("");
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/courses/${course.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // 409 із enrollmentCount — курс не видалено САМЕ через реальні
+        // призначення (не іншу помилку) — пропонуємо явну дію нижче,
+        // а не лишаємо адміна з голим текстом помилки без жодної кнопки.
+        if (res.status === 409 && data.enrollmentCount) {
+          setBlockedEnrollmentCount(data.enrollmentCount);
+          return;
+        }
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      setBlockedEnrollmentCount(0);
+      onDeleted(course.id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDelete() {
     if (
       !confirm(
@@ -214,17 +321,35 @@ function CourseSettingsBar({ course, positions, territories, onSaved, onDeleted 
     ) {
       return;
     }
-    setError("");
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/admin/courses/${course.id}`, { method: "DELETE" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      onDeleted(course.id);
-    } catch (err) {
-      setError(err.message);
-      setSaving(false);
+    setBlockedEnrollmentCount(0);
+    await performDelete();
+  }
+
+  // Окремий явний крок: адмін підтверджує САМЕ зняття реальних призначень
+  // (кожне — жива людина, яка бачила цей курс у себе в хабі), а не тихий
+  // побічний ефект видалення курсу. Після зняття одразу пробуємо видалити
+  // курс ще раз (тепер уже без 409), без другого підтвердження — перше
+  // вже явно попередило, що курс після цього видалиться.
+  async function handleUnassignAndDelete() {
+    if (
+      !confirm(
+        `Зняти всі ${blockedEnrollmentCount} призначень цього курсу з реальних співробітників? Це незворотно — вони більше не побачать курс у себе. Курс після цього видалиться автоматично.`
+      )
+    ) {
+      return;
     }
+    setUnassigning(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/courses/${course.id}/enrollments`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      setError("Помилка зняття призначень: " + err.message);
+      setUnassigning(false);
+      return;
+    }
+    setUnassigning(false);
+    await performDelete();
   }
 
   async function handleSave() {
@@ -236,10 +361,12 @@ function CourseSettingsBar({ course, positions, territories, onSaved, onDeleted 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
+          description: description || null,
           isMandatory,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
           targetPositions,
-          targetTerritories: targetTerritories.map(Number),
+          targetTerritories,
+          targetEmployeeIds,
           publishAt: publishAt ? new Date(publishAt).toISOString() : null,
         }),
       });
@@ -260,75 +387,100 @@ function CourseSettingsBar({ course, positions, territories, onSaved, onDeleted 
 
   return (
     <div className="admin-course-settings">
-      <div className="admin-field admin-course-settings-span2">
-        <label className="admin-label">Назва курсу</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" />
-      </div>
+      <div className="admin-form-columns">
+        <div className="admin-form-section">
+          <span className="admin-form-section-title">Загальна інформація</span>
+          <div className="admin-form-row">
+            <div className="admin-field">
+              <label className="admin-label">Назва курсу</label>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" />
+            </div>
+            <div className="admin-field">
+              <label className="admin-label">Опис (необов&apos;язково)</label>
+              <input value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input-flex" />
+            </div>
+          </div>
+        </div>
 
-      <div className="admin-field">
-        <label className="admin-label">Дедлайн (днів на проходження)</label>
-        <input
-          type="number"
-          min="0"
-          value={deadlineDays}
-          onChange={(e) => setDeadlineDays(e.target.value)}
-          className="admin-input-flex"
-          placeholder="без дедлайну"
-        />
-      </div>
+        <div className="admin-form-section">
+          <span className="admin-form-section-title">Розклад</span>
+          <div className="admin-form-row">
+            <div className="admin-field">
+              <label className="admin-label">Дедлайн (днів на проходження)</label>
+              <input
+                type="number"
+                min="0"
+                value={deadlineDays}
+                onChange={(e) => setDeadlineDays(e.target.value)}
+                className="admin-input-flex"
+                placeholder="без дедлайну"
+              />
+            </div>
+            <div className="admin-field">
+              <label className="admin-label">Дата публікації (авто-призначення)</label>
+              <input
+                type="datetime-local"
+                value={publishAt}
+                onChange={(e) => setPublishAt(e.target.value)}
+                className="admin-input-flex"
+              />
+            </div>
+          </div>
+          <label className="admin-checkbox">
+            <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
+            <span>Обов&apos;язковий курс</span>
+          </label>
+          <p className="admin-hint">{statusText}</p>
+        </div>
 
-      <div className="admin-field">
-        <label className="admin-label">Дата публікації (авто-призначення)</label>
-        <input
-          type="datetime-local"
-          value={publishAt}
-          onChange={(e) => setPublishAt(e.target.value)}
-          className="admin-input-flex"
-        />
-      </div>
-
-      <div className="admin-field admin-course-settings-span2">
-        <label className="admin-label">Кому призначати — посади</label>
-        <div className="admin-checkbox-grid">
-          {positions.map((p) => (
-            <label key={p.code} className="admin-checkbox">
-              <input type="checkbox" checked={targetPositions.includes(p.code)} onChange={() => togglePosition(p.code)} />
-              <span>{p.name}</span>
-            </label>
-          ))}
+        <div className="admin-form-section">
+          <span className="admin-form-section-title">Кому призначати</span>
+          <PositionsAccordionField
+            positions={positions}
+            value={targetPositions}
+            onChange={setTargetPositions}
+            otherSelected={targetTerritories.length > 0 || targetEmployeeIds.length > 0}
+          />
+          <TerritoryAccordionField
+            territories={territories}
+            employees={employees}
+            value={targetTerritories}
+            onChange={setTargetTerritories}
+            employeeValue={targetEmployeeIds}
+            onEmployeeChange={setTargetEmployeeIds}
+            positionsSelected={targetPositions.length > 0}
+          />
         </div>
       </div>
 
-      <div className="admin-field admin-course-settings-span2">
-        <label className="admin-label">Кому призначати — території (необов&apos;язково, порожньо = всім із посади)</label>
-        <select
-          multiple
-          className="admin-select"
-          style={{ width: "100%", height: 92 }}
-          value={targetTerritories}
-          onChange={(e) => setTargetTerritories(Array.from(e.target.selectedOptions, (o) => o.value))}
-        >
-          {territoryOptions.map((t) => (
-            <option key={t.id} value={String(t.id)}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <label className="admin-checkbox">
-        <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
-        <span>Обов&apos;язковий курс</span>
-      </label>
-
       {assignResult && <p className="admin-hint">{assignResult}</p>}
+
+      {blockedEnrollmentCount > 0 && (
+        <div className="admin-delete-blocked">
+          <p>
+            Курс не видалено: на нього призначено <b>{blockedEnrollmentCount}</b> співробітник(ів). Курс і
+            призначення пов&apos;язані — щоб видалити курс, спершу треба зняти самі призначення (це прибере
+            курс з хабу тих людей).
+          </p>
+          <span className="admin-btn-group">
+            <button type="button" onClick={handleUnassignAndDelete} disabled={unassigning} className="admin-btn admin-btn-danger">
+              {unassigning && <SpinnerIcon />}
+              {unassigning ? "Знімаю призначення…" : `Зняти ${blockedEnrollmentCount} призначень і видалити курс`}
+            </button>
+            <button type="button" onClick={() => setBlockedEnrollmentCount(0)} className="admin-btn-link">
+              Скасувати
+            </button>
+          </span>
+        </div>
+      )}
+
       <div className="admin-status-line">
-        <span>{statusText}</span>
-        <span>
-          {error && <span className="admin-error">{error} </span>}
+        <span className="admin-error">{error}</span>
+        <span className="admin-btn-group">
           <button type="button" onClick={handleDelete} disabled={saving} className="admin-btn admin-btn-danger">
+            {saving && <SpinnerIcon />}
             Видалити курс
-          </button>{" "}
+          </button>
           <button
             type="button"
             onClick={handleAssignNow}
@@ -336,9 +488,11 @@ function CourseSettingsBar({ course, positions, territories, onSaved, onDeleted 
             className="admin-btn"
             title="Створити реальні призначення (Enrollment) для обраних посад/територій просто зараз"
           >
+            {assigning && <SpinnerIcon />}
             {assigning ? "Призначення…" : "Призначити зараз"}
-          </button>{" "}
+          </button>
           <button type="button" onClick={handleSave} disabled={saving} className="admin-btn">
+            {saving && <SpinnerIcon />}
             {saving ? "Збереження…" : "Зберегти налаштування"}
           </button>
         </span>
@@ -446,7 +600,7 @@ function BlockList({ courseId, blocks, onReordered }) {
   );
 }
 
-function CourseRow({ course, positions, territories, onBlockAdded, onBlocksReordered, onCourseSaved, onCourseDeleted }) {
+function CourseRow({ course, positions, territories, employees, onBlockAdded, onBlocksReordered, onCourseSaved, onCourseDeleted }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -466,6 +620,7 @@ function CourseRow({ course, positions, territories, onBlockAdded, onBlocksReord
             course={course}
             positions={positions}
             territories={territories}
+            employees={employees}
             onSaved={(updated) => onCourseSaved(course.id, updated)}
             onDeleted={onCourseDeleted}
           />
@@ -497,6 +652,11 @@ export function AdminDashboard() {
   const [courses, setCourses] = useState(null);
   const [positions, setPositions] = useState([]);
   const [territories, setTerritories] = useState([]);
+  // Співробітники з managerId — окремо від прив'язки до territoryId (та
+  // дає лише "хто де сидить", ця — "хто кому підпорядковується"; на
+  // листках дерева територій одне переходить в інше, див.
+  // TerritoryPicker.jsx).
+  const [employees, setEmployees] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [loadError, setLoadError] = useState("");
 
@@ -511,7 +671,8 @@ export function AdminDashboard() {
         if (cancelled) return;
         setCourses(coursesData);
         setPositions(positionsData);
-        setTerritories(territoriesData);
+        setTerritories(territoriesData.territories);
+        setEmployees(territoriesData.employees);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(err.message);
@@ -560,6 +721,7 @@ export function AdminDashboard() {
         <CourseCreateForm
           positions={positions}
           territories={territories}
+          employees={employees}
           onCreated={handleCourseCreated}
           onCancel={() => setShowCreate(false)}
         />
@@ -577,6 +739,7 @@ export function AdminDashboard() {
               course={course}
               positions={positions}
               territories={territories}
+              employees={employees}
               onBlockAdded={handleBlockAdded}
               onBlocksReordered={handleBlocksReordered}
               onCourseSaved={handleCourseSaved}

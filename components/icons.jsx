@@ -46,6 +46,17 @@ export function ProfileIcon() {
   );
 }
 
+/** Кружечок завантаження для кнопок дій (Зберегти/Призначити/Створити
+ * тощо) — colorами не переймається, бере currentColor від батька
+ * (див. .admin-spinner в admin.css: колір/розмір/анімація). */
+export function SpinnerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="admin-spinner">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="34 100" />
+    </svg>
+  );
+}
+
 export function ChevronIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

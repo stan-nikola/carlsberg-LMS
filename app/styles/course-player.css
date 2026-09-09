@@ -16,18 +16,18 @@
 }
 
 .cp-progress-track {
-  height: 6px;
-  border-radius: 99px;
-  background: var(--surface-2);
+  height: var(--size-4xs);
+  border-radius: var(--size-4xs);
+  background: var(--cb-overlay-10);
   overflow: hidden;
   margin: 0 14px;
   flex-shrink: 0;
 }
 .cp-progress-fill {
   height: 100%;
-  border-radius: 99px;
-  background: linear-gradient(90deg, var(--green-700), var(--green-500));
-  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--size-4xs);
+  background: var(--cb-primary);
+  transition: width var(--dur-base) ease-in-out;
 }
 .cp-step-count {
   font-family: var(--font-mono);
@@ -81,7 +81,7 @@
 }
 .cp-note-accordion {
   background: var(--green-tint);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   margin-top: 6px;
   overflow: hidden;
 }
@@ -140,7 +140,7 @@
   flex: 1;
   background: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   padding: 11px 6px;
 }
 .cp-intro-stats .stat b {
@@ -163,28 +163,34 @@
   gap: 10px;
   width: 100%;
   text-align: left;
-  padding: 12px 13px;
-  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  min-height: 52px;
+  border-radius: var(--radius-card);
   border: 1.5px solid var(--line);
-  background: var(--surface-1);
+  background: var(--cb-white);
   margin-bottom: 8px;
   cursor: pointer;
   font-family: inherit;
   font-size: calc(13.6px * var(--fs-scale));
+  font-weight: 600;
   color: var(--ink);
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition: border-color var(--dur-fast) var(--ease-premium), background var(--dur-fast) var(--ease-premium),
+    transform var(--dur-fast) var(--ease-premium);
+}
+.opt:active {
+  transform: scale(0.99);
 }
 .opt.selected {
-  border-color: var(--green-700);
+  border-color: var(--cb-primary);
   background: var(--green-tint);
 }
 .opt.correct {
-  border-color: var(--green-700);
-  background: var(--green-tint);
+  border-color: var(--cb-secondary);
+  background: var(--cb-success-light);
 }
 .opt.wrong {
   border-color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 10%, var(--surface-1));
+  background: var(--cb-fail-light);
 }
 .opt.disabled {
   pointer-events: none;
@@ -192,7 +198,7 @@
 .q-fb {
   font-size: calc(12.4px * var(--fs-scale));
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   margin-top: 2px;
 }
 .q-fb.ok {
@@ -222,7 +228,7 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 16px 30px -14px rgba(185, 146, 75, 0.55);
-  color: #fff;
+  color: var(--cb-white);
 }
 .trophy svg {
   width: 36px;
@@ -266,10 +272,12 @@
   gap: 10px;
   padding: 11px 14px calc(16px + env(safe-area-inset-bottom));
 }
+/* Назад/Далі — той самий прямокутний Malty-патерн, що й .btn-primary-full
+   (border-radius:0, hover через filter:brightness, а не градієнт/колір). */
 .btn {
   flex: 1;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-btn);
   padding: 13px 16px;
   font-weight: 600;
   font-size: calc(14.5px * var(--fs-scale));
@@ -278,16 +286,27 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition: transform var(--dur-fast) var(--ease-premium), filter var(--dur-fast) var(--ease-premium),
+    box-shadow var(--dur-fast) var(--ease-premium);
   font-family: inherit;
 }
 .btn:active {
   transform: scale(0.97);
 }
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
 .btn-primary {
-  background: linear-gradient(135deg, var(--green-500), var(--green-700));
-  color: #fff;
-  box-shadow: 0 10px 22px -12px color-mix(in srgb, var(--green-700) 70%, transparent);
+  background: var(--cb-primary);
+  color: var(--cb-white);
+  box-shadow: var(--shadow-sm);
+}
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(140%);
+    box-shadow: var(--shadow-md);
+  }
 }
 .btn-primary:disabled {
   opacity: 0.4;
@@ -298,4 +317,9 @@
   color: var(--ink);
   border: 1px solid var(--line);
   flex: 0 0 80px;
+}
+@media (hover: hover) {
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--cb-overlay-10);
+  }
 }

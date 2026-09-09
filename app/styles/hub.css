@@ -28,7 +28,7 @@
 }
 .hub-h1 {
   font-size: calc(21px * var(--fs-scale));
-  font-weight: 800;
+  font-weight: 900;
   margin-bottom: 16px;
   line-height: 1.25;
 }
@@ -44,7 +44,7 @@
   align-items: center;
   gap: 13px;
   background: linear-gradient(150deg, var(--green-700), var(--green-900));
-  color: #fff;
+  color: var(--cb-white);
   border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 14px;
@@ -52,27 +52,33 @@
   position: relative;
   overflow: hidden;
 }
+/* Офіційний фірмовий графічний елемент (crafted hops leaf, білий варіант
+   — public/assets/brand/README.md) замість голого декоративного кола.
+   20% opacity — саме те значення, яке брендбук указує для "білий лист на
+   Carlsberg green фоні". Це єдине місце в застосунку, де він
+   використовується — subtle текстура на вже наявному декоративному
+   елементі, не новий "маркетинговий" шар. */
 .profile-card::after {
   content: "";
   position: absolute;
-  right: -30px;
-  top: -30px;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  right: -18px;
+  top: -22px;
+  width: 130px;
+  height: 130px;
+  background: url("/assets/brand/hops-leaf-small-white.png") no-repeat center / contain;
+  opacity: 0.2;
 }
 .avatar {
   width: 54px;
   height: 54px;
   border-radius: 50%;
   background: var(--gold);
-  color: #3a2a00;
+  color: color-mix(in srgb, var(--cb-tertiary) 25%, var(--cb-black));
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-weight: 800;
+  font-weight: 900;
   font-size: calc(18px * var(--fs-scale));
   flex-shrink: 0;
   border: 2px solid rgba(255, 255, 255, 0.5);
@@ -113,7 +119,7 @@
   height: 15px;
   border-radius: 50%;
   background: var(--gold);
-  color: #3a2a00;
+  color: color-mix(in srgb, var(--cb-tertiary) 25%, var(--cb-black));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -140,16 +146,16 @@
   color: var(--ink-soft);
 }
 .xp-track {
-  height: 9px;
-  border-radius: 99px;
-  background: var(--surface-2);
+  height: var(--size-2xs);
+  border-radius: var(--size-4xs);
+  background: var(--cb-overlay-10);
   overflow: hidden;
 }
 .xp-fill {
   height: 100%;
-  border-radius: 99px;
-  background: linear-gradient(90deg, var(--gold), var(--green-500));
-  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--size-4xs);
+  background: var(--cb-primary);
+  transition: width var(--dur-slow) var(--ease-out);
 }
 
 .stats-row {
@@ -194,26 +200,29 @@
   color: var(--ink-soft);
 }
 
-/* real, clickable course card (Home "Продовжити навчання" + Learning tab) */
+/* real, clickable course card (Home "Продовжити навчання" + Learning tab)
+   — Malty atoms/Card, варіант Outlined: білий фон, БЕЗ border-radius,
+   тонка рамка (--line = support-40), на hover переходить у
+   --shadow-hovered (той самий приём, що й cardStyle=Shadowed у Malty). */
 .course-tile {
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  background: var(--surface-1);
+  background: var(--cb-white);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   padding: 14px;
   margin-bottom: 12px;
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: box-shadow var(--dur-base) var(--ease-premium), transform var(--dur-fast) var(--ease-premium);
   text-decoration: none;
   color: inherit;
 }
 .course-tile:active {
-  transform: scale(0.98);
+  box-shadow: var(--shadow-pressed);
 }
 .course-tile:hover {
-  border-color: var(--green-300);
+  box-shadow: var(--shadow-hovered);
 }
 .course-tile .ct-icon {
   background: var(--green-tint);
@@ -236,17 +245,21 @@
   align-items: center;
   gap: 8px;
 }
+/* atoms/ProgressBar: висота --size-2xs (8px), радіус --size-4xs (4px, НЕ
+   pill), фон overlay.digital-black.10, заповнення — суцільний themePrimary
+   (без градієнта). */
 .ct-progress-track {
   flex: 1;
-  height: 6px;
-  border-radius: 99px;
-  background: var(--surface-2);
+  height: var(--size-2xs);
+  border-radius: var(--size-4xs);
+  background: var(--cb-overlay-10);
   overflow: hidden;
 }
 .ct-progress-fill {
   height: 100%;
-  border-radius: 99px;
-  background: linear-gradient(90deg, var(--green-500), var(--green-700));
+  border-radius: var(--size-4xs);
+  background: var(--cb-primary);
+  transition: width var(--dur-base) ease-in-out;
 }
 .ct-progress-pct {
   font-family: var(--font-mono);
@@ -363,8 +376,8 @@
   align-items: center;
   justify-content: center;
   font-size: 23px;
-  background: linear-gradient(150deg, var(--gold), #93732f);
-  box-shadow: 0 8px 16px -8px rgba(185, 146, 75, 0.6);
+  background: linear-gradient(150deg, var(--gold), color-mix(in srgb, var(--cb-tertiary) 78%, var(--cb-black)));
+  box-shadow: 0 8px 16px -8px color-mix(in srgb, var(--cb-tertiary) 55%, transparent);
 }
 .badge-item.locked .badge-ico {
   background: var(--surface-2);
@@ -400,7 +413,7 @@
   gap: 10px;
   background: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   padding: 9px 12px;
 }
 .lb-rank {
@@ -495,7 +508,7 @@
   color: var(--ink-soft);
   font-family: inherit;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   transition: color 0.15s ease, background 0.15s ease;
 }
 .tab-btn svg {

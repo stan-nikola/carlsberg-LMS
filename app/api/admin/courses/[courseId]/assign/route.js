@@ -5,10 +5,11 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * POST /api/admin/courses/:courseId/assign
- * Body: { positionCodes: string[], territoryIds?: number[] }
+ * Body: { positionCodes?: string[], territoryIds?: number[], employeeIds?: number[] }
  *
- * Назначает курс сразу на список должностей и/или территорий одним
- * действием (не по одному сотруднику).
+ * Назначает курс сразу на список должностей и/или территорий, и/или
+ * конкретных сотрудников (employeeIds — точковий вибір в обхід
+ * posada/territoryId, див. lib/courseAssignment.js) одним действием.
  */
 export async function POST(request, { params }) {
   const admin = await requireAdmin();
@@ -18,11 +19,11 @@ export async function POST(request, { params }) {
 
   const { courseId } = await params;
   const body = await request.json();
-  const { positionCodes, territoryIds } = body;
+  const { positionCodes = [], territoryIds, employeeIds = [] } = body;
 
-  if (!Array.isArray(positionCodes) || positionCodes.length === 0) {
+  if (positionCodes.length === 0 && employeeIds.length === 0) {
     return NextResponse.json(
-      { error: "positionCodes is required and must be a non-empty array" },
+      { error: "Потрібна хоча б одна посада або хоча б один конкретний співробітник" },
       { status: 400 }
     );
   }
@@ -42,6 +43,7 @@ export async function POST(request, { params }) {
   const result = await assignCourseToPositionsAndTerritories(Number(courseId), {
     positionCodes,
     territoryIds,
+    employeeIds,
     assignedByUserId: systemAdmin.id,
   });
 

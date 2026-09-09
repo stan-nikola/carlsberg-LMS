@@ -12,6 +12,18 @@
   background: var(--surface);
   min-height: 100vh;
   box-sizing: border-box;
+  /* БЕЗ min-width і без overflow-x тут навмисно. Раніше тут стояв
+     min-width:1120px, розрахований на 3-колоночну форму "Кому
+     призначати" — але та форма давно живе в .admin-editor (окремий
+     клас, свій @media(max-width:760px) collapse на .admin-form-columns),
+     а .admin-page лишився лише під логін/список співробітників/список
+     курсів — жоден із них не потребує фіксованої ширини, і min-width
+     тут тільки шкодив (форма логіну ~360px насильно розтягувалась до
+     1120px і ловила зайвий горизонтальний скрол на будь-якому екрані
+     вужчому за 1120px, напр. ноутбук 1024px). Сам факт, що min-width
+     без парного overflow-y колись "трясло" scrollbar-gutter — див. git
+     history цього файлу — залишається важливим уроком: не додавати
+     min-width/overflow-x назад без реальної потреби конкретного вмісту. */
 }
 .admin-subtitle {
   color: var(--ink-soft);
@@ -29,7 +41,7 @@
 }
 .admin-lesson-card {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   padding: 12px;
   margin-bottom: 10px;
   background: var(--surface-1);
@@ -40,19 +52,25 @@
   margin-bottom: 8px;
 }
 .admin-input-flex {
+  /* flex: 1 працює лише всередині flex-батька (.admin-row) — там, де
+     батько звичайний блок (.admin-field у формах курсу), рятує width:
+     100%, інакше input лишається у власній вузькій дефолтній ширині. */
   flex: 1;
+  width: 100%;
   padding: 7px 9px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-input);
   font: inherit;
   font-size: 13px;
+  transition: border-color var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
 }
 .admin-select {
   padding: 7px 9px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-input);
   font: inherit;
   font-size: 13px;
+  transition: border-color var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
 }
 .admin-textarea {
   width: 100%;
@@ -60,24 +78,73 @@
   font-size: 12px;
   padding: 8px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-input);
   background: var(--surface);
   color: var(--ink);
+  transition: border-color var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
 }
+.admin-input-flex:focus,
+.admin-select:focus,
+.admin-textarea:focus {
+  outline: none;
+  border-color: var(--cb-secondary);
+  box-shadow: var(--cb-focus-ring);
+}
+/* Кружечок завантаження (SpinnerIcon) для всіх кнопок дій — Зберегти/
+ * Призначити/Створити/Зняти призначення. currentColor підхоплює колір
+ * тексту кнопки (білий на .admin-btn, червоний на .admin-btn-danger). */
+.admin-spinner {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+  margin-right: 6px;
+  animation: admin-spin 0.7s linear infinite;
+}
+@keyframes admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Прямокутні, як в офіційному Malty atoms/Button (там border-radius
+   узагалі відсутній); hover — brightness, як у StyledPrimaryButton. */
 .admin-btn {
-  padding: 7px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: var(--radius-btn);
+  border: 1px solid transparent;
   background: var(--green-700);
-  color: #fff;
+  color: var(--cb-white);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
+}
+.admin-btn:hover:not(:disabled) {
+  filter: brightness(140%);
+}
+.admin-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.admin-btn:disabled {
+  cursor: default;
+  background: var(--cb-overlay-10);
+  color: var(--cb-white);
 }
 .admin-btn-danger {
   background: transparent;
   color: var(--danger);
   border-color: var(--danger);
+}
+.admin-btn-danger:hover:not(:disabled) {
+  filter: none;
+  background: var(--cb-fail-light);
+}
+.admin-btn-danger:disabled {
+  background: transparent;
+  color: var(--cb-overlay-25);
+  border-color: var(--cb-overlay-10);
 }
 .admin-new-lesson {
   margin-top: 4px;
@@ -85,6 +152,11 @@
 .admin-error {
   color: var(--danger);
   font-size: 12.5px;
+}
+.admin-unsaved-badge {
+  color: var(--gold);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .admin-field {
@@ -123,13 +195,22 @@
   flex-shrink: 0;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--danger);
   cursor: pointer;
   font-size: 13px;
   line-height: 1;
+  transition: background var(--dur-fast) var(--ease-premium), border-color var(--dur-fast) var(--ease-premium);
+}
+.admin-icon-btn:hover:not(:disabled) {
+  background: var(--cb-fail-light);
+  border-color: var(--danger);
+}
+.admin-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
 }
 .admin-btn-link {
   background: none;
@@ -139,6 +220,11 @@
   font-weight: 600;
   cursor: pointer;
   padding: 2px 0;
+}
+.admin-btn-link:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+  border-radius: var(--radius-sm);
 }
 
 .admin-radio-group {
@@ -154,6 +240,11 @@
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
+}
+.admin-radio input,
+.admin-checkbox input {
+  accent-color: var(--green-700);
+  cursor: pointer;
 }
 .admin-checkbox {
   color: var(--green-700);
@@ -175,6 +266,46 @@
   color: var(--ink);
   text-decoration: none;
 }
+.admin-topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* ---- /admin/employees (пошук, роль, скидання PIN) ---- */
+.admin-employee-table {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.admin-employee-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.9fr 1.6fr 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  font-size: 13.5px;
+  transition: background var(--dur-fast) var(--ease-premium);
+}
+.admin-employee-row:not(.admin-employee-row-head):hover {
+  background: var(--surface-1);
+}
+.admin-employee-row-head {
+  background: var(--surface-1);
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+}
+.admin-employee-meta {
+  color: var(--ink-soft);
+}
 .admin-course-list {
   list-style: none;
   padding: 0;
@@ -190,15 +321,23 @@
   gap: 12px;
   padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: var(--surface-1);
   color: var(--ink);
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
 }
+.admin-course-list-link {
+  transition: border-color var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
+}
 .admin-course-list-link:hover {
   border-color: var(--green-700);
+}
+.admin-course-list-link:focus-visible {
+  outline: none;
+  border-color: var(--green-700);
+  box-shadow: var(--cb-focus-ring);
 }
 
 /* ---- Редактор курсу: десктопний спліт-екран (правка / жива прев'ю) ---- */
@@ -225,12 +364,12 @@
   align-items: flex-start;
 }
 .admin-course-settings {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 22px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   background: var(--surface-1);
   margin: 16px 0 24px;
 }
@@ -240,6 +379,77 @@
 .admin-course-settings-span2 {
   grid-column: span 2;
 }
+/* Секція форми (напр. "Основне" / "Кому призначати") — вертикальний
+ * блок полів, відділений тонкою лінією від сусідніх секцій, з
+ * маленьким заголовком-kicker'ом (той самий стиль, що й .admin-label,
+ * але зелений і трохи крупніший — щоб відрізнявся від підпису поля). */
+.admin-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0; /* дозволяє полям всередині коректно стискатись/обрізатись в grid-колонці */
+}
+/* Три секції (Основне / Розклад / Кому призначати) — колонками зліва
+ * направо, не одна під одною; кожна секція всередині лишається
+ * вертикальним стовпчиком своїх полів (.admin-form-row). На вузькому
+ * екрані колонки самі складаються в один стовпчик (auto-fit). */
+/* "Кому призначати" — третя колонка — містить дерево територій/людей і
+ * потребує вдвічі більше місця за перші дві (1fr : 1fr : 2fr = 50% від
+ * усієї ширини рядка). */
+.admin-form-columns {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(260px, 2fr);
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .admin-form-columns {
+    grid-template-columns: 1fr;
+  }
+  .admin-form-columns > .admin-form-section + .admin-form-section {
+    padding-left: 0;
+    padding-top: 16px;
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+}
+.admin-form-columns > .admin-form-section + .admin-form-section {
+  padding-left: 28px;
+  border-left: 1px solid var(--line);
+}
+.admin-form-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--green-700);
+}
+/* Поля всередині секції — одне під одним на всю ширину (не парами
+ * поруч), кожне поле саме собою вже досить просторе. */
+.admin-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+/* Згорнутий заголовок акордеону території — той самий caret/summary
+ * стиль, що й Block/Module у редакторі курсу (.admin-accordion-*), щоб
+ * усі акордеони в /admin виглядали однаково. */
+/* Картки "За посадами"/"За співробітниками" — раніше просто рядки
+ * тексту, губились серед звичайних полів. Тепер видима межа+фон, трохи
+ * виразніша й зеленувата, коли розгорнуто. */
+.admin-target-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 10px 12px;
+  background: var(--surface);
+}
+.admin-target-card-open {
+  border-color: var(--green-500);
+  background: var(--green-tint);
+}
+.admin-territory-accordion-header {
+  margin-bottom: 0;
+}
 .admin-checkbox-grid {
   display: flex;
   flex-wrap: wrap;
@@ -248,17 +458,181 @@
   overflow-y: auto;
   padding: 8px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
+/* ---- TerritoryPicker (components/TerritoryPicker.jsx) ---- */
+.territory-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.territory-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.territory-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 999px;
+  background: var(--green-tint);
+  border: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.territory-chip button {
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px;
+}
+.territory-chip button:hover {
+  color: var(--danger);
+}
+/* Чипса конкретної людини (targetEmployeeIds) — той самий формат, але
+ * золотистий фон замість зеленого, щоб відрізнялась від чипс території
+ * з першого погляду (два різні механізми призначення в одному рядку). */
+.territory-chip-person {
+  background: var(--gold-soft);
+  border-color: var(--gold);
+}
+.territory-tree {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  padding: 4px 0;
+}
+.territory-empty {
+  padding: 12px;
+}
+.territory-row,
+.territory-employee-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px 6px 8px;
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  font-size: 13px;
+  user-select: none;
+}
+.territory-row:hover,
+.territory-employee-row:hover {
+  background: var(--surface-1);
+}
+/* Вкладені рівні — не inline-відступ на кожен рядок, а border-left, що
+ * тягнеться крізь усіх дітей ("гілка дерева"): видно, що SV Харків 1..5
+ * належать одній ASM-гілці, навіть коли сам рядок ASM вище вже
+ * прокручено з очей. */
+.territory-children {
+  margin-left: 17px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+.territory-caret {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--ink-soft);
+}
+.territory-caret svg {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.15s ease;
+}
+.territory-caret-open svg {
+  transform: rotate(90deg);
+}
+.territory-caret-spacer {
+  width: 16px;
+  flex-shrink: 0;
+}
+/* Власний акцент замість дефолтного синього браузерного чекбоксу — щоб
+ * вибір у дереві виглядав частиною фірмового зеленого стилю, як і решта
+ * /admin. */
+.territory-checkbox {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  accent-color: var(--green-700);
+  cursor: pointer;
+}
+.territory-name {
+  flex: 0 1 auto;
+  min-width: 40px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Ім'я відповідальної людини одразу в рядку території ("SV Харків 1 —
+ * Yuriy Kirichenko (SV)") — той, хто фактично "тут", а не абстрактна
+ * цифра. Саме цей елемент, не назва території, стискається/обрізається
+ * першим, якщо рядку затісно — назва місця важливіша за ПІБ. */
+.territory-responsible {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+}
+.territory-employee-list {
+  padding-top: 2px;
+  padding-bottom: 4px;
+}
+.territory-employee-name {
+  font-weight: 600;
+}
+.territory-employee-position {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+
+.admin-delete-blocked {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+.admin-delete-blocked p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink);
+}
 .admin-status-line {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
   font-size: 12.5px;
   color: var(--ink-soft);
+}
+/* Однакові відступи між кнопками дій — замість крихкого "{' '}"
+ * (буквальний пробіл-текст) між <button> у JSX. */
+.admin-btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .admin-editor-grid {
@@ -299,7 +673,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  border-radius: 8px;
+  border-radius: var(--radius-card);
 }
 .admin-lesson-nav-row .admin-lesson-nav-item {
   flex: 1;
@@ -310,7 +684,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   border: 1px solid transparent;
   background: transparent;
   color: var(--ink);
@@ -354,7 +728,7 @@
   width: 52px;
   padding: 4px 6px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   font: inherit;
   text-align: center;
 }
@@ -366,19 +740,19 @@
   margin-bottom: 8px;
   padding: 8px;
   border: 1px dashed var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-card);
 }
 .admin-image-preview {
   width: 100%;
   max-height: 140px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: var(--radius-card);
   border: 1px solid var(--line);
 }
 
 .admin-block {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   padding: 16px;
   margin-bottom: 20px;
   background: var(--surface);
@@ -392,7 +766,7 @@
 /* ---- Дашборд /admin: курси -> блоки (components/AdminDashboard.jsx) ---- */
 .admin-course-row {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   overflow: hidden;
 }
 .admin-course-row-toggle {
@@ -423,7 +797,7 @@
 .admin-block-list-link {
   display: block;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   background: var(--surface-1);
   color: var(--ink);
   text-decoration: none;
@@ -438,7 +812,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   transition: outline 0.1s ease;
 }
 .admin-block-list-item .admin-block-list-link {

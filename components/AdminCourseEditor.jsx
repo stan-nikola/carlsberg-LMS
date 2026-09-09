@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { InfoScreen, QuizScreen } from "@/components/CoursePlayer";
-import { ChevronIcon, GripIcon } from "@/components/icons";
+import { ChevronIcon, GripIcon, SpinnerIcon } from "@/components/icons";
 
 // Десктопний редактор контенту курсу.
 //
@@ -256,7 +256,7 @@ function QuizFields({ content, onChange, radioGroupName }) {
 
 /** Тільки поля форми правки (без грід-обгортки) — рендериться в лівій
  * колонці спільного admin-editor-grid разом з навігацією по екранах. */
-function LessonEditForm({ lesson, onSaved, onDeleted, onLiveChange }) {
+function LessonEditForm({ lesson, onSaved, onDeleted, onDuplicate, onLiveChange }) {
   const [title, setTitle] = useState(lesson.title);
   const [type, setType] = useState(lesson.type);
   const [content, setContent] = useState(lesson.content);
@@ -283,6 +283,12 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onLiveChange }) {
   useEffect(() => {
     onLiveChange({ id: lesson.id, title, type, content });
   }, [lesson.id, title, type, content, onLiveChange]);
+
+  // Незбережені правки — порівнюємо з тим, що реально лежить на сервері
+  // (lesson-пропс), а не з "чи змінили хоч раз" — так індикатор гасне
+  // сам собою, якщо повернути значення до вихідного вручну.
+  const isDirty =
+    title !== lesson.title || type !== lesson.type || JSON.stringify(content) !== JSON.stringify(lesson.content);
 
   function handleTypeChange(newType) {
     setType(newType);
@@ -327,6 +333,11 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onLiveChange }) {
           <option value="info">інфо-екран</option>
           <option value="quiz">питання</option>
         </select>
+        {isDirty && (
+          <span className="admin-hint admin-unsaved-badge" title="Є незбережені зміни на цьому екрані">
+            ● незбережено
+          </span>
+        )}
       </div>
 
       {type === "quiz" ? (
@@ -338,7 +349,11 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onLiveChange }) {
       {error && <p className="admin-error">{error}</p>}
       <div className="admin-row">
         <button type="button" onClick={handleSave} disabled={saving || imageUploading} className="admin-btn">
+          {saving && <SpinnerIcon />}
           {imageUploading ? "Зачекайте, фото вантажиться…" : saving ? "Збереження…" : "Зберегти"}
+        </button>
+        <button type="button" onClick={() => onDuplicate(lesson)} className="admin-btn-link" title="Створити копію цього екрану одразу після нього">
+          Дублювати
         </button>
         <button type="button" onClick={handleDelete} className="admin-btn admin-btn-danger">
           Видалити
@@ -492,29 +507,41 @@ function LessonNavList({ lessons, selectedLessonId, onSelect, onReordered }) {
 function NewLessonForm({ moduleId, nextOrder, onCreated }) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("info");
+  const [saving, setSaving] = useState(false);
 
   async function handleCreate() {
     if (!title.trim()) return;
-    const res = await fetch("/api/admin/lessons", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ moduleId, title, type, order: nextOrder, content: emptyContent[type] }),
-    });
-    if (res.ok) {
-      setTitle("");
-      onCreated(await res.json());
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/lessons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ moduleId, title, type, order: nextOrder, content: emptyContent[type] }),
+      });
+      if (res.ok) {
+        setTitle("");
+        onCreated(await res.json());
+      }
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <div className="admin-row admin-new-lesson">
-      <input placeholder="Назва нового екрану" value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" />
+      <input
+        placeholder="Назва нового екрану"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+        className="admin-input-flex"
+      />
       <select value={type} onChange={(e) => setType(e.target.value)} className="admin-select">
         <option value="info">інфо-екран</option>
         <option value="quiz">питання</option>
       </select>
-      <button type="button" onClick={handleCreate} className="admin-btn">
-        + Додати екран
+      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn">
+        {saving && <SpinnerIcon />}+ Додати екран
       </button>
     </div>
   );
@@ -522,25 +549,37 @@ function NewLessonForm({ moduleId, nextOrder, onCreated }) {
 
 function NewModuleForm({ blockId, nextOrder, onCreated }) {
   const [title, setTitle] = useState("");
+  const [saving, setSaving] = useState(false);
 
   async function handleCreate() {
     if (!title.trim()) return;
-    const res = await fetch("/api/admin/modules", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ blockId, title, order: nextOrder }),
-    });
-    if (res.ok) {
-      setTitle("");
-      onCreated(await res.json());
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/modules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blockId, title, order: nextOrder }),
+      });
+      if (res.ok) {
+        setTitle("");
+        onCreated(await res.json());
+      }
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <div className="admin-row admin-new-lesson">
-      <input placeholder="Назва нового модуля" value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" />
-      <button type="button" onClick={handleCreate} className="admin-btn-link">
-        + Додати модуль
+      <input
+        placeholder="Назва нового модуля"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+        className="admin-input-flex"
+      />
+      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn-link">
+        {saving && <SpinnerIcon />}+ Додати модуль
       </button>
     </div>
   );
@@ -548,25 +587,37 @@ function NewModuleForm({ blockId, nextOrder, onCreated }) {
 
 function NewBlockForm({ courseId, nextOrder, onCreated }) {
   const [title, setTitle] = useState("");
+  const [saving, setSaving] = useState(false);
 
   async function handleCreate() {
     if (!title.trim()) return;
-    const res = await fetch("/api/admin/blocks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ courseId, title, order: nextOrder }),
-    });
-    if (res.ok) {
-      setTitle("");
-      onCreated(await res.json());
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/blocks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId, title, order: nextOrder }),
+      });
+      if (res.ok) {
+        setTitle("");
+        onCreated(await res.json());
+      }
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <div className="admin-row admin-new-lesson">
-      <input placeholder="Назва нового блоку" value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex admin-title-input" />
-      <button type="button" onClick={handleCreate} className="admin-btn">
-        + Додати блок
+      <input
+        placeholder="Назва нового блоку"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+        className="admin-input-flex admin-title-input"
+      />
+      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn">
+        {saving && <SpinnerIcon />}+ Додати блок
       </button>
     </div>
   );
@@ -879,23 +930,44 @@ export function AdminCourseEditor({ courseId }) {
     setOverBlockIndex(null);
   }
 
-  if (loadError) return <p className="admin-page admin-error">Не вдалося завантажити курс: {loadError}</p>;
-  if (!course) return <p className="admin-page">Завантаження…</p>;
-
-  const allModules = course.blocks.flatMap((b) => b.modules);
+  // Деривативи нижче й ефект після них рахуються БЕЗУМОВНО (з безпечним
+  // фолбеком на порожній курс) — early return на loadError/!course
+  // винесено аж перед JSX-рендером, щоб не порушувати Rules of Hooks
+  // (useEffect має викликатись в однаковому порядку на кожен рендер, а не
+  // пропускатись, поки course ще не завантажився).
+  const allModules = (course?.blocks ?? []).flatMap((b) => b.modules);
   const selectedLesson = allModules.flatMap((m) => m.lessons).find((l) => l.id === selectedLessonId);
   const selectedModule = allModules.find((m) => m.lessons.some((l) => l.id === selectedLessonId));
-  const selectedBlock = course.blocks.find((b) => b.modules.some((m) => m.id === selectedModule?.id));
+  const selectedBlock = (course?.blocks ?? []).find((b) => b.modules.some((m) => m.id === selectedModule?.id));
 
   // Плаский список УСІХ екранів курсу в порядку проходження — для
   // "Далі"/"Назад" (та сама послідовність, що бачить співробітник у
   // CoursePlayer) і лічильника "Екран N з M".
-  const flatLessons = course.blocks.flatMap((block) =>
+  const flatLessons = (course?.blocks ?? []).flatMap((block) =>
     block.modules.flatMap((mod) => mod.lessons.map((lesson) => ({ lesson, block, module: mod })))
   );
   const currentIndex = flatLessons.findIndex((f) => f.lesson.id === selectedLessonId);
 
+  // livePreviewLesson дублює поточний стан форми (LessonEditForm її туди
+  // прокидає щокеютрок для живої прев'ю) — порівнюючи його з
+  // selectedLesson (те, що реально збережено на сервері), знаємо, чи є
+  // незбережені правки, не піднімаючи власний dirty-стан із дочірньої
+  // форми окремим пропсом.
+  const isCurrentLessonDirty =
+    selectedLesson &&
+    livePreviewLesson &&
+    livePreviewLesson.id === selectedLesson.id &&
+    (livePreviewLesson.title !== selectedLesson.title ||
+      livePreviewLesson.type !== selectedLesson.type ||
+      JSON.stringify(livePreviewLesson.content) !== JSON.stringify(selectedLesson.content));
+
   function selectLesson(blockId, moduleId, lessonId) {
+    if (
+      isCurrentLessonDirty &&
+      !confirm("На поточному екрані є незбережені зміни. Перейти без збереження?")
+    ) {
+      return;
+    }
     setSelectedLessonId(lessonId);
     setExpandedBlockId(blockId);
     setExpandedModuleId(moduleId);
@@ -905,6 +977,38 @@ export function AdminCourseEditor({ courseId }) {
     const target = flatLessons[currentIndex + offset];
     if (target) selectLesson(target.block.id, target.module.id, target.lesson.id);
   }
+
+  // Попереджаємо і про закриття вкладки/перехід за посиланням — не лише
+  // про перемикання екрана всередині самого редактора.
+  useEffect(() => {
+    function handleBeforeUnload(e) {
+      if (!isCurrentLessonDirty) return;
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isCurrentLessonDirty]);
+
+  async function handleDuplicateLesson(lesson) {
+    const mod = allModules.find((m) => m.lessons.some((l) => l.id === lesson.id));
+    if (!mod) return;
+    const res = await fetch("/api/admin/lessons", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        moduleId: mod.id,
+        title: `${lesson.title} (копія)`,
+        type: lesson.type,
+        order: mod.lessons.length + 1,
+        content: lesson.content,
+      }),
+    });
+    if (res.ok) addLessonToState(mod.id, await res.json());
+  }
+
+  if (loadError) return <p className="admin-page admin-error">Не вдалося завантажити курс: {loadError}</p>;
+  if (!course) return <p className="admin-page">Завантаження…</p>;
 
   return (
     <div className="admin-editor">
@@ -1024,6 +1128,7 @@ export function AdminCourseEditor({ courseId }) {
                 lesson={selectedLesson}
                 onSaved={(updated) => updateLessonInState(selectedModule.id, updated)}
                 onDeleted={(id) => removeLessonFromState(selectedModule.id, id)}
+                onDuplicate={handleDuplicateLesson}
                 onLiveChange={setLivePreviewLesson}
               />
               <div className="admin-row admin-lesson-step-nav">

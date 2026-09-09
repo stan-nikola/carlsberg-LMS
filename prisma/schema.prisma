@@ -122,6 +122,14 @@ model Course {
   targetPositions   String[] @default([])
   /// Id территорий, если курс назначается не всем, а конкретному региону.
   targetTerritories Int[]    @default([])
+  /// Id конкретных співробітників — точкове призначення в обхід
+  /// posada/territoryId (потрібне для польових ролей ТП/Мерчендайзер/
+  /// Технік, яких імпорт зміг прив'язати по territoryId лише до цілого
+  /// RM-регіону, не до конкретного СВ-району — див. CLAUDE.md; тут можна
+  /// обрати саме людину, побачивши її в реальній оргструктурі
+  /// managerId в components/TerritoryPicker.jsx). Об'єднується (не
+  /// замінює) з призначенням по positions/territories.
+  targetEmployeeIds Int[]    @default([])
 
   /// Дата, с которой курс нужно авто-назначить сотрудникам по
   /// targetPositions/targetTerritories — обрабатывается ежедневным cron

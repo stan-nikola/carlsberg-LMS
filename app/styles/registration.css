@@ -79,20 +79,23 @@
 }
 .reg-form input[type="text"] {
   width: 100%;
+  min-height: 52px;
   background: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xs);
   color: var(--ink);
   font-family: inherit;
-  font-size: calc(14px * var(--fs-scale));
+  font-size: calc(15px * var(--fs-scale));
   font-weight: 600;
-  padding: 13px 14px;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  padding: 14px 16px;
+  transition: border-color var(--dur-fast) var(--ease-premium), background var(--dur-fast) var(--ease-premium),
+    box-shadow var(--dur-fast) var(--ease-premium);
 }
 .reg-form input[type="text"]:focus {
   outline: none;
-  border-color: var(--green-500);
+  border-color: var(--cb-secondary);
   background: var(--surface);
+  box-shadow: var(--cb-focus-ring);
 }
 .reg-form input[type="text"]::placeholder {
   color: var(--ink-soft);
@@ -104,7 +107,7 @@
   font-size: calc(12.5px * var(--fs-scale));
   color: var(--ink-soft);
   background: var(--green-tint);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: 11px 13px;
   text-align: left;
   margin-top: 6px;
@@ -166,11 +169,16 @@
   display: flex;
   flex-direction: column;
 }
+/* PIN — головна дія екрана входу з телефона: велика зона, великий шрифт,
+   широкий трекінг, щоб цифри читались і не промахувались пальцем. */
 .reg-pin-input {
-  letter-spacing: 0.5em;
+  letter-spacing: 0.35em;
   text-align: center;
+  text-indent: 0.35em; /* компенсує трекінг праворуч, щоб текст був по центру */
   font-family: var(--font-mono) !important;
-  font-size: calc(20px * var(--fs-scale)) !important;
+  font-size: calc(26px * var(--fs-scale)) !important;
+  font-weight: 700 !important;
+  min-height: 64px !important;
 }
 .reg-step-links {
   display: flex;

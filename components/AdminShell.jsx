@@ -22,9 +22,14 @@ export function AdminShell({ children }) {
         <Link href="/admin" className="admin-topbar-title">
           Адмін-панель
         </Link>
-        <button className="admin-btn-link" onClick={handleLogout}>
-          Вийти
-        </button>
+        <nav className="admin-topbar-nav">
+          <Link href="/admin/employees" className="admin-btn-link">
+            Співробітники
+          </Link>
+          <button className="admin-btn-link" onClick={handleLogout}>
+            Вийти
+          </button>
+        </nav>
       </div>
       {children}
     </div>

@@ -3,31 +3,48 @@
    телефонної картки (.stage/.course-card/.appbar), кнопки, механіка
    bottom sheet (використовується і settings sheet, і code-hint sheet) —
    спільне для всіх екранів (реєстрація + хаб).
-   Шрифти (--font-sora/--font-source-sans-3/--font-ibm-plex-mono) підключені
+   Шрифти (--font-montserrat/--font-ibm-plex-mono) підключені
    через next/font у app/layout.js замість <link> на fonts.googleapis.com. */
 
 :root {
   color-scheme: light only;
-  --ink: #122019;
-  --ink-soft: #3d4d44;
-  --surface: #faf8f1;
-  --surface-1: #f1eddf;
-  --surface-2: #e7e1cc;
-  --line: #dcd5be;
-  --green-900: #0b4a34;
-  --green-700: #0e6b4c;
-  --green-500: #1e8a5d;
-  --green-300: #8fc7a8;
-  --green-tint: #e4f0e7;
-  --gold: #b9924b;
-  --gold-soft: #efe2c2;
-  --danger: #b5493a;
-  --shadow: 0 20px 45px -20px rgba(11, 33, 22, 0.35);
+
+  /* Семантичні імена, якими користується весь наявний CSS, тепер лише
+     ПСЕВДОНІМИ фірмових токенів із app/styles/tokens.css (значення —
+     з офіційної дизайн-системи Carlsberg "Malty"). Завдяки цьому вся
+     стара розмітка перефарбувалась у бренд одразу, а нові компоненти
+     можуть одразу писати --cb-*. Жодних "своїх" зелених поза цим
+     списком у проєкті бути не повинно. */
+  --ink: var(--cb-black);
+  --ink-soft: var(--cb-support-100);
+  --surface: var(--cb-white);
+  --surface-1: var(--cb-support-20);
+  --surface-2: var(--cb-support-40);
+  --line: var(--cb-support-40);
+
+  /* Лише два справжні фірмові зелені: глибокий (дії, посилання, темні
+     секції) і яскравий (активний стан, прогрес, акценти) + їх тінти. */
+  --green-900: var(--cb-primary);
+  --green-700: var(--cb-primary);
+  --green-500: var(--cb-secondary);
+  --green-300: color-mix(in srgb, var(--cb-secondary) 45%, var(--cb-white));
+  --green-tint: color-mix(in srgb, var(--cb-secondary) 12%, var(--cb-white));
+
+  --gold: var(--cb-tertiary);
+  --gold-soft: color-mix(in srgb, var(--cb-tertiary) 22%, var(--cb-white));
+  --danger: var(--cb-fail);
+
+  --shadow: var(--shadow-lg);
   --radius-lg: 22px;
   --radius-md: 16px;
   --radius-sm: 10px;
-  --font-display: var(--font-sora), system-ui, sans-serif;
-  --font-body: var(--font-source-sans-3), system-ui, sans-serif;
+
+  /* Carlsberg Sans — лише для великого display-тексту (h1/h2/h3), саме
+     так, як його й застосовує офіційний брендбук; для щільного UI/
+     параграфного тексту лишається Montserrat (у Carlsberg Sans немає
+     проміжних 400/500/600 різів). */
+  --font-display: var(--font-carlsberg-sans), var(--font-montserrat), system-ui, sans-serif;
+  --font-body: var(--font-montserrat), system-ui, sans-serif;
   --font-mono: var(--font-ibm-plex-mono), ui-monospace, monospace;
   --fs-scale: 1;
 }
@@ -114,7 +131,7 @@ a {
 .iconbtn {
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: var(--surface-1);
   display: flex;
@@ -123,10 +140,19 @@ a {
   color: var(--ink);
   cursor: pointer;
   flex-shrink: 0;
-  transition: transform 0.15s ease;
+  transition: transform var(--dur-fast) var(--ease-premium), background var(--dur-fast) var(--ease-premium);
+}
+@media (hover: hover) {
+  .iconbtn:hover {
+    background: var(--cb-overlay-10);
+  }
 }
 .iconbtn:active {
   transform: scale(0.9);
+}
+.iconbtn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
 }
 .iconbtn svg {
   width: 16px;
@@ -152,7 +178,7 @@ a {
   font-size: calc(12.2px * var(--fs-scale));
   color: var(--ink-soft);
   background: var(--gold-soft);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: 11px 13px;
   margin-top: 2px;
 }
@@ -303,11 +329,16 @@ a {
 }
 
 /* primary full-width button (registration submit, pin confirm) + busy spinner */
+/* Primary action — суцільний фірмовий зелений, ПРЯМОКУТНИЙ (у Malty
+   atoms/Button узагалі немає border-radius — фірмова мова прямокутна),
+   висота 56px = комфортний touch-таргет на телефоні, головному пристрої
+   співробітника. Hover — brightness, як у самому Malty-компоненті. */
 .btn-primary-full {
   width: 100%;
+  min-height: 56px;
   border: none;
-  border-radius: 14px;
-  padding: 15px 16px;
+  border-radius: var(--radius-btn);
+  padding: 16px 24px;
   font-weight: 700;
   font-size: calc(15px * var(--fs-scale));
   cursor: pointer;
@@ -315,15 +346,28 @@ a {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  background: linear-gradient(135deg, var(--green-500), var(--green-700));
-  color: #fff;
+  background: var(--cb-primary);
+  color: var(--cb-white);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 10px 22px -12px color-mix(in srgb, var(--green-700) 70%, transparent);
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-base) var(--ease-premium), box-shadow var(--dur-base) var(--ease-premium),
+    background var(--dur-base) var(--ease-premium);
+}
+@media (hover: hover) {
+  .btn-primary-full:hover:not(:disabled) {
+    /* Той самий прийом, що й у Malty StyledPrimaryButton — освітлення
+       фону фільтром, а не окремий hover-колір. */
+    filter: brightness(140%);
+    box-shadow: var(--shadow-md);
+  }
 }
 .btn-primary-full:active {
-  transform: scale(0.98);
+  transform: translateY(0) scale(0.99);
+}
+.btn-primary-full:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
 }
 .btn-primary-full svg {
   width: 17px;
@@ -339,7 +383,7 @@ a {
   height: 18px;
   border-radius: 50%;
   border: 2.5px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
+  border-top-color: var(--cb-white);
   flex-shrink: 0;
   animation: btnSpin 0.7s linear infinite;
 }
