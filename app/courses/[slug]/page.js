@@ -1,12 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import {
-  getCourseForPlayer,
-  getEnrollmentForCourse,
-  flattenScreens,
-  computeModuleAvailability,
-} from "@/lib/courseContent";
+import { getCourseForPlayer, getEnrollmentForCourse, flattenScreens, computeModuleAvailability } from "@/lib/courseContent";
 import { CoursePlayer } from "@/components/CoursePlayer";
 
 // Доступ лише призначеним (є Enrollment) — на відміну від legacy, де курс
@@ -41,41 +36,17 @@ export default async function CoursePage({ params }) {
   }
 
   // "Пауза між модулями" (Module.cooldownDays): модуль N+1 доступний лише
-  // якщо модуль N складено (ModuleCompletion.passed) і минула пауза.
+  // якщо модуль N складено (ModuleCompletion.passed) і минула пауза. Це
+  // єдиний рівень календарного/послідовного гейтингу контенту курсу —
+  // окреме "Відкриття через N днів" на рівні Screen свідомо прибрали
+  // (2026-09, на запит користувача): для одного екрана всередині вже
+  // доступного модуля така пауза зайва.
   const completions = await prisma.moduleCompletion.findMany({ where: { enrollmentId: enrollment.id } });
   const completionsByModuleId = new Map(completions.map((c) => [c.moduleId, c]));
   const moduleAvailability = computeModuleAvailability(course, completionsByModuleId);
 
-  // Послідовне відкриття екранів усередині доступного модуля: екран з
-  // unlockAfterDays доступний лише через N днів після Enrollment.assignedAt
-  // (календарний графік, не залежить від темпу проходження — див.
-  // коментар у schema.prisma). Ще не відкриті екрани просто не потрапляють
-  // у screens.
-  const now = new Date();
-  function screenUnlocksAt(unlockAfterDays) {
-    if (!unlockAfterDays) return null;
-    const d = new Date(enrollment.assignedAt);
-    d.setDate(d.getDate() + unlockAfterDays);
-    return d;
-  }
-
   const availableModules = course.modules.filter((m) => moduleAvailability.get(m.id).available);
-  const lockedScreenIds = new Set(
-    flattenScreens({ modules: availableModules })
-      .filter((s) => {
-        const at = screenUnlocksAt(s.unlockAfterDays);
-        return at && at > now;
-      })
-      .map((s) => s.id)
-  );
-
-  const courseWithAvailableContent = {
-    ...course,
-    modules: availableModules.map((courseModule) => ({
-      ...courseModule,
-      screens: courseModule.screens.filter((s) => !lockedScreenIds.has(s.id)),
-    })),
-  };
+  const courseWithAvailableContent = { ...course, modules: availableModules };
 
   const screens = flattenScreens(courseWithAvailableContent).map((screen) => ({
     id: screen.id,
@@ -85,20 +56,15 @@ export default async function CoursePage({ params }) {
     components: screen.components,
   }));
 
-  // Повідомлення про те, що ще недоступно — перший заблокований (екран
-  // всередині доступного модуля АБО наступний модуль), у порядку проходження.
+  // Повідомлення про наступний недоступний модуль (якщо є) — у порядку
+  // проходження.
   let lockedNotice = null;
-  const lockedScreen = flattenScreens({ modules: availableModules }).find((s) => lockedScreenIds.has(s.id));
-  if (lockedScreen) {
-    lockedNotice = `Наступний розділ курсу відкриється ${screenUnlocksAt(lockedScreen.unlockAfterDays).toLocaleDateString("uk-UA")}.`;
-  } else {
-    const nextLockedModule = course.modules.find((m) => !moduleAvailability.get(m.id).available);
-    if (nextLockedModule) {
-      const info = moduleAvailability.get(nextLockedModule.id);
-      lockedNotice = info.waitingForPrevious
-        ? `Модуль «${nextLockedModule.title}» відкриється після того, як ви складете попередній модуль.`
-        : `Модуль «${nextLockedModule.title}» відкриється ${info.unlocksAt.toLocaleDateString("uk-UA")}.`;
-    }
+  const nextLockedModule = course.modules.find((m) => !moduleAvailability.get(m.id).available);
+  if (nextLockedModule) {
+    const info = moduleAvailability.get(nextLockedModule.id);
+    lockedNotice = info.waitingForPrevious
+      ? `Модуль «${nextLockedModule.title}» відкриється після того, як ви складете попередній модуль.`
+      : `Модуль «${nextLockedModule.title}» відкриється ${info.unlocksAt.toLocaleDateString("uk-UA")}.`;
   }
 
   return (

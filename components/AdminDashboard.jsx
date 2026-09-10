@@ -703,7 +703,10 @@ function CourseRow({ course, positions, territories, employees, onModuleAdded, o
         title={expanded ? "Згорнути список модулів курсу" : "Розгорнути список модулів курсу"}
       >
         <span>
-          <span className="admin-course-row-caret">{expanded ? "▾" : "▸"}</span> {course.title}
+          <span className={`admin-course-row-caret${expanded ? " open" : ""}`}>
+            <ChevronIcon />
+          </span>{" "}
+          {course.title}
         </span>
         <span className="admin-hint">
           /{course.slug} · {course.modules.length} {course.modules.length === 1 ? "модуль" : "модулів"}

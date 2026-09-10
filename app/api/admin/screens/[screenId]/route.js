@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 
-// PATCH /api/admin/screens/:screenId — { title?, order?, unlockAfterDays? }
+// PATCH /api/admin/screens/:screenId — { title?, order? }
 export async function PATCH(request, { params }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -12,7 +12,6 @@ export async function PATCH(request, { params }) {
   const data = {};
   if (body.title !== undefined) data.title = body.title;
   if (body.order !== undefined) data.order = body.order;
-  if (body.unlockAfterDays !== undefined) data.unlockAfterDays = body.unlockAfterDays;
 
   const updated = await prisma.screen.update({ where: { id: Number(screenId) }, data });
   return NextResponse.json(updated);

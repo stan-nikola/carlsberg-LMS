@@ -737,7 +737,7 @@ function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, 
       <div className="iphone-mockup">
         <div className="course-card">
           <div className="appbar">
-            <button type="button" className="iconbtn" onClick={onBack} disabled={!canGoBack} aria-label="Назад" title="Попередній компонент у прев'ю">
+            <button type="button" className="iconbtn" onClick={onBack} disabled={!canGoBack} aria-label="Назад" title="Попередній екран у прев'ю">
               <span style={{ transform: "rotate(180deg)", display: "inline-flex" }}>
                 <ChevronIcon />
               </span>
@@ -786,11 +786,11 @@ function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, 
                   className="btn btn-ghost"
                   onClick={onBack}
                   style={{ visibility: canGoBack ? "visible" : "hidden" }}
-                  title="Попередній компонент у прев'ю"
+                  title="Попередній екран у прев'ю"
                 >
                   Назад
                 </button>
-                <button type="button" className="btn btn-primary" onClick={onNext} disabled={!canGoNext} title="Наступний компонент у прев'ю">
+                <button type="button" className="btn btn-primary" onClick={onNext} disabled={!canGoNext} title="Наступний екран у прев'ю">
                   Далі
                 </button>
               </div>
@@ -1055,7 +1055,9 @@ function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved
       >
         <GripIcon />
       </span>
-      <span className="admin-accordion-caret">{expanded ? "▾" : "▸"}</span>
+      <span className={`admin-accordion-caret${expanded ? " open" : ""}`}>
+        <ChevronIcon />
+      </span>
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -1091,17 +1093,14 @@ function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved
   );
 }
 
-function ScreenHeader({ screen, expanded, onToggleExpand, summary, onSaved, onDelete }) {
+function ScreenHeader({ screen, expanded, onToggleExpand, summary, onDelete }) {
   return (
     <div className="admin-accordion-header admin-accordion-header-sub" onClick={onToggleExpand}>
-      <span className="admin-accordion-caret">{expanded ? "▾" : "▸"}</span>
+      <span className={`admin-accordion-caret${expanded ? " open" : ""}`}>
+        <ChevronIcon />
+      </span>
       <h3>{screen.title}</h3>
-      {!expanded && <span className="admin-hint admin-accordion-summary">{summary}</span>}
-      {expanded && (
-        <span onClick={(e) => e.stopPropagation()}>
-          <ScreenUnlockField screen={screen} onSaved={onSaved} />
-        </span>
-      )}
+      <span className="admin-hint admin-accordion-summary">{summary}</span>
       <button
         type="button"
         onClick={(e) => {
@@ -1115,42 +1114,6 @@ function ScreenHeader({ screen, expanded, onToggleExpand, summary, onSaved, onDe
         ✕
       </button>
     </div>
-  );
-}
-
-function ScreenUnlockField({ screen, onSaved }) {
-  const [days, setDays] = useState(screen.unlockAfterDays ?? "");
-  const [saving, setSaving] = useState(false);
-
-  async function handleBlurSave() {
-    const value = days === "" ? null : Number(days);
-    if (value === (screen.unlockAfterDays ?? null)) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/admin/screens/${screen.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unlockAfterDays: value }),
-      });
-      if (res.ok) onSaved(await res.json());
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <label className="admin-module-unlock">
-      Відкриття через
-      <input
-        type="number"
-        min="0"
-        value={days}
-        onChange={(e) => setDays(e.target.value)}
-        onBlur={handleBlurSave}
-        placeholder="0"
-      />
-      {saving ? "збереження…" : "дн. після призначення курсу"}
-    </label>
   );
 }
 
@@ -1246,16 +1209,6 @@ export function AdminCourseEditor({ courseId }) {
     }));
   }
 
-  function updateScreenInState(updated) {
-    setCourse((c) => ({
-      ...c,
-      modules: c.modules.map((m) => ({
-        ...m,
-        screens: m.screens.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)),
-      })),
-    }));
-  }
-
   function addScreenToState(moduleId, created) {
     setCourse((c) => ({
       ...c,
@@ -1343,6 +1296,18 @@ export function AdminCourseEditor({ courseId }) {
     livePreviewComponent && c.id === livePreviewComponent.id ? livePreviewComponent : c
   );
 
+  // Список ЕКРАНІВ курсу — та сама послідовність, що бачить співробітник у
+  // CoursePlayer (крок = екран, а не компонент) — для "Далі"/"Назад" і
+  // лічильника "N/M" САМЕ В ПРЕВ'Ю праворуч. Окремо від flatComponents/
+  // currentIndex вище (той — для лівої панелі "який компонент редагувати
+  // далі"): плутати їх не можна — інакше "Далі" в прев'ю перестрибувало б
+  // лише на наступний КОМПОНЕНТ, а не на новий екран, як у справжньому
+  // плеєрі.
+  const flatScreens = (course?.modules ?? []).flatMap((courseModule) =>
+    courseModule.screens.map((screen) => ({ screen, courseModule }))
+  );
+  const previewScreenIndex = flatScreens.findIndex((f) => f.screen.id === selectedScreen?.id);
+
   // livePreviewComponent дублює поточний стан форми (ComponentEditForm її
   // туди прокидає щокрок для живої прев'ю) — порівнюючи його з
   // selectedComponent (те, що реально збережено на сервері), знаємо, чи є
@@ -1371,6 +1336,16 @@ export function AdminCourseEditor({ courseId }) {
   function goToOffset(offset) {
     const target = flatComponents[currentIndex + offset];
     if (target) selectComponent(target.courseModule.id, target.screen.id, target.component.id);
+  }
+
+  /** "Далі"/"Назад" у прев'ю праворуч — перестрибує на ПЕРШИЙ компонент
+   * наступного/попереднього ЕКРАНА (не наступний компонент того ж екрана),
+   * бо саме так рухається справжній плеєр: один крок = один екран, хоч би
+   * скільки компонентів на ньому стояло. */
+  function goToScreenOffset(offset) {
+    const target = flatScreens[previewScreenIndex + offset];
+    const firstComponent = target?.screen.components[0];
+    if (firstComponent) selectComponent(target.courseModule.id, target.screen.id, firstComponent.id);
   }
 
   // Попереджаємо і про закриття вкладки/перехід за посиланням — не лише
@@ -1461,7 +1436,6 @@ export function AdminCourseEditor({ courseId }) {
                             expanded={isScreenExpanded}
                             onToggleExpand={() => setExpandedScreenId(isScreenExpanded ? null : screen.id)}
                             summary={pluralize(screen.components.length, "компонент", "компоненти", "компонентів")}
-                            onSaved={updateScreenInState}
                             onDelete={() => handleDeleteScreen(courseModule.id, screen.id, screen.title)}
                           />
 
@@ -1552,12 +1526,12 @@ export function AdminCourseEditor({ courseId }) {
 
         <ComponentPreview
           components={previewComponents}
-          stepNumber={currentIndex + 1}
-          totalSteps={flatComponents.length}
-          onBack={() => goToOffset(-1)}
-          onNext={() => goToOffset(1)}
-          canGoBack={currentIndex > 0}
-          canGoNext={currentIndex >= 0 && currentIndex < flatComponents.length - 1}
+          stepNumber={previewScreenIndex + 1}
+          totalSteps={flatScreens.length}
+          onBack={() => goToScreenOffset(-1)}
+          onNext={() => goToScreenOffset(1)}
+          canGoBack={previewScreenIndex > 0}
+          canGoNext={previewScreenIndex >= 0 && previewScreenIndex < flatScreens.length - 1}
         />
       </div>
     </div>

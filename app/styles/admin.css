@@ -700,7 +700,7 @@
 
 .admin-editor-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 400px;
+  grid-template-columns: minmax(0, 1fr) 520px;
   gap: 24px;
   align-items: start;
 }
@@ -713,9 +713,6 @@
   display: flex;
   justify-content: center;
 }
-.admin-editor-preview .stage {
-  max-width: 375px;
-}
 
 /* ---- Прев'ю в рамці iPhone 17 Pro Max ----
    Лише тут, у конструкторі — НЕ на реальних сторінках застосунку (хаб,
@@ -724,13 +721,16 @@
    SVG з titanium-градієнтом і прозорим вирізом під контент (mask із двох
    rect: зовнішній контур мінус внутрішній), не намальована сірим бордюром
    — Dynamic Island лежить ПОВЕРХ контенту (справжня "пігулка", не виріз у
-   бордюрі), точнісінько як на реальному iPhone. */
+   бордюрі), точнісінько як на реальному iPhone. Розмір — під ширину
+   правої колонки редактора (до 500px, замість колишніх 375px), щоб на
+   широкому десктопі прев'ю реально займало відведений простір, а не
+   лишалось маленьким телефончиком у кутку. */
 .iphone-mockup {
   position: relative;
   width: 100%;
-  max-width: 375px;
+  max-width: 500px;
   aspect-ratio: 9 / 19.5;
-  max-height: min(760px, 84vh);
+  max-height: min(1084px, 92vh);
   margin: 0 auto;
 }
 .iphone-mockup .course-card {
@@ -744,12 +744,16 @@
   width: auto;
   height: auto;
   border: none;
-  /* Має збігатись із заокругленням вирізу в SVG-рамці (IPhoneFrame,
-     внутрішній rect rx=51 зі viewBox 300×650) — .iphone-mockup рендериться
-     на ширину до 375px, тобто масштаб ≈375/300, звідси ≈64px. Заниженіший
-     border-radius лишав кути картки "гострішими", ніж вигин рамки, —
-     контент у кутах ховався під непрозорою рамкою. */
-  border-radius: 64px;
+  /* Заокруглення — У ВІДСОТКАХ (не фіксований px), окремо по X/Y через
+     "/", щоб при БУДЬ-ЯКОМУ розмірі .iphone-mockup (він тепер росте до
+     500px, а не фіксовані 375px) кут картки завжди збігався з вирізом у
+     SVG-рамці (IPhoneFrame, внутрішній rect rx=51 зі viewBox 300×650):
+     51/286 по горизонталі, 51/636 по вертикалі — картка після inset має
+     саме такі пропорції (286×636 зі 300×650), тому обидва відсотки при
+     будь-якому масштабі дають ОДНАКОВИЙ реальний px = справжнє коло, не
+     еліпс. Фіксований px (як було, 64px) при рості рамки переставав
+     збігатися з вирізом і кути знов ховались під рамкою. */
+  border-radius: 17.83% / 8.02%;
   box-shadow: none;
 }
 .iphone-mockup-frame {
@@ -882,9 +886,19 @@
   border-radius: 0;
 }
 .admin-course-row-caret {
-  display: inline-block;
-  width: 14px;
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  vertical-align: -5px;
   color: var(--ink-soft);
+}
+.admin-course-row-caret svg {
+  width: 100%;
+  height: 100%;
+  transition: transform var(--dur-fast) var(--ease-premium);
+}
+.admin-course-row-caret.open svg {
+  transform: rotate(90deg);
 }
 .admin-course-row-body {
   padding: 10px 14px 14px;
@@ -956,14 +970,35 @@
   padding: 6px 0;
 }
 .admin-accordion-header-sub h3 {
+  /* flex:1 1 auto + min-width:0 — довгу назву екрана переносить сама на
+     другий рядок (word-break), а не виштовхує суму сусідів (поле
+     "Відкриття через"/кнопку видалення) в окремий рядок, як було: h3 без
+     цих правил відмовляється стискатись нижче своєї природної ширини
+     (дефолтний min-width:auto у flex-елемента). */
+  flex: 1 1 auto;
+  min-width: 140px;
   margin: 0;
   font-size: 14px;
+  word-break: break-word;
 }
 .admin-accordion-caret {
-  color: var(--ink-soft);
-  font-size: 12px;
-  width: 12px;
+  /* Той самий SVG ChevronIcon + поворот на 90°, що й .territory-caret і
+     .acc-chevron/.cp-note-chevron в самому плеєрі — раніше тут був
+     текстовий гліф "▾"/"▸" (12px, зовсім дрібний і несумісний з рештою
+     застосунку). */
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
+  color: var(--ink-soft);
+}
+.admin-accordion-caret svg {
+  width: 100%;
+  height: 100%;
+  transition: transform var(--dur-fast) var(--ease-premium);
+}
+.admin-accordion-caret.open svg {
+  transform: rotate(90deg);
 }
 .admin-accordion-summary {
   white-space: nowrap;
