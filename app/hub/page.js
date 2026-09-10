@@ -1,15 +1,13 @@
 import { getCurrentUser } from "@/lib/session";
 import { getEmployeeEnrollments } from "@/lib/employeeProgress";
-import { computeXp } from "@/lib/progress";
+import { computeXp, pickContinueEnrollments } from "@/lib/progress";
+import { getTimeBasedGreeting } from "@/lib/greeting";
 import { CourseTile } from "@/components/CourseTile";
 import { ProfileCard } from "@/components/ProfileCard";
 import { GreetingHeading } from "@/components/GreetingHeading";
 
 // Портовано з .hub-screen[data-tab="home"] в legacy index.html +
 // js/cabinet.js. Дані — з БД (Enrollment) замість localStorage.
-function pickPrimaryEnrollment(enrollments) {
-  return enrollments.find((e) => e.status !== "completed") || enrollments[0] || null;
-}
 
 export default async function HubHomePage() {
   const employee = await getCurrentUser();
@@ -18,14 +16,18 @@ export default async function HubHomePage() {
   const { xp, xpMax, levelLabel, completedCount } = computeXp(enrollments);
   const passedCount = enrollments.filter((e) => e.status === "completed" && e.passed).length;
   const lastCompleted = [...enrollments].reverse().find((e) => e.status === "completed");
-  const primary = pickPrimaryEnrollment(enrollments);
+  // До 3 незавершених призначень — раніше показувалось лише одне
+  // ("найстаріше з непройдених"), тепер видно все, чим варто зайнятись.
+  const continueEnrollments = pickContinueEnrollments(enrollments, 3);
 
-  const hour = new Date().getHours();
-  const greet = hour < 12 ? "Доброго ранку" : hour < 18 ? "Доброго дня" : "Доброго вечора";
+  const greet = getTimeBasedGreeting();
 
   return (
     <section className="hub-screen">
-      <div className="greeting">{greet.toUpperCase()}</div>
+      {/* Раніше тут був окремий kicker {greet.toUpperCase()} над заголовком
+          — прибрано разом із "Вітаємо" в GreetingHeading: заголовок сам
+          містить і привітання, і ім'я, окремий рядок над ним лише
+          дублював той самий текст. */}
       <GreetingHeading dbName={employee.name} hasEmail={Boolean(employee.email)} greet={greet} />
 
       <ProfileCard
@@ -67,16 +69,20 @@ export default async function HubHomePage() {
       <div className="hub-sec-title">
         <h3>Продовжити навчання</h3>
       </div>
-      {primary ? (
-        <CourseTile
-          course={primary.course}
-          enrollment={primary}
-          tag="Навички продажів"
-          description={primary.course.description || ""}
-          inProgressDescription="Ви вже почали — продовжте з того самого місця."
-        />
-      ) : (
+      {continueEnrollments.length > 0 ? (
+        continueEnrollments.map((enrollment) => (
+          <CourseTile
+            key={enrollment.id}
+            course={enrollment.course}
+            enrollment={enrollment}
+            description={enrollment.course.description || ""}
+            inProgressDescription="Ви вже почали — продовжте з того самого місця."
+          />
+        ))
+      ) : enrollments.length === 0 ? (
         <p className="hub-empty-note">Вам ще не призначено жодного курсу.</p>
+      ) : (
+        <p className="hub-empty-note">Усі призначені курси пройдено — так тримати! 🎉</p>
       )}
       <p className="hub-empty-note">Нові курси й розділи з&apos;являться тут найближчим часом.</p>
     </section>

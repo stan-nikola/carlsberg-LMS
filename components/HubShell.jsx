@@ -44,7 +44,7 @@ export function HubShell({ children, isAdmin = false }) {
                 fontSize: "calc(14px * var(--fs-scale))",
               }}
             >
-              Платформа адаптації
+              Платформа адаптації та навчання
             </div>
             {isAdmin && (
               <Link className="iconbtn" aria-label="Адмін-панель" href="/admin">

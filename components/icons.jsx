@@ -46,6 +46,17 @@ export function ProfileIcon() {
   );
 }
 
+/** Кружечок завантаження для кнопок дій (Зберегти/Призначити/Створити
+ * тощо) — colorами не переймається, бере currentColor від батька
+ * (див. .admin-spinner в admin.css: колір/розмір/анімація). */
+export function SpinnerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="admin-spinner">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="34 100" />
+    </svg>
+  );
+}
+
 export function ChevronIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -155,6 +166,19 @@ export function GripIcon() {
       <circle cx="15" cy="6" r="1.6" />
       <circle cx="15" cy="12" r="1.6" />
       <circle cx="15" cy="18" r="1.6" />
+    </svg>
+  );
+}
+
+/** "ⓘ" — підказка по ховеру/фокусу (напр. .admin-info-tip), коли довге
+ * пояснення краще ховати за іконкою, а не тримати завжди розгорнутим
+ * текстом під контролом. */
+export function InfoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <line x1="12" y1="11" x2="12" y2="16.5" />
+      <circle cx="12" cy="7.4" r="1.1" fill="currentColor" stroke="none" />
     </svg>
   );
 }

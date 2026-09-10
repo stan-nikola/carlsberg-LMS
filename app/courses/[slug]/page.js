@@ -1,13 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import {
-  getCourseForPlayer,
-  getEnrollmentForCourse,
-  flattenLessons,
-  flattenModules,
-  computeBlockAvailability,
-} from "@/lib/courseContent";
+import { getCourseForPlayer, getEnrollmentForCourse, flattenScreens, computeModuleAvailability } from "@/lib/courseContent";
 import { CoursePlayer } from "@/components/CoursePlayer";
 
 // Доступ лише призначеним (є Enrollment) — на відміну від legacy, де курс
@@ -41,66 +35,36 @@ export default async function CoursePage({ params }) {
     );
   }
 
-  // "Пауза між блоками" (Block.cooldownDays): блок N+1 доступний лише
-  // якщо блок N складено (BlockCompletion.passed) і минула пауза.
-  const completions = await prisma.blockCompletion.findMany({ where: { enrollmentId: enrollment.id } });
-  const completionsByBlockId = new Map(completions.map((c) => [c.blockId, c]));
-  const blockAvailability = computeBlockAvailability(course, completionsByBlockId);
+  // "Пауза між модулями" (Module.cooldownDays): модуль N+1 доступний лише
+  // якщо модуль N складено (ModuleCompletion.passed) і минула пауза. Це
+  // єдиний рівень календарного/послідовного гейтингу контенту курсу —
+  // окреме "Відкриття через N днів" на рівні Screen свідомо прибрали
+  // (2026-09, на запит користувача): для одного екрана всередині вже
+  // доступного модуля така пауза зайва.
+  const completions = await prisma.moduleCompletion.findMany({ where: { enrollmentId: enrollment.id } });
+  const completionsByModuleId = new Map(completions.map((c) => [c.moduleId, c]));
+  const moduleAvailability = computeModuleAvailability(course, completionsByModuleId);
 
-  // Послідовне відкриття модулів усередині доступного блоку: модуль з
-  // unlockAfterDays доступний лише через N днів після Enrollment.assignedAt
-  // (календарний графік, не залежить від темпу проходження — див.
-  // коментар у schema.prisma). Ще не відкриті модулі просто не потрапляють
-  // у screens.
-  const now = new Date();
-  function moduleUnlocksAt(unlockAfterDays) {
-    if (!unlockAfterDays) return null;
-    const d = new Date(enrollment.assignedAt);
-    d.setDate(d.getDate() + unlockAfterDays);
-    return d;
-  }
+  const availableModules = course.modules.filter((m) => moduleAvailability.get(m.id).available);
+  const courseWithAvailableContent = { ...course, modules: availableModules };
 
-  const availableBlocks = course.blocks.filter((b) => blockAvailability.get(b.id).available);
-  const lockedModuleIds = new Set(
-    flattenModules({ blocks: availableBlocks })
-      .filter((m) => {
-        const at = moduleUnlocksAt(m.unlockAfterDays);
-        return at && at > now;
-      })
-      .map((m) => m.id)
-  );
-
-  const courseWithAvailableContent = {
-    ...course,
-    blocks: availableBlocks.map((block) => ({
-      ...block,
-      modules: block.modules.filter((m) => !lockedModuleIds.has(m.id)),
-    })),
-  };
-
-  const screens = flattenLessons(courseWithAvailableContent).map((lesson) => ({
-    id: lesson.id,
-    type: lesson.type,
-    title: lesson.title,
-    content: lesson.content,
-    blockId: lesson.blockId,
-    blockTitle: lesson.blockTitle,
+  const screens = flattenScreens(courseWithAvailableContent).map((screen) => ({
+    id: screen.id,
+    title: screen.title,
+    moduleId: screen.moduleId,
+    moduleTitle: screen.moduleTitle,
+    components: screen.components,
   }));
 
-  // Повідомлення про те, що ще недоступно — перше заблоковане (модуль
-  // всередині доступного блоку АБО наступний блок), у порядку проходження.
+  // Повідомлення про наступний недоступний модуль (якщо є) — у порядку
+  // проходження.
   let lockedNotice = null;
-  const lockedModule = flattenModules({ blocks: availableBlocks }).find((m) => lockedModuleIds.has(m.id));
-  if (lockedModule) {
-    lockedNotice = `Наступний розділ курсу відкриється ${moduleUnlocksAt(lockedModule.unlockAfterDays).toLocaleDateString("uk-UA")}.`;
-  } else {
-    const nextLockedBlock = course.blocks.find((b) => !blockAvailability.get(b.id).available);
-    if (nextLockedBlock) {
-      const info = blockAvailability.get(nextLockedBlock.id);
-      lockedNotice = info.waitingForPrevious
-        ? `Блок «${nextLockedBlock.title}» відкриється після того, як ви складете попередній блок.`
-        : `Блок «${nextLockedBlock.title}» відкриється ${info.unlocksAt.toLocaleDateString("uk-UA")}.`;
-    }
+  const nextLockedModule = course.modules.find((m) => !moduleAvailability.get(m.id).available);
+  if (nextLockedModule) {
+    const info = moduleAvailability.get(nextLockedModule.id);
+    lockedNotice = info.waitingForPrevious
+      ? `Модуль «${nextLockedModule.title}» відкриється після того, як ви складете попередній модуль.`
+      : `Модуль «${nextLockedModule.title}» відкриється ${info.unlocksAt.toLocaleDateString("uk-UA")}.`;
   }
 
   return (
@@ -110,6 +74,7 @@ export default async function CoursePage({ params }) {
         slug: course.slug,
         title: course.title,
         description: course.description,
+        streakMessages: course.streakMessages,
       }}
       screens={screens}
       enrollmentId={enrollment.id}

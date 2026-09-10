@@ -1,0 +1,120 @@
+/* ===================== CARLSBERG DESIGN TOKENS =============================
+   Єдине джерело правди для кольору/розмірів/радіусів/тіней/анімації всього
+   застосунку (і хаб співробітника, і /admin).
+
+   Значення взяті НЕ "на око", а з офіційної цифрової дизайн-системи
+   Carlsberg — Malty (github.com/carlsberg/malty, публічний репозиторій,
+   malty/theme/MaltyThemeProvider/*.json):
+     - themes/carlsberg.json  -> фірмові themePrimary/Secondary/Tertiary
+     - colors.json            -> digital-black, support-шкала, системні кольори
+     - sizes.json             -> шкала розмірів 5xs..5xl
+
+   Шрифт: Malty для digital-продуктів використовує Montserrat (див.
+   TypographyProvider.ts у тому ж репозиторії), а не друкарський Carlsberg
+   Sans — тому саме Montserrat підключений у app/layout.js через next/font
+   (само-хоститься, має кирилицю, на відміну від попереднього Sora).
+
+   ВАЖЛИВО: старі імена токенів (--ink/--surface/--green-700/...) навмисно
+   НЕ видалені, а перевизначені через нові — так увесь наявний CSS і всі
+   компоненти підхоплюють фірмові кольори одразу, без ризику пропустити
+   якесь використання. Новий код пише --cb-*. */
+
+:root {
+  /* ---- Brand (themes/carlsberg.json) ---- */
+  --cb-primary: #00321e; /* rgb(0,50,30)    - глибокий фірмовий зелений */
+  --cb-secondary: #17b169; /* rgb(23,177,105) - активний/акцентний зелений */
+  --cb-tertiary: #b49132; /* rgb(180,145,50) - фірмове золото */
+
+  /* ---- Neutrals (colors.json) ---- */
+  --cb-black: #212833; /* digital-black */
+  --cb-white: #ffffff;
+  --cb-support-20: #f0f2f3;
+  --cb-support-40: #d7e0e2;
+  --cb-support-60: #9db3bf;
+  --cb-support-80: #668494;
+  --cb-support-100: #314550;
+
+  /* ---- System (colors.json) ---- */
+  --cb-success: #1bd665;
+  --cb-success-light: #cdfadf;
+  --cb-fail: #f45f5e;
+  --cb-fail-light: #ffe1e1;
+  --cb-alert: #ffca2b;
+  --cb-alert-light: #fff3d0;
+  --cb-notification: #4b87c5;
+  --cb-notification-light: #d5eaff;
+
+  /* ---- Overlays (colors.json) ---- */
+  --cb-overlay-5: rgba(33, 40, 51, 0.05);
+  --cb-overlay-10: rgba(33, 40, 51, 0.1);
+  --cb-overlay-25: rgba(33, 40, 51, 0.25);
+  --cb-overlay-50: rgba(33, 40, 51, 0.5);
+  --cb-overlay-75: rgba(33, 40, 51, 0.75);
+
+  /* Похідні від бренду — для ledge/hover/фокус-станів */
+  --cb-primary-tint: rgba(0, 50, 30, 0.06);
+  --cb-secondary-tint: rgba(23, 177, 105, 0.1);
+  --cb-focus-ring: 0 0 0 3px rgba(23, 177, 105, 0.25);
+
+  /* ---- Sizes / spacing (sizes.json) ---- */
+  --size-5xs: 2px;
+  --size-4xs: 4px;
+  --size-3xs: 6px;
+  --size-2xs: 8px;
+  --size-xs: 12px;
+  --size-s: 16px;
+  --size-ms: 20px;
+  --size-m: 24px;
+  --size-l: 32px;
+  --size-xl: 40px;
+  --size-2xl: 48px;
+  --size-3xl: 56px;
+  --size-4xl: 64px;
+  --size-5xl: 80px;
+
+  /* ---- Radii ----
+     Перевірено по самих компонентах Malty, а не "на око":
+       atoms/Button/Button.styled.ts  -> border-radius НЕМА взагалі
+       molecules/Card/Card.styled.ts  -> border-radius НЕМА взагалі
+       atoms/Select/Select.styled.ts  -> border-radius НЕМА взагалі
+       atoms/Input/Input.styled.ts    -> border-radius: 7px
+     Тобто фірмова мова — ПРЯМОКУТНА (скандинавська, editorial), і лише
+     поля вводу мають ледь помітне заокруглення. Ніяких pill-кнопок. */
+  --radius-btn: 0;
+  --radius-card: 0;
+  --radius-input: 7px;
+
+  /* Загальні радіуси для елементів, які не є частиною Malty (телефонний
+     "корпус" на десктопі, bottom-sheet, аватар тощо). */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+
+  /* ---- Elevation (shadows.json — 4 фірмові рівні, буквально, а не
+     "приблизно схожі") ---- */
+  --shadow-resting: 0px 1px 2px 0px rgba(33, 40, 51, 0.15), 0px 2px 6px 1px rgba(33, 40, 51, 0.1);
+  --shadow-hovered: 0px 1px 2px 0px rgba(33, 40, 51, 0.15), 0px 2px 12px 2px rgba(33, 40, 51, 0.15);
+  --shadow-pressed: 0px 1px 2px 0px rgba(33, 40, 51, 0.15), 0px 2px 6px 0px rgba(33, 40, 51, 0.15);
+  --shadow-overlay: 0px 0px 2px 0px rgba(33, 40, 51, 0.15), 0px 0px 9px 1px rgba(33, 40, 51, 0.15);
+  /* Старі назви лишені як псевдоніми — щоб не переписувати кожне
+     використання по всьому проєкту одразу. */
+  --shadow-xs: var(--shadow-resting);
+  --shadow-sm: var(--shadow-resting);
+  --shadow-md: var(--shadow-hovered);
+  --shadow-lg: var(--shadow-overlay);
+
+  /* ---- Motion ---- */
+  --ease-premium: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-base: 250ms;
+  --dur-slow: 400ms;
+
+  /* ---- z-index ---- */
+  --z-sticky: 100;
+  --z-overlay: 50;
+  --z-modal: 200;
+}

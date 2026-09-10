@@ -12,22 +12,34 @@
   overflow-y: auto;
 }
 .cp-screen {
-  padding: 16px 18px 26px;
+  /* Бокові поля -30% від початкових 18px (~12.6, округлено до 13px). */
+  padding: 16px 13px 26px;
+}
+/* Один екран (Screen) може тримати кілька компонентів (Component) —
+   .cp-screen тепер огортає весь їхній стек ОДИН раз (не кожен компонент
+   окремо), а кожен компонент лежить у своєму .screen-component. Для
+   єдиного компонента на екрані (сьогодні це майже весь наявний контент)
+   жодної видимої зміни — роздільник з'являється лише МІЖ двома й більше
+   сусідніми компонентами. */
+.screen-component + .screen-component {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
 }
 
 .cp-progress-track {
-  height: 6px;
-  border-radius: 99px;
-  background: var(--surface-2);
+  height: var(--size-4xs);
+  border-radius: var(--size-4xs);
+  background: var(--cb-overlay-10);
   overflow: hidden;
   margin: 0 14px;
   flex-shrink: 0;
 }
 .cp-progress-fill {
   height: 100%;
-  border-radius: 99px;
-  background: linear-gradient(90deg, var(--green-700), var(--green-500));
-  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--size-4xs);
+  background: var(--cb-primary);
+  transition: width var(--dur-base) ease-in-out;
 }
 .cp-step-count {
   font-family: var(--font-mono);
@@ -81,7 +93,7 @@
 }
 .cp-note-accordion {
   background: var(--green-tint);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   margin-top: 6px;
   overflow: hidden;
 }
@@ -140,7 +152,7 @@
   flex: 1;
   background: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   padding: 11px 6px;
 }
 .cp-intro-stats .stat b {
@@ -163,28 +175,34 @@
   gap: 10px;
   width: 100%;
   text-align: left;
-  padding: 12px 13px;
-  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  min-height: 52px;
+  border-radius: var(--radius-card);
   border: 1.5px solid var(--line);
-  background: var(--surface-1);
+  background: var(--cb-white);
   margin-bottom: 8px;
   cursor: pointer;
   font-family: inherit;
   font-size: calc(13.6px * var(--fs-scale));
+  font-weight: 600;
   color: var(--ink);
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition: border-color var(--dur-fast) var(--ease-premium), background var(--dur-fast) var(--ease-premium),
+    transform var(--dur-fast) var(--ease-premium);
+}
+.opt:active {
+  transform: scale(0.99);
 }
 .opt.selected {
-  border-color: var(--green-700);
+  border-color: var(--cb-primary);
   background: var(--green-tint);
 }
 .opt.correct {
-  border-color: var(--green-700);
-  background: var(--green-tint);
+  border-color: var(--cb-secondary);
+  background: var(--cb-success-light);
 }
 .opt.wrong {
   border-color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 10%, var(--surface-1));
+  background: var(--cb-fail-light);
 }
 .opt.disabled {
   pointer-events: none;
@@ -192,7 +210,7 @@
 .q-fb {
   font-size: calc(12.4px * var(--fs-scale));
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   margin-top: 2px;
 }
 .q-fb.ok {
@@ -222,7 +240,7 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 16px 30px -14px rgba(185, 146, 75, 0.55);
-  color: #fff;
+  color: var(--cb-white);
 }
 .trophy svg {
   width: 36px;
@@ -266,10 +284,12 @@
   gap: 10px;
   padding: 11px 14px calc(16px + env(safe-area-inset-bottom));
 }
+/* Назад/Далі — той самий прямокутний Malty-патерн, що й .btn-primary-full
+   (border-radius:0, hover через filter:brightness, а не градієнт/колір). */
 .btn {
   flex: 1;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-btn);
   padding: 13px 16px;
   font-weight: 600;
   font-size: calc(14.5px * var(--fs-scale));
@@ -278,16 +298,27 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition: transform var(--dur-fast) var(--ease-premium), filter var(--dur-fast) var(--ease-premium),
+    box-shadow var(--dur-fast) var(--ease-premium);
   font-family: inherit;
 }
 .btn:active {
   transform: scale(0.97);
 }
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
 .btn-primary {
-  background: linear-gradient(135deg, var(--green-500), var(--green-700));
-  color: #fff;
-  box-shadow: 0 10px 22px -12px color-mix(in srgb, var(--green-700) 70%, transparent);
+  background: var(--cb-primary);
+  color: var(--cb-white);
+  box-shadow: var(--shadow-sm);
+}
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(140%);
+    box-shadow: var(--shadow-md);
+  }
 }
 .btn-primary:disabled {
   opacity: 0.4;
@@ -298,4 +329,741 @@
   color: var(--ink);
   border: 1px solid var(--line);
   flex: 0 0 80px;
+}
+@media (hover: hover) {
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--cb-overlay-10);
+  }
+}
+
+/* ===================== ІНТЕРАКТИВНІ ЕКРАНИ УРОКУ =====================
+   Портовано з попередньої vanilla-JS розробки "8 кроків телесейлінгу"
+   (акордеони, чек-листи, діалог-скрипт дзвінка, таймлайн кроків) — але
+   вже на фірмових токенах Carlsberg, а не на власних кольорах того
+   прототипу. Розмітка — components/LessonScreens.jsx. */
+
+/* ---- Акордеон-картки ---- */
+.acc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.acc-item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--cb-white);
+  overflow: hidden;
+  transition: border-color var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
+}
+.acc-item.seen {
+  border-color: var(--cb-secondary);
+}
+.acc-item.open {
+  box-shadow: var(--shadow-hovered);
+}
+.acc-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+  min-height: 52px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: calc(13.6px * var(--fs-scale));
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.acc-head:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.acc-chevron {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+  transition: transform var(--dur-fast) var(--ease-premium);
+}
+.acc-item.open .acc-chevron {
+  transform: rotate(90deg);
+}
+.acc-body {
+  padding: 0 14px 14px;
+  font-size: calc(13px * var(--fs-scale));
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* ---- Чек-лист ---- */
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  padding: 13px 14px;
+  min-height: 52px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--cb-white);
+  font: inherit;
+  font-size: calc(13.4px * var(--fs-scale));
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-premium), background var(--dur-fast) var(--ease-premium);
+}
+.check-item:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.check-item.done {
+  border-color: var(--cb-secondary);
+  background: var(--cb-success-light);
+}
+.check-box {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--cb-white);
+  color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-fast) var(--ease-premium), border-color var(--dur-fast) var(--ease-premium);
+}
+.check-box svg {
+  width: 14px;
+  height: 14px;
+}
+.check-item.done .check-box {
+  background: var(--cb-secondary);
+  border-color: var(--cb-secondary);
+  color: var(--cb-white);
+}
+.check-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- Діалог-скрипт (дзвінок) ---- */
+.script-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 6px;
+}
+.call-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-card);
+  background: var(--cb-primary);
+  color: var(--cb-white);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--fs-scale));
+}
+.call-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cb-secondary);
+  flex-shrink: 0;
+  animation: callPulse 1.6s ease-in-out infinite;
+}
+@keyframes callPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+.call-label {
+  flex: 1;
+  min-width: 0;
+}
+.call-time {
+  font-variant-numeric: tabular-nums;
+}
+.script-dots {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  padding: 2px 0 4px;
+}
+.script-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cb-overlay-10);
+  transition: background var(--dur-fast) var(--ease-premium);
+}
+.script-dots span.on {
+  background: var(--cb-primary);
+}
+.bubble {
+  padding: 11px 13px;
+  border-radius: var(--radius-card);
+  font-size: calc(13.2px * var(--fs-scale));
+  line-height: 1.45;
+  max-width: 88%;
+  animation: bubbleIn 0.28s var(--ease-out) both;
+}
+@keyframes bubbleIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.bubble-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: calc(9.5px * var(--fs-scale));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.75;
+  margin-bottom: 3px;
+}
+/* "Ви" — фірмовий зелений, клієнт — світлий: класична асиметрія чату,
+   щоб з першого погляду було видно, чия це репліка. */
+.bubble.me {
+  align-self: flex-start;
+  background: var(--cb-primary);
+  color: var(--cb-white);
+}
+.bubble.client {
+  align-self: flex-end;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.bubble.tip {
+  align-self: stretch;
+  max-width: 100%;
+  background: var(--gold-soft);
+  color: var(--ink);
+}
+.bubble.note {
+  align-self: stretch;
+  max-width: 100%;
+  background: var(--green-tint);
+  color: var(--ink);
+}
+.bubble.typing {
+  padding: 13px;
+}
+.wave-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 12px;
+}
+.wave-bars span {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.55;
+  animation: waveBar 0.9s ease-in-out infinite;
+}
+.wave-bars span:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.wave-bars span:nth-child(3) {
+  animation-delay: 0.24s;
+}
+.wave-bars span:nth-child(4) {
+  animation-delay: 0.36s;
+}
+@keyframes waveBar {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.script-advance {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 4px;
+  border: 1.5px solid var(--cb-primary);
+  border-radius: var(--radius-btn);
+  background: transparent;
+  color: var(--cb-primary);
+  font: inherit;
+  font-size: calc(13px * var(--fs-scale));
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-premium);
+}
+.script-advance:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.script-advance:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+@media (hover: hover) {
+  .script-advance:hover:not(:disabled) {
+    background: var(--green-tint);
+  }
+}
+.script-advance-ico {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  transform: rotate(90deg);
+}
+
+/* ---- Таймлайн кроків ----
+   Рейка зліва (кружечок + лінія до наступного) + вміст справа — єдиний
+   ланцюжок, а не набір окремих карток. Три реальні стани кружечка, всі
+   на фірмових токенах (жодних вигаданих кольорів):
+     - за замовчуванням  — нейтральний (--surface-1/--ink-soft)
+     - .current (режим "ви тут", ще не відкритий) — золото --cb-tertiary,
+       той самий акцент "зверни увагу", що й на бейджі рівня/streak-тості
+     - .seen (відкритий хоч раз) — активний зелений --cb-secondary, той
+       самий, що й у .check-item.done — "зроблено". .seen навмисно йде
+       ПІСЛЯ .current в каскаді: якщо підсвічений крок таки відкрили,
+       він переходить у "зроблено" (зелений), а не лишається "золотим
+       маячком" на те, що вже й так побачили. */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+.tl-item {
+  display: flex;
+  gap: 13px;
+}
+.tl-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  padding-top: 12px;
+}
+.tl-num {
+  /* +15% від початкових 24px/11px. */
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  /* Акцентний тінт замість плоского нейтрального сірого навіть для ще НЕ
+     відкритих кроків — той самий патерн, що й .cp-kicker-num — щоб
+     таймлайн одразу виглядав фірмово, а не "вимкненим", поки до нього
+     не дійшли. */
+  background: var(--green-tint);
+  color: var(--green-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: calc(12.5px * var(--fs-scale));
+  font-weight: 700;
+  transition: background var(--dur-base) var(--ease-premium), color var(--dur-base) var(--ease-premium);
+}
+.tl-item.current .tl-num {
+  background: var(--cb-tertiary);
+  color: var(--cb-white);
+}
+.tl-item.seen .tl-num {
+  background: var(--cb-secondary);
+  color: var(--cb-white);
+}
+/* Явне поєднання станів, а не покладання на порядок правил у каскаді
+   (однакова специфічність із двома правилами вище — під dev HMR порядок
+   інжекції <style> непередбачуваний): відкритий "current" крок реально
+   переходить у "зроблено" (зелений), золото — лише сигнал "погляньте
+   сюди, поки не тапнули". */
+.tl-item.current.seen .tl-num {
+  background: var(--cb-secondary);
+  color: var(--cb-white);
+}
+/* Сполучна лінія до наступного кружечка — тягнеться на всю висоту
+   .tl-rail (flex:1), тож автоматично підлаштовується під висоту
+   розгорнутого .tl-detail. min-height — щоб лінія лишалась помітною,
+   навіть коли крок згорнутий і .tl-body зовсім невисокий. */
+.tl-line {
+  width: 2px;
+  flex: 1;
+  min-height: 20px;
+  background: var(--line);
+  transition: background var(--dur-base) var(--ease-premium);
+}
+.tl-item.seen .tl-line {
+  background: var(--cb-secondary);
+}
+.tl-body {
+  flex: 1;
+  min-width: 0;
+}
+.tl-head {
+  width: 100%;
+  padding: 10px 4px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-size: calc(13.2px * var(--fs-scale));
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-premium);
+}
+@media (hover: hover) {
+  .tl-head:hover {
+    background: var(--cb-overlay-10);
+  }
+}
+.tl-head:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+/* Режим "ви тут": підсвічений крок отримує тепле тло на весь вміст, щоб
+   впадав в око навіть серед решти вже пройдених пунктів ланцюга. */
+.tl-item.current .tl-body {
+  background: var(--gold-soft);
+  border-radius: var(--radius-sm);
+}
+.tl-title {
+  min-width: 0;
+}
+.tl-detail {
+  padding: 0 4px 13px;
+  font-size: calc(12.6px * var(--fs-scale));
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* ---- Довільне текстове поле (компонент "input") ----
+   Той самий візуальний патерн, що й .opt (рамка var(--line), фокус —
+   фірмовий зелений) — навмисно НЕ .admin-* класи звідти: ці стилі для
+   десктопного /admin, а не для мобільної картки плеєра. */
+.cp-input-label {
+  display: block;
+  font-size: calc(12.6px * var(--fs-scale));
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 7px;
+}
+.cp-input-field {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  border: 1.5px solid var(--line);
+  background: var(--cb-white);
+  font-family: inherit;
+  font-size: calc(13.6px * var(--fs-scale));
+  color: var(--ink);
+  resize: vertical;
+  transition: border-color var(--dur-fast) var(--ease-premium);
+}
+.cp-input-field:focus-visible {
+  outline: none;
+  border-color: var(--cb-primary);
+  box-shadow: var(--cb-focus-ring);
+}
+
+/* ---- Підказка гейта під навігацією ---- */
+.gate-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 14px 0;
+  font-size: calc(11.6px * var(--fs-scale));
+  color: var(--ink-soft);
+  text-align: center;
+}
+.gate-hint-count {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--cb-primary);
+  flex-shrink: 0;
+}
+
+/* ---- Зум фото (lightbox) ---- */
+.photo-frame.zoomable {
+  cursor: zoom-in;
+  position: relative;
+}
+.zoom-badge {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--cb-overlay-75);
+  color: var(--cb-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.zoom-badge svg {
+  width: 15px;
+  height: 15px;
+}
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--cb-overlay-75);
+  backdrop-filter: blur(3px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 72px 16px 20px;
+}
+.lightbox.open {
+  display: flex;
+}
+.lightbox img {
+  max-width: 100%;
+  max-height: calc(100svh - 100px);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-overlay);
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+.lightbox.show img {
+  opacity: 1;
+  transform: scale(1);
+}
+.lightbox-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--cb-overlay-25);
+  color: var(--cb-white);
+  font-size: calc(17px * var(--fs-scale));
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.lightbox-close:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+
+/* ---- Streak-тост (мотивація за серію правильних відповідей) ----
+   Банер, що опускається зверху вниз у верхній частині екрана (не
+   центрована модалка на затемненій підкладці, як було раніше) —
+   шириною на весь найширший контейнер розмітки (.course-card, той
+   самий "корпус телефону", що й .stage/.appbar), позиціонований
+   абсолютно відносно нього (.course-card — position:relative), тож
+   лежить НАД .appbar, а не всередині скролованого .cp-viewport.
+   Суцільний фірмовий зелений (--cb-primary), без градієнта — той самий
+   принцип, що й .btn-primary-full/.admin-btn. Анімація — фірмові
+   --ease-premium/--dur-base з tokens.css (той самий плавний, без
+   "пружного" перебільшення, темп руху, що й .tl-num/.opt по всьому
+   плеєру), а не власна bounce-крива. pointer-events:none — ненав'язливий
+   нудж, не гейт, що блокує проходження. */
+.streak-toast-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  justify-content: center;
+  /* env(safe-area-inset-top) — та сама зона статус-бару/"чубчика", що й
+     .appbar (globals.css, calc(14px + env(safe-area-inset-top))). На
+     десктопі/старих Android без вирізу env() повертає 0, тут лишається
+     звичайний відступ 10px — на iPhone з Dynamic Island/notch банер
+     опускається НИЖЧЕ статус-бару, а не під ним. */
+  padding: calc(10px + env(safe-area-inset-top)) 10px 0;
+  pointer-events: none;
+}
+.streak-toast {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  background: var(--cb-primary);
+  color: var(--cb-white);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-overlay);
+  text-align: left;
+  overflow: visible;
+  transform: translateY(-120%);
+  animation: streakSlideIn var(--dur-slow) var(--ease-premium) forwards,
+    streakSlideOut var(--dur-base) var(--ease-premium) 2.3s forwards;
+}
+@keyframes streakSlideIn {
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes streakSlideOut {
+  to {
+    transform: translateY(-120%);
+  }
+}
+.streak-toast-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--gold-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2));
+  animation: streakIconPop var(--dur-slow) var(--ease-premium) 0.1s both;
+}
+@keyframes streakIconPop {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.streak-toast-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.streak-toast-text b {
+  font-family: var(--font-display);
+  font-size: calc(14.5px * var(--fs-scale));
+  font-weight: 900;
+}
+.streak-toast-text span {
+  font-size: calc(11.8px * var(--fs-scale));
+  opacity: 0.92;
+  line-height: 1.35;
+}
+.streak-toast-confetti {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.streak-confetti-piece {
+  position: absolute;
+  top: -4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: streakConfettiFall 950ms ease-out 0.15s forwards;
+}
+@keyframes streakConfettiFall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(70px) rotate(260deg);
+  }
+}
+
+/* ---- Діалог "продовжити чи почати спочатку" ----
+   На відміну від streak-тосту — справжня блокуюча модалка (не
+   pointer-events:none): темна підкладка + центрована картка, той самий
+   принцип, що й .lightbox, але в межах .course-card (той самий "корпус
+   телефону"), а не на всю сторінку — курс і його прогрес існують лише
+   в межах цього "екрана". */
+.resume-prompt-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--cb-overlay-50);
+  backdrop-filter: blur(2px);
+  animation: resumeBackdropIn var(--dur-base) var(--ease-premium) both;
+}
+@keyframes resumeBackdropIn {
+  from {
+    opacity: 0;
+  }
+}
+.resume-prompt {
+  width: 100%;
+  max-width: 300px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 22px 20px;
+  box-shadow: var(--shadow-overlay);
+  text-align: center;
+  transform: translateY(8px) scale(0.97);
+  opacity: 0;
+  animation: resumeCardIn var(--dur-slow) var(--ease-premium) forwards;
+}
+@keyframes resumeCardIn {
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+.resume-prompt-title {
+  font-family: var(--font-display);
+  font-size: calc(16.5px * var(--fs-scale));
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.resume-prompt-text {
+  font-size: calc(12.6px * var(--fs-scale));
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+.resume-prompt-actions {
+  display: flex;
+  gap: 10px;
+}
+/* .btn-ghost за замовчуванням flex:0 0 80px (під коротке "Назад" у навбарі
+   плеєра) — тут обидві кнопки мають повноцінний текст, тож ширина порівну. */
+.resume-prompt-actions .btn {
+  flex: 1;
 }

@@ -11,13 +11,14 @@ export async function GET() {
 
   const courses = await prisma.course.findMany({
     orderBy: { title: "asc" },
-    include: { blocks: { orderBy: { order: "asc" } } },
+    include: { modules: { orderBy: { order: "asc" } } },
   });
   return NextResponse.json(courses);
 }
 
-// POST /api/admin/courses — { title, description?, isMandatory?,
-// deadlineDays?, targetPositions?, targetTerritories?, publishAt? }
+// POST /api/admin/courses — { title, description?, category?, isMandatory?,
+// deadlineDays?, streakMessages?, targetPositions?, targetTerritories?,
+// targetEmployeeIds?, publishAt? }
 // slug генерується з title автоматично (транслітерація + унікальність).
 export async function POST(request) {
   const admin = await requireAdmin();
@@ -35,13 +36,16 @@ export async function POST(request) {
       slug,
       title: body.title,
       description: body.description || null,
+      category: body.category || null,
       isMandatory: Boolean(body.isMandatory),
       deadlineDays: body.deadlineDays === "" || body.deadlineDays == null ? null : Number(body.deadlineDays),
+      streakMessages: body.streakMessages || null,
       targetPositions: body.targetPositions || [],
       targetTerritories: body.targetTerritories || [],
+      targetEmployeeIds: body.targetEmployeeIds || [],
       publishAt: body.publishAt ? new Date(body.publishAt) : null,
     },
-    include: { blocks: true },
+    include: { modules: true },
   });
   return NextResponse.json(course, { status: 201 });
 }

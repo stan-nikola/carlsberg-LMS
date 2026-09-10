@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 import { slugify, uniqueSlug } from "@/lib/slug";
 
-// GET /api/admin/courses/:courseId — повне дерево курс -> блоки -> модулі
-// -> уроки, для адмінського редактора контенту.
+// GET /api/admin/courses/:courseId — повне дерево курс -> модулі -> екрани
+// -> компоненти, для адмінського редактора контенту.
 export async function GET(request, { params }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -13,12 +13,12 @@ export async function GET(request, { params }) {
   const course = await prisma.course.findUnique({
     where: { id: Number(courseId) },
     include: {
-      blocks: {
+      modules: {
         orderBy: { order: "asc" },
         include: {
-          modules: {
+          screens: {
             orderBy: { order: "asc" },
-            include: { lessons: { orderBy: { order: "asc" } } },
+            include: { components: { orderBy: { order: "asc" } } },
           },
         },
       },
@@ -29,8 +29,9 @@ export async function GET(request, { params }) {
   return NextResponse.json(course);
 }
 
-// PATCH /api/admin/courses/:courseId — { title?, description?, isMandatory?,
-// deadlineDays?, targetPositions?, targetTerritories?, publishAt? }
+// PATCH /api/admin/courses/:courseId — { title?, description?, category?,
+// isMandatory?, deadlineDays?, streakMessages?, targetPositions?,
+// targetTerritories?, targetEmployeeIds?, publishAt? }
 // Курсовий рівень налаштувань (хто і коли отримує курс) — не плутати з
 // призначенням "тут і зараз" через /assign. Зміна title перегенеровує slug
 // (транслітерація), якщо на курс ще нема жодного Enrollment.
@@ -62,10 +63,13 @@ export async function PATCH(request, { params }) {
     }
   }
   if (body.description !== undefined) data.description = body.description;
+  if (body.category !== undefined) data.category = body.category || null;
   if (body.isMandatory !== undefined) data.isMandatory = body.isMandatory;
   if (body.deadlineDays !== undefined) data.deadlineDays = body.deadlineDays;
+  if (body.streakMessages !== undefined) data.streakMessages = body.streakMessages || null;
   if (body.targetPositions !== undefined) data.targetPositions = body.targetPositions;
   if (body.targetTerritories !== undefined) data.targetTerritories = body.targetTerritories;
+  if (body.targetEmployeeIds !== undefined) data.targetEmployeeIds = body.targetEmployeeIds;
   if (body.publishAt !== undefined) {
     data.publishAt = body.publishAt ? new Date(body.publishAt) : null;
     // Дату публікації змінили вручну — скидаємо позначку "вже
@@ -78,8 +82,8 @@ export async function PATCH(request, { params }) {
   return NextResponse.json(course);
 }
 
-// DELETE /api/admin/courses/:courseId — каскадно видаляє блоки/модулі/уроки
-// (onDelete: Cascade у schema.prisma). Enrollment на курс НЕ видаляється
+// DELETE /api/admin/courses/:courseId — каскадно видаляє модулі/екрани/
+// компоненти (onDelete: Cascade у schema.prisma). Enrollment на курс НЕ видаляється
 // каскадно навмисно (без onDelete: Cascade у зв'язку Enrollment.course) —
 // якщо на курс уже хтось записаний, відмовляємо заздалегідь із зрозумілою
 // причиною, а не даємо Postgres впасти сирим 500 на FK-обмеженні.
@@ -94,7 +98,8 @@ export async function DELETE(request, { params }) {
   if (enrollmentCount > 0) {
     return NextResponse.json(
       {
-        error: `Курс не видалено: на нього вже призначено ${enrollmentCount} співробітник(ів). Спершу зніміть призначення.`,
+        error: `На курс призначено ${enrollmentCount} співробітник(ів). Спершу зніміть призначення.`,
+        enrollmentCount,
       },
       { status: 409 }
     );
