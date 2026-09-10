@@ -260,10 +260,11 @@ export function TimelineScreen({ lesson, screenNumber, onGateProgress }) {
 const CONFETTI_COLORS = ["#ffffff", "var(--gold)", "var(--green-300)"];
 
 /**
- * Мотиваційний тост за серію правильних відповідей поспіль — з конфеті,
- * портовано з legacy showStreakToast. Ефемерний: сам собою ховається за
- * таймером у components/CoursePlayer.jsx (тут лише візуал), тому немає
- * власного onClose — не заважає проходженню, просто зникає.
+ * Мотиваційний тост за серію правильних відповідей поспіль — справжній
+ * оверлей ПОВЕРХ усього екрана (напівпрозора підкладка + центрована
+ * картка), не банер у потоці контенту. Ефемерний: сам собою ховається
+ * за таймером у components/CoursePlayer.jsx (тут лише візуал), тому
+ * немає власного onClose — не заважає проходженню, просто зникає.
  */
 export function StreakToast({ icon, title, sub }) {
   // 7 шматочків конфеті з випадковою позицією/затримкою — рахуємо один
@@ -277,22 +278,24 @@ export function StreakToast({ icon, title, sub }) {
   );
 
   return (
-    <div className="streak-toast show" role="status">
-      <span className="streak-toast-icon" aria-hidden="true">
-        {icon}
-      </span>
-      <div className="streak-toast-text">
-        <b>{title}</b>
-        <span>{sub}</span>
-      </div>
-      <div className="streak-toast-confetti" aria-hidden="true">
-        {pieces.map((p, i) => (
-          <span
-            key={i}
-            className="streak-confetti-piece"
-            style={{ left: `${p.left}%`, background: p.color, animationDelay: `${p.delay}ms` }}
-          />
-        ))}
+    <div className="streak-toast-overlay" aria-hidden="true">
+      <div className="streak-toast" role="status">
+        <span className="streak-toast-icon" aria-hidden="true">
+          {icon}
+        </span>
+        <div className="streak-toast-text">
+          <b>{title}</b>
+          <span>{sub}</span>
+        </div>
+        <div className="streak-toast-confetti" aria-hidden="true">
+          {pieces.map((p, i) => (
+            <span
+              key={i}
+              className="streak-confetti-piece"
+              style={{ left: `${p.left}%`, background: p.color, animationDelay: `${p.delay}ms` }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

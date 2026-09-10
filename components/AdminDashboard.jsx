@@ -5,8 +5,7 @@ import Link from "next/link";
 import { GripIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
 import { TerritoryPicker } from "@/components/TerritoryPicker";
 import { COURSE_CATEGORIES } from "@/lib/courseCategories";
-import { ListRowControls, useListOps } from "@/components/ListEditor";
-import { DEFAULT_STREAK_MESSAGES } from "@/lib/streakMessages";
+import { STREAK_PRESET_MESSAGES } from "@/lib/streakMessages";
 
 // Дашборд /admin: курси розгортаються списком своїх блоків (клік по
 // заголовку курсу), клік по блоку веде в редактор курсу (components/
@@ -55,78 +54,30 @@ function AccordionField({ title, summary, children, footer }) {
 /**
  * Мотиваційні тости за серію правильних відповідей поспіль (streak) — з
  * конфеті, портовано з попередньої vanilla-JS розробки "8 кроків
- * телесейлінгу" (lib/streakMessages.js). "+ Додати страйк-рейт з
- * мотивуванням" додає новий поріг у список; порожній список = курс сам
- * бере DEFAULT_STREAK_MESSAGES (звідси й дефолт тут — не порожній масив,
- * а справжні 3 приклади з того ж джерела, щоб було з чого стартувати,
- * а не з чистого аркуша).
+ * телесейлінгу" (lib/streakMessages.js). Свідомо НЕ редактор довільного
+ * списку (був ним, спростили за запитом) — просто перемикач: увімкнено
+ * = курс отримує всі 10 готових порогів по наростанню (2, 3, 4… 12),
+ * вимкнено = тостів не буде взагалі. Текст самих тостів міняється
+ * централізовано в lib/streakMessages.js, не по одному в кожному курсі.
  */
 function StreakMessagesField({ value, onChange }) {
-  const items = value && value.length > 0 ? value : DEFAULT_STREAK_MESSAGES;
-  const ops = useListOps(items, onChange);
-  const summary = `${items.length} ${items.length === 1 ? "поріг" : "пороги"}${value?.length ? "" : " (стандартні)"}`;
+  const enabled = Array.isArray(value) && value.length > 0;
 
   return (
-    <AccordionField title="Мотивація за серію відповідей" summary={summary}>
-      <p className="admin-hint" style={{ marginBottom: 8 }}>
-        Спливає тостом із конфеті, коли співробітник відповідає правильно N разів поспіль. «Крок повтору» — необов&apos;язково:
-        якщо задано (наприклад 3), тост повторюється щоразу після порогу (6 → 9 → 12…), а не лише один раз.
+    <div className="admin-field">
+      <label className="admin-checkbox">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => onChange(e.target.checked ? STREAK_PRESET_MESSAGES : null)}
+        />
+        <span>Мотиваційні тости за серію відповідей</span>
+      </label>
+      <p className="admin-hint" style={{ marginTop: 3 }}>
+        Спливає поверх екрана з конфеті, коли співробітник відповідає правильно поспіль (2, 3, 4… до 12 — 10 порогів по
+        наростанню).
       </p>
-      {items.map((m, i) => (
-        <div className="admin-lesson-card" key={i}>
-          <div className="admin-row">
-            <div className="admin-field" style={{ marginBottom: 0, width: 90 }}>
-              <label className="admin-label">Поріг</label>
-              <input
-                type="number"
-                min="2"
-                value={m.threshold}
-                onChange={(e) => ops.update(i, "threshold", Number(e.target.value))}
-                className="admin-input-flex"
-              />
-            </div>
-            <div className="admin-field" style={{ marginBottom: 0, width: 110 }}>
-              <label className="admin-label">Крок повтору</label>
-              <input
-                type="number"
-                min="1"
-                placeholder="—"
-                value={m.repeatEvery ?? ""}
-                onChange={(e) => ops.update(i, "repeatEvery", e.target.value === "" ? null : Number(e.target.value))}
-                className="admin-input-flex"
-              />
-            </div>
-            <div className="admin-field" style={{ marginBottom: 0, width: 64 }}>
-              <label className="admin-label">Емодзі</label>
-              <input value={m.icon} onChange={(e) => ops.update(i, "icon", e.target.value)} className="admin-input-flex" />
-            </div>
-            <ListRowControls index={i} total={items.length} onMove={ops.move} onRemove={ops.remove} label="поріг" />
-          </div>
-          <input
-            value={m.title}
-            onChange={(e) => ops.update(i, "title", e.target.value)}
-            placeholder="Заголовок тосту"
-            className="admin-input-flex admin-title-input"
-            style={{ marginBottom: 6 }}
-          />
-          <textarea
-            value={m.sub}
-            onChange={(e) => ops.update(i, "sub", e.target.value)}
-            rows={2}
-            placeholder="Текст під заголовком — {n} підставиться поточною серією"
-            className="admin-textarea"
-          />
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={() => ops.add({ threshold: (items[items.length - 1]?.threshold || 0) + 2, repeatEvery: null, icon: "⭐", title: "", sub: "" })}
-        className="admin-btn-link"
-        title="Додати ще один поріг серії з власним мотиваційним тостом"
-      >
-        + Додати страйк-рейт з мотивуванням
-      </button>
-    </AccordionField>
+    </div>
   );
 }
 
