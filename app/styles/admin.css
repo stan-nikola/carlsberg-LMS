@@ -181,6 +181,69 @@
 .admin-title-input {
   font-weight: 600;
 }
+
+/* ---- Підказка-бульбашка по іконці "ⓘ" ----
+   CSS-only: з'являється на :hover/:focus-within, без жодного JS-стану.
+   Іконка — реальна <button>, тож доступна і з клавіатури (Tab + фокус). */
+.admin-info-tip {
+  position: relative;
+  display: inline-flex;
+  cursor: help;
+}
+.admin-info-tip-icon {
+  display: inline-flex;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  cursor: help;
+}
+.admin-info-tip-icon svg {
+  width: 15px;
+  height: 15px;
+}
+.admin-info-tip-icon:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+  border-radius: 50%;
+}
+.admin-info-tip-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  width: 230px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--cb-black);
+  color: var(--cb-white);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-premium), transform var(--dur-fast) var(--ease-premium);
+  z-index: var(--z-overlay);
+}
+.admin-info-tip-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--cb-black);
+}
+.admin-info-tip:hover .admin-info-tip-bubble,
+.admin-info-tip:focus-within .admin-info-tip-bubble {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
 .admin-input-mono {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -653,8 +716,50 @@
 .admin-editor-preview .stage {
   max-width: 375px;
 }
-.admin-editor-preview .course-card {
-  height: min(720px, 82vh);
+
+/* ---- Прев'ю в рамці iPhone 17 Pro Max ----
+   Лише тут, у конструкторі — НЕ на реальних сторінках застосунку (хаб,
+   плеєр курсу, реєстрація й так усередині СПРАВЖНЬОГО телефону автора).
+   Пропорції екрана — 9:19.5 (формфактор лінійки iPhone Pro Max). Рамка —
+   SVG з titanium-градієнтом і прозорим вирізом під контент (mask із двох
+   rect: зовнішній контур мінус внутрішній), не намальована сірим бордюром
+   — Dynamic Island лежить ПОВЕРХ контенту (справжня "пігулка", не виріз у
+   бордюрі), точнісінько як на реальному iPhone. */
+.iphone-mockup {
+  position: relative;
+  width: 100%;
+  max-width: 375px;
+  aspect-ratio: 9 / 19.5;
+  max-height: min(760px, 84vh);
+  margin: 0 auto;
+}
+.iphone-mockup .course-card {
+  position: absolute;
+  inset: 1.08% 2.33%;
+  /* .course-card (globals.css) отримує явний width:100%, а на десктопі
+     навіть width:400px (@media min-width:900px) — при position:absolute
+     явний width "перекриває" правий inset (right ігнорується за
+     специфікацією, коли задані і left, і width, і right одночасно), тож
+     без явного width:auto тут картка вилазила за межі рамки. */
+  width: auto;
+  height: auto;
+  border: none;
+  /* Має збігатись із заокругленням вирізу в SVG-рамці (IPhoneFrame,
+     внутрішній rect rx=51 зі viewBox 300×650) — .iphone-mockup рендериться
+     на ширину до 375px, тобто масштаб ≈375/300, звідси ≈64px. Заниженіший
+     border-radius лишав кути картки "гострішими", ніж вигин рамки, —
+     контент у кутах ховався під непрозорою рамкою. */
+  border-radius: 64px;
+  box-shadow: none;
+}
+.iphone-mockup-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 6;
+  filter: drop-shadow(0 18px 30px rgba(20, 22, 26, 0.25));
 }
 .admin-preview-empty {
   color: var(--ink-soft);

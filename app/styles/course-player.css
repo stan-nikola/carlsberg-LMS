@@ -15,6 +15,17 @@
   /* Бокові поля -30% від початкових 18px (~12.6, округлено до 13px). */
   padding: 16px 13px 26px;
 }
+/* Один екран (Screen) може тримати кілька компонентів (Component) —
+   .cp-screen тепер огортає весь їхній стек ОДИН раз (не кожен компонент
+   окремо), а кожен компонент лежить у своєму .screen-component. Для
+   єдиного компонента на екрані (сьогодні це майже весь наявний контент)
+   жодної видимої зміни — роздільник з'являється лише МІЖ двома й більше
+   сусідніми компонентами. */
+.screen-component + .screen-component {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
 
 .cp-progress-track {
   height: var(--size-4xs);
@@ -753,6 +764,36 @@
   color: var(--ink-soft);
 }
 
+/* ---- Довільне текстове поле (компонент "input") ----
+   Той самий візуальний патерн, що й .opt (рамка var(--line), фокус —
+   фірмовий зелений) — навмисно НЕ .admin-* класи звідти: ці стилі для
+   десктопного /admin, а не для мобільної картки плеєра. */
+.cp-input-label {
+  display: block;
+  font-size: calc(12.6px * var(--fs-scale));
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 7px;
+}
+.cp-input-field {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card);
+  border: 1.5px solid var(--line);
+  background: var(--cb-white);
+  font-family: inherit;
+  font-size: calc(13.6px * var(--fs-scale));
+  color: var(--ink);
+  resize: vertical;
+  transition: border-color var(--dur-fast) var(--ease-premium);
+}
+.cp-input-field:focus-visible {
+  outline: none;
+  border-color: var(--cb-primary);
+  box-shadow: var(--cb-focus-ring);
+}
+
 /* ---- Підказка гейта під навігацією ---- */
 .gate-hint {
   display: flex;
@@ -962,4 +1003,67 @@
     opacity: 0;
     transform: translateY(70px) rotate(260deg);
   }
+}
+
+/* ---- Діалог "продовжити чи почати спочатку" ----
+   На відміну від streak-тосту — справжня блокуюча модалка (не
+   pointer-events:none): темна підкладка + центрована картка, той самий
+   принцип, що й .lightbox, але в межах .course-card (той самий "корпус
+   телефону"), а не на всю сторінку — курс і його прогрес існують лише
+   в межах цього "екрана". */
+.resume-prompt-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--cb-overlay-50);
+  backdrop-filter: blur(2px);
+  animation: resumeBackdropIn var(--dur-base) var(--ease-premium) both;
+}
+@keyframes resumeBackdropIn {
+  from {
+    opacity: 0;
+  }
+}
+.resume-prompt {
+  width: 100%;
+  max-width: 300px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 22px 20px;
+  box-shadow: var(--shadow-overlay);
+  text-align: center;
+  transform: translateY(8px) scale(0.97);
+  opacity: 0;
+  animation: resumeCardIn var(--dur-slow) var(--ease-premium) forwards;
+}
+@keyframes resumeCardIn {
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+.resume-prompt-title {
+  font-family: var(--font-display);
+  font-size: calc(16.5px * var(--fs-scale));
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.resume-prompt-text {
+  font-size: calc(12.6px * var(--fs-scale));
+  color: var(--ink-soft);
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+.resume-prompt-actions {
+  display: flex;
+  gap: 10px;
+}
+/* .btn-ghost за замовчуванням flex:0 0 80px (під коротке "Назад" у навбарі
+   плеєра) — тут обидві кнопки мають повноцінний текст, тож ширина порівну. */
+.resume-prompt-actions .btn {
+  flex: 1;
 }

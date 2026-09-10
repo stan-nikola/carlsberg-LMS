@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GripIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
+import { GripIcon, ChevronIcon, SpinnerIcon, InfoIcon } from "@/components/icons";
 import { TerritoryPicker } from "@/components/TerritoryPicker";
 import { COURSE_CATEGORIES } from "@/lib/courseCategories";
 import { STREAK_PRESET_MESSAGES } from "@/lib/streakMessages";
 
-// Дашборд /admin: курси розгортаються списком своїх блоків (клік по
-// заголовку курсу), клік по блоку веде в редактор курсу (components/
-// AdminCourseEditor.jsx) одразу до цього блоку (?block=ID). Тут же — форми
+// Дашборд /admin: курси розгортаються списком своїх модулів (клік по
+// заголовку курсу), клік по модулю веде в редактор курсу (components/
+// AdminCourseEditor.jsx) одразу до цього модуля (?module=ID). Тут же — форми
 // створення нового курсу (назва + всі атрибути, як у CourseSettingsBar
-// редактора) і нового блоку всередині вже наявного курсу.
+// редактора) і нового модуля всередині вже наявного курсу.
 
 function toDatetimeLocalValue(iso) {
   if (!iso) return "";
@@ -51,6 +51,24 @@ function AccordionField({ title, summary, children, footer }) {
   );
 }
 
+/** Іконка "ⓘ" з підказкою-бульбашкою по ховеру/фокусу — для короткого
+ * пояснення, яке не варто тримати завжди розгорнутим текстом під полем
+ * (займає місце, повторюється на кожному курсі). CSS-only (.admin-info-tip*
+ * у admin.css), клавіатурно доступна — сама іконка кнопка, бульбашка
+ * з'являється і на :hover, і на :focus-within. */
+function InfoTip({ text }) {
+  return (
+    <span className="admin-info-tip">
+      <button type="button" className="admin-info-tip-icon" aria-label="Детальніше">
+        <InfoIcon />
+      </button>
+      <span className="admin-info-tip-bubble" role="tooltip">
+        {text}
+      </span>
+    </span>
+  );
+}
+
 /**
  * Мотиваційні тости за серію правильних відповідей поспіль (streak) — з
  * конфеті, портовано з попередньої vanilla-JS розробки "8 кроків
@@ -72,11 +90,8 @@ function StreakMessagesField({ value, onChange }) {
           onChange={(e) => onChange(e.target.checked ? STREAK_PRESET_MESSAGES : null)}
         />
         <span>Мотиваційні тости за серію відповідей</span>
+        <InfoTip text="Банер з конфеті на 2, 5, 10-й правильній відповіді поспіль (далі що 5) і за ідеально пройдений модуль питань." />
       </label>
-      <p className="admin-hint" style={{ marginTop: 3 }}>
-        Банер зверху екрана з конфеті — на 2-й, 5-й, 10-й правильній відповіді поспіль, далі що 5 (15, 20, 25…), а
-        також щоразу, коли співробітник ідеально проходить цілий блок питань курсу.
-      </p>
     </div>
   );
 }
@@ -366,7 +381,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
   async function handleDelete() {
     if (
       !confirm(
-        `Видалити курс «${course.title}» повністю — разом з усіма блоками, модулями й екранами? Це незворотно.`
+        `Видалити курс «${course.title}» повністю — разом з усіма модулями, екранами й компонентами? Це незворотно.`
       )
     ) {
       return;
@@ -577,7 +592,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
   );
 }
 
-function NewBlockInlineForm({ courseId, nextOrder, onCreated }) {
+function NewModuleInlineForm({ courseId, nextOrder, onCreated }) {
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -585,7 +600,7 @@ function NewBlockInlineForm({ courseId, nextOrder, onCreated }) {
     if (!title.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/blocks", {
+      const res = await fetch("/api/admin/modules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ courseId, title, order: nextOrder }),
@@ -601,26 +616,26 @@ function NewBlockInlineForm({ courseId, nextOrder, onCreated }) {
 
   return (
     <div className="admin-row admin-new-lesson">
-      <input placeholder="Назва нового блоку" value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" />
-      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Створити новий блок у цьому курсі">
-        {saving ? "…" : "+ Додати блок"}
+      <input placeholder="Назва нового модуля" value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" />
+      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Створити новий модуль у цьому курсі">
+        {saving ? "…" : "+ Додати модуль"}
       </button>
     </div>
   );
 }
 
-/** Список блоків курсу з перетягуванням (native HTML5 drag-and-drop —
+/** Список модулів курсу з перетягуванням (native HTML5 drag-and-drop —
  * бібліотека тут не потрібна, звичайний реордер невеликого списку). Після
  * drop — оптимістично оновлює порядок локально й одразу зберігає
- * order кожного блоку (1..N) через PATCH, щоб не розійтися з базою. */
-function BlockList({ courseId, blocks, onReordered }) {
+ * order кожного модуля (1..N) через PATCH, щоб не розійтися з базою. */
+function ModuleList({ courseId, modules, onReordered }) {
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
 
   async function persistOrder(reordered) {
     await Promise.all(
-      reordered.map((block, i) =>
-        fetch(`/api/admin/blocks/${block.id}`, {
+      reordered.map((courseModule, i) =>
+        fetch(`/api/admin/modules/${courseModule.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ order: i + 1 }),
@@ -635,10 +650,10 @@ function BlockList({ courseId, blocks, onReordered }) {
       setOverIndex(null);
       return;
     }
-    const reordered = [...blocks];
+    const reordered = [...modules];
     const [moved] = reordered.splice(dragIndex, 1);
     reordered.splice(targetIndex, 0, moved);
-    const withOrder = reordered.map((b, i) => ({ ...b, order: i + 1 }));
+    const withOrder = reordered.map((m, i) => ({ ...m, order: i + 1 }));
     onReordered(withOrder);
     persistOrder(withOrder);
     setDragIndex(null);
@@ -647,9 +662,9 @@ function BlockList({ courseId, blocks, onReordered }) {
 
   return (
     <ul className="admin-block-list">
-      {blocks.map((block, i) => (
+      {modules.map((courseModule, i) => (
         <li
-          key={block.id}
+          key={courseModule.id}
           draggable
           onDragStart={() => setDragIndex(i)}
           onDragOver={(e) => {
@@ -667,8 +682,8 @@ function BlockList({ courseId, blocks, onReordered }) {
           <span className="admin-drag-handle" title="Перетягніть, щоб змінити порядок">
             <GripIcon />
           </span>
-          <Link href={`/admin/courses/${courseId}?block=${block.id}`} className="admin-block-list-link">
-            {block.title}
+          <Link href={`/admin/courses/${courseId}?module=${courseModule.id}`} className="admin-block-list-link">
+            {courseModule.title}
           </Link>
         </li>
       ))}
@@ -676,7 +691,7 @@ function BlockList({ courseId, blocks, onReordered }) {
   );
 }
 
-function CourseRow({ course, positions, territories, employees, onBlockAdded, onBlocksReordered, onCourseSaved, onCourseDeleted }) {
+function CourseRow({ course, positions, territories, employees, onModuleAdded, onModulesReordered, onCourseSaved, onCourseDeleted }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -685,13 +700,13 @@ function CourseRow({ course, positions, territories, employees, onBlockAdded, on
         type="button"
         className="admin-course-list-link admin-course-row-toggle"
         onClick={() => setExpanded((v) => !v)}
-        title={expanded ? "Згорнути список блоків курсу" : "Розгорнути список блоків курсу"}
+        title={expanded ? "Згорнути список модулів курсу" : "Розгорнути список модулів курсу"}
       >
         <span>
           <span className="admin-course-row-caret">{expanded ? "▾" : "▸"}</span> {course.title}
         </span>
         <span className="admin-hint">
-          /{course.slug} · {course.blocks.length} {course.blocks.length === 1 ? "блок" : "блоків"}
+          /{course.slug} · {course.modules.length} {course.modules.length === 1 ? "модуль" : "модулів"}
         </span>
       </button>
 
@@ -707,21 +722,21 @@ function CourseRow({ course, positions, territories, employees, onBlockAdded, on
           />
 
           <label className="admin-label" style={{ marginTop: 10, display: "block" }}>
-            Блоки
+            Модулі
           </label>
-          {course.blocks.length === 0 ? (
-            <p className="admin-hint">Блоків ще немає.</p>
+          {course.modules.length === 0 ? (
+            <p className="admin-hint">Модулів ще немає.</p>
           ) : (
-            <BlockList
+            <ModuleList
               courseId={course.id}
-              blocks={course.blocks}
-              onReordered={(reordered) => onBlocksReordered(course.id, reordered)}
+              modules={course.modules}
+              onReordered={(reordered) => onModulesReordered(course.id, reordered)}
             />
           )}
-          <NewBlockInlineForm
+          <NewModuleInlineForm
             courseId={course.id}
-            nextOrder={course.blocks.length + 1}
-            onCreated={(created) => onBlockAdded(course.id, created)}
+            nextOrder={course.modules.length + 1}
+            onCreated={(created) => onModuleAdded(course.id, created)}
           />
         </div>
       )}
@@ -763,12 +778,12 @@ export function AdminDashboard() {
     };
   }, []);
 
-  function handleBlockAdded(courseId, createdBlock) {
-    setCourses((cs) => cs.map((c) => (c.id === courseId ? { ...c, blocks: [...c.blocks, createdBlock] } : c)));
+  function handleModuleAdded(courseId, createdModule) {
+    setCourses((cs) => cs.map((c) => (c.id === courseId ? { ...c, modules: [...c.modules, createdModule] } : c)));
   }
 
-  function handleBlocksReordered(courseId, reorderedBlocks) {
-    setCourses((cs) => cs.map((c) => (c.id === courseId ? { ...c, blocks: reorderedBlocks } : c)));
+  function handleModulesReordered(courseId, reorderedModules) {
+    setCourses((cs) => cs.map((c) => (c.id === courseId ? { ...c, modules: reorderedModules } : c)));
   }
 
   function handleCourseCreated(createdCourse) {
@@ -776,10 +791,10 @@ export function AdminDashboard() {
     setShowCreate(false);
   }
 
-  // PATCH /api/admin/courses/:id повертає курс БЕЗ blocks — зберігаємо
-  // наявні blocks цього курсу, підмінюємо лише скалярні поля.
+  // PATCH /api/admin/courses/:id повертає курс БЕЗ modules — зберігаємо
+  // наявні modules цього курсу, підмінюємо лише скалярні поля.
   function handleCourseSaved(courseId, updated) {
-    setCourses((cs) => cs.map((c) => (c.id === courseId ? { ...c, ...updated, blocks: c.blocks } : c)));
+    setCourses((cs) => cs.map((c) => (c.id === courseId ? { ...c, ...updated, modules: c.modules } : c)));
   }
 
   function handleCourseDeleted(courseId) {
@@ -801,7 +816,7 @@ export function AdminDashboard() {
           {showCreate ? "Скасувати" : "+ Додати курс"}
         </button>
       </div>
-      <p className="admin-subtitle">Оберіть курс, щоб розгорнути блоки, або блок — щоб редагувати модулі та уроки.</p>
+      <p className="admin-subtitle">Оберіть курс, щоб розгорнути модулі, або модуль — щоб редагувати екрани та компоненти.</p>
 
       {showCreate && (
         <CourseCreateForm
@@ -826,8 +841,8 @@ export function AdminDashboard() {
               positions={positions}
               territories={territories}
               employees={employees}
-              onBlockAdded={handleBlockAdded}
-              onBlocksReordered={handleBlocksReordered}
+              onModuleAdded={handleModuleAdded}
+              onModulesReordered={handleModulesReordered}
               onCourseSaved={handleCourseSaved}
               onCourseDeleted={handleCourseDeleted}
             />

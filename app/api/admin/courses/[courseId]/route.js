@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 import { slugify, uniqueSlug } from "@/lib/slug";
 
-// GET /api/admin/courses/:courseId — повне дерево курс -> блоки -> модулі
-// -> уроки, для адмінського редактора контенту.
+// GET /api/admin/courses/:courseId — повне дерево курс -> модулі -> екрани
+// -> компоненти, для адмінського редактора контенту.
 export async function GET(request, { params }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -13,12 +13,12 @@ export async function GET(request, { params }) {
   const course = await prisma.course.findUnique({
     where: { id: Number(courseId) },
     include: {
-      blocks: {
+      modules: {
         orderBy: { order: "asc" },
         include: {
-          modules: {
+          screens: {
             orderBy: { order: "asc" },
-            include: { lessons: { orderBy: { order: "asc" } } },
+            include: { components: { orderBy: { order: "asc" } } },
           },
         },
       },
@@ -82,8 +82,8 @@ export async function PATCH(request, { params }) {
   return NextResponse.json(course);
 }
 
-// DELETE /api/admin/courses/:courseId — каскадно видаляє блоки/модулі/уроки
-// (onDelete: Cascade у schema.prisma). Enrollment на курс НЕ видаляється
+// DELETE /api/admin/courses/:courseId — каскадно видаляє модулі/екрани/
+// компоненти (onDelete: Cascade у schema.prisma). Enrollment на курс НЕ видаляється
 // каскадно навмисно (без onDelete: Cascade у зв'язку Enrollment.course) —
 // якщо на курс уже хтось записаний, відмовляємо заздалегідь із зрозумілою
 // причиною, а не даємо Postgres впасти сирим 500 на FK-обмеженні.

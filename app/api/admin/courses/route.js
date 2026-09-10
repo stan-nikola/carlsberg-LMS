@@ -11,7 +11,7 @@ export async function GET() {
 
   const courses = await prisma.course.findMany({
     orderBy: { title: "asc" },
-    include: { blocks: { orderBy: { order: "asc" } } },
+    include: { modules: { orderBy: { order: "asc" } } },
   });
   return NextResponse.json(courses);
 }
@@ -45,7 +45,7 @@ export async function POST(request) {
       targetEmployeeIds: body.targetEmployeeIds || [],
       publishAt: body.publishAt ? new Date(body.publishAt) : null,
     },
-    include: { blocks: true },
+    include: { modules: true },
   });
   return NextResponse.json(course, { status: 201 });
 }

@@ -160,19 +160,22 @@ model Course {
   /// "заплановано"/"опубліковано" в /admin).
   autoAssignedAt DateTime?
 
-  blocks      Block[]
+  modules     Module[]
   enrollments Enrollment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-/// Блок курсу — проміжне угруповання між Course і Module (Курс -> Блок ->
-/// Модуль -> Екран), напр. курс "Адаптація мерчендайзерів" з блоками
-/// "Асортимент", далі ще блоки. Прогрес/залік (Enrollment) рахується по
-/// КУРСУ в цілому, не по блоку — блок лише групує модулі для навігації
+/// Модуль курсу — проміжне угруповання між Course і Screen (Курс -> Модуль ->
+/// Екран -> Компонент), напр. курс "Адаптація мерчендайзерів" з модулями
+/// "Асортимент", далі ще модулі. Прогрес/залік (Enrollment) рахується по
+/// КУРСУ в цілому, не по модулю — модуль лише групує екрани для навігації
 /// (як розділи книги), не окрема залікова одиниця.
-model Block {
+/// (До 2026-09: цей рівень називався "Block" — перейменовано разом із
+/// переходом на структуру Course -> Module -> Screen -> Component, де
+/// старий "Module" став "Screen", а старий "Lesson" — "Component".)
+model Module {
   id       Int    @id @default(autoincrement())
   courseId Int
   course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -180,69 +183,74 @@ model Block {
   title String
   order Int    @default(0)
 
-  /// "Пауза між блоками" — скільки днів має минути з моменту, як
-  /// співробітник СКЛАВ (пройшов з прохідним балом) ПОПЕРЕДНІЙ блок курсу,
-  /// перш ніж цей блок відкриється. null/0 — відкривається одразу, як
-  /// тільки попередній складено (без додаткової паузи). На перший блок
+  /// "Пауза між модулями" — скільки днів має минути з моменту, як
+  /// співробітник СКЛАВ (пройшов з прохідним балом) ПОПЕРЕДНІЙ модуль курсу,
+  /// перш ніж цей модуль відкриється. null/0 — відкривається одразу, як
+  /// тільки попередній складено (без додаткової паузи). На перший модуль
   /// курсу не впливає (немає попереднього). Не плутати з
-  /// Module.unlockAfterDays — той відлічує від дати ПРИЗНАЧЕННЯ курсу
+  /// Screen.unlockAfterDays — той відлічує від дати ПРИЗНАЧЕННЯ курсу
   /// (календарний графік для всіх однаково), а cooldownDays — від
-  /// РЕАЛЬНОГО факту складання попереднього блоку (індивідуально для
+  /// РЕАЛЬНОГО факту складання попереднього модуля (індивідуально для
   /// кожного співробітника, залежить від темпу проходження). Обчислення —
-  /// app/courses/[slug]/page.js, факт складання — BlockCompletion.
+  /// app/courses/[slug]/page.js, факт складання — ModuleCompletion.
   cooldownDays Int?
 
-  modules    Module[]
-  completions BlockCompletion[]
+  screens     Screen[]
+  completions ModuleCompletion[]
 }
 
-/// Факт складання блоку конкретним співробітником (в рамках конкретного
-/// Enrollment) — потрібен, щоб рахувати "Паузу між блоками" (Block.cooldownDays)
-/// від РЕАЛЬНОЇ дати, коли людина склала тести блоку, а не від дати
+/// Факт складання модуля конкретним співробітником (в рамках конкретного
+/// Enrollment) — потрібен, щоб рахувати "Паузу між модулями" (Module.cooldownDays)
+/// від РЕАЛЬНОЇ дати, коли людина склала тести модуля, а не від дати
 /// призначення курсу. passed=false лишається в історії (спроба була,
 /// не склав) — при повторній спробі перезаписується (upsert), тому
 /// completedAt/scorePercent завжди відображають ОСТАННЮ спробу.
-model BlockCompletion {
+model ModuleCompletion {
   id           Int        @id @default(autoincrement())
   enrollmentId Int
   enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  blockId      Int
-  block        Block      @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  moduleId     Int
+  module       Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   scorePercent Int
   passed       Boolean
   completedAt  DateTime @default(now())
 
-  @@unique([enrollmentId, blockId])
+  @@unique([enrollmentId, moduleId])
 }
 
-model Module {
-  id      Int   @id @default(autoincrement())
-  blockId Int
-  block   Block @relation(fields: [blockId], references: [id], onDelete: Cascade)
+/// Екран курсу — те, що співробітник реально бачить і гортає "Далі"/"Назад"
+/// у плеєрі. Один Screen складається з кількох Component (питання, інфо,
+/// акордеон, фото, поле-інпут, таймлайн тощо), розставлених у порядку —
+/// на відміну від старої моделі, де один Lesson був одним типом/екраном.
+model Screen {
+  id       Int    @id @default(autoincrement())
+  moduleId Int
+  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   title String
   order Int    @default(0)
 
-  /// Через сколько дней после Enrollment.assignedAt этот модуль становится
-  /// доступен сотруднику (последовательное открытие модулей). null/0 —
+  /// Через сколько дней после Enrollment.assignedAt этот экран становится
+  /// доступен сотруднику (последовательное открытие экранов). null/0 —
   /// доступен сразу. Считается от даты назначения КУРСА, а не от
-  /// завершения предыдущего модуля — см. app/courses/[slug]/page.js.
+  /// завершения предыдущего экрана — см. app/courses/[slug]/page.js.
   unlockAfterDays Int?
 
-  lessons Lesson[]
+  components Component[]
 }
 
-/// info — информационный экран (текст/картинка); quiz — вопрос с вариантами
-/// ответа (тянется в квиз-банк модуля, из которого во время прохождения
-/// курса случайно выбирается несколько штук — как в legacy).
-/// Типи екранів уроку. info/quiz були з самого початку; решта —
+/// info — информационный блок (текст/картинка); quiz — вопрос с вариантами
+/// ответа. Типи компонентів екрана. info/quiz були з самого початку; решта —
 /// інтерактивні механіки, портовані з попередньої vanilla-JS розробки
 /// ("8 кроків телесейлінгу"): кожна має свій "гейт" — кнопка «Далі»
 /// лишається заблокованою, поки співробітник реально не провзаємодіє з
-/// екраном (див. lib/lessonGate.js — єдине джерело правди і для плеєра,
-/// і для прев'ю в /admin).
-enum LessonType {
+/// НЕЮ (усі компоненти екрана мають бути "пройдені" — див.
+/// lib/componentTypes.js, єдине джерело правди і для плеєра, і для
+/// прев'ю в /admin). photo/input додані разом з переходом на
+/// Screen -> Component (2026-09): photo — фото без гейта; input —
+/// довільний текст, гейт "щось введено", значення НІКУДИ не зберігається.
+enum ComponentType {
   info
   quiz
   /// Кілька карток-акордеонів; гейт — відкрити всі.
@@ -254,16 +262,24 @@ enum LessonType {
   /// Таймлайн кроків; гейт — торкнутись кожного (або лише підсвіченого,
   /// якщо content.highlight задано — режим "ви тут" із legacy recap).
   timeline
+  /// Самостійне фото (без інфо-тексту навколо); гейта немає.
+  photo
+  /// Довільне текстове поле; гейт — не порожнє значення. Введений текст
+  /// ніде не зберігається (лише розблоковує «Далі» на цьому екрані).
+  input
 }
 
-model Lesson {
+model Component {
   id       Int    @id @default(autoincrement())
-  moduleId Int
-  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  screenId Int
+  screen   Screen @relation(fields: [screenId], references: [id], onDelete: Cascade)
 
-  type  LessonType @default(info)
-  title String
-  order Int        @default(0)
+  type  ComponentType @default(info)
+  /// Обов'язковий лише для quiz (буквальний текст питання, показується як
+  /// <h2> у плеєрі) — решта типів тримають свій заголовок/lead усередині
+  /// content і title можуть лишати порожнім.
+  title String?
+  order Int           @default(0)
 
   /// Структура зависит от type — редактируется отдельно от кода (без
   /// редеплоя):
@@ -322,8 +338,8 @@ model Enrollment {
   activeTimeSeconds    Int?
   longestCorrectStreak Int?
 
-  attempts         EnrollmentAttempt[]
-  blockCompletions BlockCompletion[]
+  attempts          EnrollmentAttempt[]
+  moduleCompletions ModuleCompletion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

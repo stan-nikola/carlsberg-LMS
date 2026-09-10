@@ -3,19 +3,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { LessonScreen, QuizScreen } from "@/components/CoursePlayer";
+import { ComponentScreen, QuizScreen } from "@/components/CoursePlayer";
 import { ChevronIcon, GripIcon, SpinnerIcon } from "@/components/icons";
 import { pluralize } from "@/lib/pluralize";
-import { LESSON_TYPES, LESSON_TYPE_LABELS, defaultContentForType } from "@/lib/lessonTypes";
+import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, defaultContentForType } from "@/lib/componentTypes";
 import { ListRowControls, useListOps } from "@/components/ListEditor";
 
 // Десктопний редактор контенту курсу.
 //
-// Зліва — акордеон Блок -> Модуль -> Екран (кожен рівень згортається,
+// Зліва — акордеон Модуль -> Екран -> Компонент (кожен рівень згортається,
 // щоб було видно структуру, а не суцільний список однаково виглядних
-// заголовків) + форма правки ОДНОГО обраного екрану з кнопками "Далі"/
+// заголовків) + форма правки ОДНОГО обраного компонента з кнопками "Далі"/
 // "Назад" — так само, як співробітник проходить курс по кроках, а не
-// довгою стрічкою всіх екранів одразу.
+// довгою стрічкою всіх екранів одразу. Поки кожен Screen має рівно один
+// Component (1:1 зі старою моделлю Lesson) — стек кількох компонентів на
+// одному екрані додається окремим кроком.
 //
 // Справа — жива прев'ю з тим самим "хромом", що й реальний CoursePlayer
 // (шапка з лічильником кроку, прогрес-бар, кнопки навігації внизу) — не
@@ -256,7 +258,7 @@ function QuizFields({ content, onChange, radioGroupName }) {
 
 /* ============ Конструктор інтерактивних екранів ============
    Механіки портовані з попередньої vanilla-JS розробки "8 кроків
-   телесейлінгу" (див. lib/lessonTypes.js). Спільне для всіх: рубрика +
+   телесейлінгу" (див. lib/componentTypes.js). Спільне для всіх: рубрика +
    вступний рядок + власний список елементів, кожен з яких можна
    переставити/видалити, плюс необов'язковий текст-підказка гейта. */
 
@@ -471,7 +473,7 @@ function TimelineFields({ content, onChange }) {
           Режим «ви тут»{" "}
           <span className="admin-hint">
             — підсвітити один крок як поточний; тоді для переходу далі досить торкнутись саме його (нагадування карти візиту між
-            блоками)
+            модулями)
           </span>
         </label>
         <select
@@ -494,13 +496,43 @@ function TimelineFields({ content, onChange }) {
   );
 }
 
-/** Поля конструктора під конкретний тип екрана — одна точка вибору, щоб
- * додавання нового типу було правкою в двох місцях (lib/lessonTypes.js
+/** Поле "самостійне фото" — просто ImageListEditor без решти info-полів. */
+function PhotoFields({ content, onChange, onUploadingChange }) {
+  const c = { images: [], ...content, images: content.images || [] };
+  return <ImageListEditor images={c.images} onChange={(images) => onChange({ ...c, images })} onUploadingChange={onUploadingChange} />;
+}
+
+/** Поле "довільний ввід" — лише підпис/плейсхолдер, значення ніде не
+ * зберігається (гейт "щось введено", перевіряється в плеєрі). */
+function InputFields({ content, onChange }) {
+  const c = { label: "", placeholder: "", multiline: false, ...content };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+
+  return (
+    <>
+      <div className="admin-field">
+        <label className="admin-label">Підпис над полем</label>
+        <input value={c.label} onChange={(e) => set("label")(e.target.value)} placeholder="Наприклад: Ваші думки" className="admin-input-flex" />
+      </div>
+      <div className="admin-field">
+        <label className="admin-label">Плейсхолдер у полі</label>
+        <input value={c.placeholder} onChange={(e) => set("placeholder")(e.target.value)} className="admin-input-flex" />
+      </div>
+      <label className="admin-checkbox">
+        <input type="checkbox" checked={c.multiline} onChange={(e) => set("multiline")(e.target.checked)} />
+        <span>Багаторядкове поле</span>
+      </label>
+    </>
+  );
+}
+
+/** Поля конструктора під конкретний тип компонента — одна точка вибору,
+ * щоб додавання нового типу було правкою в двох місцях (lib/componentTypes.js
  * + тут), а не пошуком по всьому редактору. */
-function LessonTypeFields({ type, content, onChange, lessonId, onUploadingChange }) {
+function ComponentTypeFields({ type, content, onChange, componentId, onUploadingChange }) {
   switch (type) {
     case "quiz":
-      return <QuizFields content={content} onChange={onChange} radioGroupName={`qtype-${lessonId}`} />;
+      return <QuizFields content={content} onChange={onChange} radioGroupName={`qtype-${componentId}`} />;
     case "accordion":
       return <AccordionFields content={content} onChange={onChange} />;
     case "checklist":
@@ -509,6 +541,10 @@ function LessonTypeFields({ type, content, onChange, lessonId, onUploadingChange
       return <ScriptFields content={content} onChange={onChange} />;
     case "timeline":
       return <TimelineFields content={content} onChange={onChange} />;
+    case "photo":
+      return <PhotoFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
+    case "input":
+      return <InputFields content={content} onChange={onChange} />;
     default:
       return <InfoFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
   }
@@ -516,39 +552,41 @@ function LessonTypeFields({ type, content, onChange, lessonId, onUploadingChange
 
 /** Тільки поля форми правки (без грід-обгортки) — рендериться в лівій
  * колонці спільного admin-editor-grid разом з навігацією по екранах. */
-function LessonEditForm({ lesson, onSaved, onDeleted, onDuplicate, onLiveChange }) {
-  const [title, setTitle] = useState(lesson.title);
-  const [type, setType] = useState(lesson.type);
-  const [content, setContent] = useState(lesson.content);
+function ComponentEditForm({ component, onSaved, onDeleted, onDuplicate, onLiveChange }) {
+  const [title, setTitle] = useState(component.title || "");
+  const [type, setType] = useState(component.type);
+  const [content, setContent] = useState(component.content);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
 
-  // Батько рендерить <LessonEditForm key={lesson.id} .../> — зміна
-  // lesson.id вже сама по собі перемонтовує форму (useState підхопить
+  // Батько рендерить <ComponentEditForm key={component.id} .../> — зміна
+  // component.id вже сама по собі перемонтовує форму (useState підхопить
   // нові initial values). Цей ефект — для іншого випадку: той самий
-  // lesson.id, але вміст оновився ЗЗОВНІ (сервер повернув нормалізовані
+  // component.id, але вміст оновився ЗЗОВНІ (сервер повернув нормалізовані
   // дані після handleSave) — синхронізуємо форму з тим, що реально
   // зберіглося.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTitle(lesson.title);
-    setType(lesson.type);
-    setContent(lesson.content);
+    setTitle(component.title || "");
+    setType(component.type);
+    setContent(component.content);
     setError("");
     setImageUploading(false);
-  }, [lesson.id, lesson.title, lesson.type, lesson.content]);
+  }, [component.id, component.title, component.type, component.content]);
 
   // Прокидаємо поточний стан форми нагору для живої прев'ю в правій колонці.
   useEffect(() => {
-    onLiveChange({ id: lesson.id, title, type, content });
-  }, [lesson.id, title, type, content, onLiveChange]);
+    onLiveChange({ id: component.id, title, type, content });
+  }, [component.id, title, type, content, onLiveChange]);
 
   // Незбережені правки — порівнюємо з тим, що реально лежить на сервері
-  // (lesson-пропс), а не з "чи змінили хоч раз" — так індикатор гасне
+  // (component-пропс), а не з "чи змінили хоч раз" — так індикатор гасне
   // сам собою, якщо повернути значення до вихідного вручну.
   const isDirty =
-    title !== lesson.title || type !== lesson.type || JSON.stringify(content) !== JSON.stringify(lesson.content);
+    title !== (component.title || "") ||
+    type !== component.type ||
+    JSON.stringify(content) !== JSON.stringify(component.content);
 
   function handleTypeChange(newType) {
     setType(newType);
@@ -562,13 +600,17 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onDuplicate, onLiveChange 
       setError("Зачекайте, поки фото завантажиться, і збережіть ще раз.");
       return;
     }
+    if (type === "quiz" && !title.trim()) {
+      setError("Для питання заголовок (текст питання) обов'язковий.");
+      return;
+    }
     setError("");
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/lessons/${lesson.id}`, {
+      const res = await fetch(`/api/admin/components/${component.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, type, content }),
+        body: JSON.stringify({ title: title || null, type, content }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       onSaved(await res.json());
@@ -580,22 +622,27 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onDuplicate, onLiveChange 
   }
 
   async function handleDelete() {
-    if (!confirm(`Видалити екран «${lesson.title}»?`)) return;
-    const res = await fetch(`/api/admin/lessons/${lesson.id}`, { method: "DELETE" });
-    if (res.ok) onDeleted(lesson.id);
+    if (!confirm(`Видалити екран «${component.title || COMPONENT_TYPE_LABELS[component.type]}»?`)) return;
+    const res = await fetch(`/api/admin/components/${component.id}`, { method: "DELETE" });
+    if (res.ok) onDeleted(component.id);
   }
 
   return (
     <div className="admin-lesson-card">
       <div className="admin-row">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex admin-title-input" />
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={type === "quiz" ? "Текст питання" : "Назва (лише для адмінки)"}
+          className="admin-input-flex admin-title-input"
+        />
         <select
           value={type}
           onChange={(e) => handleTypeChange(e.target.value)}
           className="admin-select"
-          title={LESSON_TYPES.find((t) => t.value === type)?.hint}
+          title={COMPONENT_TYPES.find((t) => t.value === type)?.hint}
         >
-          {LESSON_TYPES.map((t) => (
+          {COMPONENT_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
             </option>
@@ -607,13 +654,13 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onDuplicate, onLiveChange 
           </span>
         )}
       </div>
-      <p className="admin-hint">{LESSON_TYPES.find((t) => t.value === type)?.hint}</p>
+      <p className="admin-hint">{COMPONENT_TYPES.find((t) => t.value === type)?.hint}</p>
 
-      <LessonTypeFields
+      <ComponentTypeFields
         type={type}
         content={content}
         onChange={setContent}
-        lessonId={lesson.id}
+        componentId={component.id}
         onUploadingChange={setImageUploading}
       />
 
@@ -629,7 +676,7 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onDuplicate, onLiveChange 
           {saving && <SpinnerIcon />}
           {imageUploading ? "Зачекайте, фото вантажиться…" : saving ? "Збереження…" : "Зберегти"}
         </button>
-        <button type="button" onClick={() => onDuplicate(lesson)} className="admin-btn-link" title="Створити копію цього екрану одразу після нього">
+        <button type="button" onClick={() => onDuplicate(component)} className="admin-btn-link" title="Створити копію цього екрану одразу після нього">
           Дублювати
         </button>
         <button type="button" onClick={handleDelete} className="admin-btn admin-btn-danger" title="Видалити цей екран назавжди">
@@ -646,46 +693,92 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onDuplicate, onLiveChange 
  * екрану, а точний вигляд того, що побачить співробітник у застосунку.
  * Кнопки "Назад"/"Далі" тут керують ТИМ САМИМ обраним екраном, що й ліва
  * колонка (onBack/onNext), — прев'ю справді "гортається" так само. */
-function LessonPreview({ lesson, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext }) {
+/**
+ * Рамка iPhone 17 Pro Max (space black) — SVG зі СПРАВЖНІМ прозорим
+ * вирізом під контент (mask: зовнішній контур мінус внутрішній rect), не
+ * намальований сірий бордюр. Dynamic Island — окрема заповнена форма
+ * ПОВЕРХ контенту (шар вище за .course-card), точно як на реальному
+ * пристрої. viewBox 300×650 навмисно дає рівно 9:19.5 — координати
+ * узгоджені з inset у .iphone-mockup .course-card (app/styles/admin.css).
+ */
+function IPhoneFrame() {
+  return (
+    <svg className="iphone-mockup-frame" viewBox="0 0 300 650" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <defs>
+        <mask id="iphoneRingMask">
+          <rect x="0" y="0" width="300" height="650" rx="58" fill="#fff" />
+          <rect x="7" y="7" width="286" height="636" rx="51" fill="#000" />
+        </mask>
+      </defs>
+      <rect x="0" y="0" width="300" height="650" rx="58" fill="#000000" mask="url(#iphoneRingMask)" />
+      <rect x="0.5" y="0.5" width="299" height="649" rx="58" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
+      {/* Dynamic Island — над контентом, не виріз у рамці */}
+      <rect x="115" y="25" width="70" height="21" rx="10.5" fill="#05070a" />
+      {/* Бокові клавіші — суто декоративні */}
+      <rect x="-3" y="150" width="3" height="42" rx="1.5" fill="#000000" />
+      <rect x="-3" y="205" width="3" height="42" rx="1.5" fill="#000000" />
+      <rect x="300" y="165" width="3" height="60" rx="1.5" fill="#000000" />
+    </svg>
+  );
+}
+
+/**
+ * Права колонка показує ЦІЛИЙ поточний екран — усі його компоненти стеком
+ * (components), не лише той один, що зараз редагується зліва: інакше автор
+ * не побачив би, як насправді виглядає екран з кількома компонентами разом
+ * (саме це раніше "губилось" — прев'ю рендерив лише вибраний component).
+ * components[] — уже змержений список: той, що зараз редагується, замінено
+ * на його ЖИВИЙ (незбережений) стан, решта — як збережено на сервері.
+ */
+function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext }) {
+  const hasScreen = components && components.length > 0;
   return (
     <div className="admin-editor-preview">
-      <div className="stage">
+      <div className="iphone-mockup">
         <div className="course-card">
           <div className="appbar">
-            <button type="button" className="iconbtn" onClick={onBack} disabled={!canGoBack} aria-label="Назад" title="Попередній екран у прев'ю">
+            <button type="button" className="iconbtn" onClick={onBack} disabled={!canGoBack} aria-label="Назад" title="Попередній компонент у прев'ю">
               <span style={{ transform: "rotate(180deg)", display: "inline-flex" }}>
                 <ChevronIcon />
               </span>
             </button>
             <div style={{ flex: 1 }} />
-            {lesson && (
+            {hasScreen && (
               <span className="cp-step-count">
                 {stepNumber}/{totalSteps}
               </span>
             )}
           </div>
-          {lesson && (
+          {hasScreen && (
             <div className="cp-progress-track">
               <div className="cp-progress-fill" style={{ width: `${Math.round((stepNumber / totalSteps) * 100)}%` }} />
             </div>
           )}
 
           <div className="cp-viewport">
-            {!lesson ? (
+            {!hasScreen ? (
               <p className="admin-preview-empty">Оберіть екран зліва, щоб побачити прев&apos;ю.</p>
-            ) : lesson.type === "quiz" ? (
-              <PreviewQuiz lesson={lesson} />
             ) : (
-              // Той самий диспетчер, що й у плеєрі — інтерактивні екрани в
-              // прев'ю справді клікаються (картки розгортаються, репліки
-              // з'являються), щоб автор одразу перевірив механіку, а не
-              // здогадувався по полях форми. key — щоб при перемиканні
-              // екрана/типу внутрішній стан взаємодії починався з нуля.
-              <LessonScreen key={`${lesson.id}-${lesson.type}`} lesson={lesson} screenNumber={stepNumber} />
+              <div className="cp-screen">
+                {components.map((component) => (
+                  <div className="screen-component" key={component.id}>
+                    {component.type === "quiz" ? (
+                      <PreviewQuiz component={component} />
+                    ) : (
+                      // Той самий диспетчер, що й у плеєрі — інтерактивні екрани в
+                      // прев'ю справді клікаються (картки розгортаються, репліки
+                      // з'являються), щоб автор одразу перевірив механіку, а не
+                      // здогадувався по полях форми. key — щоб при перемиканні
+                      // типу внутрішній стан взаємодії починався з нуля.
+                      <ComponentScreen key={`${component.id}-${component.type}`} component={component} screenNumber={stepNumber} />
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
-          {lesson && (
+          {hasScreen && (
             <div className="navwrap">
               <div className="navbar">
                 <button
@@ -693,17 +786,18 @@ function LessonPreview({ lesson, stepNumber, totalSteps, onBack, onNext, canGoBa
                   className="btn btn-ghost"
                   onClick={onBack}
                   style={{ visibility: canGoBack ? "visible" : "hidden" }}
-                  title="Попередній екран у прев'ю"
+                  title="Попередній компонент у прев'ю"
                 >
                   Назад
                 </button>
-                <button type="button" className="btn btn-primary" onClick={onNext} disabled={!canGoNext} title="Наступний екран у прев'ю">
+                <button type="button" className="btn btn-primary" onClick={onNext} disabled={!canGoNext} title="Наступний компонент у прев'ю">
                   Далі
                 </button>
               </div>
             </div>
           )}
         </div>
+        <IPhoneFrame />
       </div>
     </div>
   );
@@ -712,20 +806,20 @@ function LessonPreview({ lesson, stepNumber, totalSteps, onBack, onNext, canGoBa
 /** Обгортка над QuizScreen з власним локальним станом відповіді — щоб
  * прев'ю в /admin можна було "клікнути" так само, як побачить співробітник,
  * не чіпаючи реальний Enrollment. */
-function PreviewQuiz({ lesson }) {
+function PreviewQuiz({ component }) {
   const [answer, setAnswer] = useState(undefined);
   // Скидаємо відповідь у прев'ю щоразу, як екран/його вміст змінюється —
-  // ефект, а не похідний стан, бо триґериться і зі стабільним lesson.id
+  // ефект, а не похідний стан, бо триґериться і зі стабільним component.id
   // (правки контенту вживу), не тільки при зміні обраного екрана.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setAnswer(undefined), [lesson.id, lesson.content]);
-  return <QuizScreen lesson={lesson} screenNumber={1} answer={answer} onAnswer={setAnswer} />;
+  useEffect(() => setAnswer(undefined), [component.id, component.content]);
+  return <QuizScreen component={component} screenNumber={1} answer={answer} onAnswer={setAnswer} />;
 }
 
-/** Список екранів модуля з перетягуванням (та сама механіка, що й
- * блоки, — див. BlockHeader/handleBlockDrop) — ручка на кожному рядку,
- * порядок зберігається одразу через PATCH /api/admin/lessons/:id. */
-function LessonNavList({ lessons, selectedLessonId, onSelect, onReordered }) {
+/** Список компонентів екрана з перетягуванням (та сама механіка, що й
+ * модулі, — див. ModuleHeader/handleModuleDrop) — ручка на кожному рядку,
+ * порядок зберігається одразу через PATCH /api/admin/components/:id. */
+function ComponentNavList({ components, selectedComponentId, onSelect, onReordered }) {
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
 
@@ -735,14 +829,14 @@ function LessonNavList({ lessons, selectedLessonId, onSelect, onReordered }) {
       setOverIndex(null);
       return;
     }
-    const reordered = [...lessons];
+    const reordered = [...components];
     const [moved] = reordered.splice(dragIndex, 1);
     reordered.splice(targetIndex, 0, moved);
-    const withOrder = reordered.map((l, i) => ({ ...l, order: i + 1 }));
+    const withOrder = reordered.map((c, i) => ({ ...c, order: i + 1 }));
     onReordered(withOrder);
     Promise.all(
-      withOrder.map((lesson, i) =>
-        fetch(`/api/admin/lessons/${lesson.id}`, {
+      withOrder.map((component, i) =>
+        fetch(`/api/admin/components/${component.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ order: i + 1 }),
@@ -755,9 +849,9 @@ function LessonNavList({ lessons, selectedLessonId, onSelect, onReordered }) {
 
   return (
     <div className="admin-lesson-nav">
-      {lessons.map((lesson, i) => (
+      {components.map((component, i) => (
         <div
-          key={lesson.id}
+          key={component.id}
           className={`admin-lesson-nav-row${overIndex === i && dragIndex !== null && dragIndex !== i ? " admin-drag-over" : ""}`}
           onDragOver={(e) => {
             e.preventDefault();
@@ -780,12 +874,12 @@ function LessonNavList({ lessons, selectedLessonId, onSelect, onReordered }) {
           </span>
           <button
             type="button"
-            className={`admin-lesson-nav-item${lesson.id === selectedLessonId ? " active" : ""}`}
-            onClick={() => onSelect(lesson.id)}
+            className={`admin-lesson-nav-item${component.id === selectedComponentId ? " active" : ""}`}
+            onClick={() => onSelect(component.id)}
             title="Відкрити цей екран для редагування"
           >
-            <span>{lesson.title}</span>
-            <span className="admin-lesson-nav-type">{LESSON_TYPE_LABELS[lesson.type] || lesson.type}</span>
+            <span>{component.title || COMPONENT_TYPE_LABELS[component.type]}</span>
+            <span className="admin-lesson-nav-type">{COMPONENT_TYPE_LABELS[component.type] || component.type}</span>
           </button>
         </div>
       ))}
@@ -793,19 +887,63 @@ function LessonNavList({ lessons, selectedLessonId, onSelect, onReordered }) {
   );
 }
 
-function NewLessonForm({ moduleId, nextOrder, onCreated }) {
+function NewComponentForm({ screenId, nextOrder, onCreated }) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("info");
+  const [saving, setSaving] = useState(false);
+
+  async function handleCreate() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/components", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ screenId, title: title || null, type, order: nextOrder, content: defaultContentForType(type) }),
+      });
+      if (res.ok) {
+        setTitle("");
+        onCreated(await res.json());
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="admin-row admin-new-lesson">
+      <input
+        placeholder="Назва нового екрану (необов'язково)"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+        className="admin-input-flex"
+      />
+      <select value={type} onChange={(e) => setType(e.target.value)} className="admin-select">
+        {COMPONENT_TYPES.map((t) => (
+          <option key={t.value} value={t.value}>
+            {t.label}
+          </option>
+        ))}
+      </select>
+      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Створити новий компонент на цьому екрані">
+        {saving && <SpinnerIcon />}+ Додати компонент
+      </button>
+    </div>
+  );
+}
+
+function NewScreenForm({ moduleId, nextOrder, onCreated }) {
+  const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function handleCreate() {
     if (!title.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/lessons", {
+      const res = await fetch("/api/admin/screens", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ moduleId, title, type, order: nextOrder, content: defaultContentForType(type) }),
+        body: JSON.stringify({ moduleId, title, order: nextOrder }),
       });
       if (res.ok) {
         setTitle("");
@@ -825,21 +963,14 @@ function NewLessonForm({ moduleId, nextOrder, onCreated }) {
         onKeyDown={(e) => e.key === "Enter" && handleCreate()}
         className="admin-input-flex"
       />
-      <select value={type} onChange={(e) => setType(e.target.value)} className="admin-select">
-        {LESSON_TYPES.map((t) => (
-          <option key={t.value} value={t.value}>
-            {t.label}
-          </option>
-        ))}
-      </select>
-      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Створити новий екран у цьому модулі">
+      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn-link" title="Створити новий екран у цьому модулі">
         {saving && <SpinnerIcon />}+ Додати екран
       </button>
     </div>
   );
 }
 
-function NewModuleForm({ blockId, nextOrder, onCreated }) {
+function NewModuleForm({ courseId, nextOrder, onCreated }) {
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -850,7 +981,7 @@ function NewModuleForm({ blockId, nextOrder, onCreated }) {
       const res = await fetch("/api/admin/modules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ blockId, title, order: nextOrder }),
+        body: JSON.stringify({ courseId, title, order: nextOrder }),
       });
       if (res.ok) {
         setTitle("");
@@ -868,62 +999,24 @@ function NewModuleForm({ blockId, nextOrder, onCreated }) {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-        className="admin-input-flex"
+        className="admin-input-flex admin-title-input"
       />
-      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn-link" title="Створити новий модуль у цьому блоці">
+      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Створити новий модуль курсу">
         {saving && <SpinnerIcon />}+ Додати модуль
       </button>
     </div>
   );
 }
 
-function NewBlockForm({ courseId, nextOrder, onCreated }) {
-  const [title, setTitle] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  async function handleCreate() {
-    if (!title.trim()) return;
-    setSaving(true);
-    try {
-      const res = await fetch("/api/admin/blocks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId, title, order: nextOrder }),
-      });
-      if (res.ok) {
-        setTitle("");
-        onCreated(await res.json());
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="admin-row admin-new-lesson">
-      <input
-        placeholder="Назва нового блоку"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-        className="admin-input-flex admin-title-input"
-      />
-      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Створити новий блок курсу">
-        {saving && <SpinnerIcon />}+ Додати блок
-      </button>
-    </div>
-  );
-}
-
-function BlockHeader({ block, expanded, onToggleExpand, summary, onSaved, onDeleted, dragHandleProps }) {
-  const [title, setTitle] = useState(block.title);
-  const [cooldownDays, setCooldownDays] = useState(block.cooldownDays ?? "");
+function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved, onDeleted, dragHandleProps }) {
+  const [title, setTitle] = useState(courseModule.title);
+  const [cooldownDays, setCooldownDays] = useState(courseModule.cooldownDays ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save(patch) {
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/blocks/${block.id}`, {
+      const res = await fetch(`/api/admin/modules/${courseModule.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
@@ -935,28 +1028,28 @@ function BlockHeader({ block, expanded, onToggleExpand, summary, onSaved, onDele
   }
 
   function handleTitleBlur() {
-    if (title === block.title || !title.trim()) return;
+    if (title === courseModule.title || !title.trim()) return;
     save({ title });
   }
 
   function handleCooldownBlur() {
     const value = cooldownDays === "" ? null : Number(cooldownDays);
-    if (value === (block.cooldownDays ?? null)) return;
+    if (value === (courseModule.cooldownDays ?? null)) return;
     save({ cooldownDays: value });
   }
 
   async function handleDelete(e) {
     e.stopPropagation();
-    if (!confirm(`Видалити блок «${block.title}» разом з усіма його модулями й екранами?`)) return;
-    const res = await fetch(`/api/admin/blocks/${block.id}`, { method: "DELETE" });
-    if (res.ok) onDeleted(block.id);
+    if (!confirm(`Видалити модуль «${courseModule.title}» разом з усіма його екранами?`)) return;
+    const res = await fetch(`/api/admin/modules/${courseModule.id}`, { method: "DELETE" });
+    if (res.ok) onDeleted(courseModule.id);
   }
 
   return (
     <div className="admin-accordion-header" onClick={onToggleExpand}>
       <span
         className="admin-drag-handle"
-        title="Перетягніть, щоб змінити порядок блоків"
+        title="Перетягніть, щоб змінити порядок модулів"
         onClick={(e) => e.stopPropagation()}
         {...dragHandleProps}
       >
@@ -976,9 +1069,9 @@ function BlockHeader({ block, expanded, onToggleExpand, summary, onSaved, onDele
         <label
           className="admin-module-unlock"
           onClick={(e) => e.stopPropagation()}
-          title="Скільки днів має минути з моменту, як співробітник склав ПОПЕРЕДНІЙ блок, перш ніж відкриється цей"
+          title="Скільки днів має минути з моменту, як співробітник склав ПОПЕРЕДНІЙ модуль, перш ніж відкриється цей"
         >
-          Пауза між блоками
+          Пауза між модулями
           <input
             type="number"
             min="0"
@@ -991,22 +1084,22 @@ function BlockHeader({ block, expanded, onToggleExpand, summary, onSaved, onDele
         </label>
       )}
       {saving && <span className="admin-hint">збереження…</span>}
-      <button type="button" onClick={handleDelete} className="admin-icon-btn" aria-label="Видалити блок" title="Видалити цей блок і весь його вміст">
+      <button type="button" onClick={handleDelete} className="admin-icon-btn" aria-label="Видалити модуль" title="Видалити цей модуль і весь його вміст">
         ✕
       </button>
     </div>
   );
 }
 
-function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved, onDelete }) {
+function ScreenHeader({ screen, expanded, onToggleExpand, summary, onSaved, onDelete }) {
   return (
     <div className="admin-accordion-header admin-accordion-header-sub" onClick={onToggleExpand}>
       <span className="admin-accordion-caret">{expanded ? "▾" : "▸"}</span>
-      <h3>{courseModule.title}</h3>
+      <h3>{screen.title}</h3>
       {!expanded && <span className="admin-hint admin-accordion-summary">{summary}</span>}
       {expanded && (
         <span onClick={(e) => e.stopPropagation()}>
-          <ModuleUnlockField courseModule={courseModule} onSaved={onSaved} />
+          <ScreenUnlockField screen={screen} onSaved={onSaved} />
         </span>
       )}
       <button
@@ -1016,8 +1109,8 @@ function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved
           onDelete();
         }}
         className="admin-icon-btn"
-        aria-label="Видалити модуль"
-        title="Видалити цей модуль і всі його екрани"
+        aria-label="Видалити екран"
+        title="Видалити цей екран і всі його компоненти"
       >
         ✕
       </button>
@@ -1025,16 +1118,16 @@ function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved
   );
 }
 
-function ModuleUnlockField({ courseModule, onSaved }) {
-  const [days, setDays] = useState(courseModule.unlockAfterDays ?? "");
+function ScreenUnlockField({ screen, onSaved }) {
+  const [days, setDays] = useState(screen.unlockAfterDays ?? "");
   const [saving, setSaving] = useState(false);
 
   async function handleBlurSave() {
     const value = days === "" ? null : Number(days);
-    if (value === (courseModule.unlockAfterDays ?? null)) return;
+    if (value === (screen.unlockAfterDays ?? null)) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/modules/${courseModule.id}`, {
+      const res = await fetch(`/api/admin/screens/${screen.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ unlockAfterDays: value }),
@@ -1062,20 +1155,20 @@ function ModuleUnlockField({ courseModule, onSaved }) {
 }
 
 export function AdminCourseEditor({ courseId }) {
-  // Перехід з дашборду /admin по конкретному блоку (?block=ID) — одразу
-  // відкриває перший екран цього блоку для правки, а не перший екран
-  // першого блоку курсу.
+  // Перехід з дашборду /admin по конкретному модулю (?module=ID) — одразу
+  // відкриває перший екран цього модуля для правки, а не перший екран
+  // першого модуля курсу.
   const searchParams = useSearchParams();
-  const focusedBlockId = Number(searchParams.get("block")) || null;
+  const focusedModuleId = Number(searchParams.get("module")) || null;
 
   const [course, setCourse] = useState(null);
-  const [selectedLessonId, setSelectedLessonId] = useState(null);
-  const [expandedBlockId, setExpandedBlockId] = useState(null);
+  const [selectedComponentId, setSelectedComponentId] = useState(null);
   const [expandedModuleId, setExpandedModuleId] = useState(null);
-  const [livePreviewLesson, setLivePreviewLesson] = useState(null);
+  const [expandedScreenId, setExpandedScreenId] = useState(null);
+  const [livePreviewComponent, setLivePreviewComponent] = useState(null);
   const [loadError, setLoadError] = useState("");
-  const [dragBlockIndex, setDragBlockIndex] = useState(null);
-  const [overBlockIndex, setOverBlockIndex] = useState(null);
+  const [dragModuleIndex, setDragModuleIndex] = useState(null);
+  const [overModuleIndex, setOverModuleIndex] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1087,14 +1180,14 @@ export function AdminCourseEditor({ courseId }) {
       .then((courseData) => {
         if (cancelled) return;
         setCourse(courseData);
-        const focusedBlock = courseData.blocks.find((b) => b.id === focusedBlockId);
-        const startBlock = focusedBlock || courseData.blocks[0];
-        const startModule = startBlock?.modules[0];
-        const firstLesson = startModule?.lessons[0];
-        if (firstLesson) {
-          setSelectedLessonId(firstLesson.id);
-          setExpandedBlockId(startBlock.id);
+        const focusedModule = courseData.modules.find((m) => m.id === focusedModuleId);
+        const startModule = focusedModule || courseData.modules[0];
+        const startScreen = startModule?.screens[0];
+        const firstComponent = startScreen?.components[0];
+        if (firstComponent) {
+          setSelectedComponentId(firstComponent.id);
           setExpandedModuleId(startModule.id);
+          setExpandedScreenId(startScreen.id);
         }
       })
       .catch((err) => {
@@ -1105,122 +1198,122 @@ export function AdminCourseEditor({ courseId }) {
     };
   }, [courseId]);
 
-  // Блок -> Модуль -> Екран (див. schema.prisma) — всі оновлення стану
-  // йдуть через мапу по blocks, знаходячи потрібний блок/модуль за id.
-  function updateLessonInState(moduleId, updated) {
+  // Модуль -> Екран -> Компонент (див. schema.prisma) — всі оновлення
+  // стану йдуть через мапу по modules, знаходячи потрібний модуль/екран за id.
+  function updateComponentInState(screenId, updated) {
     setCourse((c) => ({
       ...c,
-      blocks: c.blocks.map((b) => ({
-        ...b,
-        modules: b.modules.map((m) =>
-          m.id === moduleId ? { ...m, lessons: m.lessons.map((l) => (l.id === updated.id ? updated : l)) } : m
+      modules: c.modules.map((m) => ({
+        ...m,
+        screens: m.screens.map((s) =>
+          s.id === screenId ? { ...s, components: s.components.map((comp) => (comp.id === updated.id ? updated : comp)) } : s
         ),
       })),
     }));
   }
 
-  function removeLessonFromState(moduleId, lessonId) {
+  function removeComponentFromState(screenId, componentId) {
     setCourse((c) => ({
       ...c,
-      blocks: c.blocks.map((b) => ({
-        ...b,
-        modules: b.modules.map((m) =>
-          m.id === moduleId ? { ...m, lessons: m.lessons.filter((l) => l.id !== lessonId) } : m
+      modules: c.modules.map((m) => ({
+        ...m,
+        screens: m.screens.map((s) =>
+          s.id === screenId ? { ...s, components: s.components.filter((comp) => comp.id !== componentId) } : s
         ),
       })),
     }));
-    if (selectedLessonId === lessonId) setSelectedLessonId(null);
+    if (selectedComponentId === componentId) setSelectedComponentId(null);
   }
 
-  function addLessonToState(moduleId, created) {
+  function addComponentToState(screenId, created) {
     setCourse((c) => ({
       ...c,
-      blocks: c.blocks.map((b) => ({
-        ...b,
-        modules: b.modules.map((m) => (m.id === moduleId ? { ...m, lessons: [...m.lessons, created] } : m)),
+      modules: c.modules.map((m) => ({
+        ...m,
+        screens: m.screens.map((s) => (s.id === screenId ? { ...s, components: [...s.components, created] } : s)),
       })),
     }));
-    setSelectedLessonId(created.id);
+    setSelectedComponentId(created.id);
   }
 
-  function reorderLessonsInState(moduleId, reorderedLessons) {
+  function reorderComponentsInState(screenId, reorderedComponents) {
     setCourse((c) => ({
       ...c,
-      blocks: c.blocks.map((b) => ({
-        ...b,
-        modules: b.modules.map((m) => (m.id === moduleId ? { ...m, lessons: reorderedLessons } : m)),
+      modules: c.modules.map((m) => ({
+        ...m,
+        screens: m.screens.map((s) => (s.id === screenId ? { ...s, components: reorderedComponents } : s)),
       })),
     }));
+  }
+
+  function updateScreenInState(updated) {
+    setCourse((c) => ({
+      ...c,
+      modules: c.modules.map((m) => ({
+        ...m,
+        screens: m.screens.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)),
+      })),
+    }));
+  }
+
+  function addScreenToState(moduleId, created) {
+    setCourse((c) => ({
+      ...c,
+      modules: c.modules.map((m) => (m.id === moduleId ? { ...m, screens: [...m.screens, created] } : m)),
+    }));
+  }
+
+  function removeScreenFromState(moduleId, screenId) {
+    setCourse((c) => ({
+      ...c,
+      modules: c.modules.map((m) => (m.id === moduleId ? { ...m, screens: m.screens.filter((s) => s.id !== screenId) } : m)),
+    }));
+    if (selectedScreen?.id === screenId) setSelectedComponentId(null);
+  }
+
+  async function handleDeleteScreen(moduleId, screenId, screenTitle) {
+    if (!confirm(`Видалити екран «${screenTitle}» разом з усіма його компонентами?`)) return;
+    const res = await fetch(`/api/admin/screens/${screenId}`, { method: "DELETE" });
+    if (res.ok) removeScreenFromState(moduleId, screenId);
   }
 
   function updateModuleInState(updated) {
-    setCourse((c) => ({
-      ...c,
-      blocks: c.blocks.map((b) => ({
-        ...b,
-        modules: b.modules.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)),
-      })),
-    }));
+    setCourse((c) => ({ ...c, modules: c.modules.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)) }));
   }
 
-  function addModuleToState(blockId, created) {
-    setCourse((c) => ({
-      ...c,
-      blocks: c.blocks.map((b) => (b.id === blockId ? { ...b, modules: [...b.modules, created] } : b)),
-    }));
+  function removeModuleFromState(moduleId) {
+    setCourse((c) => ({ ...c, modules: c.modules.filter((m) => m.id !== moduleId) }));
   }
 
-  function removeModuleFromState(blockId, moduleId) {
-    setCourse((c) => ({
-      ...c,
-      blocks: c.blocks.map((b) => (b.id === blockId ? { ...b, modules: b.modules.filter((m) => m.id !== moduleId) } : b)),
-    }));
-    if (selectedModule?.id === moduleId) setSelectedLessonId(null);
+  function addModuleToState(created) {
+    setCourse((c) => ({ ...c, modules: [...c.modules, created] }));
   }
 
-  async function handleDeleteModule(blockId, moduleId, moduleTitle) {
-    if (!confirm(`Видалити модуль «${moduleTitle}» разом з усіма його екранами?`)) return;
-    const res = await fetch(`/api/admin/modules/${moduleId}`, { method: "DELETE" });
-    if (res.ok) removeModuleFromState(blockId, moduleId);
-  }
-
-  function updateBlockInState(updated) {
-    setCourse((c) => ({ ...c, blocks: c.blocks.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)) }));
-  }
-
-  function removeBlockFromState(blockId) {
-    setCourse((c) => ({ ...c, blocks: c.blocks.filter((b) => b.id !== blockId) }));
-  }
-
-  function addBlockToState(created) {
-    setCourse((c) => ({ ...c, blocks: [...c.blocks, created] }));
-  }
-
-  // Drag-and-drop блоків прямо в редакторі (не лише на дашборді) —
+  // Drag-and-drop модулів прямо в редакторі (не лише на дашборді) —
   // оптимістичне оновлення порядку локально + збереження order (1..N)
-  // кожного блоку через PATCH.
-  function handleBlockDrop(targetIndex) {
-    if (dragBlockIndex === null || dragBlockIndex === targetIndex) {
-      setDragBlockIndex(null);
-      setOverBlockIndex(null);
+  // кожного модуля через PATCH.
+  function handleModuleDrop(targetIndex) {
+    if (dragModuleIndex === null || dragModuleIndex === targetIndex) {
+      setDragModuleIndex(null);
+      setOverModuleIndex(null);
       return;
     }
-    const reordered = [...course.blocks];
-    const [moved] = reordered.splice(dragBlockIndex, 1);
+    const reordered = [...course.modules];
+    const [moved] = reordered.splice(dragModuleIndex, 1);
     reordered.splice(targetIndex, 0, moved);
-    const withOrder = reordered.map((b, i) => ({ ...b, order: i + 1 }));
-    setCourse((c) => ({ ...c, blocks: withOrder }));
+    const withOrder = reordered.map((m, i) => ({ ...m, order: i + 1 }));
+    setCourse((c) => ({ ...c, modules: withOrder }));
     Promise.all(
-      withOrder.map((block, i) =>
-        fetch(`/api/admin/blocks/${block.id}`, {
+      withOrder.map((courseModule, i) =>
+        fetch(`/api/admin/modules/${courseModule.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ order: i + 1 }),
         })
       )
     );
-    setDragBlockIndex(null);
-    setOverBlockIndex(null);
+    setDragModuleIndex(null);
+    setOverModuleIndex(null);
   }
 
   // Деривативи нижче й ефект після них рахуються БЕЗУМОВНО (з безпечним
@@ -1228,76 +1321,85 @@ export function AdminCourseEditor({ courseId }) {
   // винесено аж перед JSX-рендером, щоб не порушувати Rules of Hooks
   // (useEffect має викликатись в однаковому порядку на кожен рендер, а не
   // пропускатись, поки course ще не завантажився).
-  const allModules = (course?.blocks ?? []).flatMap((b) => b.modules);
-  const selectedLesson = allModules.flatMap((m) => m.lessons).find((l) => l.id === selectedLessonId);
-  const selectedModule = allModules.find((m) => m.lessons.some((l) => l.id === selectedLessonId));
-  const selectedBlock = (course?.blocks ?? []).find((b) => b.modules.some((m) => m.id === selectedModule?.id));
+  const allScreens = (course?.modules ?? []).flatMap((m) => m.screens);
+  const selectedComponent = allScreens.flatMap((s) => s.components).find((comp) => comp.id === selectedComponentId);
+  const selectedScreen = allScreens.find((s) => s.components.some((comp) => comp.id === selectedComponentId));
+  const selectedModule = (course?.modules ?? []).find((m) => m.screens.some((s) => s.id === selectedScreen?.id));
 
-  // Плаский список УСІХ екранів курсу в порядку проходження — для
-  // "Далі"/"Назад" (та сама послідовність, що бачить співробітник у
-  // CoursePlayer) і лічильника "Екран N з M".
-  const flatLessons = (course?.blocks ?? []).flatMap((block) =>
-    block.modules.flatMap((mod) => mod.lessons.map((lesson) => ({ lesson, block, module: mod })))
+  // Плаский список УСІХ компонентів курсу в порядку проходження — для
+  // "Попередній/Наступний компонент" зліва (крок редагування, не крок
+  // проходження — той тепер по ЕКРАНАХ, див. previewComponents нижче) і
+  // лічильника "Екран N з M" у лівій панелі.
+  const flatComponents = (course?.modules ?? []).flatMap((courseModule) =>
+    courseModule.screens.flatMap((screen) => screen.components.map((component) => ({ component, courseModule, screen })))
   );
-  const currentIndex = flatLessons.findIndex((f) => f.lesson.id === selectedLessonId);
+  const currentIndex = flatComponents.findIndex((f) => f.component.id === selectedComponentId);
 
-  // livePreviewLesson дублює поточний стан форми (LessonEditForm її туди
-  // прокидає щокеютрок для живої прев'ю) — порівнюючи його з
-  // selectedLesson (те, що реально збережено на сервері), знаємо, чи є
+  // Компоненти поточного екрана для прев'ю — той, що зараз редагується,
+  // підміняємо на його ЖИВИЙ (незбережений) стан, решта — як на сервері,
+  // щоб прев'ю справді показувало ввесь екран разом, а не лише один
+  // компонент, і водночас лишалось "живим" під час набору тексту.
+  const previewComponents = (selectedScreen?.components ?? []).map((c) =>
+    livePreviewComponent && c.id === livePreviewComponent.id ? livePreviewComponent : c
+  );
+
+  // livePreviewComponent дублює поточний стан форми (ComponentEditForm її
+  // туди прокидає щокрок для живої прев'ю) — порівнюючи його з
+  // selectedComponent (те, що реально збережено на сервері), знаємо, чи є
   // незбережені правки, не піднімаючи власний dirty-стан із дочірньої
   // форми окремим пропсом.
-  const isCurrentLessonDirty =
-    selectedLesson &&
-    livePreviewLesson &&
-    livePreviewLesson.id === selectedLesson.id &&
-    (livePreviewLesson.title !== selectedLesson.title ||
-      livePreviewLesson.type !== selectedLesson.type ||
-      JSON.stringify(livePreviewLesson.content) !== JSON.stringify(selectedLesson.content));
+  const isCurrentComponentDirty =
+    selectedComponent &&
+    livePreviewComponent &&
+    livePreviewComponent.id === selectedComponent.id &&
+    (livePreviewComponent.title !== selectedComponent.title ||
+      livePreviewComponent.type !== selectedComponent.type ||
+      JSON.stringify(livePreviewComponent.content) !== JSON.stringify(selectedComponent.content));
 
-  function selectLesson(blockId, moduleId, lessonId) {
+  function selectComponent(moduleId, screenId, componentId) {
     if (
-      isCurrentLessonDirty &&
+      isCurrentComponentDirty &&
       !confirm("На поточному екрані є незбережені зміни. Перейти без збереження?")
     ) {
       return;
     }
-    setSelectedLessonId(lessonId);
-    setExpandedBlockId(blockId);
+    setSelectedComponentId(componentId);
     setExpandedModuleId(moduleId);
+    setExpandedScreenId(screenId);
   }
 
   function goToOffset(offset) {
-    const target = flatLessons[currentIndex + offset];
-    if (target) selectLesson(target.block.id, target.module.id, target.lesson.id);
+    const target = flatComponents[currentIndex + offset];
+    if (target) selectComponent(target.courseModule.id, target.screen.id, target.component.id);
   }
 
   // Попереджаємо і про закриття вкладки/перехід за посиланням — не лише
   // про перемикання екрана всередині самого редактора.
   useEffect(() => {
     function handleBeforeUnload(e) {
-      if (!isCurrentLessonDirty) return;
+      if (!isCurrentComponentDirty) return;
       e.preventDefault();
       e.returnValue = "";
     }
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isCurrentLessonDirty]);
+  }, [isCurrentComponentDirty]);
 
-  async function handleDuplicateLesson(lesson) {
-    const mod = allModules.find((m) => m.lessons.some((l) => l.id === lesson.id));
-    if (!mod) return;
-    const res = await fetch("/api/admin/lessons", {
+  async function handleDuplicateComponent(component) {
+    const screen = allScreens.find((s) => s.components.some((comp) => comp.id === component.id));
+    if (!screen) return;
+    const res = await fetch("/api/admin/components", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        moduleId: mod.id,
-        title: `${lesson.title} (копія)`,
-        type: lesson.type,
-        order: mod.lessons.length + 1,
-        content: lesson.content,
+        screenId: screen.id,
+        title: component.title ? `${component.title} (копія)` : null,
+        type: component.type,
+        order: screen.components.length + 1,
+        content: component.content,
       }),
     });
-    if (res.ok) addLessonToState(mod.id, await res.json());
+    if (res.ok) addComponentToState(screen.id, await res.json());
   }
 
   if (loadError) return <p className="admin-page admin-error">Не вдалося завантажити курс: {loadError}</p>;
@@ -1317,64 +1419,64 @@ export function AdminCourseEditor({ courseId }) {
 
       <div className="admin-editor-grid">
         <div className="admin-editor-edit">
-          {course.blocks.map((block, blockIndex) => {
-            const isBlockExpanded = expandedBlockId === block.id;
-            const blockLessonCount = block.modules.reduce((n, m) => n + m.lessons.length, 0);
+          {course.modules.map((courseModule, moduleIndex) => {
+            const isModuleExpanded = expandedModuleId === courseModule.id;
+            const moduleComponentCount = courseModule.screens.reduce((n, s) => n + s.components.length, 0);
             return (
               <section
-                key={block.id}
-                className={`admin-block${overBlockIndex === blockIndex && dragBlockIndex !== null && dragBlockIndex !== blockIndex ? " admin-drag-over" : ""}`}
+                key={courseModule.id}
+                className={`admin-block${overModuleIndex === moduleIndex && dragModuleIndex !== null && dragModuleIndex !== moduleIndex ? " admin-drag-over" : ""}`}
                 onDragOver={(e) => {
                   e.preventDefault();
-                  setOverBlockIndex(blockIndex);
+                  setOverModuleIndex(moduleIndex);
                 }}
-                onDragLeave={() => setOverBlockIndex((v) => (v === blockIndex ? null : v))}
-                onDrop={() => handleBlockDrop(blockIndex)}
+                onDragLeave={() => setOverModuleIndex((v) => (v === moduleIndex ? null : v))}
+                onDrop={() => handleModuleDrop(moduleIndex)}
               >
-                <BlockHeader
-                  block={block}
-                  expanded={isBlockExpanded}
-                  onToggleExpand={() => setExpandedBlockId(isBlockExpanded ? null : block.id)}
-                  summary={`${pluralize(block.modules.length, "модуль", "модулі", "модулів")} · ${pluralize(blockLessonCount, "екран", "екрани", "екранів")}`}
-                  onSaved={updateBlockInState}
-                  onDeleted={removeBlockFromState}
+                <ModuleHeader
+                  courseModule={courseModule}
+                  expanded={isModuleExpanded}
+                  onToggleExpand={() => setExpandedModuleId(isModuleExpanded ? null : courseModule.id)}
+                  summary={`${pluralize(courseModule.screens.length, "екран", "екрани", "екранів")} · ${pluralize(moduleComponentCount, "компонент", "компоненти", "компонентів")}`}
+                  onSaved={updateModuleInState}
+                  onDeleted={removeModuleFromState}
                   dragHandleProps={{
                     draggable: true,
-                    onDragStart: () => setDragBlockIndex(blockIndex),
+                    onDragStart: () => setDragModuleIndex(moduleIndex),
                     onDragEnd: () => {
-                      setDragBlockIndex(null);
-                      setOverBlockIndex(null);
+                      setDragModuleIndex(null);
+                      setOverModuleIndex(null);
                     },
                   }}
                 />
 
-                {isBlockExpanded && (
+                {isModuleExpanded && (
                   <div className="admin-accordion-body">
-                    {block.modules.map((courseModule) => {
-                      const isModuleExpanded = expandedModuleId === courseModule.id;
+                    {courseModule.screens.map((screen) => {
+                      const isScreenExpanded = expandedScreenId === screen.id;
                       return (
-                        <section key={courseModule.id} className="admin-module">
-                          <ModuleHeader
-                            courseModule={courseModule}
-                            expanded={isModuleExpanded}
-                            onToggleExpand={() => setExpandedModuleId(isModuleExpanded ? null : courseModule.id)}
-                            summary={pluralize(courseModule.lessons.length, "екран", "екрани", "екранів")}
-                            onSaved={updateModuleInState}
-                            onDelete={() => handleDeleteModule(block.id, courseModule.id, courseModule.title)}
+                        <section key={screen.id} className="admin-module">
+                          <ScreenHeader
+                            screen={screen}
+                            expanded={isScreenExpanded}
+                            onToggleExpand={() => setExpandedScreenId(isScreenExpanded ? null : screen.id)}
+                            summary={pluralize(screen.components.length, "компонент", "компоненти", "компонентів")}
+                            onSaved={updateScreenInState}
+                            onDelete={() => handleDeleteScreen(courseModule.id, screen.id, screen.title)}
                           />
 
-                          {isModuleExpanded && (
+                          {isScreenExpanded && (
                             <div className="admin-accordion-body">
-                              <LessonNavList
-                                lessons={courseModule.lessons}
-                                selectedLessonId={selectedLessonId}
-                                onSelect={(lessonId) => selectLesson(block.id, courseModule.id, lessonId)}
-                                onReordered={(reordered) => reorderLessonsInState(courseModule.id, reordered)}
+                              <ComponentNavList
+                                components={screen.components}
+                                selectedComponentId={selectedComponentId}
+                                onSelect={(componentId) => selectComponent(courseModule.id, screen.id, componentId)}
+                                onReordered={(reordered) => reorderComponentsInState(screen.id, reordered)}
                               />
-                              <NewLessonForm
-                                moduleId={courseModule.id}
-                                nextOrder={courseModule.lessons.length + 1}
-                                onCreated={(created) => addLessonToState(courseModule.id, created)}
+                              <NewComponentForm
+                                screenId={screen.id}
+                                nextOrder={screen.components.length + 1}
+                                onCreated={(created) => addComponentToState(screen.id, created)}
                               />
                             </div>
                           )}
@@ -1382,12 +1484,12 @@ export function AdminCourseEditor({ courseId }) {
                       );
                     })}
 
-                    <NewModuleForm
-                      blockId={block.id}
-                      nextOrder={block.modules.length + 1}
+                    <NewScreenForm
+                      moduleId={courseModule.id}
+                      nextOrder={courseModule.screens.length + 1}
                       onCreated={(created) => {
-                        addModuleToState(block.id, created);
-                        setExpandedModuleId(created.id);
+                        addScreenToState(courseModule.id, created);
+                        setExpandedScreenId(created.id);
                       }}
                     />
                   </div>
@@ -1396,33 +1498,33 @@ export function AdminCourseEditor({ courseId }) {
             );
           })}
 
-          <NewBlockForm
+          <NewModuleForm
             courseId={course.id}
-            nextOrder={course.blocks.length + 1}
+            nextOrder={course.modules.length + 1}
             onCreated={(created) => {
-              addBlockToState(created);
-              setExpandedBlockId(created.id);
+              addModuleToState(created);
+              setExpandedModuleId(created.id);
             }}
           />
 
-          {selectedLesson && selectedModule && selectedBlock && (
+          {selectedComponent && selectedScreen && selectedModule && (
             <div className="admin-lesson-editor-panel">
               <div className="admin-breadcrumb">
-                <span>{selectedBlock.title}</span>
-                <span className="admin-breadcrumb-sep">›</span>
                 <span>{selectedModule.title}</span>
+                <span className="admin-breadcrumb-sep">›</span>
+                <span>{selectedScreen.title}</span>
                 <span className="admin-breadcrumb-sep">·</span>
                 <span>
-                  Екран {currentIndex + 1} з {flatLessons.length}
+                  Екран {currentIndex + 1} з {flatComponents.length}
                 </span>
               </div>
-              <LessonEditForm
-                key={selectedLesson.id}
-                lesson={selectedLesson}
-                onSaved={(updated) => updateLessonInState(selectedModule.id, updated)}
-                onDeleted={(id) => removeLessonFromState(selectedModule.id, id)}
-                onDuplicate={handleDuplicateLesson}
-                onLiveChange={setLivePreviewLesson}
+              <ComponentEditForm
+                key={selectedComponent.id}
+                component={selectedComponent}
+                onSaved={(updated) => updateComponentInState(selectedScreen.id, updated)}
+                onDeleted={(id) => removeComponentFromState(selectedScreen.id, id)}
+                onDuplicate={handleDuplicateComponent}
+                onLiveChange={setLivePreviewComponent}
               />
               <div className="admin-row admin-lesson-step-nav">
                 <button
@@ -1438,7 +1540,7 @@ export function AdminCourseEditor({ courseId }) {
                   type="button"
                   className="admin-btn"
                   onClick={() => goToOffset(1)}
-                  disabled={currentIndex < 0 || currentIndex >= flatLessons.length - 1}
+                  disabled={currentIndex < 0 || currentIndex >= flatComponents.length - 1}
                   title="Перейти до редагування наступного екрану курсу"
                 >
                   Наступний екран →
@@ -1448,14 +1550,14 @@ export function AdminCourseEditor({ courseId }) {
           )}
         </div>
 
-        <LessonPreview
-          lesson={livePreviewLesson}
+        <ComponentPreview
+          components={previewComponents}
           stepNumber={currentIndex + 1}
-          totalSteps={flatLessons.length}
+          totalSteps={flatComponents.length}
           onBack={() => goToOffset(-1)}
           onNext={() => goToOffset(1)}
           canGoBack={currentIndex > 0}
-          canGoNext={currentIndex >= 0 && currentIndex < flatLessons.length - 1}
+          canGoNext={currentIndex >= 0 && currentIndex < flatComponents.length - 1}
         />
       </div>
     </div>

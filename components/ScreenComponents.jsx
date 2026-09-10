@@ -1,19 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { ChevronIcon, CheckIcon } from "@/components/icons";
 
 /**
- * Інтерактивні екрани уроку, портовані з попередньої vanilla-JS розробки
- * ("8 кроків телесейлінгу"). Спільні для плеєра (components/CoursePlayer.jsx)
- * і живого прев'ю в /admin — щоб адміністратор бачив рівно те саме, що й
- * співробітник, а не окрему приблизну копію.
+ * Інтерактивні компоненти екрана, портовані з попередньої vanilla-JS
+ * розробки ("8 кроків телесейлінгу") + прості photo/input. Спільні для
+ * плеєра (components/CoursePlayer.jsx) і живого прев'ю в /admin — щоб
+ * адміністратор бачив рівно те саме, що й співробітник, а не окрему
+ * приблизну копію.
  *
  * Контракт у всіх однаковий:
- *   lesson        — { title, type, content }
+ *   component     — { title, type, content }
  *   screenNumber  — номер екрана для kicker'а
  *   onGateProgress(doneCount) — скільки елементів уже "зроблено"; плеєр
- *                   сам вирішує, чи цього досить (lib/lessonTypes.js).
+ *                   сам вирішує, чи цього досить (lib/componentTypes.js).
  * Стан взаємодії живе В КОМПОНЕНТІ (а не в плеєрі) навмисно: він
  * ефемерний, у БД не пишеться — при поверненні на екран людина бачить
  * уже відкриті картки, поки не перезавантажить курс.
@@ -31,8 +33,8 @@ function Kicker({ screenNumber, text }) {
 
 /* ===================== ACCORDION ===================== */
 
-export function AccordionScreen({ lesson, screenNumber, onGateProgress }) {
-  const { kicker, lead, items = [] } = lesson.content || {};
+export function AccordionScreen({ component, screenNumber, onGateProgress }) {
+  const { kicker, lead, items = [] } = component.content || {};
   const [openIdx, setOpenIdx] = useState(null);
   // "Колись відкриті" — гейт зараховує сам факт відкриття, а не те, що
   // картка лишилась розгорнутою (як .ever-open у legacy).
@@ -48,9 +50,9 @@ export function AccordionScreen({ lesson, screenNumber, onGateProgress }) {
   }
 
   return (
-    <div className="cp-screen">
+    <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      <h2 className="cp-h2">{lesson.title}</h2>
+      {component.title && <h2 className="cp-h2">{component.title}</h2>}
       {lead && <p className="cp-lead">{lead}</p>}
       <div className="acc-list">
         {items.map((item, i) => (
@@ -65,14 +67,14 @@ export function AccordionScreen({ lesson, screenNumber, onGateProgress }) {
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }
 
 /* ===================== CHECKLIST ===================== */
 
-export function ChecklistScreen({ lesson, screenNumber, onGateProgress }) {
-  const { kicker, lead, items = [] } = lesson.content || {};
+export function ChecklistScreen({ component, screenNumber, onGateProgress }) {
+  const { kicker, lead, items = [] } = component.content || {};
   const [checked, setChecked] = useState(() => new Set());
 
   useEffect(() => {
@@ -89,9 +91,9 @@ export function ChecklistScreen({ lesson, screenNumber, onGateProgress }) {
   }
 
   return (
-    <div className="cp-screen">
+    <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      <h2 className="cp-h2">{lesson.title}</h2>
+      {component.title && <h2 className="cp-h2">{component.title}</h2>}
       {lead && <p className="cp-lead">{lead}</p>}
       <div className="check-list">
         {items.map((item, i) => (
@@ -109,7 +111,7 @@ export function ChecklistScreen({ lesson, screenNumber, onGateProgress }) {
           </button>
         ))}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -117,8 +119,8 @@ export function ChecklistScreen({ lesson, screenNumber, onGateProgress }) {
 
 const BUBBLE_LABELS = { me: "Ви кажете", client: "Клієнт", tip: "Порада", note: "" };
 
-export function ScriptScreen({ lesson, screenNumber, onGateProgress }) {
-  const { kicker, lead, callLabel, bubbles = [] } = lesson.content || {};
+export function ScriptScreen({ component, screenNumber, onGateProgress }) {
+  const { kicker, lead, callLabel, bubbles = [] } = component.content || {};
   const [revealed, setRevealed] = useState(0);
   const [typing, setTyping] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -159,9 +161,9 @@ export function ScriptScreen({ lesson, screenNumber, onGateProgress }) {
   const done = revealed >= bubbles.length;
 
   return (
-    <div className="cp-screen">
+    <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      <h2 className="cp-h2">{lesson.title}</h2>
+      {component.title && <h2 className="cp-h2">{component.title}</h2>}
       {lead && <p className="cp-lead">{lead}</p>}
 
       <div className="script-wrap">
@@ -205,14 +207,14 @@ export function ScriptScreen({ lesson, screenNumber, onGateProgress }) {
           </button>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
 /* ===================== TIMELINE (кроки візиту / recap) ===================== */
 
-export function TimelineScreen({ lesson, screenNumber, onGateProgress }) {
-  const { kicker, lead, steps = [], highlight } = lesson.content || {};
+export function TimelineScreen({ component, screenNumber, onGateProgress }) {
+  const { kicker, lead, steps = [], highlight } = component.content || {};
   // Набір відкритих індексів (не один) — раніше відкриття нового кроку
   // автоматично згортало попередній (одна змінна openIdx), і людина, що
   // гортає вниз по списку, бачила, як щойно прочитане ховається саме
@@ -241,9 +243,9 @@ export function TimelineScreen({ lesson, screenNumber, onGateProgress }) {
   }
 
   return (
-    <div className="cp-screen">
+    <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      <h2 className="cp-h2">{lesson.title}</h2>
+      {component.title && <h2 className="cp-h2">{component.title}</h2>}
       {lead && <p className="cp-lead">{lead}</p>}
       <div className="timeline">
         {steps.map((step, i) => (
@@ -271,7 +273,82 @@ export function TimelineScreen({ lesson, screenNumber, onGateProgress }) {
           </div>
         ))}
       </div>
-    </div>
+    </>
+  );
+}
+
+/* ===================== PHOTO (самостійне фото) ===================== */
+
+export function PhotoScreen({ component, screenNumber, onZoomImage }) {
+  const { images = [] } = component.content || {};
+  return (
+    <>
+      {component.title && <h2 className="cp-h2">{component.title}</h2>}
+      {images
+        .filter((img) => img.url)
+        .map((img, i) => {
+          const alt = img.caption || component.title || "";
+          const zoomable = typeof onZoomImage === "function";
+          return (
+            <div
+              className={`photo-frame${zoomable ? " zoomable" : ""}`}
+              key={i}
+              role={zoomable ? "button" : undefined}
+              tabIndex={zoomable ? 0 : undefined}
+              onClick={zoomable ? () => onZoomImage({ src: img.url, alt }) : undefined}
+              onKeyDown={
+                zoomable
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onZoomImage({ src: img.url, alt });
+                      }
+                    }
+                  : undefined
+              }
+            >
+              <Image src={img.url} alt={alt} width={800} height={500} style={{ width: "100%", height: "auto" }} />
+              {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
+            </div>
+          );
+        })}
+    </>
+  );
+}
+
+/* ===================== INPUT (довільне текстове поле) ===================== */
+
+/**
+ * Гейт "щось введено" — саме значення НІКУДИ не зберігається (ні в БД, ні
+ * навіть у стані плеєра вище за цей компонент), лишається тільки в
+ * локальному useState на час, поки екран змонтовано. Повернувшись на цей
+ * екран пізніше, поле знову порожнє — так і задумано, це не форма зі
+ * збереженням відповіді, а спосіб "змусити задуматись" перед тим, як
+ * пустити далі.
+ */
+export function InputScreen({ component, screenNumber, onGateProgress }) {
+  const { kicker, label, placeholder, multiline } = component.content || {};
+  const [value, setValue] = useState("");
+
+  useEffect(() => {
+    onGateProgress?.(value.trim() ? 1 : 0);
+  }, [value, onGateProgress]);
+
+  const Field = multiline ? "textarea" : "input";
+
+  return (
+    <>
+      <Kicker screenNumber={screenNumber} text={kicker} />
+      {component.title && <h2 className="cp-h2">{component.title}</h2>}
+      {label && <label className="cp-input-label">{label}</label>}
+      <Field
+        className="cp-input-field"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder || ""}
+        rows={multiline ? 4 : undefined}
+      />
+    </>
   );
 }
 
