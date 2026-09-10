@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/session";
 import { getEmployeeEnrollments } from "@/lib/employeeProgress";
 import { computeXp } from "@/lib/progress";
+import { getTimeBasedGreeting } from "@/lib/greeting";
 import { CourseTile } from "@/components/CourseTile";
 import { ProfileCard } from "@/components/ProfileCard";
 import { GreetingHeading } from "@/components/GreetingHeading";
@@ -20,12 +21,14 @@ export default async function HubHomePage() {
   const lastCompleted = [...enrollments].reverse().find((e) => e.status === "completed");
   const primary = pickPrimaryEnrollment(enrollments);
 
-  const hour = new Date().getHours();
-  const greet = hour < 12 ? "Доброго ранку" : hour < 18 ? "Доброго дня" : "Доброго вечора";
+  const greet = getTimeBasedGreeting();
 
   return (
     <section className="hub-screen">
-      <div className="greeting">{greet.toUpperCase()}</div>
+      {/* Раніше тут був окремий kicker {greet.toUpperCase()} над заголовком
+          — прибрано разом із "Вітаємо" в GreetingHeading: заголовок сам
+          містить і привітання, і ім'я, окремий рядок над ним лише
+          дублював той самий текст. */}
       <GreetingHeading dbName={employee.name} hasEmail={Boolean(employee.email)} greet={greet} />
 
       <ProfileCard
@@ -71,7 +74,6 @@ export default async function HubHomePage() {
         <CourseTile
           course={primary.course}
           enrollment={primary}
-          tag="Навички продажів"
           description={primary.course.description || ""}
           inProgressDescription="Ви вже почали — продовжте з того самого місця."
         />

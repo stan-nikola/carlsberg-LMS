@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { GripIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
 import { TerritoryPicker } from "@/components/TerritoryPicker";
+import { COURSE_CATEGORIES } from "@/lib/courseCategories";
 
 // Дашборд /admin: курси розгортаються списком своїх блоків (клік по
 // заголовку курсу), клік по блоку веде в редактор курсу (components/
@@ -118,6 +119,7 @@ function TerritoryAccordionField({ territories, employees, value, onChange, empl
 function CourseCreateForm({ positions, territories, employees, onCreated, onCancel }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
   const [isMandatory, setIsMandatory] = useState(false);
   const [deadlineDays, setDeadlineDays] = useState("");
   const [targetPositions, setTargetPositions] = useState([]);
@@ -138,6 +140,7 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
         body: JSON.stringify({
           title,
           description: description || null,
+          category: category || null,
           isMandatory,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
           targetPositions,
@@ -168,6 +171,17 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
             <div className="admin-field">
               <label className="admin-label">Опис (необов&apos;язково)</label>
               <input value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input-flex" />
+            </div>
+            <div className="admin-field">
+              <label className="admin-label">Тема (необов&apos;язково)</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className="admin-select" style={{ width: "100%" }}>
+                <option value="">— без теми —</option>
+                {COURSE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -238,6 +252,7 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
 function CourseSettingsBar({ course, positions, territories, employees, onSaved, onDeleted }) {
   const [title, setTitle] = useState(course.title);
   const [description, setDescription] = useState(course.description || "");
+  const [category, setCategory] = useState(course.category || "");
   const [isMandatory, setIsMandatory] = useState(course.isMandatory);
   const [deadlineDays, setDeadlineDays] = useState(course.deadlineDays ?? "");
   const [targetPositions, setTargetPositions] = useState(course.targetPositions);
@@ -260,8 +275,8 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
   // призначення відбувається або тут, вручну, або автоматично по даті
   // публікації (cron, lib/courseAssignment.js publishScheduledCourses).
   async function handleAssignNow() {
-    if (targetPositions.length === 0 && targetEmployeeIds.length === 0) {
-      setError("Спочатку оберіть хоча б одну посаду або хоча б одну конкретну людину.");
+    if (targetPositions.length === 0 && targetTerritories.length === 0 && targetEmployeeIds.length === 0) {
+      setError("Спочатку оберіть хоча б одну посаду, територію або хоча б одну конкретну людину.");
       return;
     }
     setError("");
@@ -362,6 +377,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
         body: JSON.stringify({
           title,
           description: description || null,
+          category: category || null,
           isMandatory,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
           targetPositions,
@@ -398,6 +414,17 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
             <div className="admin-field">
               <label className="admin-label">Опис (необов&apos;язково)</label>
               <input value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input-flex" />
+            </div>
+            <div className="admin-field">
+              <label className="admin-label">Тема (необов&apos;язково)</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className="admin-select" style={{ width: "100%" }}>
+                <option value="">— без теми —</option>
+                {COURSE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>

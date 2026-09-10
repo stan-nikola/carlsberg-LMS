@@ -161,7 +161,7 @@ a {
 
 .photo-frame {
   width: 100%;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
   overflow: hidden;
   margin-bottom: 13px;
   border: 1px solid var(--line);

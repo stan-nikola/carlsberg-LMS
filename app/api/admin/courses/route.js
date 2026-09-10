@@ -16,7 +16,7 @@ export async function GET() {
   return NextResponse.json(courses);
 }
 
-// POST /api/admin/courses — { title, description?, isMandatory?,
+// POST /api/admin/courses — { title, description?, category?, isMandatory?,
 // deadlineDays?, targetPositions?, targetTerritories?, targetEmployeeIds?,
 // publishAt? }
 // slug генерується з title автоматично (транслітерація + унікальність).
@@ -36,6 +36,7 @@ export async function POST(request) {
       slug,
       title: body.title,
       description: body.description || null,
+      category: body.category || null,
       isMandatory: Boolean(body.isMandatory),
       deadlineDays: body.deadlineDays === "" || body.deadlineDays == null ? null : Number(body.deadlineDays),
       targetPositions: body.targetPositions || [],

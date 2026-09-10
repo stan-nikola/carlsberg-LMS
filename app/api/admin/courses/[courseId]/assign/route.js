@@ -19,11 +19,11 @@ export async function POST(request, { params }) {
 
   const { courseId } = await params;
   const body = await request.json();
-  const { positionCodes = [], territoryIds, employeeIds = [] } = body;
+  const { positionCodes = [], territoryIds = [], employeeIds = [] } = body;
 
-  if (positionCodes.length === 0 && employeeIds.length === 0) {
+  if (positionCodes.length === 0 && territoryIds.length === 0 && employeeIds.length === 0) {
     return NextResponse.json(
-      { error: "Потрібна хоча б одна посада або хоча б один конкретний співробітник" },
+      { error: "Потрібна хоча б одна посада, територія або хоча б один конкретний співробітник" },
       { status: 400 }
     );
   }

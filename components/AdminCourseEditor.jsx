@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { InfoScreen, QuizScreen } from "@/components/CoursePlayer";
 import { ChevronIcon, GripIcon, SpinnerIcon } from "@/components/icons";
+import { pluralize } from "@/lib/pluralize";
 
 // Десктопний редактор контенту курсу.
 //
@@ -27,15 +28,6 @@ const emptyContent = {
   info: { kicker: "", lead: "", body: "", note: "", images: [] },
   quiz: { questionType: "single", options: [] },
 };
-
-/** "3 модулі" / "1 екран" / "5 екранів" — українська форма множини для
- * коротких підписів у згорнутому акордеоні (BlockHeader/ModuleHeader). */
-function pluralize(n, one, few, many) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  const word = mod10 === 1 && mod100 !== 11 ? one : mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20) ? few : many;
-  return `${n} ${word}`;
-}
 
 function ImagePicker({ image, onChange, onRemove, onUploadingChange }) {
   const fileInputRef = useRef(null);

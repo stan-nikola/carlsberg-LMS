@@ -29,9 +29,9 @@ export async function GET(request, { params }) {
   return NextResponse.json(course);
 }
 
-// PATCH /api/admin/courses/:courseId — { title?, description?, isMandatory?,
-// deadlineDays?, targetPositions?, targetTerritories?, targetEmployeeIds?,
-// publishAt? }
+// PATCH /api/admin/courses/:courseId — { title?, description?, category?,
+// isMandatory?, deadlineDays?, targetPositions?, targetTerritories?,
+// targetEmployeeIds?, publishAt? }
 // Курсовий рівень налаштувань (хто і коли отримує курс) — не плутати з
 // призначенням "тут і зараз" через /assign. Зміна title перегенеровує slug
 // (транслітерація), якщо на курс ще нема жодного Enrollment.
@@ -63,6 +63,7 @@ export async function PATCH(request, { params }) {
     }
   }
   if (body.description !== undefined) data.description = body.description;
+  if (body.category !== undefined) data.category = body.category || null;
   if (body.isMandatory !== undefined) data.isMandatory = body.isMandatory;
   if (body.deadlineDays !== undefined) data.deadlineDays = body.deadlineDays;
   if (body.targetPositions !== undefined) data.targetPositions = body.targetPositions;
