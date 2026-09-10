@@ -5,12 +5,16 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { renderRichText } from "@/lib/richText";
 import { ChevronIcon, CheckIcon, XIcon } from "@/components/icons";
+import { AccordionScreen, ChecklistScreen, ScriptScreen, TimelineScreen, ImageLightbox, StreakToast } from "@/components/LessonScreens";
+import { isGateSatisfied, gateTotal, gateHint } from "@/lib/lessonTypes";
+import { courseStreakMessages, pickStreakMessage, resolveStreakSub } from "@/lib/streakMessages";
 
-// MVP-плеєр курсу: портовано з legacy/course-assortment.html, але БЕЗ
-// акордеон-гейтів, streak-конфеті, карти розділів і desktop outline —
-// свідомо відкладено на потім (домовились при плануванні цього кроку).
-// Підтримує лише Lesson.type "info" і "quiz" (single/multi) — рівно те,
-// що реально використовується в курсі «Асортимент» (order-питань нема).
+// Плеєр курсу. Крім info/quiz підтримує інтерактивні екрани, портовані з
+// попередньої vanilla-JS розробки "8 кроків телесейлінгу": accordion,
+// checklist, script (діалог дзвінка), timeline. У кожного свій "гейт" —
+// «Далі» лишається заблокованою, поки співробітник реально не
+// провзаємодіє з екраном (правила — lib/lessonTypes.js).
+// Streak-конфеті й desktop outline із того прототипу поки не переносили.
 
 const STORAGE_PREFIX = "course_progress_";
 
@@ -40,9 +44,30 @@ function clearProgress(slug) {
   }
 }
 
+/**
+ * Диспетчер екранів: за Lesson.type віддає потрібний компонент. Один і
+ * той самий і в плеєрі, і в прев'ю /admin — щоб адміністратор бачив рівно
+ * те, що побачить співробітник.
+ */
+export function LessonScreen({ lesson, screenNumber, onGateProgress, onZoomImage }) {
+  const common = { lesson, screenNumber, onGateProgress };
+  switch (lesson.type) {
+    case "accordion":
+      return <AccordionScreen {...common} />;
+    case "checklist":
+      return <ChecklistScreen {...common} />;
+    case "script":
+      return <ScriptScreen {...common} />;
+    case "timeline":
+      return <TimelineScreen {...common} />;
+    default:
+      return <InfoScreen lesson={lesson} screenNumber={screenNumber} onZoomImage={onZoomImage} />;
+  }
+}
+
 // Експортуються також для живого прев'ю в /admin (components/AdminCourseEditor.jsx) —
 // той самий рендер, що бачить співробітник у плеєрі, не окрема копія розмітки.
-export function InfoScreen({ lesson, screenNumber }) {
+export function InfoScreen({ lesson, screenNumber, onZoomImage }) {
   const { kicker, lead, body, images, note } = lesson.content || {};
   return (
     <div className="cp-screen">
@@ -58,15 +83,51 @@ export function InfoScreen({ lesson, screenNumber }) {
         ?.filter((img) => img.url) // без цього next/image кидає варнінг на
         // порожній src — трапляється, коли в /admin додали слот під фото,
         // але ще не встигли завантажити файл або вписати URL.
-        .map((img, i) => (
-          <div className="photo-frame" key={i}>
-            <Image src={img.url} alt={img.caption || lesson.title} width={800} height={500} style={{ width: "100%", height: "auto" }} />
-            {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
-          </div>
-        ))}
+        .map((img, i) => {
+          const alt = img.caption || lesson.title;
+          // Фото клікабельне лише там, де плеєр дав куди його відкрити
+          // (onZoomImage) — у статичних контекстах лишається звичайним.
+          const zoomable = typeof onZoomImage === "function";
+          return (
+            <div
+              className={`photo-frame${zoomable ? " zoomable" : ""}`}
+              key={i}
+              role={zoomable ? "button" : undefined}
+              tabIndex={zoomable ? 0 : undefined}
+              onClick={zoomable ? () => onZoomImage({ src: img.url, alt }) : undefined}
+              onKeyDown={
+                zoomable
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onZoomImage({ src: img.url, alt });
+                      }
+                    }
+                  : undefined
+              }
+            >
+              <Image src={img.url} alt={alt} width={800} height={500} style={{ width: "100%", height: "auto" }} />
+              {zoomable && (
+                <span className="zoom-badge" aria-hidden="true">
+                  <ZoomIcon />
+                </span>
+              )}
+              {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
+            </div>
+          );
+        })}
       {body && <div className="cp-body">{renderRichText(body)}</div>}
       {note && <NoteAccordion note={note} />}
     </div>
+  );
+}
+
+function ZoomIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="10" cy="10" r="7" />
+      <line x1="21" y1="21" x2="15.5" y2="15.5" />
+    </svg>
   );
 }
 
@@ -247,6 +308,41 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
   const [blockCheckpoint, setBlockCheckpoint] = useState(null);
+  // lessonId -> скільки елементів гейта вже "зроблено" (відкрито карток,
+  // позначено пунктів, прочитано реплік). Живе тут, а не в самому екрані,
+  // щоб прогрес не скидався, коли людина йде назад-вперед по курсу.
+  const [gateProgress, setGateProgress] = useState({});
+  // Фото, відкрите на весь екран (зум по тапу) — з legacy: інакше дрібні
+  // деталі на планограмах/скріншотах на телефоні не прочитати.
+  const [zoomImage, setZoomImage] = useState(null);
+
+  // Серія правильних відповідей поспіль (streak) — лише в пам'яті на час
+  // проходження, у БД не пишеться. streakToast — поточне мотиваційне
+  // повідомлення (null = не показано); streakKey змінюється щоразу, щоб
+  // React перезапустив CSS-анімацію навіть якщо показуємо той самий текст
+  // вдруге поспіль (напр. дві серії по 6 за одне проходження).
+  const [streak, setStreak] = useState(0);
+  const [streakToast, setStreakToast] = useState(null);
+  const streakKeyRef = useRef(0);
+  const streakTimerRef = useRef(null);
+  const courseStreakMsgs = useMemo(() => courseStreakMessages(course), [course]);
+
+  function handleQuizAnswer(lessonId, isCorrect) {
+    setAnswers((a) => ({ ...a, [lessonId]: isCorrect }));
+    const nextStreak = isCorrect ? streak + 1 : 0;
+    setStreak(nextStreak);
+    if (isCorrect) {
+      const message = pickStreakMessage(nextStreak, courseStreakMsgs);
+      if (message) {
+        streakKeyRef.current += 1;
+        setStreakToast({ key: streakKeyRef.current, message, streak: nextStreak });
+        clearTimeout(streakTimerRef.current);
+        streakTimerRef.current = setTimeout(() => setStreakToast(null), 2600);
+      }
+    }
+  }
+
+  useEffect(() => () => clearTimeout(streakTimerRef.current), []);
 
   const startedAtRef = useRef(new Date().toISOString());
   const activeSecondsRef = useRef(0);
@@ -326,8 +422,18 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
   function currentLessonAllowsNext() {
     if (idx === introIdx || idx === completeIdx) return true;
     const lesson = screens[idx - 1];
-    if (lesson.type !== "quiz") return true;
-    return answers[lesson.id] !== undefined;
+    if (lesson.type === "quiz") return answers[lesson.id] !== undefined;
+    return isGateSatisfied(lesson, gateProgress[lesson.id]);
+  }
+
+  /** Текст під навігацією, поки поточний екран ще не "відкрив" кнопку «Далі». */
+  function currentGateHint() {
+    if (idx === introIdx || idx === completeIdx) return null;
+    const lesson = screens[idx - 1];
+    if (!lesson || lesson.type === "quiz" || currentLessonAllowsNext()) return null;
+    const total = gateTotal(lesson);
+    if (total === 0) return null;
+    return { text: gateHint(lesson), count: `${gateProgress[lesson.id] || 0}/${total}` };
   }
 
   async function submitResult() {
@@ -473,6 +579,10 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
           </div>
 
           <div className="cp-viewport">
+            {streakToast && (
+              <StreakToast key={streakToast.key} icon={streakToast.message.icon} title={streakToast.message.title}
+                sub={resolveStreakSub(streakToast.message, streakToast.streak)} />
+            )}
             {idx === introIdx && (
               <div className="cp-screen cp-intro">
                 <h1 className="cp-h1">{course.title}</h1>
@@ -503,16 +613,32 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
                   idx <= screens.length &&
                   (() => {
                     const lesson = screens[idx - 1];
-                    return lesson.type === "quiz" ? (
-                      <QuizScreen
+                    if (lesson.type === "quiz") {
+                      return (
+                        <QuizScreen
+                          key={lesson.id}
+                          lesson={lesson}
+                          screenNumber={idx}
+                          answer={answers[lesson.id]}
+                          onAnswer={(isCorrect) => handleQuizAnswer(lesson.id, isCorrect)}
+                        />
+                      );
+                    }
+                    return (
+                      <LessonScreen
                         key={lesson.id}
                         lesson={lesson}
                         screenNumber={idx}
-                        answer={answers[lesson.id]}
-                        onAnswer={(isCorrect) => setAnswers((a) => ({ ...a, [lesson.id]: isCorrect }))}
+                        gateDone={gateProgress[lesson.id]}
+                        onGateProgress={(done) =>
+                          setGateProgress((g) =>
+                            // Прогрес гейта тільки зростає: повернувшись на екран
+                            // назад, людина не має "втратити" вже відкриті картки.
+                            (g[lesson.id] || 0) >= done ? g : { ...g, [lesson.id]: done }
+                          )
+                        }
+                        onZoomImage={setZoomImage}
                       />
-                    ) : (
-                      <InfoScreen key={lesson.id} lesson={lesson} screenNumber={idx} />
                     );
                   })()}
 
@@ -523,6 +649,18 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
 
           {!blockCheckpoint && (
             <div className="navwrap">
+              {/* Поки екран заблокований — пояснюємо ЧОМУ і скільки лишилось,
+                  замість мовчазно неактивної кнопки «Далі». */}
+              {(() => {
+                const hint = currentGateHint();
+                if (!hint) return null;
+                return (
+                  <div className="gate-hint">
+                    <span>{hint.text}</span>
+                    <span className="gate-hint-count">{hint.count}</span>
+                  </div>
+                );
+              })()}
               <div className="navbar">
                 <button className="btn btn-ghost" onClick={goBack} style={{ visibility: idx === introIdx ? "hidden" : "visible" }}>
                   Назад
@@ -541,6 +679,8 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
           )}
         </div>
       </div>
+
+      {zoomImage && <ImageLightbox src={zoomImage.src} alt={zoomImage.alt} onClose={() => setZoomImage(null)} />}
     </div>
   );
 }

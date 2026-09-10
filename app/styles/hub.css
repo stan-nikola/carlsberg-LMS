@@ -15,7 +15,8 @@
   position: relative;
 }
 .hub-screen {
-  padding: 16px 18px 18px;
+  /* Бокові поля -30% від початкових 18px (~12.6, округлено до 13px). */
+  padding: 16px 13px 18px;
 }
 
 .greeting {

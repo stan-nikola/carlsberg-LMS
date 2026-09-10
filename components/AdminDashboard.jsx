@@ -5,6 +5,8 @@ import Link from "next/link";
 import { GripIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
 import { TerritoryPicker } from "@/components/TerritoryPicker";
 import { COURSE_CATEGORIES } from "@/lib/courseCategories";
+import { ListRowControls, useListOps } from "@/components/ListEditor";
+import { DEFAULT_STREAK_MESSAGES } from "@/lib/streakMessages";
 
 // Дашборд /admin: курси розгортаються списком своїх блоків (клік по
 // заголовку курсу), клік по блоку веде в редактор курсу (components/
@@ -47,6 +49,84 @@ function AccordionField({ title, summary, children, footer }) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Мотиваційні тости за серію правильних відповідей поспіль (streak) — з
+ * конфеті, портовано з попередньої vanilla-JS розробки "8 кроків
+ * телесейлінгу" (lib/streakMessages.js). "+ Додати страйк-рейт з
+ * мотивуванням" додає новий поріг у список; порожній список = курс сам
+ * бере DEFAULT_STREAK_MESSAGES (звідси й дефолт тут — не порожній масив,
+ * а справжні 3 приклади з того ж джерела, щоб було з чого стартувати,
+ * а не з чистого аркуша).
+ */
+function StreakMessagesField({ value, onChange }) {
+  const items = value && value.length > 0 ? value : DEFAULT_STREAK_MESSAGES;
+  const ops = useListOps(items, onChange);
+  const summary = `${items.length} ${items.length === 1 ? "поріг" : "пороги"}${value?.length ? "" : " (стандартні)"}`;
+
+  return (
+    <AccordionField title="Мотивація за серію відповідей" summary={summary}>
+      <p className="admin-hint" style={{ marginBottom: 8 }}>
+        Спливає тостом із конфеті, коли співробітник відповідає правильно N разів поспіль. «Крок повтору» — необов&apos;язково:
+        якщо задано (наприклад 3), тост повторюється щоразу після порогу (6 → 9 → 12…), а не лише один раз.
+      </p>
+      {items.map((m, i) => (
+        <div className="admin-lesson-card" key={i}>
+          <div className="admin-row">
+            <div className="admin-field" style={{ marginBottom: 0, width: 90 }}>
+              <label className="admin-label">Поріг</label>
+              <input
+                type="number"
+                min="2"
+                value={m.threshold}
+                onChange={(e) => ops.update(i, "threshold", Number(e.target.value))}
+                className="admin-input-flex"
+              />
+            </div>
+            <div className="admin-field" style={{ marginBottom: 0, width: 110 }}>
+              <label className="admin-label">Крок повтору</label>
+              <input
+                type="number"
+                min="1"
+                placeholder="—"
+                value={m.repeatEvery ?? ""}
+                onChange={(e) => ops.update(i, "repeatEvery", e.target.value === "" ? null : Number(e.target.value))}
+                className="admin-input-flex"
+              />
+            </div>
+            <div className="admin-field" style={{ marginBottom: 0, width: 64 }}>
+              <label className="admin-label">Емодзі</label>
+              <input value={m.icon} onChange={(e) => ops.update(i, "icon", e.target.value)} className="admin-input-flex" />
+            </div>
+            <ListRowControls index={i} total={items.length} onMove={ops.move} onRemove={ops.remove} label="поріг" />
+          </div>
+          <input
+            value={m.title}
+            onChange={(e) => ops.update(i, "title", e.target.value)}
+            placeholder="Заголовок тосту"
+            className="admin-input-flex admin-title-input"
+            style={{ marginBottom: 6 }}
+          />
+          <textarea
+            value={m.sub}
+            onChange={(e) => ops.update(i, "sub", e.target.value)}
+            rows={2}
+            placeholder="Текст під заголовком — {n} підставиться поточною серією"
+            className="admin-textarea"
+          />
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => ops.add({ threshold: (items[items.length - 1]?.threshold || 0) + 2, repeatEvery: null, icon: "⭐", title: "", sub: "" })}
+        className="admin-btn-link"
+        title="Додати ще один поріг серії з власним мотиваційним тостом"
+      >
+        + Додати страйк-рейт з мотивуванням
+      </button>
+    </AccordionField>
   );
 }
 
@@ -122,6 +202,7 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
   const [category, setCategory] = useState("");
   const [isMandatory, setIsMandatory] = useState(false);
   const [deadlineDays, setDeadlineDays] = useState("");
+  const [streakMessages, setStreakMessages] = useState(null);
   const [targetPositions, setTargetPositions] = useState([]);
   const [targetTerritories, setTargetTerritories] = useState([]);
   const [targetEmployeeIds, setTargetEmployeeIds] = useState([]);
@@ -143,6 +224,7 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
           category: category || null,
           isMandatory,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
+          streakMessages,
           targetPositions,
           targetTerritories,
           targetEmployeeIds,
@@ -209,6 +291,7 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
             <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
             <span>Обов&apos;язковий курс</span>
           </label>
+          <StreakMessagesField value={streakMessages} onChange={setStreakMessages} />
         </div>
 
         <div className="admin-form-section">
@@ -234,10 +317,10 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
       <div className="admin-status-line">
         {error && <span className="admin-error">{error}</span>}
         <span className="admin-btn-group">
-          <button type="button" onClick={onCancel} className="admin-btn-link">
+          <button type="button" onClick={onCancel} className="admin-btn-link" title="Закрити форму без збереження">
             Скасувати
           </button>
-          <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn">
+          <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Зберегти курс і додати його до списку">
             {saving && <SpinnerIcon />}
             {saving ? "Створення…" : "Створити курс"}
           </button>
@@ -255,6 +338,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
   const [category, setCategory] = useState(course.category || "");
   const [isMandatory, setIsMandatory] = useState(course.isMandatory);
   const [deadlineDays, setDeadlineDays] = useState(course.deadlineDays ?? "");
+  const [streakMessages, setStreakMessages] = useState(course.streakMessages || null);
   const [targetPositions, setTargetPositions] = useState(course.targetPositions);
   const [targetTerritories, setTargetTerritories] = useState(course.targetTerritories);
   const [targetEmployeeIds, setTargetEmployeeIds] = useState(course.targetEmployeeIds || []);
@@ -380,6 +464,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
           category: category || null,
           isMandatory,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
+          streakMessages,
           targetPositions,
           targetTerritories,
           targetEmployeeIds,
@@ -458,6 +543,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
             <span>Обов&apos;язковий курс</span>
           </label>
           <p className="admin-hint">{statusText}</p>
+          <StreakMessagesField value={streakMessages} onChange={setStreakMessages} />
         </div>
 
         <div className="admin-form-section">
@@ -490,11 +576,17 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
             курс з хабу тих людей).
           </p>
           <span className="admin-btn-group">
-            <button type="button" onClick={handleUnassignAndDelete} disabled={unassigning} className="admin-btn admin-btn-danger">
+            <button
+              type="button"
+              onClick={handleUnassignAndDelete}
+              disabled={unassigning}
+              className="admin-btn admin-btn-danger"
+              title="Прибрати курс з хабу всіх призначених і видалити курс назавжди"
+            >
               {unassigning && <SpinnerIcon />}
               {unassigning ? "Знімаю призначення…" : `Зняти ${blockedEnrollmentCount} призначень і видалити курс`}
             </button>
-            <button type="button" onClick={() => setBlockedEnrollmentCount(0)} className="admin-btn-link">
+            <button type="button" onClick={() => setBlockedEnrollmentCount(0)} className="admin-btn-link" title="Лишити курс і призначення як є">
               Скасувати
             </button>
           </span>
@@ -504,7 +596,13 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
       <div className="admin-status-line">
         <span className="admin-error">{error}</span>
         <span className="admin-btn-group">
-          <button type="button" onClick={handleDelete} disabled={saving} className="admin-btn admin-btn-danger">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving}
+            className="admin-btn admin-btn-danger"
+            title="Видалити курс назавжди (заблоковано, якщо є активні призначення)"
+          >
             {saving && <SpinnerIcon />}
             Видалити курс
           </button>
@@ -518,7 +616,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
             {assigning && <SpinnerIcon />}
             {assigning ? "Призначення…" : "Призначити зараз"}
           </button>
-          <button type="button" onClick={handleSave} disabled={saving} className="admin-btn">
+          <button type="button" onClick={handleSave} disabled={saving} className="admin-btn" title="Зберегти зміни налаштувань курсу">
             {saving && <SpinnerIcon />}
             {saving ? "Збереження…" : "Зберегти налаштування"}
           </button>
@@ -553,7 +651,7 @@ function NewBlockInlineForm({ courseId, nextOrder, onCreated }) {
   return (
     <div className="admin-row admin-new-lesson">
       <input placeholder="Назва нового блоку" value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" />
-      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn">
+      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Створити новий блок у цьому курсі">
         {saving ? "…" : "+ Додати блок"}
       </button>
     </div>
@@ -632,7 +730,12 @@ function CourseRow({ course, positions, territories, employees, onBlockAdded, on
 
   return (
     <li className="admin-course-row">
-      <button type="button" className="admin-course-list-link admin-course-row-toggle" onClick={() => setExpanded((v) => !v)}>
+      <button
+        type="button"
+        className="admin-course-list-link admin-course-row-toggle"
+        onClick={() => setExpanded((v) => !v)}
+        title={expanded ? "Згорнути список блоків курсу" : "Розгорнути список блоків курсу"}
+      >
         <span>
           <span className="admin-course-row-caret">{expanded ? "▾" : "▸"}</span> {course.title}
         </span>
@@ -738,7 +841,12 @@ export function AdminDashboard() {
     <div className="admin-page">
       <div className="admin-editor-header">
         <h1>Курси</h1>
-        <button type="button" className="admin-btn" onClick={() => setShowCreate((v) => !v)}>
+        <button
+          type="button"
+          className="admin-btn"
+          onClick={() => setShowCreate((v) => !v)}
+          title={showCreate ? "Закрити форму без створення курсу" : "Відкрити форму створення нового курсу"}
+        >
           {showCreate ? "Скасувати" : "+ Додати курс"}
         </button>
       </div>

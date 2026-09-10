@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { InfoScreen, QuizScreen } from "@/components/CoursePlayer";
+import { LessonScreen, QuizScreen } from "@/components/CoursePlayer";
 import { ChevronIcon, GripIcon, SpinnerIcon } from "@/components/icons";
 import { pluralize } from "@/lib/pluralize";
+import { LESSON_TYPES, LESSON_TYPE_LABELS, defaultContentForType } from "@/lib/lessonTypes";
+import { ListRowControls, useListOps } from "@/components/ListEditor";
 
 // Десктопний редактор контенту курсу.
 //
@@ -81,7 +83,13 @@ function ImagePicker({ image, onChange, onRemove, onUploadingChange }) {
           style={{ display: "none" }}
           onChange={handleFilePicked}
         />
-        <button type="button" className="admin-btn" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+        <button
+          type="button"
+          className="admin-btn"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          title="Завантажити файл зображення з комп'ютера"
+        >
           {uploading ? "Завантаження…" : "Обрати фото…"}
         </button>
         <input
@@ -90,7 +98,7 @@ function ImagePicker({ image, onChange, onRemove, onUploadingChange }) {
           onChange={(e) => onChange({ ...image, url: e.target.value })}
           className="admin-input-flex admin-input-mono"
         />
-        <button type="button" onClick={onRemove} className="admin-icon-btn" aria-label="Видалити зображення">
+        <button type="button" onClick={onRemove} className="admin-icon-btn" aria-label="Видалити зображення" title="Видалити це зображення">
           ✕
         </button>
       </div>
@@ -141,7 +149,7 @@ function ImageListEditor({ images, onChange, onUploadingChange }) {
           onUploadingChange={(isUploading) => reportUploading(i, isUploading)}
         />
       ))}
-      <button type="button" onClick={addImage} className="admin-btn-link">
+      <button type="button" onClick={addImage} className="admin-btn-link" title="Додати ще один слот під фото">
         + Додати зображення
       </button>
     </div>
@@ -175,12 +183,12 @@ function OptionListEditor({ options, onChange }) {
             onChange={(e) => updateOption(i, "text", e.target.value)}
             className="admin-input-flex"
           />
-          <button type="button" onClick={() => removeOption(i)} className="admin-icon-btn" aria-label="Видалити варіант">
+          <button type="button" onClick={() => removeOption(i)} className="admin-icon-btn" aria-label="Видалити варіант" title="Видалити цей варіант відповіді">
             ✕
           </button>
         </div>
       ))}
-      <button type="button" onClick={addOption} className="admin-btn-link">
+      <button type="button" onClick={addOption} className="admin-btn-link" title="Додати ще один варіант відповіді">
         + Додати варіант
       </button>
     </div>
@@ -246,6 +254,266 @@ function QuizFields({ content, onChange, radioGroupName }) {
   );
 }
 
+/* ============ Конструктор інтерактивних екранів ============
+   Механіки портовані з попередньої vanilla-JS розробки "8 кроків
+   телесейлінгу" (див. lib/lessonTypes.js). Спільне для всіх: рубрика +
+   вступний рядок + власний список елементів, кожен з яких можна
+   переставити/видалити, плюс необов'язковий текст-підказка гейта. */
+
+/** Спільні поля-шапка (рубрика/вступ) — щоб не дублювати в кожному типі. */
+function ScreenHeaderFields({ c, set }) {
+  return (
+    <>
+      <div className="admin-field">
+        <label className="admin-label">Рубрика (kicker)</label>
+        <input
+          value={c.kicker || ""}
+          onChange={(e) => set("kicker")(e.target.value)}
+          placeholder="Наприклад: КРОК 2 · ПРИВІТАННЯ КЛІЄНТА"
+          className="admin-input-flex"
+        />
+      </div>
+      <div className="admin-field">
+        <label className="admin-label">Вступний рядок (lead)</label>
+        <textarea value={c.lead || ""} onChange={(e) => set("lead")(e.target.value)} rows={2} className="admin-textarea" />
+      </div>
+    </>
+  );
+}
+
+/** Текст, який співробітник бачить під кнопкою «Далі», поки екран заблокований. */
+function GateMsgField({ c, set, placeholder }) {
+  return (
+    <div className="admin-field">
+      <label className="admin-label">
+        Підказка, поки екран заблоковано{" "}
+        <span className="admin-hint">— лишіть порожнім, щоб узяти стандартну для цього типу</span>
+      </label>
+      <input
+        value={c.gateMsg || ""}
+        onChange={(e) => set("gateMsg")(e.target.value)}
+        placeholder={placeholder}
+        className="admin-input-flex"
+      />
+    </div>
+  );
+}
+
+/**
+ * Рядок списку з кнопками "вгору/вниз/видалити". Порядок тут — це
+ * порядок, у якому співробітник побачить елементи, тому переставляти
+ * треба прямо в конструкторі, а не перебиванням тексту між полями.
+ */
+function AccordionFields({ content, onChange }) {
+  const c = { kicker: "", lead: "", gateMsg: "", ...content, items: content.items || [] };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+  const ops = useListOps(c.items, set("items"));
+
+  return (
+    <>
+      <ScreenHeaderFields c={c} set={set} />
+      <div className="admin-field">
+        <label className="admin-label">
+          Картки <span className="admin-hint">— «Далі» відкриється, коли співробітник розгорне ВСІ</span>
+        </label>
+        {c.items.map((item, i) => (
+          <div className="admin-lesson-card" key={i}>
+            <div className="admin-row">
+              <input
+                value={item.title || ""}
+                onChange={(e) => ops.update(i, "title", e.target.value)}
+                placeholder={`Заголовок картки ${i + 1}`}
+                className="admin-input-flex admin-title-input"
+              />
+              <ListRowControls index={i} total={c.items.length} onMove={ops.move} onRemove={ops.remove} label="картку" />
+            </div>
+            <textarea
+              value={item.body || ""}
+              onChange={(e) => ops.update(i, "body", e.target.value)}
+              rows={2}
+              placeholder="Текст, який розкриється по кліку"
+              className="admin-textarea"
+            />
+          </div>
+        ))}
+        <button type="button" onClick={() => ops.add({ title: "", body: "" })} className="admin-btn-link" title="Додати ще одну картку-акордеон">
+          + Додати картку
+        </button>
+      </div>
+      <GateMsgField c={c} set={set} placeholder="Відкрийте всі картки, щоб продовжити" />
+    </>
+  );
+}
+
+function ChecklistFields({ content, onChange }) {
+  const c = { kicker: "", lead: "", gateMsg: "", ...content, items: content.items || [] };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+  const ops = useListOps(c.items, set("items"));
+
+  return (
+    <>
+      <ScreenHeaderFields c={c} set={set} />
+      <div className="admin-field">
+        <label className="admin-label">
+          Пункти чек-листа <span className="admin-hint">— «Далі» відкриється, коли позначено всі</span>
+        </label>
+        {c.items.map((item, i) => (
+          <div className="admin-row admin-option-row" key={i}>
+            <input
+              value={item.text || ""}
+              onChange={(e) => ops.update(i, "text", e.target.value)}
+              placeholder={`Пункт ${i + 1}`}
+              className="admin-input-flex"
+            />
+            <ListRowControls index={i} total={c.items.length} onMove={ops.move} onRemove={ops.remove} label="пункт" />
+          </div>
+        ))}
+        <button type="button" onClick={() => ops.add({ text: "" })} className="admin-btn-link" title="Додати ще один пункт чек-листа">
+          + Додати пункт
+        </button>
+      </div>
+      <GateMsgField c={c} set={set} placeholder="Позначте всі пункти чек-листа" />
+    </>
+  );
+}
+
+const BUBBLE_ROLES = [
+  { value: "me", label: "Ви кажете" },
+  { value: "client", label: "Клієнт" },
+  { value: "tip", label: "Порада" },
+  { value: "note", label: "Ремарка" },
+];
+
+function ScriptFields({ content, onChange }) {
+  const c = { kicker: "", lead: "", gateMsg: "", callLabel: "Дзвінок із клієнтом", ...content, bubbles: content.bubbles || [] };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+  const ops = useListOps(c.bubbles, set("bubbles"));
+
+  return (
+    <>
+      <ScreenHeaderFields c={c} set={set} />
+      <div className="admin-field">
+        <label className="admin-label">Підпис у шапці дзвінка</label>
+        <input value={c.callLabel} onChange={(e) => set("callLabel")(e.target.value)} className="admin-input-flex" />
+      </div>
+      <div className="admin-field">
+        <label className="admin-label">
+          Репліки <span className="admin-hint">— відкриваються по одній, з індикатором «друкує»; «Далі» — коли дочитано всі</span>
+        </label>
+        {c.bubbles.map((b, i) => (
+          <div className="admin-lesson-card" key={i}>
+            <div className="admin-row">
+              <select value={b.role || "me"} onChange={(e) => ops.update(i, "role", e.target.value)} className="admin-select">
+                {BUBBLE_ROLES.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+              <ListRowControls index={i} total={c.bubbles.length} onMove={ops.move} onRemove={ops.remove} label="репліку" />
+            </div>
+            <textarea
+              value={b.text || ""}
+              onChange={(e) => ops.update(i, "text", e.target.value)}
+              rows={2}
+              placeholder={`Текст репліки ${i + 1}`}
+              className="admin-textarea"
+            />
+          </div>
+        ))}
+        <button type="button" onClick={() => ops.add({ role: "me", text: "" })} className="admin-btn-link" title="Додати ще одну репліку діалогу">
+          + Додати репліку
+        </button>
+      </div>
+      <GateMsgField c={c} set={set} placeholder="Дочитайте діалог до кінця" />
+    </>
+  );
+}
+
+function TimelineFields({ content, onChange }) {
+  const c = { kicker: "", lead: "", gateMsg: "", highlight: null, ...content, steps: content.steps || [] };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+  const ops = useListOps(c.steps, set("steps"));
+
+  return (
+    <>
+      <ScreenHeaderFields c={c} set={set} />
+      <div className="admin-field">
+        <label className="admin-label">
+          Кроки <span className="admin-hint">— «Далі» відкриється, коли торкнулись кожного</span>
+        </label>
+        {c.steps.map((step, i) => (
+          <div className="admin-lesson-card" key={i}>
+            <div className="admin-row">
+              <input
+                value={step.title || ""}
+                onChange={(e) => ops.update(i, "title", e.target.value)}
+                placeholder={`Назва кроку ${i + 1}`}
+                className="admin-input-flex admin-title-input"
+              />
+              <ListRowControls index={i} total={c.steps.length} onMove={ops.move} onRemove={ops.remove} label="крок" />
+            </div>
+            <textarea
+              value={step.detail || ""}
+              onChange={(e) => ops.update(i, "detail", e.target.value)}
+              rows={2}
+              placeholder="Суть кроку — розкриється по кліку"
+              className="admin-textarea"
+            />
+          </div>
+        ))}
+        <button type="button" onClick={() => ops.add({ title: "", detail: "" })} className="admin-btn-link" title="Додати ще один крок таймлайна">
+          + Додати крок
+        </button>
+      </div>
+      <div className="admin-field">
+        <label className="admin-label">
+          Режим «ви тут»{" "}
+          <span className="admin-hint">
+            — підсвітити один крок як поточний; тоді для переходу далі досить торкнутись саме його (нагадування карти візиту між
+            блоками)
+          </span>
+        </label>
+        <select
+          value={c.highlight || ""}
+          onChange={(e) => set("highlight")(e.target.value ? Number(e.target.value) : null)}
+          className="admin-select"
+          style={{ width: "100%" }}
+        >
+          <option value="">— звичайний таймлайн, треба відкрити всі —</option>
+          {c.steps.map((step, i) => (
+            <option key={i} value={i + 1}>
+              Крок {i + 1}
+              {step.title ? ` · ${step.title}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+      <GateMsgField c={c} set={set} placeholder="Торкніться кожного кроку" />
+    </>
+  );
+}
+
+/** Поля конструктора під конкретний тип екрана — одна точка вибору, щоб
+ * додавання нового типу було правкою в двох місцях (lib/lessonTypes.js
+ * + тут), а не пошуком по всьому редактору. */
+function LessonTypeFields({ type, content, onChange, lessonId, onUploadingChange }) {
+  switch (type) {
+    case "quiz":
+      return <QuizFields content={content} onChange={onChange} radioGroupName={`qtype-${lessonId}`} />;
+    case "accordion":
+      return <AccordionFields content={content} onChange={onChange} />;
+    case "checklist":
+      return <ChecklistFields content={content} onChange={onChange} />;
+    case "script":
+      return <ScriptFields content={content} onChange={onChange} />;
+    case "timeline":
+      return <TimelineFields content={content} onChange={onChange} />;
+    default:
+      return <InfoFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
+  }
+}
+
 /** Тільки поля форми правки (без грід-обгортки) — рендериться в лівій
  * колонці спільного admin-editor-grid разом з навігацією по екранах. */
 function LessonEditForm({ lesson, onSaved, onDeleted, onDuplicate, onLiveChange }) {
@@ -284,7 +552,7 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onDuplicate, onLiveChange 
 
   function handleTypeChange(newType) {
     setType(newType);
-    setContent(emptyContent[newType]);
+    setContent(defaultContentForType(newType));
   }
 
   async function handleSave() {
@@ -321,9 +589,17 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onDuplicate, onLiveChange 
     <div className="admin-lesson-card">
       <div className="admin-row">
         <input value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex admin-title-input" />
-        <select value={type} onChange={(e) => handleTypeChange(e.target.value)} className="admin-select">
-          <option value="info">інфо-екран</option>
-          <option value="quiz">питання</option>
+        <select
+          value={type}
+          onChange={(e) => handleTypeChange(e.target.value)}
+          className="admin-select"
+          title={LESSON_TYPES.find((t) => t.value === type)?.hint}
+        >
+          {LESSON_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
         </select>
         {isDirty && (
           <span className="admin-hint admin-unsaved-badge" title="Є незбережені зміни на цьому екрані">
@@ -331,23 +607,32 @@ function LessonEditForm({ lesson, onSaved, onDeleted, onDuplicate, onLiveChange 
           </span>
         )}
       </div>
+      <p className="admin-hint">{LESSON_TYPES.find((t) => t.value === type)?.hint}</p>
 
-      {type === "quiz" ? (
-        <QuizFields content={content} onChange={setContent} radioGroupName={`qtype-${lesson.id}`} />
-      ) : (
-        <InfoFields content={content} onChange={setContent} onUploadingChange={setImageUploading} />
-      )}
+      <LessonTypeFields
+        type={type}
+        content={content}
+        onChange={setContent}
+        lessonId={lesson.id}
+        onUploadingChange={setImageUploading}
+      />
 
       {error && <p className="admin-error">{error}</p>}
       <div className="admin-row">
-        <button type="button" onClick={handleSave} disabled={saving || imageUploading} className="admin-btn">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || imageUploading}
+          className="admin-btn"
+          title="Зберегти зміни цього екрану"
+        >
           {saving && <SpinnerIcon />}
           {imageUploading ? "Зачекайте, фото вантажиться…" : saving ? "Збереження…" : "Зберегти"}
         </button>
         <button type="button" onClick={() => onDuplicate(lesson)} className="admin-btn-link" title="Створити копію цього екрану одразу після нього">
           Дублювати
         </button>
-        <button type="button" onClick={handleDelete} className="admin-btn admin-btn-danger">
+        <button type="button" onClick={handleDelete} className="admin-btn admin-btn-danger" title="Видалити цей екран назавжди">
           Видалити
         </button>
       </div>
@@ -367,7 +652,7 @@ function LessonPreview({ lesson, stepNumber, totalSteps, onBack, onNext, canGoBa
       <div className="stage">
         <div className="course-card">
           <div className="appbar">
-            <button type="button" className="iconbtn" onClick={onBack} disabled={!canGoBack} aria-label="Назад">
+            <button type="button" className="iconbtn" onClick={onBack} disabled={!canGoBack} aria-label="Назад" title="Попередній екран у прев'ю">
               <span style={{ transform: "rotate(180deg)", display: "inline-flex" }}>
                 <ChevronIcon />
               </span>
@@ -391,17 +676,28 @@ function LessonPreview({ lesson, stepNumber, totalSteps, onBack, onNext, canGoBa
             ) : lesson.type === "quiz" ? (
               <PreviewQuiz lesson={lesson} />
             ) : (
-              <InfoScreen lesson={lesson} screenNumber={stepNumber} />
+              // Той самий диспетчер, що й у плеєрі — інтерактивні екрани в
+              // прев'ю справді клікаються (картки розгортаються, репліки
+              // з'являються), щоб автор одразу перевірив механіку, а не
+              // здогадувався по полях форми. key — щоб при перемиканні
+              // екрана/типу внутрішній стан взаємодії починався з нуля.
+              <LessonScreen key={`${lesson.id}-${lesson.type}`} lesson={lesson} screenNumber={stepNumber} />
             )}
           </div>
 
           {lesson && (
             <div className="navwrap">
               <div className="navbar">
-                <button type="button" className="btn btn-ghost" onClick={onBack} style={{ visibility: canGoBack ? "visible" : "hidden" }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={onBack}
+                  style={{ visibility: canGoBack ? "visible" : "hidden" }}
+                  title="Попередній екран у прев'ю"
+                >
                   Назад
                 </button>
-                <button type="button" className="btn btn-primary" onClick={onNext} disabled={!canGoNext}>
+                <button type="button" className="btn btn-primary" onClick={onNext} disabled={!canGoNext} title="Наступний екран у прев'ю">
                   Далі
                 </button>
               </div>
@@ -486,9 +782,10 @@ function LessonNavList({ lessons, selectedLessonId, onSelect, onReordered }) {
             type="button"
             className={`admin-lesson-nav-item${lesson.id === selectedLessonId ? " active" : ""}`}
             onClick={() => onSelect(lesson.id)}
+            title="Відкрити цей екран для редагування"
           >
             <span>{lesson.title}</span>
-            <span className="admin-lesson-nav-type">{lesson.type === "quiz" ? "питання" : "інфо"}</span>
+            <span className="admin-lesson-nav-type">{LESSON_TYPE_LABELS[lesson.type] || lesson.type}</span>
           </button>
         </div>
       ))}
@@ -508,7 +805,7 @@ function NewLessonForm({ moduleId, nextOrder, onCreated }) {
       const res = await fetch("/api/admin/lessons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ moduleId, title, type, order: nextOrder, content: emptyContent[type] }),
+        body: JSON.stringify({ moduleId, title, type, order: nextOrder, content: defaultContentForType(type) }),
       });
       if (res.ok) {
         setTitle("");
@@ -529,10 +826,13 @@ function NewLessonForm({ moduleId, nextOrder, onCreated }) {
         className="admin-input-flex"
       />
       <select value={type} onChange={(e) => setType(e.target.value)} className="admin-select">
-        <option value="info">інфо-екран</option>
-        <option value="quiz">питання</option>
+        {LESSON_TYPES.map((t) => (
+          <option key={t.value} value={t.value}>
+            {t.label}
+          </option>
+        ))}
       </select>
-      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn">
+      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Створити новий екран у цьому модулі">
         {saving && <SpinnerIcon />}+ Додати екран
       </button>
     </div>
@@ -570,7 +870,7 @@ function NewModuleForm({ blockId, nextOrder, onCreated }) {
         onKeyDown={(e) => e.key === "Enter" && handleCreate()}
         className="admin-input-flex"
       />
-      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn-link">
+      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn-link" title="Створити новий модуль у цьому блоці">
         {saving && <SpinnerIcon />}+ Додати модуль
       </button>
     </div>
@@ -608,7 +908,7 @@ function NewBlockForm({ courseId, nextOrder, onCreated }) {
         onKeyDown={(e) => e.key === "Enter" && handleCreate()}
         className="admin-input-flex admin-title-input"
       />
-      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn">
+      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Створити новий блок курсу">
         {saving && <SpinnerIcon />}+ Додати блок
       </button>
     </div>
@@ -691,7 +991,7 @@ function BlockHeader({ block, expanded, onToggleExpand, summary, onSaved, onDele
         </label>
       )}
       {saving && <span className="admin-hint">збереження…</span>}
-      <button type="button" onClick={handleDelete} className="admin-icon-btn" aria-label="Видалити блок">
+      <button type="button" onClick={handleDelete} className="admin-icon-btn" aria-label="Видалити блок" title="Видалити цей блок і весь його вміст">
         ✕
       </button>
     </div>
@@ -717,6 +1017,7 @@ function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved
         }}
         className="admin-icon-btn"
         aria-label="Видалити модуль"
+        title="Видалити цей модуль і всі його екрани"
       >
         ✕
       </button>
@@ -1124,7 +1425,13 @@ export function AdminCourseEditor({ courseId }) {
                 onLiveChange={setLivePreviewLesson}
               />
               <div className="admin-row admin-lesson-step-nav">
-                <button type="button" className="admin-btn-link" onClick={() => goToOffset(-1)} disabled={currentIndex <= 0}>
+                <button
+                  type="button"
+                  className="admin-btn-link"
+                  onClick={() => goToOffset(-1)}
+                  disabled={currentIndex <= 0}
+                  title="Перейти до редагування попереднього екрану курсу"
+                >
                   ← Попередній екран
                 </button>
                 <button
@@ -1132,6 +1439,7 @@ export function AdminCourseEditor({ courseId }) {
                   className="admin-btn"
                   onClick={() => goToOffset(1)}
                   disabled={currentIndex < 0 || currentIndex >= flatLessons.length - 1}
+                  title="Перейти до редагування наступного екрану курсу"
                 >
                   Наступний екран →
                 </button>

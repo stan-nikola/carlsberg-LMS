@@ -30,8 +30,8 @@ export async function GET(request, { params }) {
 }
 
 // PATCH /api/admin/courses/:courseId — { title?, description?, category?,
-// isMandatory?, deadlineDays?, targetPositions?, targetTerritories?,
-// targetEmployeeIds?, publishAt? }
+// isMandatory?, deadlineDays?, streakMessages?, targetPositions?,
+// targetTerritories?, targetEmployeeIds?, publishAt? }
 // Курсовий рівень налаштувань (хто і коли отримує курс) — не плутати з
 // призначенням "тут і зараз" через /assign. Зміна title перегенеровує slug
 // (транслітерація), якщо на курс ще нема жодного Enrollment.
@@ -66,6 +66,7 @@ export async function PATCH(request, { params }) {
   if (body.category !== undefined) data.category = body.category || null;
   if (body.isMandatory !== undefined) data.isMandatory = body.isMandatory;
   if (body.deadlineDays !== undefined) data.deadlineDays = body.deadlineDays;
+  if (body.streakMessages !== undefined) data.streakMessages = body.streakMessages || null;
   if (body.targetPositions !== undefined) data.targetPositions = body.targetPositions;
   if (body.targetTerritories !== undefined) data.targetTerritories = body.targetTerritories;
   if (body.targetEmployeeIds !== undefined) data.targetEmployeeIds = body.targetEmployeeIds;
