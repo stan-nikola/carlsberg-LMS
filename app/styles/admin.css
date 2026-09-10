@@ -765,6 +765,19 @@
   z-index: 6;
   filter: drop-shadow(0 18px 30px rgba(20, 22, 26, 0.25));
 }
+/* Відступ зверху й знизу від заокруглених кутів рамки — курс-плеєр рахує
+   лише на невеликий env(safe-area-inset-top/bottom) (для реального
+   телефону), а тут заокруглення картки набагато більше (17.83%/8.02%, під
+   вигин SVG-рамки) — без цього запасу і шапка (кнопка "Назад"), і низ
+   (.navbar) підходили надто близько до заокруглених кутів. flex-shrink:0
+   і на .appbar, і на .navwrap означає, що цей padding просто забирає ці
+   px у .cp-viewport (flex:1) — саме "зменшити вьюпорт", а не окремий трюк. */
+.iphone-mockup .appbar {
+  margin-top: 45px;
+}
+.iphone-mockup .navwrap {
+  padding-bottom: 35px;
+}
 .admin-preview-empty {
   color: var(--ink-soft);
   font-size: 13px;
