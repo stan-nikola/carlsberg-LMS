@@ -213,7 +213,12 @@ export function ScriptScreen({ lesson, screenNumber, onGateProgress }) {
 
 export function TimelineScreen({ lesson, screenNumber, onGateProgress }) {
   const { kicker, lead, steps = [], highlight } = lesson.content || {};
-  const [openIdx, setOpenIdx] = useState(null);
+  // Набір відкритих індексів (не один) — раніше відкриття нового кроку
+  // автоматично згортало попередній (одна змінна openIdx), і людина, що
+  // гортає вниз по списку, бачила, як щойно прочитане ховається саме
+  // собою. Тепер кожен крок вмикається/вимикається незалежно й лишається
+  // відкритим, поки не тапнути по ньому ще раз.
+  const [openSet, setOpenSet] = useState(() => new Set());
   const [everOpened, setEverOpened] = useState(() => new Set());
 
   // У режимі "ви тут" гейт зараховує лише підсвічений крок — решта
@@ -226,7 +231,12 @@ export function TimelineScreen({ lesson, screenNumber, onGateProgress }) {
   }, [everOpened, highlightIdx, onGateProgress]);
 
   function toggle(i) {
-    setOpenIdx((cur) => (cur === i ? null : i));
+    setOpenSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
     setEverOpened((prev) => (prev.has(i) ? prev : new Set(prev).add(i)));
   }
 
@@ -239,15 +249,25 @@ export function TimelineScreen({ lesson, screenNumber, onGateProgress }) {
         {steps.map((step, i) => (
           <div
             key={i}
-            className={`tl-item${openIdx === i ? " open" : ""}${everOpened.has(i) ? " seen" : ""}${
+            className={`tl-item${openSet.has(i) ? " open" : ""}${everOpened.has(i) ? " seen" : ""}${
               highlightIdx === i ? " current" : ""
             }`}
           >
-            <button type="button" className="tl-head" onClick={() => toggle(i)} aria-expanded={openIdx === i}>
+            {/* Рейка зліва — номер-кружечок + сполучна лінія до наступного
+                кроку, щоб читалось як один ланцюжок, а не набір окремих
+                карток. Лінія лишається сірою, поки крок НЕ відкрито —
+                зафарбовується услід за самим кружечком (клас .seen),
+                показуючи пройдений відрізок ланцюга. */}
+            <div className="tl-rail" aria-hidden="true">
               <span className="tl-num">{i + 1}</span>
-              <span className="tl-title">{step.title || `Крок ${i + 1}`}</span>
-            </button>
-            {openIdx === i && step.detail && <div className="tl-detail">{step.detail}</div>}
+              {i < steps.length - 1 && <span className="tl-line" />}
+            </div>
+            <div className="tl-body">
+              <button type="button" className="tl-head" onClick={() => toggle(i)} aria-expanded={openSet.has(i)}>
+                <span className="tl-title">{step.title || `Крок ${i + 1}`}</span>
+              </button>
+              {openSet.has(i) && step.detail && <div className="tl-detail">{step.detail}</div>}
+            </div>
           </div>
         ))}
       </div>
@@ -260,11 +280,11 @@ export function TimelineScreen({ lesson, screenNumber, onGateProgress }) {
 const CONFETTI_COLORS = ["#ffffff", "var(--gold)", "var(--green-300)"];
 
 /**
- * Мотиваційний тост за серію правильних відповідей поспіль — справжній
- * оверлей ПОВЕРХ усього екрана (напівпрозора підкладка + центрована
- * картка), не банер у потоці контенту. Ефемерний: сам собою ховається
- * за таймером у components/CoursePlayer.jsx (тут лише візуал), тому
- * немає власного onClose — не заважає проходженню, просто зникає.
+ * Мотиваційний тост за серію правильних відповідей поспіль — банер, що
+ * опускається зверху вниз у верхній частині екрана (CSS — .streak-toast*
+ * у course-player.css), не в потоці контенту. Ефемерний: сам собою
+ * ховається за таймером у components/CoursePlayer.jsx (тут лише візуал),
+ * тому немає власного onClose — не заважає проходженню, просто зникає.
  */
 export function StreakToast({ icon, title, sub }) {
   // 7 шматочків конфеті з випадковою позицією/затримкою — рахуємо один

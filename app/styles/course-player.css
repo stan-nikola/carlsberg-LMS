@@ -628,36 +628,97 @@
   transform: rotate(90deg);
 }
 
-/* ---- Таймлайн кроків ---- */
+/* ---- Таймлайн кроків ----
+   Рейка зліва (кружечок + лінія до наступного) + вміст справа — єдиний
+   ланцюжок, а не набір окремих карток. Три реальні стани кружечка, всі
+   на фірмових токенах (жодних вигаданих кольорів):
+     - за замовчуванням  — нейтральний (--surface-1/--ink-soft)
+     - .current (режим "ви тут", ще не відкритий) — золото --cb-tertiary,
+       той самий акцент "зверни увагу", що й на бейджі рівня/streak-тості
+     - .seen (відкритий хоч раз) — активний зелений --cb-secondary, той
+       самий, що й у .check-item.done — "зроблено". .seen навмисно йде
+       ПІСЛЯ .current в каскаді: якщо підсвічений крок таки відкрили,
+       він переходить у "зроблено" (зелений), а не лишається "золотим
+       маячком" на те, що вже й так побачили. */
 .timeline {
   display: flex;
   flex-direction: column;
-  gap: 6px;
   margin-top: 4px;
 }
 .tl-item {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--cb-white);
-  overflow: hidden;
+  display: flex;
+  gap: 13px;
 }
-.tl-item.seen {
-  border-color: var(--cb-secondary);
+.tl-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  padding-top: 12px;
 }
-/* Режим "ви тут": підсвічений крок помітно виділяється з решти карти. */
-.tl-item.current {
-  border-color: var(--cb-primary);
-  border-width: 2px;
+.tl-num {
+  /* +15% від початкових 24px/11px. */
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  /* Акцентний тінт замість плоского нейтрального сірого навіть для ще НЕ
+     відкритих кроків — той самий патерн, що й .cp-kicker-num — щоб
+     таймлайн одразу виглядав фірмово, а не "вимкненим", поки до нього
+     не дійшли. */
   background: var(--green-tint);
+  color: var(--green-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: calc(12.5px * var(--fs-scale));
+  font-weight: 700;
+  transition: background var(--dur-base) var(--ease-premium), color var(--dur-base) var(--ease-premium);
+}
+.tl-item.current .tl-num {
+  background: var(--cb-tertiary);
+  color: var(--cb-white);
+}
+.tl-item.seen .tl-num {
+  background: var(--cb-secondary);
+  color: var(--cb-white);
+}
+/* Явне поєднання станів, а не покладання на порядок правил у каскаді
+   (однакова специфічність із двома правилами вище — під dev HMR порядок
+   інжекції <style> непередбачуваний): відкритий "current" крок реально
+   переходить у "зроблено" (зелений), золото — лише сигнал "погляньте
+   сюди, поки не тапнули". */
+.tl-item.current.seen .tl-num {
+  background: var(--cb-secondary);
+  color: var(--cb-white);
+}
+/* Сполучна лінія до наступного кружечка — тягнеться на всю висоту
+   .tl-rail (flex:1), тож автоматично підлаштовується під висоту
+   розгорнутого .tl-detail. min-height — щоб лінія лишалась помітною,
+   навіть коли крок згорнутий і .tl-body зовсім невисокий. */
+.tl-line {
+  width: 2px;
+  flex: 1;
+  min-height: 20px;
+  background: var(--line);
+  transition: background var(--dur-base) var(--ease-premium);
+}
+.tl-item.seen .tl-line {
+  background: var(--cb-secondary);
+}
+.tl-body {
+  flex: 1;
+  min-width: 0;
 }
 .tl-head {
   width: 100%;
+  padding: 10px 4px;
+  min-height: 44px;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 11px 13px;
-  min-height: 48px;
   border: none;
+  border-radius: var(--radius-sm);
   background: none;
   font: inherit;
   font-size: calc(13.2px * var(--fs-scale));
@@ -665,36 +726,28 @@
   color: var(--ink);
   text-align: left;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-premium);
+}
+@media (hover: hover) {
+  .tl-head:hover {
+    background: var(--cb-overlay-10);
+  }
 }
 .tl-head:focus-visible {
   outline: none;
   box-shadow: var(--cb-focus-ring);
 }
-.tl-num {
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--surface-1);
-  color: var(--ink-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-size: calc(11px * var(--fs-scale));
-  font-weight: 700;
-}
-.tl-item.seen .tl-num,
-.tl-item.current .tl-num {
-  background: var(--cb-primary);
-  color: var(--cb-white);
+/* Режим "ви тут": підсвічений крок отримує тепле тло на весь вміст, щоб
+   впадав в око навіть серед решти вже пройдених пунктів ланцюга. */
+.tl-item.current .tl-body {
+  background: var(--gold-soft);
+  border-radius: var(--radius-sm);
 }
 .tl-title {
-  flex: 1;
   min-width: 0;
 }
 .tl-detail {
-  padding: 0 13px 13px 48px;
+  padding: 0 4px 13px;
   font-size: calc(12.6px * var(--fs-scale));
   line-height: 1.5;
   color: var(--ink-soft);
@@ -791,102 +844,99 @@
 }
 
 /* ---- Streak-тост (мотивація за серію правильних відповідей) ----
-   Справжній оверлей поверх усього екрана (не банер у потоці контенту):
-   напівпрозора підкладка + центрована картка. Суцільний фірмовий зелений
-   (--cb-primary), НЕ градієнт легасі-версії — той самий принцип, що й
-   .btn-primary-full/.admin-btn: один колір, без переходів. Золота
-   плашка під емодзі — той самий акцент, що й .lv-star/бейджі досягнень
-   (gold = "досягнення" в цій системі). pointer-events:none по всьому
-   оверлею — це ненав'язливий нудж, не гейт, що блокує проходження. */
+   Банер, що опускається зверху вниз у верхній частині екрана (не
+   центрована модалка на затемненій підкладці, як було раніше) —
+   шириною на весь найширший контейнер розмітки (.course-card, той
+   самий "корпус телефону", що й .stage/.appbar), позиціонований
+   абсолютно відносно нього (.course-card — position:relative), тож
+   лежить НАД .appbar, а не всередині скролованого .cp-viewport.
+   Суцільний фірмовий зелений (--cb-primary), без градієнта — той самий
+   принцип, що й .btn-primary-full/.admin-btn. Анімація — фірмові
+   --ease-premium/--dur-base з tokens.css (той самий плавний, без
+   "пружного" перебільшення, темп руху, що й .tl-num/.opt по всьому
+   плеєру), а не власна bounce-крива. pointer-events:none — ненав'язливий
+   нудж, не гейт, що блокує проходження. */
 .streak-toast-overlay {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: var(--z-modal);
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 24px;
-  background: var(--cb-overlay-25);
+  /* env(safe-area-inset-top) — та сама зона статус-бару/"чубчика", що й
+     .appbar (globals.css, calc(14px + env(safe-area-inset-top))). На
+     десктопі/старих Android без вирізу env() повертає 0, тут лишається
+     звичайний відступ 10px — на iPhone з Dynamic Island/notch банер
+     опускається НИЖЧЕ статус-бару, а не під ним. */
+  padding: calc(10px + env(safe-area-inset-top)) 10px 0;
   pointer-events: none;
-  animation: streakBackdropIn 0.2s ease forwards, streakBackdropOut 0.3s ease 2.3s forwards;
-}
-@keyframes streakBackdropIn {
-  from {
-    opacity: 0;
-  }
-}
-@keyframes streakBackdropOut {
-  to {
-    opacity: 0;
-  }
 }
 .streak-toast {
   position: relative;
   width: 100%;
-  max-width: 280px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
   background: var(--cb-primary);
   color: var(--cb-white);
   border-radius: var(--radius-card);
-  padding: 26px 22px 22px;
+  padding: 14px 16px;
   box-shadow: var(--shadow-overlay);
-  text-align: center;
+  text-align: left;
   overflow: visible;
-  transform: scale(0.85) translateY(6px);
-  opacity: 0;
-  animation: streakCardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, streakCardOut 0.3s ease 2.3s forwards;
+  transform: translateY(-120%);
+  animation: streakSlideIn var(--dur-slow) var(--ease-premium) forwards,
+    streakSlideOut var(--dur-base) var(--ease-premium) 2.3s forwards;
 }
-@keyframes streakCardIn {
+@keyframes streakSlideIn {
   to {
-    transform: scale(1) translateY(0);
-    opacity: 1;
+    transform: translateY(0);
   }
 }
-@keyframes streakCardOut {
+@keyframes streakSlideOut {
   to {
-    transform: scale(0.92) translateY(4px);
-    opacity: 0;
+    transform: translateY(-120%);
   }
 }
 .streak-toast-icon {
-  width: 60px;
-  height: 60px;
-  margin: 0 auto 12px;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: var(--gold-soft);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30px;
+  font-size: 22px;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2));
-  animation: streakIconPop 0.6s ease 0.1s both;
+  animation: streakIconPop var(--dur-slow) var(--ease-premium) 0.1s both;
 }
 @keyframes streakIconPop {
-  0% {
-    transform: scale(0.3) rotate(-15deg);
+  from {
+    transform: scale(0.5);
     opacity: 0;
   }
-  60% {
-    transform: scale(1.15) rotate(8deg);
+  to {
+    transform: scale(1);
     opacity: 1;
-  }
-  100% {
-    transform: scale(1) rotate(0);
   }
 }
 .streak-toast-text {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 2px;
+  min-width: 0;
 }
 .streak-toast-text b {
   font-family: var(--font-display);
-  font-size: calc(17px * var(--fs-scale));
+  font-size: calc(14.5px * var(--fs-scale));
   font-weight: 900;
 }
 .streak-toast-text span {
-  font-size: calc(12.5px * var(--fs-scale));
+  font-size: calc(11.8px * var(--fs-scale));
   opacity: 0.92;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 .streak-toast-confetti {
   position: absolute;

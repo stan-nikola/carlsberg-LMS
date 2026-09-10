@@ -1,5 +1,6 @@
 import localFont from "next/font/local";
 import { Montserrat, IBM_Plex_Mono } from "next/font/google";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "@/app/styles/tokens.css";
 import "./globals.css";
 import "@/app/styles/registration.css";
@@ -46,8 +47,21 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata = {
-  title: "Платформа адаптації Carlsberg",
-  description: "Платформа адаптації Carlsberg Ukraine",
+  title: "CLS Carlsberg Learning System",
+  description: "Платформа адаптації та навчання Carlsberg Ukraine",
+  // Android/Chrome читає app/manifest.js (файлова конвенція App Router,
+  // Next сам підключає <link rel="manifest">). iOS Safari той файл
+  // ігнорує — "Додати на головний екран" там орієнтується саме на ці
+  // apple-* мета-теги/лінк, інакше теж відкриває звичайну вкладку з
+  // адресним рядком замість повноекранного застосунку.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "CLS",
+  },
+  icons: {
+    apple: "/icons/icon-192.png",
+  },
 };
 
 export const viewport = {
@@ -62,8 +76,23 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="uk" className={`${carlsbergSans.variable} ${montserrat.variable} ${ibmPlexMono.variable}`}>
-      <body>{children}</body>
+    <html
+      lang="uk"
+      className={`${carlsbergSans.variable} ${montserrat.variable} ${ibmPlexMono.variable}`}
+      // Гасить попередження гідратації САМЕ для цього тега (не рекурсивно —
+      // реальні розбіжності глибше в дереві й далі покажуться). Побачили
+      // "A tree hydrated but some attributes... didn't match" однаково і на
+      // /hub, і на /register (двох геть різних деревах) — спільний фактор
+      // це <html>/<body>, а не конкретна сторінка; найімовірніша причина —
+      // мобільний браузер/розширення (перекладач, темна тема, читалка),
+      // що правлять DOM ще до гідратації — сам React прямо називає це
+      // однією з типових причин.
+      suppressHydrationWarning
+    >
+      <body suppressHydrationWarning>
+        {children}
+        <ServiceWorkerRegister />
+      </body>
     </html>
   );
 }

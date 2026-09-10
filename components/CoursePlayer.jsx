@@ -7,7 +7,7 @@ import { renderRichText } from "@/lib/richText";
 import { ChevronIcon, CheckIcon, XIcon } from "@/components/icons";
 import { AccordionScreen, ChecklistScreen, ScriptScreen, TimelineScreen, ImageLightbox, StreakToast } from "@/components/LessonScreens";
 import { isGateSatisfied, gateTotal, gateHint } from "@/lib/lessonTypes";
-import { courseStreakMessages, pickStreakMessage, resolveStreakSub } from "@/lib/streakMessages";
+import { courseStreakMessages, pickStreakMessage, resolveStreakSub, isScheduledStreak } from "@/lib/streakMessages";
 
 // Плеєр курсу. Крім info/quiz підтримує інтерактивні екрани, портовані з
 // попередньої vanilla-JS розробки "8 кроків телесейлінгу": accordion,
@@ -327,11 +327,29 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
   const streakTimerRef = useRef(null);
   const courseStreakMsgs = useMemo(() => courseStreakMessages(course), [course]);
 
+  /**
+   * Ідеальне завершення "блоку питань" — реального Course Block курсу, а
+   * не просто прогону quiz-екранів поспіль: останнє питання блоку, і всі
+   * питання цього ж блоку (включно з цим) відповіли правильно. Так тост
+   * долітає і на "незручних" довжинах блоку (3, 4, 7...), які інакше не
+   * влучили б у жодну "круглу" віху isScheduledStreak.
+   */
+  function isPerfectBlockFinish(lessonId, isCorrect) {
+    if (!isCorrect) return false;
+    const segment = blockSegments.find((s) =>
+      screens.slice(s.startIdx, s.endIdx + 1).some((sc) => sc.id === lessonId)
+    );
+    if (!segment) return false;
+    const quizIds = screens.slice(segment.startIdx, segment.endIdx + 1).filter((s) => s.type === "quiz").map((s) => s.id);
+    if (quizIds.length === 0 || quizIds[quizIds.length - 1] !== lessonId) return false;
+    return quizIds.every((id) => (id === lessonId ? isCorrect : answers[id] === true));
+  }
+
   function handleQuizAnswer(lessonId, isCorrect) {
     setAnswers((a) => ({ ...a, [lessonId]: isCorrect }));
     const nextStreak = isCorrect ? streak + 1 : 0;
     setStreak(nextStreak);
-    if (isCorrect) {
+    if (isCorrect && (isScheduledStreak(nextStreak) || isPerfectBlockFinish(lessonId, isCorrect))) {
       const message = pickStreakMessage(nextStreak, courseStreakMsgs);
       if (message) {
         streakKeyRef.current += 1;
@@ -359,7 +377,20 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Пропускаємо ПЕРШЕ спрацювання ефекту збереження нижче: на початковому
+  // рендері idx/answers ще мають дефолтні значення (introIdx/{}) — ефект
+  // відновлення вище встигає застосувати справжні збережені значення лише
+  // ЗГОДОМ, окремим рендером (обидва ефекти монтуються в тому самому
+  // проході, у порядку оголошення, і React не чекає стан одного ефекту
+  // перед запуском наступного). Без цього пропуску збереження одразу
+  // затирало б щойно відновлений прогрес дефолтним idx:0 — саме так курс
+  // "забував", де людина зупинилась, після перезавантаження сторінки.
+  const skipFirstSaveRef = useRef(true);
   useEffect(() => {
+    if (skipFirstSaveRef.current) {
+      skipFirstSaveRef.current = false;
+      return;
+    }
     if (idx !== completeIdx) saveProgress(course.slug, idx, answers);
   }, [idx, answers, course.slug, completeIdx]);
 
@@ -562,6 +593,10 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
     <div className="stage">
       <div className="course-col">
         <div className="course-card">
+          {streakToast && (
+            <StreakToast key={streakToast.key} icon={streakToast.message.icon} title={streakToast.message.title}
+              sub={resolveStreakSub(streakToast.message, streakToast.streak)} />
+          )}
           <div className="appbar">
             <button className="iconbtn" aria-label="Назад" onClick={() => router.push("/hub")}>
               <span style={{ transform: "rotate(180deg)", display: "inline-flex" }}>
@@ -579,10 +614,6 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
           </div>
 
           <div className="cp-viewport">
-            {streakToast && (
-              <StreakToast key={streakToast.key} icon={streakToast.message.icon} title={streakToast.message.title}
-                sub={resolveStreakSub(streakToast.message, streakToast.streak)} />
-            )}
             {idx === introIdx && (
               <div className="cp-screen cp-intro">
                 <h1 className="cp-h1">{course.title}</h1>

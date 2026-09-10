@@ -110,6 +110,7 @@ export default async function CoursePage({ params }) {
         slug: course.slug,
         title: course.title,
         description: course.description,
+        streakMessages: course.streakMessages,
       }}
       screens={screens}
       enrollmentId={enrollment.id}
