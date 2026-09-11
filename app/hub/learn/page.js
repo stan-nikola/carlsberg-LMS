@@ -21,6 +21,7 @@ export default async function HubLearnPage() {
             course={enrollment.course}
             enrollment={enrollment}
             description={enrollment.course.description || ""}
+            hasEmail={Boolean(employee.email)}
           />
         ))
       ) : (

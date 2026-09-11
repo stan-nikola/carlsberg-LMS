@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CourseIcon, ChevronIcon, CheckIcon, XIcon, LockIcon, MedalIcon, CertificateIcon, ClockIcon } from "@/components/icons";
 import { courseTileStatus, isRecentlyAssigned, isOverdue, medalTier } from "@/lib/progress";
 import { pluralize } from "@/lib/pluralize";
 import { MarqueeText } from "@/components/MarqueeText";
+import { getLocalDisplayName } from "@/lib/localName";
 
 const MODULE_STATUS_META = {
   completed: { label: "Складено", className: "is-completed" },
@@ -75,8 +76,23 @@ function ModuleRow({ courseModule }) {
  * складено/не складено/доступний/заблоковано) — вхід у сам плеєр окремою
  * дією нижче.
  */
-export function CourseTile({ course, enrollment, description, inProgressDescription }) {
+export function CourseTile({ course, enrollment, description, inProgressDescription, hasEmail = true }) {
   const [expanded, setExpanded] = useState(false);
+  // Сертифікат генерується на сервері (route.js, pdfkit) з Employee.name —
+  // для співробітників без email це заглушка з посади/території (див.
+  // lib/localName.js), а справжнє ім'я лежить лише в localStorage цього
+  // пристрою. Сервер його принципово не зберігає, тому передаємо як
+  // query-параметр разового GET-запиту на завантаження (не пишеться в БД,
+  // читається лише всередині цього одного запиту) — той самий підхід, що
+  // ProfileCard/GreetingHeading уже роблять для екранного імені.
+  const [certName, setCertName] = useState("");
+  useEffect(() => {
+    if (!hasEmail) {
+      const local = getLocalDisplayName();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (local) setCertName(local);
+    }
+  }, [hasEmail]);
   const cs = courseTileStatus(enrollment);
   const desc = cs.status === "in_progress" && inProgressDescription ? inProgressDescription : description;
   const isNew = isRecentlyAssigned(enrollment);
@@ -189,7 +205,7 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
           </Link>
           {hasCertificate ? (
             <a
-              href={`/api/courses/${course.slug}/certificate`}
+              href={`/api/courses/${course.slug}/certificate${certName ? `?name=${encodeURIComponent(certName)}` : ""}`}
               className="ct-cert-square"
               aria-label="Завантажити сертифікат"
               title="Завантажити сертифікат"

@@ -77,6 +77,7 @@ export default async function HubHomePage() {
             enrollment={enrollment}
             description={enrollment.course.description || ""}
             inProgressDescription="Ви вже почали — продовжте з того самого місця."
+            hasEmail={Boolean(employee.email)}
           />
         ))
       ) : enrollments.length === 0 ? (

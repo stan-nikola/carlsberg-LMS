@@ -20,18 +20,22 @@ import { PLATFORM_SHORT_NAME, PLATFORM_ABBREVIATION_EXPANSION, PLATFORM_HOP_LOGO
  * 1482:1379 (реальні px public/assets/brand/hops-leaf-small-green.png)
  * збережено — ширина рахується з висоти, не окреме число.
  *
- * `size`: "lg" — сайдбар кабінету керівника (більший текст), "sm" —
+ * `size`: "xl" — героїчний момент реєстрації/логіну (app/register/page.js,
+ * єдине місце цього розміру), "lg" — сайдбар кабінету керівника, "sm" —
  * компактні місця (мобільний appbar кабінету керівника, appbar хаба
  * співробітника).
+ * `stacked` — лого над текстом, по центру (3 рядки: лого / "CLS" /
+ * розшифровка), замість звичного рядка "лого ліворуч, текст праворуч".
+ * Поки що лише для "xl" (реєстрація) — за проханням користувача.
  */
 const LOGO_ASPECT = 1482 / 1379;
-const LOGO_HEIGHT = { lg: 38, sm: 30 };
+const LOGO_HEIGHT = { xl: 64, lg: 38, sm: 30 };
 
-export function PlatformBrand({ size = "sm" }) {
+export function PlatformBrand({ size = "sm", stacked = false }) {
   const height = LOGO_HEIGHT[size] ?? LOGO_HEIGHT.sm;
   const width = Math.round(height * LOGO_ASPECT);
   return (
-    <div className={`platform-brand platform-brand-${size}`}>
+    <div className={`platform-brand platform-brand-${size}${stacked ? " platform-brand-stacked" : ""}`}>
       <Image src={PLATFORM_HOP_LOGO_PATH} alt="" width={width} height={height} className="platform-brand-logo" />
       <span className="platform-brand-text">
         <span className="platform-brand-name">{PLATFORM_SHORT_NAME}</span>

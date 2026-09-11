@@ -2,9 +2,11 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import { SettingsSheet } from "@/components/SettingsSheet";
-import { GearIcon } from "@/components/icons";
+import { GearIcon, LockIcon } from "@/components/icons";
+import { PlatformBrand } from "@/components/PlatformBrand";
 
 // Портовано з legacy index.html (regCard) + js/registration.js. Два кроки
 // одного екрана (код -> PIN), як і раніше, тільки замість Apps Script —
@@ -32,6 +34,11 @@ export default function RegisterPage() {
   const [codeError, setCodeError] = useState("");
   const [pinError, setPinError] = useState("");
   const [pinWarning, setPinWarning] = useState("");
+  // true — лист пішов самому співробітнику (є email, менеджерський шар),
+  // false — керівнику (польові ролі без email в базі). null — ще
+  // невідомо (email_send_failed узагалі не повертає isSelf — там уже є
+  // свій явний pinWarning, окрема примітка "де шукати PIN" зайва).
+  const [pinRecipientIsSelf, setPinRecipientIsSelf] = useState(null);
 
   const [submitBusy, setSubmitBusy] = useState(false);
   const [pinSubmitBusy, setPinSubmitBusy] = useState(false);
@@ -67,6 +74,7 @@ export default function RegisterPage() {
         setPin("");
         setPinError("");
         setPinWarning("");
+        setPinRecipientIsSelf(resp.isSelf);
         setStep("pin");
         setTimeout(() => pinInputRef.current?.focus(), 0);
       } else if (resp.error === "email_send_failed") {
@@ -80,6 +88,7 @@ export default function RegisterPage() {
         setPinWarning(
           "Не вдалося надіслати лист з PIN-кодом. Якщо ви дізналися код іншим способом — введіть його нижче."
         );
+        setPinRecipientIsSelf(null);
         setStep("pin");
         setTimeout(() => pinInputRef.current?.focus(), 0);
       } else if (resp.error === "no_manager_email") {
@@ -120,7 +129,7 @@ export default function RegisterPage() {
         router.push("/hub");
         router.refresh();
       } else if (resp.error === "pin_expired") {
-        setPinError("Час дії PIN-коду минув (діє 1 годину). Натисніть «Надіслати ще раз».");
+        setPinError("Час дії PIN-коду минув (діє 12 годин). Натисніть «Надіслати ще раз».");
       } else {
         setPinError("Невірний PIN-код. Спробуйте ще раз.");
       }
@@ -144,6 +153,7 @@ export default function RegisterPage() {
     try {
       const resp = await callAuth("/api/auth/register", { externalCode: externalCode.trim() });
       if (resp.ok) {
+        setPinRecipientIsSelf(resp.isSelf);
         setResendLabel("Надіслано ✓");
         setTimeout(() => {
           setResendLabel("Надіслати ще раз");
@@ -169,16 +179,22 @@ export default function RegisterPage() {
         <div className="course-card">
           <div className="appbar">
             <div style={{ flex: 1 }} />
-            <button className="iconbtn" aria-label="Налаштування" onClick={() => setSettingsOpen(true)}>
+            {/* Той самий LockIcon-лінк на /admin, що вже є в HubShell.jsx
+                (там — лише для isAdmin співробітників, тут — до входу
+                взагалі немає сесії, тому без умови: сама сторінка
+                /admin/login веде далі свою перевірку паролем). */}
+            <Link className="iconbtn iconbtn-bare" aria-label="Адмін-панель" href="/admin">
+              <LockIcon />
+            </Link>
+            <button className="iconbtn iconbtn-bare" aria-label="Налаштування" onClick={() => setSettingsOpen(true)}>
               <GearIcon />
             </button>
           </div>
 
           <div className="reg-viewport">
             <div className="reg-badge">
-              <Image src="/assets/carlsberg-logo.png" alt="Carlsberg Ukraine" width={396} height={162} priority />
+              <PlatformBrand size="xl" stacked />
             </div>
-            <div className="reg-org">Carlsberg Ukraine · Платформа адаптації</div>
             <h1 className="reg-h1">
               Ласкаво просимо! Зареєструйтесь, щоб відкрити свій особистий кабінет навчання.
             </h1>
@@ -251,10 +267,20 @@ export default function RegisterPage() {
 
               {pinWarning && <div className="footnote">{pinWarning}</div>}
 
-              <div className="reg-note">
-                PIN-код надіслано на пошту, вказану для вас у системі, і діє 1 годину. Якщо це не
-                ваша особиста пошта — уточніть код у керівника.
-              </div>
+              {/* Два різних, лаконічних пояснення замість одного загального
+                  "перевірте пошту, вказану в системі" — те формулювання не
+                  мало сенсу для польових ролей (вони самі нічого не
+                  отримують, лист іде керівнику). pinRecipientIsSelf===null
+                  (email_send_failed) — пропускаємо: pinWarning вище вже
+                  все пояснює. */}
+              {pinRecipientIsSelf === true && (
+                <div className="reg-note">PIN-код надіслано на вашу пошту і діє 12 годин.</div>
+              )}
+              {pinRecipientIsSelf === false && (
+                <div className="reg-note">
+                  PIN-код надіслано вашому керівнику — зверніться до нього. Діє 12 годин.
+                </div>
+              )}
 
               <div className="reg-step-links">
                 <button type="button" className="reg-link-btn" onClick={handleBackToIdentity}>

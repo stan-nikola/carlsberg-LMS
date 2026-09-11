@@ -125,9 +125,12 @@ a {
   height: min(812px, 88vh);
   background: var(--surface);
   border: 1px solid var(--line);
-  /* Раніше сирі 30px — за рішенням користувача приведено до токена
-     (design-guardian-аудит), найближчий за шкалою. */
-  border-radius: var(--radius-xl);
+  /* Без border-radius — за проханням користувача (той самий принцип, що
+     .mgr-pill/.mgr-badge/.admin-btn: квадратні атоми Malty, не заокруглені).
+     Раніше тут були сирі 30px, потім var(--radius-xl) (28px) за іншим
+     рішенням того самого користувача — це свідома зміна поверх того
+     рішення, не регрес. */
+  border-radius: 0;
   overflow: hidden;
   box-shadow: var(--shadow);
   display: flex;
@@ -143,13 +146,27 @@ a {
 /* components/PlatformBrand.jsx — спільна бренд-мітка (хмелевий трилисток +
    "CLS"/розшифровка), використовується і в .appbar хаба (компактний
    "sm"), і в сайдбарі/appbar кабінету керівника (app/styles/manager.css
-   додає лише розмір "lg" — сама структура тут). */
+   додає лише розмір "lg" — сама структура тут), і на реєстрації/логіні
+   (.reg-badge, "xl" — єдиний героїчний розмір). */
 .platform-brand {
   display: flex;
   align-items: center;
   gap: 8px;
   flex: 1;
   min-width: 0;
+}
+.platform-brand-xl {
+  flex: none;
+  gap: 12px;
+}
+/* Лого над текстом, по центру — 3 рядки (лого / "CLS" / розшифровка)
+   замість звичного рядка. */
+.platform-brand-stacked {
+  flex-direction: column;
+}
+.platform-brand-stacked .platform-brand-text {
+  align-items: center;
+  text-align: center;
 }
 .platform-brand-logo {
   flex-shrink: 0;
@@ -171,6 +188,9 @@ a {
 .platform-brand-lg .platform-brand-name {
   font-size: 20px;
 }
+.platform-brand-xl .platform-brand-name {
+  font-size: 30px;
+}
 .platform-brand-full {
   font-family: var(--font-body);
   font-weight: 400;
@@ -178,6 +198,9 @@ a {
   line-height: 1.25;
   letter-spacing: 0.01em;
   color: var(--ink-soft);
+}
+.platform-brand-xl .platform-brand-full {
+  font-size: 13px;
 }
 .iconbtn {
   width: 34px;
@@ -208,6 +231,14 @@ a {
 .iconbtn svg {
   width: 16px;
   height: 16px;
+}
+/* Той самий .iconbtn, без рамки/фону в стані спокою — сама іконка,
+   "плаваюча" на екрані без контейнера навколо (за проханням
+   користувача — колесико налаштувань на реєстрації). Hover/focus/tap-
+   фідбек лишаються ті самі (успадковані від .iconbtn вище). */
+.iconbtn-bare {
+  border-color: transparent;
+  background: transparent;
 }
 
 .photo-frame {
@@ -372,7 +403,11 @@ a {
   border-radius: 50%;
   background: var(--green-700);
   border: 2px solid var(--surface);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  /* Раніше сирий чорний box-shadow — замінено на фірмовий elevation-токен
+     (design-guardian-аудит): та сама роль ("тінь під елементом control"),
+     колір узгоджений з рештою системи (digital-black overlay), а не
+     довільний rgba(0,0,0,...). */
+  box-shadow: var(--shadow-resting);
   cursor: pointer;
 }
 #fsSlider::-moz-range-thumb {
@@ -381,7 +416,7 @@ a {
   border-radius: 50%;
   background: var(--green-700);
   border: 2px solid var(--surface);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-resting);
   cursor: pointer;
   border-width: 2px;
 }
@@ -440,7 +475,7 @@ a {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2.5px solid rgba(255, 255, 255, 0.35);
+  border: 2.5px solid var(--cb-white-overlay-25);
   border-top-color: var(--cb-white);
   flex-shrink: 0;
   animation: btnSpin 0.7s linear infinite;

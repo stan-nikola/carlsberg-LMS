@@ -27,23 +27,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 10px;
+  /* 20px, не 10px — раніше проміжок до .reg-h1 нижче складався з цього
+     відступу ПЛЮС margin-bottom (18px) сусіднього .reg-org (прибраний за
+     проханням користувача); без нього героїчний бренд-блок тулився
+     впритул до заголовка. */
+  margin-bottom: 20px;
   animation: logoPop 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
-}
-.reg-badge img {
-  width: 190px;
-  max-width: 66%;
-  height: auto;
-  object-fit: contain;
-  filter: drop-shadow(0 14px 22px rgba(11, 74, 52, 0.22));
-}
-.reg-org {
-  font-family: var(--font-mono);
-  font-size: calc(11px * var(--fs-scale));
-  letter-spacing: 0.08em;
-  color: var(--ink-soft);
-  text-transform: uppercase;
-  margin-bottom: 18px;
 }
 .reg-h1 {
   font-size: calc(20px * var(--fs-scale));
@@ -164,6 +153,12 @@
   padding: 0;
   flex-shrink: 0;
 }
+@media (hover: hover) {
+  .reg-info-btn:hover {
+    border-color: var(--green-700);
+    color: var(--green-700);
+  }
+}
 .reg-info-btn:active {
   transform: scale(0.9);
 }
@@ -206,6 +201,11 @@
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
+}
+@media (hover: hover) {
+  .reg-link-btn:hover:not(:disabled) {
+    text-decoration: underline;
+  }
 }
 .reg-link-btn:disabled {
   opacity: 0.5;

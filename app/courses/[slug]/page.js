@@ -64,7 +64,14 @@ export default async function CoursePage({ params }) {
   // ще діють. Замість плеєра — курс-методичка (тільки контент, без
   // тестів/гейтів): швидко підглянути/повторити матеріал.
   if (playableModules.length === 0 && completions.length > 0) {
-    return <CourseReview course={course} modules={course.modules} scorePercent={enrollment.scorePercent} />;
+    return (
+      <CourseReview
+        course={course}
+        modules={course.modules}
+        scorePercent={enrollment.scorePercent}
+        hasEmail={Boolean(employee.email)}
+      />
+    );
   }
 
   // Бал модулів, пропущених цього разу (уже складені раніше, пауза

@@ -59,7 +59,7 @@
   border-radius: var(--radius-card);
   padding: 16px;
   margin-bottom: 14px;
-  box-shadow: 0 14px 30px -16px rgba(11, 74, 52, 0.55);
+  box-shadow: 0 14px 30px -16px var(--cb-primary-shadow);
   position: relative;
   overflow: hidden;
 }
@@ -92,7 +92,7 @@
   font-weight: 900;
   font-size: calc(18px * var(--fs-scale));
   flex-shrink: 0;
-  border: 2px solid rgba(255, 255, 255, 0.5);
+  border: 2px solid var(--cb-white-overlay-50);
   position: relative;
   z-index: 1;
 }
@@ -118,7 +118,7 @@
   align-items: center;
   gap: 5px;
   margin-top: 7px;
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--cb-white-overlay-10);
   border-radius: var(--radius-pill);
   padding: 3px 10px 3px 4px;
   font-size: calc(10.8px * var(--fs-scale));
@@ -821,12 +821,14 @@
 .tabbar {
   flex-shrink: 0;
   display: flex;
-  /* +10px зверху — опускає весь таббар разом із лінією-розділювачем
-     нижче, ближче до низу картки. */
-  margin-top: 10px;
+  /* +8px зверху — опускає весь таббар разом із лінією-розділювачем
+     нижче, ближче до низу картки (менше, ніж раніше 10px — уся смуга
+     зменшена за проханням користувача, разом з .tab-btn/.tab-btn svg
+     нижче). */
+  margin-top: 8px;
   border-top: 1px solid var(--line);
   background: var(--surface);
-  padding: 4px 10px calc(4px + env(safe-area-inset-bottom));
+  padding: 2px 10px calc(2px + env(safe-area-inset-bottom));
 }
 .tab-btn {
   flex: 1;
@@ -835,24 +837,36 @@
   justify-content: center;
   /* Симетрично зверху/знизу — асиметричний варіант (більше зверху) на
      реальному iPhone робив саму смугу таббару вищою й лишав помітний
-     порожній проміжок між лінією-розділювачем і іконками. */
-  padding: 13px 2px;
+     порожній проміжок між лінією-розділювачем і іконками. Менше, ніж
+     раніше (13px) — той самий principe, що зменшення іконок нижче (за
+     проханням користувача, таббар був явно вищий за решту UI). */
+  padding: 9px 2px;
   border: none;
   background: transparent;
   color: var(--ink-soft);
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease-premium), transform var(--dur-fast) var(--ease-premium);
 }
+/* --size-m (24px, tokens.css) — той самий розмір, що вже задає весь
+   інший масштаб іконок у застосунку (.iconbtn — 16px, менші контексти),
+   31px тут був відчутно більшим за все решта, без токена. */
+/* +15% за проханням користувача (24px -> 27.6px) — той самий --size-m,
+   не власне число, лише scale-множник поверх токена. Активна й неактивна
+   іконки тепер однакового розміру (раніше активна масштабувалась на
+   +40% — прибрано за проханням користувача; стан і так читається через
+   колір --cb-primary, .tab-btn.active нижче). */
 .tab-btn svg {
-  width: 31px;
-  height: 31px;
-  transition: transform var(--dur-fast) var(--ease-premium);
+  width: calc(var(--size-m) * 1.15);
+  height: calc(var(--size-m) * 1.15);
 }
-/* Активна іконка — на 40% більша за неактивні, щоб текучіше зчитувався
-   поточний розділ (замість заливки, яка сама по собі не завжди помітна
-   на маленькому розмірі). */
-.tab-btn.active svg {
-  transform: scale(1.4);
+/* Desktop-only hover affordance — раніше таббар взагалі не реагував на
+   ховер (лише :active/:focus-visible), хоча свій color-transition уже
+   був заявлений вище. Тільки для неактивної вкладки — активна вже й так
+   промальована --cb-primary. */
+@media (hover: hover) {
+  .tab-btn:not(.active):hover {
+    color: var(--ink);
+  }
 }
 .tab-btn:active {
   transform: scale(0.88);
@@ -882,6 +896,14 @@
   width: 100%;
   justify-content: center;
   transition: background 0.15s ease, transform 0.15s ease;
+}
+@media (hover: hover) {
+  .logout-row:hover {
+    /* --cb-fail-light — той самий системний токен, що вже дає фон
+       "danger"-акцентам деінде (.ct-tag-mandatory за аналогією для
+       alert), не новий вигаданий відтінок. */
+    background: var(--cb-fail-light);
+  }
 }
 .logout-row:active {
   transform: scale(0.98);
