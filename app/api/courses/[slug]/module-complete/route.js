@@ -26,7 +26,7 @@ export async function POST(request, { params }) {
   }
 
   const body = await request.json();
-  const { enrollmentId, moduleId, scorePercent, passed } = body;
+  const { enrollmentId, moduleId, scorePercent, passed, longestCorrectStreak, scoreRaw, scoreMax } = body;
 
   const enrollment = await prisma.enrollment.findUnique({ where: { id: enrollmentId } });
   if (!enrollment || enrollment.employeeId !== employee.id || enrollment.courseId !== course.id) {
@@ -40,8 +40,8 @@ export async function POST(request, { params }) {
 
   const completion = await prisma.moduleCompletion.upsert({
     where: { enrollmentId_moduleId: { enrollmentId: enrollment.id, moduleId: courseModule.id } },
-    update: { scorePercent, passed, completedAt: new Date() },
-    create: { enrollmentId: enrollment.id, moduleId: courseModule.id, scorePercent, passed },
+    update: { scorePercent, passed, longestCorrectStreak, scoreRaw, scoreMax, completedAt: new Date() },
+    create: { enrollmentId: enrollment.id, moduleId: courseModule.id, scorePercent, passed, longestCorrectStreak, scoreRaw, scoreMax },
   });
 
   return NextResponse.json(completion);

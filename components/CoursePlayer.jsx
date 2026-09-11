@@ -375,7 +375,7 @@ function ResumePrompt({ onResume, onRestart }) {
   );
 }
 
-export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
+export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skippedModuleScores = [] }) {
   const router = useRouter();
   const totalSteps = screens.length + 2; // + вступ + завершення
   const introIdx = 0;
@@ -404,8 +404,13 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
   const streakTimerRef = useRef(null);
   const courseStreakMsgs = useMemo(() => courseStreakMessages(course), [course]);
 
-  // Усі quiz-компоненти курсу, пласким списком, у порядку проходження —
-  // незалежно від того, скільки їх ділять один Screen з іншими типами.
+  // Усі quiz-компоненти цієї СЕСІЇ плеєра, пласким списком, у порядку
+  // проходження — незалежно від того, скільки їх ділить один Screen з
+  // іншими типами. `screens` тепер може бути лише ЧАСТИНОЮ курсу (модулі,
+  // вже складені й ще на паузі перепроходження, сюди не потрапляють —
+  // lib/courseContent.js getPlayableModules), тому підсумковий бал курсу
+  // в submitResult() рахує ЦІ id ПЛЮС збережені scoreRaw/scoreMax
+  // пропущених модулів (skippedModuleScores), а не лише ці.
   const quizComponentIds = useMemo(
     () => screens.flatMap((s) => s.components.filter((c) => c.type === "quiz").map((c) => c.id)),
     [screens]
@@ -459,6 +464,22 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
   const startedAtRef = useRef(new Date().toISOString());
   const activeSecondsRef = useRef(0);
   const lastTickRef = useRef(Date.now());
+
+  // Перехід між екранами (Далі/Назад) міняє контент .cp-viewport через
+  // idx, БЕЗ зміни URL (весь курс — одна сторінка) — на відміну від
+  // .hub-viewport, тут нема навігації роутера, яку можна було б відловити
+  // через pathname. Без явного скидання, якщо попередній екран був
+  // прогорнутий вниз (довгий текст/фото), наступний відкривався вже "з
+  // середини" — верх нового екрана виглядав обрізаним.
+  const viewportRef = useRef(null);
+  useEffect(() => {
+    viewportRef.current?.scrollTo({ top: 0 });
+    // "Пауза між модулями" (ModuleCheckpointScreen) підміняє вміст
+    // .cp-viewport БЕЗ зміни idx (idx рухається далі лише по "Продовжити")
+    // — без цього прапорця скидання не спрацьовувало саме на переході в
+    // чекпоінт і назад.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx, Boolean(moduleCheckpoint)]);
 
   // Відновлення прогресу з localStorage (лише на цьому пристрої — те саме,
   // що й legacy assort_progress_v1; сервер про це не знає). Не застосовуємо
@@ -533,6 +554,23 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
     return segments;
   }, [screens]);
 
+  /** Найдовша серія поспіль правильних відповідей у межах ЦИХ id (порядок
+   * проходження) — той самий підрахунок, що submitResult() робить по
+   * всьому курсу, тут застосований до одного сегмента/модуля. */
+  function longestStreakOf(ids) {
+    let best = 0;
+    let cur = 0;
+    for (const id of ids) {
+      if (answers[id] === true) {
+        cur += 1;
+        if (cur > best) best = cur;
+      } else {
+        cur = 0;
+      }
+    }
+    return best;
+  }
+
   function scoreForSegment(segment) {
     const rangeIds = screens
       .slice(segment.startIdx, segment.endIdx + 1)
@@ -541,7 +579,7 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
     const scoreMax = rangeIds.length;
     // Модуль без питань (лише інфо-екрани) нікого не блокує — 100%.
     const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 100;
-    return { scoreRaw, scoreMax, scorePercent, passed: scorePercent >= 80 };
+    return { scoreRaw, scoreMax, scorePercent, passed: scorePercent >= 80, longestCorrectStreak: longestStreakOf(rangeIds) };
   }
 
   async function postModuleCompletion(moduleId, score) {
@@ -554,6 +592,9 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
           moduleId,
           scorePercent: score.scorePercent,
           passed: score.passed,
+          longestCorrectStreak: score.longestCorrectStreak,
+          scoreRaw: score.scoreRaw,
+          scoreMax: score.scoreMax,
         }),
       });
       return null;
@@ -589,8 +630,17 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
   }
 
   async function submitResult() {
-    const scoreRaw = quizComponentIds.filter((id) => answers[id] === true).length;
-    const scoreMax = quizComponentIds.length;
+    // Бал ЦІЄЇ сесії (лише модулі, що зараз проходились) + бали модулів,
+    // пропущених цього разу (уже складені раніше, пауза перепроходження
+    // ще діє — lib/courseContent.js getPlayableModules) — інакше бал
+    // курсу в цілому "забував" би внесок пропущених модулів щоразу, як
+    // людина заходить у курс не з нуля.
+    const sessionRaw = quizComponentIds.filter((id) => answers[id] === true).length;
+    const sessionMax = quizComponentIds.length;
+    const skippedRaw = skippedModuleScores.reduce((sum, m) => sum + (m.scoreRaw || 0), 0);
+    const skippedMax = skippedModuleScores.reduce((sum, m) => sum + (m.scoreMax || 0), 0);
+    const scoreRaw = sessionRaw + skippedRaw;
+    const scoreMax = sessionMax + skippedMax;
     const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 0;
     const passed = scorePercent >= 80;
     const completedAt = new Date().toISOString();
@@ -601,13 +651,18 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
     setResult({ scoreRaw, scoreMax, scorePercent, passed, submitting: true, submitError: null });
     clearProgress(course.slug);
 
-    // Останній модуль курсу теж фіксуємо як складений/ні (для звітності й на
-    // випадок, якщо до цього курсу пізніше додадуть ще модулі) — паралельно
-    // з /submit, не блокуючи один одного.
+    // Останній модуль курсу теж фіксуємо як складений/ні — РАЗОМ із
+    // /submit в одній транзакції (app/api/courses/[slug]/submit/route.js),
+    // не двома окремими запитами "паралельно, незалежно один від одного".
+    // Два незалежні запити означали, що якщо ОДИН з них не долітав (мережа,
+    // помилка сервера), а другий встигав — курс міг позначитись
+    // "завершено" з певним балом, а останній модуль лишався взагалі БЕЗ
+    // запису про проходження: акордеон курсу показував порожній рядок на
+    // місці останнього модуля поруч із загальним "Залік · 100%" — реальний
+    // баг, знайдений користувачем. Один атомарний запит унеможливлює цей
+    // розсинхрон: або записується все, або нічого.
     const lastSegment = moduleSegments[moduleSegments.length - 1];
-    const lastModulePromise = lastSegment
-      ? postModuleCompletion(lastSegment.moduleId, scoreForSegment(lastSegment))
-      : Promise.resolve(null);
+    const lastModuleScore = lastSegment ? scoreForSegment(lastSegment) : null;
 
     try {
       const res = await fetch(`/api/courses/${course.slug}/submit`, {
@@ -623,10 +678,19 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
           scoreMax,
           scorePercent,
           passed,
+          lastModule: lastSegment
+            ? {
+                moduleId: lastSegment.moduleId,
+                scorePercent: lastModuleScore.scorePercent,
+                passed: lastModuleScore.passed,
+                longestCorrectStreak: lastModuleScore.longestCorrectStreak,
+                scoreRaw: lastModuleScore.scoreRaw,
+                scoreMax: lastModuleScore.scoreMax,
+              }
+            : null,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await lastModulePromise;
       setResult((r) => ({ ...r, submitting: false }));
     } catch (err) {
       setResult((r) => ({ ...r, submitting: false, submitError: err.message }));
@@ -735,7 +799,7 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
             <div className="cp-progress-fill" style={{ width: `${progressPct}%` }} />
           </div>
 
-          <div className="cp-viewport">
+          <div className="cp-viewport" ref={viewportRef}>
             {idx === introIdx && (
               <div className="cp-screen cp-intro">
                 <h1 className="cp-h1">{course.title}</h1>
@@ -750,6 +814,12 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice }) {
                     <span>питань</span>
                   </div>
                 </div>
+                {/* Заохочення старатись, а не просто "пройти поріг" (80%) —
+                    сертифікат видається лише за 100%, за проханням
+                    користувача. */}
+                <p className="cp-note cp-certificate-hint">
+                  🏆 Постарайтесь пройти курс на 100% — за це видається іменний сертифікат!
+                </p>
                 {lockedNotice && <p className="cp-note">{lockedNotice}</p>}
               </div>
             )}

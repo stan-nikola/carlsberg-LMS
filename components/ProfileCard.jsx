@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { initials } from "@/lib/initials";
 import { getLocalDisplayName } from "@/lib/localName";
+import { MarqueeText } from "@/components/MarqueeText";
 
 /**
  * Аватар + ім'я + код + рівень (.profile-card, і на Home, і на Профіль).
@@ -32,7 +33,9 @@ export function ProfileCard({ dbName, hasEmail, externalCode, levelLabel }) {
     <div className="profile-card">
       <div className="avatar">{initials(displayName)}</div>
       <div className="profile-info">
-        <div className="profile-name">{displayName || "—"}</div>
+        <MarqueeText as="div" className="profile-name">
+          {displayName || "—"}
+        </MarqueeText>
         <div className="profile-meta">{(externalCode || "").toUpperCase()}</div>
         <div className="profile-level">
           <span className="lv-star">★</span>

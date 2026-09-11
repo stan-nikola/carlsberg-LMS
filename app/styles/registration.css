@@ -86,7 +86,12 @@
   border-radius: var(--radius-xs);
   color: var(--ink);
   font-family: inherit;
-  font-size: calc(15px * var(--fs-scale));
+  /* max(16px, ...) — не менше 16px незалежно від --fs-scale (навіть якщо
+     користувач зменшив шрифт у налаштуваннях): iOS Safari автоматично й
+     незнімно зумить сторінку при фокусі на текстовому полі з font-size
+     менше 16px. Це найчастіший інпут застосунку (вхід по коду/PIN), тому
+     тут найкритичніше. */
+  font-size: max(16px, calc(15px * var(--fs-scale)));
   font-weight: 600;
   padding: 14px 16px;
   transition: border-color var(--dur-fast) var(--ease-premium), background var(--dur-fast) var(--ease-premium),

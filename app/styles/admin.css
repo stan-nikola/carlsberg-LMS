@@ -51,6 +51,13 @@
   gap: 8px;
   margin-bottom: 8px;
 }
+/* input/select/textarea тут навмисно на 16px, не на дизайнерський розмір
+   (13px/12px) — iOS Safari автоматично зумить сторінку при фокусі на
+   будь-якому текстовому полі з font-size < 16px, і скасувати сам зум
+   користувач вже не може (viewport лишається розтягнутим, поки не піде
+   назад/не перезавантажить). Це не косметика — єдиний надійний спосіб
+   назавжди прибрати цей зум, без maximum-scale=1 у viewport (той підхід
+   заодно забороняє pinch-zoom людині, це вже a11y-регрес). */
 .admin-input-flex {
   /* flex: 1 працює лише всередині flex-батька (.admin-row) — там, де
      батько звичайний блок (.admin-field у формах курсу), рятує width:
@@ -61,7 +68,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-input);
   font: inherit;
-  font-size: 13px;
+  font-size: 16px;
   transition: border-color var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
 }
 .admin-select {
@@ -69,13 +76,13 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-input);
   font: inherit;
-  font-size: 13px;
+  font-size: 16px;
   transition: border-color var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
 }
 .admin-textarea {
   width: 100%;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 16px;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius-input);
@@ -246,7 +253,10 @@
 }
 .admin-input-mono {
   font-family: var(--font-mono);
-  font-size: 12px;
+  /* 16px, не менше — той самий анти-зум фікс, що й .admin-input-flex
+     вище (ці класи завжди стоять поруч на одному <input>, і без цього
+     тут перекрив би 16px назад на замалий розмір). */
+  font-size: 16px;
 }
 
 .admin-image-row,
@@ -559,6 +569,11 @@
 .territory-chip button:hover {
   color: var(--danger);
 }
+.territory-chip button:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+  border-radius: var(--radius-card);
+}
 /* Чипса конкретної людини (targetEmployeeIds) — той самий формат, але
  * золотистий фон замість зеленого, щоб відрізнялась від чипс території
  * з першого погляду (два різні механізми призначення в одному рядку). */
@@ -852,6 +867,8 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   font: inherit;
+  /* 16px, не успадкований 12px батька — той самий анти-зум фікс. */
+  font-size: 16px;
   text-align: center;
 }
 
@@ -900,10 +917,24 @@
 }
 .admin-course-row-caret {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 20px;
   height: 20px;
   vertical-align: -5px;
   color: var(--ink-soft);
+  /* Скидання UA-стилів кнопки — цей клас історично малювався на <span>
+     всередині окремого <button>, тому ніколи не потребував reset. Коли
+     клас застосовано БЕЗПОСЕРЕДНЬО на <button> (components/ManagerDashboard.jsx),
+     без цього браузер малює власну рамку/фон/padding — SVG губиться
+     всередині сірого "3D"-прямокутника замість чистого шеврона. На <span>
+     ці властивості нічого не змінюють (там і так немає UA-хрому), тож
+     reset тут безпечний для обох випадків використання. */
+  padding: 0;
+  border: none;
+  background: none;
+  appearance: none;
+  cursor: pointer;
 }
 .admin-course-row-caret svg {
   width: 100%;

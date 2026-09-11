@@ -51,6 +51,16 @@
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  /* iOS Safari сама "роздуває" шрифт у блоках тексту, які вважає основним
+     контентом для читання — і робить це НЕОДНАКОВО залежно від ширини/
+     вкладеності контейнера (вузький бейдж і широкий заголовок з ОДНАКОВИМ
+     заданим font-size можуть вийти різного видимого розміру на реальному
+     iPhone — це і є "різні шрифти у відкритих картках": на десктопі/в
+     емуляторі цього ефекту нема, він суто WebKit-специфічний). Вимикаємо
+     цю авто-корекцію повністю — розмір шрифту відтепер завжди точно той,
+     що заданий в CSS. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 html {
   /* Резервує місце під вертикальний скролбар завжди, навіть коли контент
@@ -190,7 +200,7 @@ a {
 .sheet-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 20, 15, 0.5);
+  background: var(--cb-overlay-50);
   backdrop-filter: blur(2px);
   opacity: 0;
   pointer-events: none;
@@ -400,10 +410,59 @@ a {
   display: inline-block;
 }
 
+/* ---- Біжучий рядок (components/MarqueeText.jsx) — заміна text-overflow:
+   ellipsis там, де текст не просто обрізається, а ламає контейнер
+   (фіксовані вузькі колонки/пілли на різних ширинах екрана). Клас
+   .is-overflowing додає сам компонент через ResizeObserver — короткий
+   текст лишається звичайним inline-block без анімації. Дублюємо контент
+   удвічі (другий екземпляр aria-hidden) і крутимо на рівно -50%, щоб
+   петля була безшовною. */
+.marquee {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.marquee-inner {
+  display: inline-flex;
+}
+.marquee-text {
+  display: inline-block;
+  padding-right: 28px;
+}
+.marquee.is-overflowing .marquee-inner {
+  /* --marquee-duration — виставляється інлайново з components/MarqueeText.jsx
+     пропорційно довжині тексту, щоб швидкість (px/сек) була однаковою
+     скрізь, а не тривалість анімації. 7s — фолбек, якщо змінна раптом
+     не прийшла (не повинно траплятись у нормальному рендері). */
+  animation: marquee-scroll var(--marquee-duration, 7s) linear infinite;
+}
+/* Пауза на старті й у кінці циклу (0-15% і 85-100% — текст стоїть на
+   місці, читабельний), рух — лише середні 70% часу. На статичному
+   скріншоті (чи просто при першому погляді) текст частіше впіймано
+   нерухомим від самого початку слова, а не посеред випадкового кадру
+   прокрутки. components/MarqueeText.jsx рахує --marquee-duration з
+   поправкою на цю ж частку 0.7, щоб фактична швидкість руху (px/сек)
+   лишалась тією самою, а не пришвидшувалась через додані паузи. */
+@keyframes marquee-scroll {
+  0%,
+  15% {
+    transform: translateX(0);
+  }
+  85%,
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001s !important;
     transition-duration: 0.001s !important;
+  }
+  .marquee.is-overflowing .marquee-inner {
+    animation: none;
   }
 }
 

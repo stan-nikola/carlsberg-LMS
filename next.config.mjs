@@ -19,7 +19,15 @@ const nextConfig = {
     // app/api/admin/upload/route.js) — без цього next/image (InfoScreen,
     // components/CoursePlayer.jsx) кидає "hostname is not configured"
     // на будь-яке завантажене фото, статичні /assets/… тут ні до чого.
-    remotePatterns: [{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" }],
+    // upload.wikimedia.org — публічні вільно-ліцензовані фото (Wikimedia
+    // Commons), використані для наповнення тестових курсів "Технік
+    // розливного обладнання"/"ТП" (RNE104, команда СВ Харків 5). Стабільні
+    // прямі URL (не легко "битий" хостинг), без завантаження файлів на
+    // наш бік — next/image просто оптимізує їх з чужого хоста.
+    remotePatterns: [
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
+      { protocol: "https", hostname: "upload.wikimedia.org" },
+    ],
   },
 };
 

@@ -1,0 +1,830 @@
+/* ===================== /manager — кабінет керівника (SV..RM) =====================
+   Десктопний інструмент, як /admin — використовує .admin-page/.admin-topbar/
+   .admin-btn-link/.admin-input-flex/.admin-hint/.admin-course-row-caret
+   напряму (app/styles/admin.css), тут лише те, чого там ще нема:
+   KPI-плитки, статус-пілли, 2 графіки (кільце + бари), дерево команди. */
+
+/* Резинова верстка: .manager-page ділить клас .admin-page з /admin (десктоп-
+   only, свідомо без адаптиву — не займаємо ту базову CSS), тож увесь
+   fluid-адаптив тут висить на .manager-page/.manager-shell — окремих
+   класах, які є лише на /manager і нічого в /admin не чіпають. Підхід:
+   clamp() для відступів/відступів-вкладеності (плавно, без "стрибків" на
+   конкретних breakpoint) + repeat(auto-fit, minmax(...)) для сіток (самі
+   перерахунковують кількість колонок під ширину, без ручних @media).
+   Медіа-запити лишились тільки там, де auto-fit/clamp фізично не
+   вирішують задачу (топбар: короткий текст замість повного на вузькому). */
+/* body сама по собі display:flex; justify-content:center (app/globals.css —
+   центрує телефонну рамку .stage/.course-card /hub). Без явного width тут
+   .manager-shell, як будь-який flex-item, сідає на fit-content розмір
+   свого вмісту — а auto-fit-грід (KPI-плитки/графіки нижче) під
+   невизначеною/fit-content шириною предка НЕ звужує кількість колонок
+   (відомий edge-case auto-fit: без DEFINITE containing-block width він
+   рахує мінімальну ширину як N колонок × minmax-мінімум, а не 1),
+   роздуваючи .manager-shell ширше за viewport — на мобільному це тихо
+   обрізалось body{overflow-x:hidden}, без скролу, просто зникали краї.
+   width:100% тут дає гріду нижче ту саму визначену ширину, що вже
+   працює для /hub (.stage має свій явний max-width) і /admin
+   (.admin-page {width:100%}, але без auto-fit-гріда — тому там ця
+   пастка нічим не проявлялась досі). */
+.manager-shell {
+  width: 100%;
+  /* СПРАВЖНІЙ корінь "розміри шрифтів досі різні": --fs-scale
+     (SettingsSheet.jsx) виставляється інлайново на <html> і зберігається
+     в localStorage — якщо на цьому пристрої користувач КОЛИСЬ міняв
+     розмір тексту на /hub (де ProfileCard/.hub-h1/.greeting/.badge-item
+     через calc(Npx * var(--fs-scale)) реагують на нього), те саме
+     значення тягнеться і в /manager — але /manager СВОЇХ класів
+     (mgr-*) писав на чистих px, без var(--fs-scale) взагалі. Результат:
+     елементи з hub.css (банер-картка, бейджі) масштабувались під старе
+     налаштування телефону, а елементи з manager.css — ні, тож ОДНА й та
+     сама сторінка показувала два різні "масштаби" тексту одночасно.
+     /manager — десктопний інструмент без власного перемикача розміру
+     тексту, тож просто гасимо успадкування --fs-scale тут повністю:
+     усе всередині .manager-shell завжди рахує calc(Npx * 1), незалежно
+     від того, що людина колись накрутила на /hub. */
+  --fs-scale: 1;
+}
+/* body (app/globals.css) — display:flex; align-items:center;
+   justify-content:center; min-height:100vh; padding:24px 14px — зроблено
+   для короткого фіксованого .course-card /hub, не для довгої сторінки, як
+   /manager. Flex-центрування довшого за viewport вмісту на мобільному
+   Safari — відомий edge-case: у портретній орієнтації (де 100vh рахується
+   з розгорнутою адресною смугою) сторінка робилась нескролюваною, хоча в
+   landscape (менша відносна різниця) скрол з'являвся. body:has() —
+   вибірково знімаємо це центрування лише для /manager (де в body лежить
+   .manager-shell), /hub і /admin body лишаються як є. */
+body:has(.manager-shell) {
+  display: block;
+  min-height: auto;
+  padding: 0;
+}
+/* Справжній корінь "не скролиться в портреті": app/globals.css має
+   @media(max-width:560px){ html,body{height:100%;overflow:hidden} } — це
+   свідомо зроблено для /hub (там ЄДИНИЙ скрол-контейнер — .hub-viewport
+   всередині фіксованого .course-card, а зовнішній html/body-скрол
+   навмисно вимкнено, щоб iOS не "хапав" не той скрол — коментар вище в
+   globals.css). /manager своєї внутрішньої зони скролу не має (звичайна
+   довга сторінка), тож той самий global-фікс лишав її взагалі
+   нескролюваною нижче 560px (портрет) — і скролювалась лише в landscape,
+   де медіа-запит вже не діє. :has() тут — вища специфічність за голий
+   `html, body` з медіа-запиту, тож перебиває саме для /manager, не
+   чіпаючи /hub. */
+html:has(.manager-shell),
+body:has(.manager-shell) {
+  height: auto;
+  overflow: visible;
+}
+
+.manager-page {
+  padding: clamp(16px, 4vw, 32px) clamp(14px, 4vw, 40px) 60px;
+}
+/* Курси/Досягнення/Профіль — той самий контент-паттерн, що в /hub
+   (.hub-h1/.greeting/.badge-grid/.profile-card тощо, hub.css), який був
+   спроєктований під вузьку телефонну картку. На повній десктопній
+   ширині ці класи не ламаються (жодних фіксованих px-ширин всередині),
+   але виглядають краще з розумним максимумом, а не розтягнуті на весь
+   екран — це "особистий" контент, не таблиця/дашборд. */
+.manager-hub-page {
+  max-width: 640px;
+}
+
+.manager-topbar-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.mgr-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 16px;
+}
+.mgr-page-header h1 {
+  margin-bottom: 0;
+}
+.mgr-export-link {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-input);
+  text-decoration: none;
+}
+
+/* ---- Каркас: sidebar (десктоп/планшет) ↔ appbar+burger+шторка (мобільний) ----
+   Обидві розмітки в DOM завжди, перемикання — лише через display у
+   медіа-запиті внизу файлу (SSR-безпечно, без "стрибка" при гідратації —
+   той самий підхід, що вже в .stage/globals.css). */
+.manager-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.mgr-sidebar {
+  display: none;
+  flex-direction: column;
+  width: 240px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 22px 16px;
+  border-right: 1px solid var(--line);
+  background: var(--surface-1);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.mgr-sidebar-brand {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 20px;
+  color: var(--green-700);
+  margin-bottom: 26px;
+}
+.mgr-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+.mgr-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13.5px;
+  transition: background var(--dur-fast) var(--ease-premium), color var(--dur-fast) var(--ease-premium);
+}
+.mgr-nav-link svg {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+}
+.mgr-nav-icon {
+  position: relative;
+  display: inline-flex;
+}
+/* Маркер "нове" (новопризначені курси — components/ManagerShell.jsx,
+   hasNewCourses з app/manager/layout.js) — та сама крапка на іконці
+   розділу і на бургер-кнопці, суто дата-based (isRecentlyAssigned,
+   lib/progress.js), без окремої таблиці "прочитано". */
+.mgr-nav-dot {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+@media (hover: hover) {
+  .mgr-nav-link:hover {
+    background: var(--cb-overlay-10);
+    color: var(--ink);
+  }
+}
+.mgr-nav-link:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.mgr-nav-link.active {
+  background: var(--green-tint);
+  color: var(--green-700);
+}
+.mgr-sidebar-footer {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mgr-sidebar-user {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.mgr-appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  /* env(safe-area-inset-top) — той самий "чубчик"-фікс, що .appbar в
+     globals.css для /hub (viewportFit:"cover" в app/layout.js вже дає
+     env() ненульове значення на реальному пристрої). */
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-1);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.mgr-burger-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  padding: 0;
+}
+/* :not(.mgr-nav-dot) — бургер-крапка (маркер "нове") теж <span> усередині
+   цієї кнопки; без винятку ця ширша-специфічна пара клас+тег перебивала
+   б власні 8x8px/круглу форму крапки їхніми 16x2px рисками. */
+.mgr-burger-btn span:not(.mgr-nav-dot) {
+  display: block;
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--ink);
+}
+.mgr-burger-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+
+/* Nav-шторка на мобільному — той самий .sheet-overlay/.sheet, що
+   SettingsSheet (globals.css), лише зі списком розділів замість
+   налаштувань шрифту. */
+.mgr-nav-sheet-user {
+  padding-bottom: 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mgr-nav-sheet .mgr-nav {
+  gap: 2px;
+  margin-bottom: 10px;
+}
+.mgr-nav-sheet .mgr-nav-link {
+  font-size: 15px;
+  padding: 12px 10px;
+}
+
+.mgr-main {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .manager-shell {
+    flex-direction: row;
+  }
+  .mgr-sidebar {
+    display: flex;
+  }
+  .mgr-appbar {
+    display: none;
+  }
+  .mgr-nav-sheet-overlay {
+    display: none !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .manager-shell .admin-topbar-title-full {
+    display: none;
+  }
+  .manager-shell .admin-topbar-title-short {
+    display: inline;
+  }
+}
+@media (min-width: 561px) {
+  .manager-shell .admin-topbar-title-short {
+    display: none;
+  }
+}
+
+.mgr-kpi-row {
+  display: grid;
+  /* auto-fit замість фіксованих 4 колонок — сам звужується до 2, потім 1
+     колонки на вузьких екранах, без ручних breakpoint. */
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 32px;
+}
+.mgr-kpi-tile {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  padding: 16px 18px;
+}
+.mgr-kpi-tile b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1.1;
+  color: var(--green-700);
+  margin-bottom: 4px;
+}
+.mgr-kpi-tile span {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.mgr-kpi-tile-alert {
+  border-color: var(--cb-fail);
+}
+.mgr-kpi-tile-alert b {
+  color: var(--danger);
+}
+
+.mgr-section {
+  margin-bottom: 36px;
+}
+.mgr-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+.mgr-section h2 svg {
+  width: 18px;
+  height: 18px;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+
+/* ---- Списки призначень (свої курси керівника + деталі підлеглого) ---- */
+.mgr-enrollment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mgr-enrollment-row {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  padding: 11px 14px;
+}
+.mgr-enrollment-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.mgr-enrollment-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.mgr-enrollment-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.mgr-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.mgr-stat-chip svg {
+  width: 13px;
+  height: 13px;
+}
+.mgr-medal-chip svg {
+  /* MedalIcon має внутрішню деталізацію (стрічка+кільце) — на стандартних
+     13px чипа зливається в цятку, тут трохи більше для читабельності
+     (17px), +30% за проханням користувача → 22px. */
+  width: 22px;
+  height: 22px;
+}
+
+/* Курс -> модулі: рядок на кожен модуль курсу (не лише підсумок за курс) —
+   статус (складено/не складено/ще не пройдено), бал і медаль. */
+.mgr-module-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.mgr-module-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.mgr-module-status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.mgr-module-status-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.mgr-module-row.is-pass .mgr-module-status-icon {
+  color: var(--green-700);
+}
+.mgr-module-row.is-fail .mgr-module-status-icon {
+  color: var(--danger);
+}
+.mgr-module-row.is-pending {
+  color: var(--ink-soft);
+}
+.mgr-module-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+/* overflow/white-space/text-overflow навмисно НЕ тут — MarqueeText сама
+   несе їх через спільний клас .marquee (app/globals.css); дублювання
+   тут лише конфліктувало б із біжучим рядком замість звичайного "...". */
+.mgr-module-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+}
+.mgr-module-score {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.mgr-module-streak {
+  font-size: 11px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.mgr-module-medal {
+  display: flex;
+  flex-shrink: 0;
+}
+.mgr-module-medal svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mgr-attempts {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.mgr-attempts-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mgr-attempts-item {
+  /* flex-wrap замість 4 жорстких grid-колонок — на вузькому екрані поля
+     переносяться по 2 в рядок замість стискання в нечитабельні смужки. */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  padding: 4px 0;
+}
+.mgr-attempts-item > * {
+  flex: 1 1 90px;
+}
+.mgr-attempt-pass {
+  color: var(--green-700);
+  font-weight: 600;
+}
+.mgr-attempt-fail {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* ---- Статус-пілли (той самий підхід, що ct-tag-mandatory в hub.css:
+   світлий фон токена + color-mix для читабельного темнішого тексту) ---- */
+.mgr-pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.mgr-pill-neutral {
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+.mgr-pill-success {
+  background: var(--cb-success-light);
+  color: color-mix(in srgb, var(--cb-success) 45%, var(--cb-black));
+}
+.mgr-pill-fail {
+  background: var(--cb-fail-light);
+  color: color-mix(in srgb, var(--cb-fail) 45%, var(--cb-black));
+}
+.mgr-pill-alert {
+  background: var(--cb-alert-light);
+  color: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
+}
+
+/* ---- Графіки (ручний SVG — у проєкті немає чарт-бібліотеки) ---- */
+.mgr-charts {
+  display: grid;
+  /* Так само auto-fit — кільце й бари стають у 2 колонки на широкому
+     екрані й самі складаються в 1 колонку, щойно не влазять поруч. */
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+.mgr-chart-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  padding: 18px 20px;
+}
+.mgr-ring-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px 8px;
+  margin-top: 4px;
+}
+.mgr-ring-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.mgr-ring {
+  width: 108px;
+  height: 108px;
+  display: block;
+}
+.mgr-ring-label {
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-align: center;
+}
+.mgr-ring-text {
+  font-family: var(--font-display);
+  font-size: 18px;
+  fill: var(--ink);
+}
+.mgr-ring-fill {
+  /* Кінці НЕ заокруглені (без strokeLinecap="round" у JSX — стандартний
+     butt) + анімоване заповнення при появі даних, ті самі токени руху,
+     що й бари вище. */
+  transition: stroke-dasharray var(--dur-slow) var(--ease-premium);
+}
+.mgr-bar-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mgr-bar-row {
+  /* flex-wrap замість жорсткої grid-колонки з мінімумом 120px — на
+     вузькому екрані трек сам переноситься на другий рядок під
+     назву+значення, а не змушує рядок вилазити за межі картки. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.mgr-bar-label {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mgr-bar-track {
+  flex: 3 1 160px;
+  min-width: 0;
+  height: var(--size-2xs);
+  /* Без border-radius — рівні, не заокруглені кінці (свідомий вибір, не
+     недогляд: "інженерний" вигляд діаграм замість м'якого). */
+  background: var(--cb-overlay-10);
+  overflow: hidden;
+}
+.mgr-bar-fill {
+  height: 100%;
+  background: var(--cb-primary);
+  /* --dur-slow/--ease-premium — ті самі токени руху, що вже скрізь у
+     проєкті (не власна довільна тривалість) — заповнення анімується від
+     0% при появі даних (components/ManagerDashboard.jsx, barsAnimated),
+     не стрибає миттєво на фінальне значення. */
+  transition: width var(--dur-slow) var(--ease-premium);
+}
+.mgr-bar-value {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Картка тренду росте разом із сусідньою карткою кілець (репет.
+   auto-fit/minmax у .mgr-charts вирівнює висоту рядка сітки по
+   найвищому елементу) — без flex-колонки тут .mgr-trend-row лишався б на
+   фіксованій висоті 120px, а решта вищої картки — порожнім білим
+   простором знизу (саме це виглядало "некоректно" на ширших екранах). */
+.mgr-trend-card {
+  display: flex;
+  flex-direction: column;
+}
+.mgr-trend-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 1;
+  min-height: 100px;
+  padding-top: 6px;
+}
+.mgr-trend-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+.mgr-trend-bar-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.mgr-trend-bar-fill {
+  width: 100%;
+  background: var(--cb-primary);
+  min-height: 3px;
+  transition: height var(--dur-slow) var(--ease-premium);
+}
+.mgr-trend-count {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.mgr-trend-label {
+  font-size: 9.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* ---- Дерево команди ---- */
+.mgr-team-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 14px;
+}
+.mgr-team-header h2 {
+  margin-bottom: 0;
+}
+.mgr-team-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+.mgr-team-search {
+  flex: 1 1 200px;
+  max-width: 280px;
+}
+.mgr-team-tree,
+.mgr-team-children {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mgr-team-children {
+  /* clamp — на вузькому екрані відступ вкладеності стискається (щоб 2-3
+     рівні дерева не з'їдали всю ширину картки), на широкому лишається
+     повний 26px. */
+  margin: 8px 0 0 clamp(12px, 5vw, 26px);
+  padding-left: clamp(8px, 3vw, 14px);
+  border-left: 2px solid var(--line);
+}
+.mgr-team-node {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.mgr-team-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 12px;
+}
+.mgr-team-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mgr-team-row-bottom {
+  display: flex;
+  /* 20px (каретка) + 8px (gap) — вирівнює бейджі під іменем, а не під
+     кареткою "розгорнути підлеглих" зліва. */
+  padding-left: 28px;
+}
+.mgr-team-name-btn {
+  /* 2 рядки: ім'я зверху, посада·територія знизу меншим шрифтом —
+     замість одного рядка "Ім'я  Посада…", який на вузьких картках
+     обрізав посаду в "Торгови…". */
+  flex: 1 1 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  padding: 2px 0;
+}
+.mgr-team-name-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.mgr-team-name {
+  width: 100%;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.mgr-team-meta {
+  /* Менший шрифт за ім'я — другорядна інформація (посада·територія). */
+  width: 100%;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.mgr-team-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.mgr-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+.mgr-badge-score {
+  color: var(--green-700);
+}
+.mgr-badge-overdue {
+  background: var(--cb-fail-light);
+  color: color-mix(in srgb, var(--cb-fail) 45%, var(--cb-black));
+}
+.mgr-team-detail {
+  /* Та сама "лінія структури", що .mgr-team-children (border-left + відступ)
+     — щоб було візуально очевидно, що список курсів нижче належить САМЕ
+     цій картці підлеглого, а не є окремим сусіднім блоком. */
+  margin: 8px 14px 4px clamp(18px, 10vw, 42px);
+  padding: 10px 0 2px 14px;
+  border-left: 2px solid var(--line);
+}

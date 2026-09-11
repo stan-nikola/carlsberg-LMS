@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SettingsSheet } from "@/components/SettingsSheet";
 import { GearIcon, LockIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
+import { PLATFORM_TAGLINE_SHORT } from "@/lib/branding";
 
 const TABS = [
   { href: "/hub", label: "Головна", Icon: HomeIcon },
@@ -23,6 +24,17 @@ export function HubShell({ children, isAdmin = false }) {
   const pathname = usePathname();
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const viewportRef = useRef(null);
+
+  // Перехід між вкладками — це client-side навігація всередині ОДНОГО й
+  // того самого внутрішнього скрол-контейнера (.hub-viewport), а не окрема
+  // сторінка з власним скролом: Next.js скидає лише window-скрол, про цей
+  // контейнер він не знає. Без цього, якщо попередній екран був
+  // прогорнутий вниз (напр. довгий блок "від колег"), новий відкривався
+  // вже "з середини" — верх нового екрана виглядав обрізаним.
+  useEffect(() => {
+    viewportRef.current?.scrollTo({ top: 0 });
+  }, [pathname]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -44,7 +56,7 @@ export function HubShell({ children, isAdmin = false }) {
                 fontSize: "calc(14px * var(--fs-scale))",
               }}
             >
-              Платформа адаптації та навчання
+              {PLATFORM_TAGLINE_SHORT}
             </div>
             {isAdmin && (
               <Link className="iconbtn" aria-label="Адмін-панель" href="/admin">
@@ -56,20 +68,25 @@ export function HubShell({ children, isAdmin = false }) {
             </button>
           </div>
 
-          <div className="hub-viewport">{children}</div>
+          <div className="hub-viewport" ref={viewportRef}>{children}</div>
 
           <nav className="tabbar" role="tablist">
-            {TABS.map(({ href, label, Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`tab-btn${pathname === href ? " active" : ""}`}
-                role="tab"
-              >
-                <Icon />
-                <span>{label}</span>
-              </Link>
-            ))}
+            {TABS.map(({ href, label, Icon }) => {
+              const isActive = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`tab-btn${isActive ? " active" : ""}`}
+                  role="tab"
+                  aria-label={label}
+                  aria-selected={isActive}
+                  title={label}
+                >
+                  <Icon filled={isActive} />
+                </Link>
+              );
+            })}
           </nav>
         </div>
       </div>

@@ -3,11 +3,13 @@ import { getCurrentUser } from "@/lib/session";
 import { computeXp } from "@/lib/progress";
 import { getEmployeeEnrollments } from "@/lib/employeeProgress";
 import { ProfileCard } from "@/components/ProfileCard";
+import { ProfileDetailPanel } from "@/components/ProfileDetailPanel";
 
 // Портовано з .hub-screen[data-tab="profile"] в legacy index.html.
 // pdSvEmail ("Керівник (email)") тепер employee.manager.email замість
 // плаского profile.svEmail; pdRegisteredAt — employee.firstLoginAt
-// замість profile.registeredAt.
+// замість profile.registeredAt. Рядки деталей — components/ProfileDetailPanel.jsx,
+// той самий блок рендерить і /manager/profile.
 export default async function HubProfilePage() {
   const sessionUser = await getCurrentUser();
   const employee = await prisma.employee.findUnique({
@@ -29,27 +31,11 @@ export default async function HubProfilePage() {
         levelLabel={levelLabel}
       />
 
-      <div className="profile-detail-list">
-        <div className="pd-row">
-          <span className="pd-k">Ваш код</span>
-          <span className="pd-v">{(employee.externalCode || "—").toUpperCase()}</span>
-        </div>
-        <div className="pd-row">
-          <span className="pd-k">Керівник (email)</span>
-          <span className="pd-v">{employee.manager?.email || "—"}</span>
-        </div>
-        <div className="pd-row">
-          <span className="pd-k">Зареєстровано</span>
-          <span className="pd-v">
-            {employee.firstLoginAt
-              ? new Date(employee.firstLoginAt).toLocaleDateString("uk-UA")
-              : "—"}
-          </span>
-        </div>
-      </div>
-      <p className="hub-empty-note">
-        Дані використовуються лише для проходження курсів і зберігаються в системі компанії.
-      </p>
+      <ProfileDetailPanel
+        externalCode={employee.externalCode}
+        managerEmail={employee.manager?.email}
+        firstLoginAt={employee.firstLoginAt}
+      />
     </section>
   );
 }

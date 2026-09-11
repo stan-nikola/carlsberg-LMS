@@ -732,6 +732,13 @@ function IPhoneFrame() {
  */
 function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext }) {
   const hasScreen = components && components.length > 0;
+  // Той самий скрол-контейнер, що й у реальному плеєрі (.cp-viewport) — той
+  // самий фікс: без явного скидання наступний екран у прев'ю відкривався
+  // "з середини", якщо попередній був прогорнутий вниз.
+  const viewportRef = useRef(null);
+  useEffect(() => {
+    viewportRef.current?.scrollTo({ top: 0 });
+  }, [stepNumber]);
   return (
     <div className="admin-editor-preview">
       <div className="iphone-mockup">
@@ -755,7 +762,7 @@ function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, 
             </div>
           )}
 
-          <div className="cp-viewport">
+          <div className="cp-viewport" ref={viewportRef}>
             {!hasScreen ? (
               <p className="admin-preview-empty">Оберіть екран зліва, щоб побачити прев&apos;ю.</p>
             ) : (
@@ -1011,6 +1018,7 @@ function NewModuleForm({ courseId, nextOrder, onCreated }) {
 function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved, onDeleted, dragHandleProps }) {
   const [title, setTitle] = useState(courseModule.title);
   const [cooldownDays, setCooldownDays] = useState(courseModule.cooldownDays ?? "");
+  const [retakeCooldownDays, setRetakeCooldownDays] = useState(courseModule.retakeCooldownDays ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save(patch) {
@@ -1036,6 +1044,12 @@ function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved
     const value = cooldownDays === "" ? null : Number(cooldownDays);
     if (value === (courseModule.cooldownDays ?? null)) return;
     save({ cooldownDays: value });
+  }
+
+  function handleRetakeCooldownBlur() {
+    const value = retakeCooldownDays === "" ? null : Number(retakeCooldownDays);
+    if (value === (courseModule.retakeCooldownDays ?? null)) return;
+    save({ retakeCooldownDays: value });
   }
 
   async function handleDelete(e) {
@@ -1081,6 +1095,24 @@ function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved
             onChange={(e) => setCooldownDays(e.target.value)}
             onBlur={handleCooldownBlur}
             placeholder="0"
+          />
+          дн.
+        </label>
+      )}
+      {expanded && (
+        <label
+          className="admin-module-unlock"
+          onClick={(e) => e.stopPropagation()}
+          title="Скільки днів має минути з моменту, як співробітник СКЛАВ цей модуль, перш ніж зможе перепройти його ще раз (реальний тест). На провалену спробу не впливає — її можна перепройти одразу."
+        >
+          Пауза перед повторним проходженням
+          <input
+            type="number"
+            min="0"
+            value={retakeCooldownDays}
+            onChange={(e) => setRetakeCooldownDays(e.target.value)}
+            onBlur={handleRetakeCooldownBlur}
+            placeholder="2"
           />
           дн.
         </label>
