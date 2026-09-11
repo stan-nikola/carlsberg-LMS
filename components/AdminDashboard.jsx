@@ -710,7 +710,8 @@ function CourseRow({ course, positions, territories, employees, onModuleAdded, o
           {course.title}
         </span>
         <span className="admin-hint">
-          /{course.slug} · {course.modules.length} {course.modules.length === 1 ? "модуль" : "модулів"}
+          /{course.slug} · {course.modules.length} {course.modules.length === 1 ? "модуль" : "модулів"} · Призначено:{" "}
+          {course._count?.enrollments ?? 0}
         </span>
       </button>
 
@@ -759,6 +760,11 @@ export function AdminDashboard() {
   const [employees, setEmployees] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [loadError, setLoadError] = useState("");
+  // Пошук/фільтр каталогу (Фаза E адмінки) — клієнтський, не серверний:
+  // курсів у каталозі одиниці-десятки (не 1900+, як співробітників), окремий
+  // API-запит на кожен натиск клавіші тут був би зайвим.
+  const [courseQuery, setCourseQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -807,6 +813,12 @@ export function AdminDashboard() {
 
   if (loadError) return <p className="admin-page admin-error">Не вдалося завантажити курси: {loadError}</p>;
 
+  const visibleCourses = (courses || []).filter((c) => {
+    if (categoryFilter && c.category !== categoryFilter) return false;
+    if (courseQuery.trim() && !c.title.toLowerCase().includes(courseQuery.trim().toLowerCase())) return false;
+    return true;
+  });
+
   return (
     <div className="admin-page">
       <div className="admin-editor-header">
@@ -832,6 +844,26 @@ export function AdminDashboard() {
         />
       )}
 
+      {courses && courses.length > 0 && (
+        <div className="admin-form-row" style={{ marginBottom: 12 }}>
+          <input
+            className="admin-input-flex"
+            placeholder="Пошук курсу за назвою…"
+            value={courseQuery}
+            onChange={(e) => setCourseQuery(e.target.value)}
+            style={{ maxWidth: 320 }}
+          />
+          <select className="admin-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="">Усі теми</option>
+            {COURSE_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {!courses ? (
         <p>
           <SpinnerIcon />
@@ -839,9 +871,11 @@ export function AdminDashboard() {
         </p>
       ) : courses.length === 0 ? (
         <p>Курсів ще немає.</p>
+      ) : visibleCourses.length === 0 ? (
+        <p className="admin-hint">Нічого не знайдено за цим фільтром.</p>
       ) : (
         <ul className="admin-course-list">
-          {courses.map((course) => (
+          {visibleCourses.map((course) => (
             <CourseRow
               key={course.id}
               course={course}
