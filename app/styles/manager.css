@@ -147,25 +147,11 @@ body:has(.manager-shell) {
   top: 0;
   height: 100vh;
 }
+/* Сам бренд-блок — components/PlatformBrand.jsx (спільний з хабом,
+   app/globals.css .platform-brand*); тут лише відступ під нього в
+   контексті сайдбара. */
 .mgr-sidebar-brand {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 20px;
-  color: var(--green-700);
   margin-bottom: 26px;
-}
-/* Розшифровка абревіатури "CLS" — дрібним підписом під самою назвою, і
-   в сайдбарі, і в мобільному appbar (.admin-topbar-title-short нижче). */
-.mgr-sidebar-brand-full {
-  display: block;
-  font-family: var(--font-body);
-  font-weight: 400;
-  font-size: 10.5px;
-  letter-spacing: 0.01em;
-  color: var(--ink-soft);
-}
-.admin-topbar-title-short .mgr-sidebar-brand-full {
-  margin-top: 1px;
 }
 .mgr-nav {
   display: flex;
@@ -319,20 +305,6 @@ body:has(.manager-shell) {
   }
   .mgr-nav-sheet-overlay {
     display: none !important;
-  }
-}
-
-@media (max-width: 560px) {
-  .manager-shell .admin-topbar-title-full {
-    display: none;
-  }
-  .manager-shell .admin-topbar-title-short {
-    display: inline;
-  }
-}
-@media (min-width: 561px) {
-  .manager-shell .admin-topbar-title-short {
-    display: none;
   }
 }
 
@@ -554,7 +526,10 @@ body:has(.manager-shell) {
   flex-shrink: 0;
   align-items: center;
   padding: 3px 9px;
-  border-radius: var(--radius-pill);
+  /* Без border-radius — за проханням користувача, як офіційні атоми
+     Malty (.admin-btn у admin.css той самий принцип): статус-піл тут
+     навмисно прямокутний, не заокруглена "пігулка". */
+  border-radius: 0;
   font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -838,7 +813,8 @@ body:has(.manager-shell) {
   font-weight: 600;
   color: var(--ink-soft);
   background: var(--surface-2);
-  border-radius: var(--radius-pill);
+  /* Без border-radius — той самий принцип, що .mgr-pill вище. */
+  border-radius: 0;
   padding: 3px 9px;
   white-space: nowrap;
 }

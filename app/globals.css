@@ -140,6 +140,45 @@ a {
   padding: 16px 14px 10px;
   flex-shrink: 0;
 }
+/* components/PlatformBrand.jsx — спільна бренд-мітка (хмелевий трилисток +
+   "CLS"/розшифровка), використовується і в .appbar хаба (компактний
+   "sm"), і в сайдбарі/appbar кабінету керівника (app/styles/manager.css
+   додає лише розмір "lg" — сама структура тут). */
+.platform-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.platform-brand-logo {
+  flex-shrink: 0;
+}
+.platform-brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.platform-brand-name {
+  font-family: var(--font-display);
+  font-weight: 900;
+  line-height: 1.2;
+  color: var(--green-700);
+}
+.platform-brand-sm .platform-brand-name {
+  font-size: calc(14px * var(--fs-scale));
+}
+.platform-brand-lg .platform-brand-name {
+  font-size: 20px;
+}
+.platform-brand-full {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 10.5px;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
+}
 .iconbtn {
   width: 34px;
   height: 34px;

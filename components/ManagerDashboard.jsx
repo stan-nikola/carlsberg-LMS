@@ -65,6 +65,41 @@ function formatDuration(seconds) {
  * transition на stroke-dasharray, --dur-slow/--ease-premium — ті самі
  * токени руху, що й скрізь у проєкті), а не миттєво стрибає на
  * фінальне значення. */
+/**
+ * Колір кільця відносно решти кілець у тій самій сітці — не фіксований
+ * per-метрика колір (той підхід плутав: "Розпочали 100%" виходило
+ * золотим, а "Виконано 50%" — зеленим, хоча перше явно краще другого).
+ * Ранжуємо 4 значення одне відносно одного: найгірше з чотирьох —
+ * --cb-fail, найкраще — --cb-success, проміжні — плавний перехід через
+ * --cb-alert (світлофор), той самий color-mix-прийом, що вже є в
+ * .mgr-pill-success/.mgr-pill-fail (app/styles/manager.css).
+ */
+function rateColor(pct, allValues) {
+  const min = Math.min(...allValues);
+  const max = Math.max(...allValues);
+  if (max === min) return "var(--cb-success)"; // усі рівні — нема "гіршого", вважаємо добре
+  const t = (pct - min) / (max - min); // 0 = найменше з чотирьох, 1 = найбільше
+  if (t <= 0.5) {
+    const mix = Math.round(t * 200);
+    return `color-mix(in srgb, var(--cb-alert) ${mix}%, var(--cb-fail) ${100 - mix}%)`;
+  }
+  const mix = Math.round((t - 0.5) * 200);
+  return `color-mix(in srgb, var(--cb-success) ${mix}%, var(--cb-alert) ${100 - mix}%)`;
+}
+
+/**
+ * Чи вартий 🎯-стрик показу керівнику: лише коли тест дійсно СКЛАДЕНО
+ * (не провалений і не "в процесі" — "2 поспіль" поруч із червоним "НЕ
+ * СКЛАДЕНО" нічого корисного не каже, лише шум) І серія покриває
+ * реально помітну частку всіх питань (> 2/3), а не випадкові 2 підряд
+ * на довгому тесті. scoreMax може бути відсутній для завершень,
+ * записаних до появи цього поля (lib/managerDashboard.js) — тоді теж
+ * не показуємо, а не ділимо на 0/вигадуємо.
+ */
+function isNotableStreak(streak, scoreMax, passed) {
+  return passed === true && Boolean(streak) && Boolean(scoreMax) && streak / scoreMax > 2 / 3;
+}
+
 function CompletionRing({ pct, label, color = "var(--cb-secondary)" }) {
   const [animated, setAnimated] = useState(false);
   useEffect(() => {
@@ -142,7 +177,7 @@ function EnrollmentRow({ enrollment }) {
             "страйк"-рейт (streak), що й мотиваційні тости в плеєрі:
             найдовша серія поспіль правильних відповідей за спробу
             (Enrollment.longestCorrectStreak). */}
-        {enrollment.longestCorrectStreak > 0 && (
+        {isNotableStreak(enrollment.longestCorrectStreak, enrollment.scoreMax, enrollment.passed) && (
           <span className="mgr-stat-chip" title="Найдовша серія поспіль правильних відповідей">
             🎯 {enrollment.longestCorrectStreak} поспіль
           </span>
@@ -174,7 +209,7 @@ function EnrollmentRow({ enrollment }) {
               </span>
               <MarqueeText className="mgr-module-title">{m.title}</MarqueeText>
               {m.scorePercent != null && <span className="mgr-module-score">{m.scorePercent}%</span>}
-              {m.longestCorrectStreak > 0 && (
+              {isNotableStreak(m.longestCorrectStreak, m.scoreMax, m.passed) && (
                 <span className="mgr-module-streak" title="Найдовша серія поспіль правильних відповідей у цьому модулі">
                   🎯 {m.longestCorrectStreak}
                 </span>
@@ -449,6 +484,9 @@ export function ManagerDashboard() {
   const { stats, summaryByEmployeeId, tree, weeklyTrend } = team;
   const trendMax = Math.max(1, ...weeklyTrend.map((w) => w.count));
   const visibleNodes = filteredFlat ?? sortByOverdueFirst(tree, summaryByEmployeeId);
+  // Для rateColor нижче — 4 показники "Показники команди" ранжуються один
+  // відносно одного, не за фіксованим per-метрика кольором.
+  const ringValues = [stats.completionRate, stats.passRate, stats.onTimeRate, stats.engagementRate];
 
   return (
     <div className="admin-page manager-page">
@@ -493,10 +531,10 @@ export function ManagerDashboard() {
         <div className="mgr-chart-card">
           <h2>Показники команди</h2>
           <div className="mgr-ring-grid">
-            <CompletionRing pct={stats.completionRate} label="Виконано" color="var(--cb-secondary)" />
-            <CompletionRing pct={stats.passRate} label="Складено (80%+)" color="var(--green-700)" />
-            <CompletionRing pct={stats.onTimeRate} label="Вчасно" color="var(--cb-notification)" />
-            <CompletionRing pct={stats.engagementRate} label="Розпочали" color="var(--cb-tertiary)" />
+            <CompletionRing pct={stats.completionRate} label="Виконано" color={rateColor(stats.completionRate, ringValues)} />
+            <CompletionRing pct={stats.passRate} label="Складено (80%+)" color={rateColor(stats.passRate, ringValues)} />
+            <CompletionRing pct={stats.onTimeRate} label="Вчасно" color={rateColor(stats.onTimeRate, ringValues)} />
+            <CompletionRing pct={stats.engagementRate} label="Розпочали" color={rateColor(stats.engagementRate, ringValues)} />
           </div>
         </div>
 

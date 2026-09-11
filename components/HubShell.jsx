@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SettingsSheet } from "@/components/SettingsSheet";
 import { GearIcon, LockIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
-import { PLATFORM_TAGLINE_SHORT } from "@/lib/branding";
+import { PlatformBrand } from "@/components/PlatformBrand";
 
 const TABS = [
   { href: "/hub", label: "Головна", Icon: HomeIcon },
@@ -47,17 +47,7 @@ export function HubShell({ children, isAdmin = false }) {
       <div className="course-col">
         <div className="course-card">
           <div className="appbar">
-            <div
-              className="hub-brand"
-              style={{
-                flex: 1,
-                fontFamily: "var(--font-display)",
-                fontWeight: 700,
-                fontSize: "calc(14px * var(--fs-scale))",
-              }}
-            >
-              {PLATFORM_TAGLINE_SHORT}
-            </div>
+            <PlatformBrand size="sm" />
             {isAdmin && (
               <Link className="iconbtn" aria-label="Адмін-панель" href="/admin">
                 <LockIcon />
