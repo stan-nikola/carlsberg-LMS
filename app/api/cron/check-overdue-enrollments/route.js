@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { markOverdueEnrollments } from "@/lib/overdueEnrollments";
 import { publishScheduledCourses } from "@/lib/courseAssignment";
+import { evaluateAutoBadgesForAll } from "@/lib/badgeRules";
 
 // Вызывается Vercel Cron раз в день (см. vercel.json). Vercel сам
 // подставляет заголовок Authorization: Bearer $CRON_SECRET, если в
@@ -8,9 +9,10 @@ import { publishScheduledCourses } from "@/lib/courseAssignment";
 // https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs
 // CRON_SECRET нужно будет задать в Vercel (Шаг 4 — подготовка к деплою).
 //
-// Два независимых шага объединены в один cron (а не заведён второй в
-// vercel.json) — оба лёгкие и обоим достаточно суточной точности
-// ("дата публікації" — календарная дата, не время с точностью до минуты).
+// Три независимых шага объединены в один cron (а не заведён отдельный в
+// vercel.json) — все лёгкие и всем достаточно суточной точности; авто-
+// нарахування ачивок (Фаза C, lib/badgeRules.js) безпечно повторювати
+// щодня — @@unique([employeeId,badgeId]) + skipDuplicates не дає дублів.
 export async function GET(request) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -19,5 +21,6 @@ export async function GET(request) {
 
   const overdue = await markOverdueEnrollments();
   const published = await publishScheduledCourses();
-  return NextResponse.json({ overdue, published });
+  const badges = await evaluateAutoBadgesForAll();
+  return NextResponse.json({ overdue, published, badges });
 }

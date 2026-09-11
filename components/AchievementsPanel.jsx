@@ -1,80 +1,58 @@
-import { LockIcon, BowlingPinIcon, MedalIcon } from "@/components/icons";
+import { LockIcon } from "@/components/icons";
 
 /**
  * Вміст екрана "Досягнення" — значки + рейтинг регіону. Винесено з
  * app/hub/achievements/page.js, щоб той самий блок міг рендеритись і в
  * /manager/achievements (керівник — теж Employee зі своїми enrollments,
  * та сама логіка значків йому підходить без змін).
+ *
+ * Раніше (до Фази C адмінки) увесь вміст, крім "Курс складено", був
+ * хардкодженою заглушкою — фейковий leaderboard, 5 із 6 значків завжди
+ * заблоковані. Тепер `badges`/`leaderboard` — реальні дані
+ * (lib/achievements.js): badges = усі типи ачивок з БД (manual + auto,
+ * lib/badgeRules.js) із прапорцем earned; leaderboard = реальний топ по
+ * середньому балу в межах території співробітника.
  */
-export function AchievementsPanel({ passedCount }) {
+export function AchievementsPanel({ badges, leaderboard, currentEmployeeId }) {
   return (
     <>
       <div className="hub-sec-title">
         <h3>Значки</h3>
       </div>
-      <div className="badge-grid">
-        <div className="badge-item">
-          <div className="badge-ico">🎉</div>
-          <span>Перший вхід</span>
+      {badges.length === 0 ? (
+        <p className="hub-empty-note">Ачивок поки не заведено.</p>
+      ) : (
+        <div className="badge-grid">
+          {badges.map((b) => (
+            <div key={b.id} className={`badge-item${b.earned ? "" : " locked"}`} title={b.description || ""}>
+              <div className="badge-ico">{b.icon || "⭐"}</div>
+              <span>{b.title}</span>
+            </div>
+          ))}
         </div>
-        <div className={`badge-item${passedCount > 0 ? "" : " locked"}`}>
-          <div className="badge-ico">🏆</div>
-          <span>Курс складено</span>
-        </div>
-        <div className="badge-item locked">
-          <div className="badge-ico">🎯</div>
-          <span>Без помилок</span>
-        </div>
-        <div className="badge-item locked">
-          {/* Кегля замість 🔥 — "страйк"-рейт (серія поспіль), гра слів
-              зі страйком у боулінгу. */}
-          <div className="badge-ico badge-ico-svg">
-            <BowlingPinIcon />
-          </div>
-          <span>Серія з 3 днів</span>
-        </div>
-        <div className="badge-item locked">
-          <div className="badge-ico">📚</div>
-          <span>5 курсів пройдено</span>
-        </div>
-        <div className="badge-item locked">
-          <div className="badge-ico">⭐</div>
-          <span>Топ регіону</span>
-        </div>
-      </div>
+      )}
 
       <div className="hub-sec-title">
         <h3>Рейтинг регіону</h3>
       </div>
       <div className="leaderboard-wrap">
-        <div className="leaderboard-list">
-          <div className="lb-row">
-            <span className="lb-rank">
-              <MedalIcon tier="gold" />
-            </span>
-            <span className="lb-name">Ірина П.</span>
-            <span className="lb-score">980 XP</span>
+        {leaderboard.length > 0 ? (
+          <div className="leaderboard-list">
+            {leaderboard.map((row, i) => (
+              <div className={`lb-row${row.id === currentEmployeeId ? " lb-row-self" : ""}`} key={row.id}>
+                <span className="lb-rank">{i + 1}</span>
+                <span className="lb-name">{row.name}</span>
+                <span className="lb-score">{row.avgScore}% сер. бал</span>
+              </div>
+            ))}
           </div>
-          <div className="lb-row">
-            <span className="lb-rank">
-              <MedalIcon tier="silver" />
-            </span>
-            <span className="lb-name">Максим Т.</span>
-            <span className="lb-score">910 XP</span>
+        ) : (
+          <div className="leaderboard-lock">
+            <LockIcon />
+            <b>Рейтинг з&apos;явиться, коли з&apos;являться перші складені курси у вашій території</b>
+            <span>Порівнюйте прогрес із колегами свого регіону</span>
           </div>
-          <div className="lb-row">
-            <span className="lb-rank">
-              <MedalIcon tier="bronze" />
-            </span>
-            <span className="lb-name">Олег С.</span>
-            <span className="lb-score">860 XP</span>
-          </div>
-        </div>
-        <div className="leaderboard-lock">
-          <LockIcon />
-          <b>Рейтинг з&apos;явиться скоро</b>
-          <span>Порівнюйте прогрес із колегами свого регіону</span>
-        </div>
+        )}
       </div>
     </>
   );

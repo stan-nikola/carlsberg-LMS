@@ -1154,3 +1154,64 @@
   font-size: 12.5px;
   text-align: center;
 }
+
+/* ---- Таблиця типів ачивок (AdminBadges.jsx, Фаза C) — той самий стиль,
+   що .admin-employee-table, але 4 колонки замість 5. ---- */
+.admin-badge-table {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.admin-badge-row {
+  display: grid;
+  grid-template-columns: 40px 2fr 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  font-size: 13.5px;
+}
+.admin-badge-row:not(.admin-badge-row-head):hover {
+  background: var(--surface-1);
+}
+.admin-badge-row-head {
+  background: var(--surface-1);
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+}
+
+/* ---- Список виданих ачивок на картці співробітника (EmployeeBadgesSection.jsx) ---- */
+.admin-badge-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.admin-badge-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+}
+.admin-badge-list-ico {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.admin-badge-list-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}

@@ -94,10 +94,12 @@ model Employee {
   /// Прямые подчинённые (следующая ступень вниз по иерархии).
   subordinates Employee[] @relation("EmployeeHierarchy")
 
-  enrollments         Enrollment[]   @relation("EnrollmentEmployee")
-  assignedEnrollments Enrollment[]   @relation("EnrollmentAssignedBy")
+  enrollments         Enrollment[]    @relation("EnrollmentEmployee")
+  assignedEnrollments Enrollment[]    @relation("EnrollmentAssignedBy")
   notifications       Notification[]
   apiTokens           AdminApiToken[]
+  badgesReceived      EmployeeBadge[] @relation("BadgeRecipient")
+  badgesAwarded       EmployeeBadge[] @relation("BadgeAwardedBy")
 
   /// Soft-delete/деактивація для адмінського CRUD співробітників.
   /// Навмисно НЕ hard delete — Employee має self-relation (managerId/
@@ -441,4 +443,59 @@ model AdminApiToken {
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?
+}
+
+// ---------------------------------------------------------------------
+// Ачивки/заслуги (Фаза C адмінки)
+// ---------------------------------------------------------------------
+
+/// manual — адмін вручну створює тип і видає конкретній людині (аналог
+/// "kudos"/spot-award у Lattice/Culture Amp). auto — нараховується самому
+/// щоденним cron за реальними даними (lib/badgeRules.js), як у
+/// Duolingo/Salesforce Trailhead.
+enum BadgeKind {
+  manual
+  auto
+}
+
+/// Тип ачивки/заслуги — сам "значок", ще не прив'язаний до людини
+/// (прив'язка — EmployeeBadge нижче). Для kind=auto ruleKey вказує, яку
+/// функцію з lib/badgeRules.js рахувати; для kind=manual ruleKey — null,
+/// адмін видає вручну з картки співробітника.
+model Badge {
+  id          Int             @id @default(autoincrement())
+  /// Стабільний ключ — для auto badge_rules.js звертається саме по ньому,
+  /// не по назві (назву адмін може перейменувати, не ламаючи авто-правило).
+  code        String          @unique
+  title       String
+  description String?
+  /// emoji або ключ SVG-іконки — той самий підхід, що вже є в
+  /// AchievementsPanel.jsx (badge-ico), не нова система іконок.
+  icon        String?
+  kind        BadgeKind
+  ruleKey     String?
+  createdAt   DateTime        @default(now())
+  awards      EmployeeBadge[]
+}
+
+/// Факт видачі конкретної ачивки конкретній людині. @@unique — і захист
+/// від дублів при повторному прогоні auto-правил (cron може безпечно
+/// прогонятись хоч щодня), і природне обмеження "одна й та сама ачивка
+/// людині — один раз" для manual (повторна видача = помилка UI, не нова
+/// заслуга).
+model EmployeeBadge {
+  id          Int       @id @default(autoincrement())
+  employeeId  Int
+  employee    Employee  @relation("BadgeRecipient", fields: [employeeId], references: [id])
+  badgeId     Int
+  badge       Badge     @relation(fields: [badgeId], references: [id])
+  awardedAt   DateTime  @default(now())
+  /// null — нараховано авто-правилом (система), не людиною.
+  awardedById Int?
+  awardedBy   Employee? @relation("BadgeAwardedBy", fields: [awardedById], references: [id])
+  /// Текст "заслуги" при ручній видачі (напр. "За рекордний квартал") —
+  /// для auto зазвичай порожній, самого факту досягнення достатньо.
+  note        String?
+
+  @@unique([employeeId, badgeId])
 }

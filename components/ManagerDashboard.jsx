@@ -183,8 +183,8 @@ function EnrollmentRow({ enrollment }) {
           </span>
         )}
         {/* Медаль за той самий бал, що вже показаний вище — золото/срібло/
-            бронза за порогом (100% / 95%+ / 90%+), той самий принцип, що
-            й BowlingPinIcon→🎯: наочний символ поруч із цифрою. */}
+            бронза за порогом (100% / 95%+ / 90%+): наочний символ поруч із
+            цифрою. */}
         {medalTier(enrollment.scorePercent) && (
           <span className="mgr-stat-chip mgr-medal-chip" title={`${enrollment.scorePercent}% — медаль`}>
             <MedalIcon tier={medalTier(enrollment.scorePercent)} />

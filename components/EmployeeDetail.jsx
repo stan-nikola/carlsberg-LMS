@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SpinnerIcon } from "@/components/icons";
+import { EmployeeBadgesSection } from "@/components/EmployeeBadgesSection";
 
 const ROLE_LABELS = {
   employee: "Співробітник",
@@ -12,10 +13,9 @@ const ROLE_LABELS = {
 
 /**
  * Детальна картка співробітника (Фаза A адмінки) — повний редактор полів,
- * на відміну від AdminEmployees.jsx (лише роль + скидання PIN). Вкладки
- * "Ачивки" (Фаза C) і "Курси" (Фаза D — ручна корекція проходження) сюди
- * додаються окремими наступними кроками плану, тут поки лише сам
- * редактор картки + перепризначення керівника + (де)активація.
+ * на відміну від AdminEmployees.jsx (лише роль + скидання PIN). Плюс
+ * ачивки (components/EmployeeBadgesSection.jsx, Фаза C). "Курси" (Фаза D
+ * — ручна корекція проходження) додається окремим наступним кроком плану.
  */
 export function EmployeeDetail({ employeeId }) {
   const [employee, setEmployee] = useState(null);
@@ -358,6 +358,8 @@ export function EmployeeDetail({ employeeId }) {
           </button>
         )}
       </div>
+
+      <EmployeeBadgesSection employeeId={employeeId} />
 
       <div className="admin-form-section">
         <h2 style={{ fontSize: 15 }}>Підпорядкування й курси</h2>

@@ -717,18 +717,6 @@
   background: linear-gradient(150deg, var(--gold), color-mix(in srgb, var(--cb-tertiary) 78%, var(--cb-black)));
   box-shadow: 0 8px 16px -8px color-mix(in srgb, var(--cb-tertiary) 55%, transparent);
 }
-.badge-ico-svg {
-  /* Білий тут читався на золотому градієнті (.badge-ico, розблокований
-     стан), але значок "Серія з 3 днів" ЗАВЖДИ locked (legacy-заглушка,
-     ще не реалізована механіка) — на сірому .badge-item.locked фоні
-     білий контур на світло-сірому був майже невидимий. --ink контрастний
-     на обох фонах (і на золотому, і на сірому locked). */
-  color: var(--ink);
-}
-.badge-ico-svg svg {
-  width: 26px;
-  height: 26px;
-}
 .badge-item.locked .badge-ico {
   background: var(--surface-2);
   box-shadow: none;
@@ -748,14 +736,15 @@
   overflow: hidden;
   margin-bottom: 8px;
 }
+/* До Фази C адмінки тут завжди був блюр+lock-заглушка ("Рейтинг з'явиться
+   скоро") поверх фейкових рядків — реальний рейтинг тепер рендериться
+   САМ ПО СОБІ (components/AchievementsPanel.jsx: .leaderboard-list АБО
+   .leaderboard-lock, ніколи разом), блюр/pointer-events:none лишались б
+   зайвими й ламали б клікабельність реальних даних. */
 .leaderboard-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  filter: blur(3px);
-  opacity: 0.6;
-  pointer-events: none;
-  user-select: none;
 }
 .lb-row {
   display: flex;
@@ -765,6 +754,12 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: 9px 12px;
+}
+/* Власний рядок співробітника в рейтингу — виділений тонкою зеленою
+   рамкою, щоб одразу бачити "де я", не шукаючи своє ім'я в списку. */
+.lb-row-self {
+  border-color: var(--green-700);
+  background: color-mix(in srgb, var(--green-700) 8%, var(--surface-1));
 }
 .lb-rank {
   display: flex;
