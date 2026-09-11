@@ -905,18 +905,20 @@
 .tab-btn.active {
   color: var(--cb-primary);
 }
-/* Заливка-піл навколо активної іконки — акцентніший стан за проханням
+/* Заливка навколо активної іконки — акцентніший стан за проханням
    користувача (польові ролі — ТП/Технік/Мерчендайзер, рівень нижче SV —
    основна аудиторія хаба), ніж сама лише зміна кольору лінії. Не
    "заливка іконки" (той Instagram-стиль свідомо прибрали раніше цієї ж
-   сесії) — суцільний зелений піл-фон, іконка на ньому біла, лінія та
-   сама, що й скрізь (не інший силует). */
+   сесії) — суцільний зелений фон, іконка на ньому біла, лінія та сама,
+   що й скрізь (не інший силует). Без border-radius — за проханням
+   користувача, той самий принцип, що .course-card/.mgr-pill/.admin-btn
+   (квадратні атоми Malty, не заокруглені); прямокутник, не піл. */
 .tab-btn-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 6px 18px;
-  border-radius: var(--radius-pill);
+  border-radius: 0;
   transition: background var(--dur-fast) var(--ease-premium), color var(--dur-fast) var(--ease-premium);
 }
 .tab-btn.active .tab-btn-indicator {
