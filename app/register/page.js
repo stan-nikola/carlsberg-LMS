@@ -93,6 +93,8 @@ export default function RegisterPage() {
         setTimeout(() => pinInputRef.current?.focus(), 0);
       } else if (resp.error === "no_manager_email") {
         setCodeError("Для цього коду не вказано пошту для отримання PIN. Зверніться до адміністратора.");
+      } else if (resp.error === "deactivated") {
+        setCodeError("Цей обліковий запис деактивовано. Зверніться до адміністратора.");
       } else if (resp.error === "not_found") {
         setCodeError("Код не знайдено. Перевірте правильність і спробуйте ще раз.");
       } else {

@@ -1102,3 +1102,55 @@
   justify-content: space-between;
   margin-top: 10px;
 }
+
+/* ---- Дерево організації (EmployeeTree.jsx, Фаза A адмінки) ---- */
+.emp-tree-top {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 6px;
+}
+.emp-tree-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.emp-tree-node + .emp-tree-node {
+  margin-top: 2px;
+}
+.emp-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--radius-card);
+  transition: outline 0.1s ease;
+}
+.emp-tree-row-inactive {
+  opacity: 0.55;
+}
+.emp-tree-name {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.emp-tree-name:hover {
+  text-decoration: underline;
+}
+.emp-tree-meta {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  margin-left: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.emp-tree-root-drop {
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-card);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  text-align: center;
+}
