@@ -164,6 +164,25 @@
   font-size: calc(10.5px * var(--fs-scale));
   color: var(--ink-soft);
 }
+/* Раніше .cp-note взагалі не мав власного стилю (голий <p>) — базове
+   оформлення тепер є в обох (підказка про блокування модуля й заохочення
+   до сертифіката нижче), не лише "непомітний сірий текст". */
+.cp-note {
+  width: 100%;
+  font-size: calc(12px * var(--fs-scale));
+  color: var(--ink-soft);
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 10px 13px;
+  margin-top: 8px;
+}
+.cp-certificate-hint {
+  background: var(--gold-soft);
+  border-color: var(--gold);
+  color: color-mix(in srgb, var(--gold) 55%, var(--cb-black));
+  font-weight: 600;
+}
 
 /* quiz options (single/multi) */
 .opt-group {
@@ -783,7 +802,9 @@
   border: 1.5px solid var(--line);
   background: var(--cb-white);
   font-family: inherit;
-  font-size: calc(13.6px * var(--fs-scale));
+  /* max(16px, ...) — той самий анти-зум фікс, що в registration.css:
+     нижче 16px iOS Safari сам зумить сторінку при фокусі, незнімно. */
+  font-size: max(16px, calc(13.6px * var(--fs-scale)));
   color: var(--ink);
   resize: vertical;
   transition: border-color var(--dur-fast) var(--ease-premium);
@@ -1032,7 +1053,7 @@
   width: 100%;
   max-width: 300px;
   background: var(--surface);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-card);
   padding: 22px 20px;
   box-shadow: var(--shadow-overlay);
   text-align: center;
@@ -1049,7 +1070,7 @@
 .resume-prompt-title {
   font-family: var(--font-display);
   font-size: calc(16.5px * var(--fs-scale));
-  font-weight: 800;
+  font-weight: 700;
   margin-bottom: 8px;
 }
 .resume-prompt-text {

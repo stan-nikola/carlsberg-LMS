@@ -1,12 +1,14 @@
 import localFont from "next/font/local";
 import { Montserrat, IBM_Plex_Mono } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { PLATFORM_NAME, PLATFORM_SHORT_NAME, PLATFORM_TAGLINE } from "@/lib/branding";
 import "@/app/styles/tokens.css";
 import "./globals.css";
 import "@/app/styles/registration.css";
 import "@/app/styles/hub.css";
 import "@/app/styles/course-player.css";
 import "@/app/styles/admin.css";
+import "@/app/styles/manager.css";
 
 // Carlsberg Sans — справжній фірмовий шрифт (не заміна на щось схоже під
 // тим самим іменем). Файли — з ліцензійного пакету "Carlsberg Sans v3100"
@@ -47,8 +49,8 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata = {
-  title: "CLS Carlsberg Learning System",
-  description: "Платформа адаптації та навчання Carlsberg Ukraine",
+  title: PLATFORM_NAME,
+  description: PLATFORM_TAGLINE,
   // Android/Chrome читає app/manifest.js (файлова конвенція App Router,
   // Next сам підключає <link rel="manifest">). iOS Safari той файл
   // ігнорує — "Додати на головний екран" там орієнтується саме на ці
@@ -57,7 +59,7 @@ export const metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "CLS",
+    title: PLATFORM_SHORT_NAME,
   },
   icons: {
     apple: "/icons/icon-192.png",

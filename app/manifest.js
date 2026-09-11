@@ -6,11 +6,13 @@
 //
 // Іконки — ті самі, що вже використовувались у legacy vanilla-JS версії
 // (legacy/manifest.json), просто скопійовані в public/icons/, не нові.
+import { PLATFORM_NAME, PLATFORM_SHORT_NAME, PLATFORM_TAGLINE } from "@/lib/branding";
+
 export default function manifest() {
   return {
-    name: "CLS Carlsberg Learning System",
-    short_name: "CLS",
-    description: "Платформа адаптації та навчання Carlsberg Ukraine",
+    name: PLATFORM_NAME,
+    short_name: PLATFORM_SHORT_NAME,
+    description: PLATFORM_TAGLINE,
     start_url: "/hub",
     id: "/hub",
     scope: "/",

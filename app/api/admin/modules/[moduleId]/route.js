@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 
-// PATCH /api/admin/modules/:moduleId — { title?, order?, cooldownDays? }
+// PATCH /api/admin/modules/:moduleId — { title?, order?, cooldownDays?, retakeCooldownDays? }
 export async function PATCH(request, { params }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -13,6 +13,7 @@ export async function PATCH(request, { params }) {
   if (body.title !== undefined) data.title = body.title;
   if (body.order !== undefined) data.order = body.order;
   if (body.cooldownDays !== undefined) data.cooldownDays = body.cooldownDays;
+  if (body.retakeCooldownDays !== undefined) data.retakeCooldownDays = body.retakeCooldownDays;
 
   const courseModule = await prisma.module.update({ where: { id: Number(moduleId) }, data });
   return NextResponse.json(courseModule);

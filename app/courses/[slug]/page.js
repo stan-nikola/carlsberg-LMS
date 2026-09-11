@@ -1,8 +1,15 @@
 import { redirect, notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { getCourseForPlayer, getEnrollmentForCourse, flattenScreens, computeModuleAvailability } from "@/lib/courseContent";
+import {
+  getCourseForPlayer,
+  getEnrollmentForCourse,
+  flattenScreens,
+  computeModuleAvailability,
+  getPlayableModules,
+} from "@/lib/courseContent";
 import { CoursePlayer } from "@/components/CoursePlayer";
+import { CourseReview } from "@/components/CourseReview";
 
 // Доступ лише призначеним (є Enrollment) — на відміну від legacy, де курс
 // відкривався будь-кому із профілем платформи; тепер призначення явне
@@ -45,10 +52,45 @@ export default async function CoursePage({ params }) {
   const completionsByModuleId = new Map(completions.map((c) => [c.moduleId, c]));
   const moduleAvailability = computeModuleAvailability(course, completionsByModuleId);
 
-  const availableModules = course.modules.filter((m) => moduleAvailability.get(m.id).available);
-  const courseWithAvailableContent = { ...course, modules: availableModules };
+  // "Пауза перед повторним проходженням" (Module.retakeCooldownDays):
+  // модулі, які вже складено (passed) і пауза перепроходження ще не
+  // минула, сюди НЕ потрапляють — плеєр більше не змушує переграти вже
+  // складене з нуля щоразу, як людина заходить у курс (реальна скарга
+  // користувача: "кнопка знову відкриває пройдений модуль").
+  const playableModules = getPlayableModules(course, completionsByModuleId);
 
-  const screens = flattenScreens(courseWithAvailableContent).map((screen) => ({
+  // Немає жодного модуля, який зараз варто (пере)проходити, але щось уже
+  // реально складено — курс повністю пройдено, і всі паузи перепроходження
+  // ще діють. Замість плеєра — курс-методичка (тільки контент, без
+  // тестів/гейтів): швидко підглянути/повторити матеріал.
+  if (playableModules.length === 0 && completions.length > 0) {
+    return <CourseReview course={course} modules={course.modules} scorePercent={enrollment.scorePercent} />;
+  }
+
+  // Бал модулів, пропущених цього разу (уже складені раніше, пауза
+  // перепроходження ще діє) — потрібен, щоб submitResult() у CoursePlayer
+  // міг порахувати бал ВСЬОГО курсу, а не лише модулів цієї сесії.
+  const playableModuleIds = new Set(playableModules.map((m) => m.id));
+  const skippedModuleScores = course.modules
+    .filter((m) => !playableModuleIds.has(m.id))
+    .map((m) => {
+      const completion = completionsByModuleId.get(m.id);
+      if (!completion) return null;
+      if (completion.scoreRaw != null && completion.scoreMax != null) {
+        return { scoreRaw: completion.scoreRaw, scoreMax: completion.scoreMax };
+      }
+      // Легасі-рядок, записаний до появи scoreRaw/scoreMax на
+      // ModuleCompletion, — best-effort реконструкція з реальної к-сті
+      // питань модуля й округленого scorePercent (трохи менш точно за
+      // оригінал, але краще, ніж узагалі загубити внесок цього модуля).
+      const quizCount = m.screens.reduce((sum, s) => sum + s.components.filter((c) => c.type === "quiz").length, 0);
+      return { scoreRaw: Math.round((completion.scorePercent / 100) * quizCount), scoreMax: quizCount };
+    })
+    .filter(Boolean);
+
+  const courseWithPlayableContent = { ...course, modules: playableModules };
+
+  const screens = flattenScreens(courseWithPlayableContent).map((screen) => ({
     id: screen.id,
     title: screen.title,
     moduleId: screen.moduleId,
@@ -57,7 +99,9 @@ export default async function CoursePage({ params }) {
   }));
 
   // Повідомлення про наступний недоступний модуль (якщо є) — у порядку
-  // проходження.
+  // проходження. Стосується лише прогресивного гейта (ще не складено
+  // попередній) — модулі, пропущені через паузу ПЕРЕПРОХОДЖЕННЯ, просто
+  // тихо пропускаються (вони вже складені, пояснювати нічого не треба).
   let lockedNotice = null;
   const nextLockedModule = course.modules.find((m) => !moduleAvailability.get(m.id).available);
   if (nextLockedModule) {
@@ -79,6 +123,7 @@ export default async function CoursePage({ params }) {
       screens={screens}
       enrollmentId={enrollment.id}
       lockedNotice={lockedNotice}
+      skippedModuleScores={skippedModuleScores}
     />
   );
 }
