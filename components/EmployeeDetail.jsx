@@ -15,8 +15,8 @@ const ROLE_LABELS = {
 /**
  * Детальна картка співробітника (Фаза A адмінки) — повний редактор полів,
  * на відміну від AdminEmployees.jsx (лише роль + скидання PIN). Плюс
- * ачивки (components/EmployeeBadgesSection.jsx, Фаза C). "Курси" (Фаза D
- * — ручна корекція проходження) додається окремим наступним кроком плану.
+ * ачивки (components/EmployeeBadgesSection.jsx, Фаза C) і курси з ручною
+ * корекцією проходження (components/EmployeeCoursesSection.jsx, Фаза D).
  */
 export function EmployeeDetail({ employeeId }) {
   const [employee, setEmployee] = useState(null);

@@ -101,7 +101,7 @@ export function EmployeeCoursesSection({ employeeId }) {
             editingId === e.id ? (
               <EnrollmentEditRow key={e.id} enrollment={e} onSaved={() => { setEditingId(null); load(); }} onCancel={() => setEditingId(null)} />
             ) : (
-              <div className="admin-badge-row" key={e.id} style={{ gridTemplateColumns: "2fr 1fr 1fr auto" }}>
+              <div className="admin-enrollment-row" key={e.id}>
                 <span>
                   {e.course.title}
                   {e.adminNote && <div className="admin-hint">Ручна корекція: {e.adminNote}</div>}
@@ -180,7 +180,7 @@ function EnrollmentEditRow({ enrollment, onSaved, onCancel }) {
   }
 
   return (
-    <div className="admin-badge-row" style={{ gridTemplateColumns: "1fr", alignItems: "start" }}>
+    <div className="admin-enrollment-row-edit">
       <div className="admin-form-columns">
         <div className="admin-field">
           <label className="admin-label">Курс</label>

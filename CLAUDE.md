@@ -104,9 +104,41 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
 - Повністю ОКРЕМИЙ вхід від employee PIN-логіну — один спільний
   `ADMIN_PASSWORD`, сесія `admin_session` (`lib/adminSession.js`), жодного
   зв'язку з конкретним Employee.
-- Через це дії з /admin (напр. `Enrollment.assignedById`) пишуться від
-  фіктивного системного Employee (`externalCode: "SYSTEM-ADMIN"`,
-  заводиться в `prisma/seed.js`).
+- Через це дії з /admin (напр. `Enrollment.assignedById`,
+  `EmployeeBadge.awardedById` при ручній видачі) пишуться від фіктивного
+  системного Employee (`externalCode: "SYSTEM-ADMIN"`, заводиться в
+  `prisma/seed.js`).
+- Повний CRUD співробітників (картка `/admin/employees/[id]`,
+  `components/EmployeeDetail.jsx` + `AdminEmployees.jsx`) — редагування
+  полів, зміна ролі, скидання PIN, drag-and-drop редактор дерева
+  підпорядкування (`components/EmployeeTree.jsx`,
+  `lib/managerDashboard.js getTeamTree(null)` для всієї організації).
+  Видалення співробітника — лише soft-delete через `Employee.isActive`
+  (деактивований не може залогінитись, `lib/auth.js`, але вся історія —
+  підлеглі, enrollments, бейджі — лишається).
+- Ачивки/бейджі (`Badge`/`EmployeeBadge`, `lib/badgeRules.js`) —
+  `kind: manual` видає адмін вручну з картки співробітника
+  (`components/EmployeeBadgesSection.jsx`/`AdminBadges.jsx`),
+  `kind: auto` нараховується щоденним cron
+  (`app/api/cron/check-overdue-enrollments/route.js` →
+  `evaluateAutoBadgesForAll`). Той самий список показується
+  співробітнику в `components/AchievementsPanel.jsx`
+  (`lib/achievements.js`).
+- Ручна корекція проходження курсу (`Enrollment.adminNote`,
+  `components/EmployeeCoursesSection.jsx`,
+  `app/api/admin/enrollments/[enrollmentId]/route.js`) — статус/бал/дати
+  можна скорегувати вручну (напр. "пройшов офлайн"), `adminNote`
+  обов'язковий як аудит-слід.
+- Excel: разовий повний дамп бази (`app/api/admin/export/route.js`) +
+  xlsx-імпорт/шаблон співробітників (`app/api/admin/employees/import*`)
+  через admin_session, ЯК І ВСІ решта `/admin`-роутів. Окремо —
+  "жива" Excel-книга через Power Query (`app/api/data/{employees,
+  courses,enrollments}/route.js`) — це навмисно ІНШИЙ механізм
+  авторизації: Bearer-токен (`AdminApiToken`, `lib/adminApiToken.js`),
+  прив'язаний до конкретного Employee з роллю admin/hr_manager, видається
+  й відкликається в `/admin` (`components/ExcelLivePanel.jsx`,
+  `app/api/admin/tokens/*`), НЕ `admin_session` cookie (Power Query не
+  вміє нести cookie з браузерної сесії).
 
 ## Логін співробітника
 
@@ -151,8 +183,9 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
   локальний `DATABASE_URL`.
 - Домен у Resend не підтверджено — продові листи реально йдуть лише на
   пошту власника акаунта Resend.
-- Немає UI для скидання PIN адміном, немає UI для призначення ролей
-  admin/hr_manager (лише прямий запис у базу).
+- ~~Немає UI для скидання PIN адміном, немає UI для призначення ролей
+  admin/hr_manager~~ — закрито (`/admin/employees/[id]`, див. розділ
+  `/admin` вище): є і скидання PIN (`reset-pin` route), і зміна ролі.
 - `EnrollmentAttempt.longestCorrectStreak` завжди 0 (streak-механіка
   відкладена разом з акордеонами legacy — той акордеон уже частково
   повернули для "Варто знати", решта legacy-механік (gate, конфеті) ще

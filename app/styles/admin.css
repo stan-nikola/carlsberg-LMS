@@ -1137,6 +1137,12 @@
 .emp-tree-name:hover {
   text-decoration: underline;
 }
+.emp-tree-name:focus-visible {
+  outline: none;
+  text-decoration: underline;
+  box-shadow: var(--cb-focus-ring);
+  border-radius: var(--radius-card);
+}
 .emp-tree-meta {
   color: var(--ink-soft);
   font-size: 12.5px;
@@ -1174,6 +1180,7 @@
   padding: 10px 14px;
   background: var(--surface);
   font-size: 13.5px;
+  transition: background var(--dur-fast) var(--ease-premium);
 }
 .admin-badge-row:not(.admin-badge-row-head):hover {
   background: var(--surface-1);
@@ -1214,4 +1221,34 @@
   flex-direction: column;
   gap: 2px;
   flex: 1;
+}
+
+/* ---- Рядки призначених курсів на картці співробітника
+   (EmployeeCoursesSection.jsx, Фаза D) — та сама смугаста .admin-badge-table
+   обгортка (border/1px-розділювачі), але власна сітка (курс / статус / бал /
+   дії), відмінна від .admin-badge-row (ачивки), тому окремий клас, а не
+   inline-перевизначення grid-template-columns поверх .admin-badge-row. */
+.admin-enrollment-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  font-size: 13.5px;
+  transition: background var(--dur-fast) var(--ease-premium);
+}
+.admin-enrollment-row:hover {
+  background: var(--surface-1);
+}
+/* Рядок ручної корекції (форма редагування замість короткого запису) —
+   той самий контейнер/фон, але без сітки-таблиці: поля йдуть суцільним
+   стовпчиком. */
+.admin-enrollment-row-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+  padding: 12px 14px;
+  background: var(--surface);
 }
