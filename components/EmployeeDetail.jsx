@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SpinnerIcon } from "@/components/icons";
 import { EmployeeBadgesSection } from "@/components/EmployeeBadgesSection";
+import { EmployeeCoursesSection } from "@/components/EmployeeCoursesSection";
 
 const ROLE_LABELS = {
   employee: "Співробітник",
@@ -362,14 +363,14 @@ export function EmployeeDetail({ employeeId }) {
       <EmployeeBadgesSection employeeId={employeeId} />
 
       <div className="admin-form-section">
-        <h2 style={{ fontSize: 15 }}>Підпорядкування й курси</h2>
-        <p className="admin-subtitle">
-          Прямих підлеглих: {employee._count.subordinates} · Призначених курсів: {employee._count.enrollments}
-        </p>
+        <h2 style={{ fontSize: 15 }}>Підпорядкування</h2>
+        <p className="admin-subtitle">Прямих підлеглих: {employee._count.subordinates}</p>
         <Link href="/admin/employees?view=tree" className="admin-btn-link">
           Переглянути в дереві організації →
         </Link>
       </div>
+
+      <EmployeeCoursesSection employeeId={employeeId} />
     </div>
   );
 }

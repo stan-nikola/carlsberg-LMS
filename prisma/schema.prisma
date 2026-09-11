@@ -376,6 +376,11 @@ model Enrollment {
   attempts          EnrollmentAttempt[]
   moduleCompletions ModuleCompletion[]
 
+  /// Аудит-слід ручної корекції адміном (Фаза D адмінки) — чому статус/бал
+  /// був змінений вручну (напр. "пройшов офлайн, підтверджено керівником").
+  /// null — жодного разу не корегувалось вручну.
+  adminNote String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
