@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import XLSX from "xlsx";
+// "xlsx" (SheetJS) не має default export у ESM-збірці (лише іменовані —
+// readFile/read/utils тощо) — на відміну від CommonJS require() у
+// prisma/import-employees.js, де це просто працює через CJS-інтероп.
+// Namespace-імпорт (* as XLSX) дає той самий об'єкт з усіма методами.
+import * as XLSX from "xlsx";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
