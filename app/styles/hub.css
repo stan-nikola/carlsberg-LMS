@@ -119,7 +119,7 @@
   gap: 5px;
   margin-top: 7px;
   background: rgba(255, 255, 255, 0.16);
-  border-radius: 99px;
+  border-radius: var(--radius-pill);
   padding: 3px 10px 3px 4px;
   font-size: calc(10.8px * var(--fs-scale));
   font-weight: 700;
@@ -276,7 +276,7 @@
   background: var(--gold-soft);
   color: var(--gold);
   padding: 2px 7px;
-  border-radius: 99px;
+  border-radius: var(--radius-pill);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -413,6 +413,19 @@
   font-size: calc(10px * var(--fs-scale));
   color: var(--ink-soft);
   flex-shrink: 0;
+}
+.ct-module-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--fs-scale));
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+.ct-module-time svg {
+  width: 11px;
+  height: 11px;
 }
 .ct-module-streak {
   font-size: calc(10px * var(--fs-scale));
@@ -590,7 +603,9 @@
 .ct-icon {
   width: 46px;
   height: 46px;
-  border-radius: 13px;
+  /* Раніше сирі 13px — за рішенням користувача зведено до спільного
+     токена разом із .settings-ico/.cp-kicker-num (design-guardian-аудит). */
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
   color: var(--ink-soft);
   display: flex;
@@ -647,7 +662,7 @@
   background: var(--surface-2);
   color: var(--ink-soft);
   padding: 2px 7px;
-  border-radius: 99px;
+  border-radius: var(--radius-pill);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -870,6 +885,10 @@
 }
 .logout-row:active {
   transform: scale(0.98);
+}
+.logout-row:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
 }
 .logout-row svg {
   width: 16px;

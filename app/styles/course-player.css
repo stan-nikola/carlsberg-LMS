@@ -62,7 +62,9 @@
 .cp-kicker-num {
   width: 19px;
   height: 19px;
-  border-radius: 6px;
+  /* Раніше сирі 6px — за рішенням користувача зведено до спільного
+     токена разом із .settings-ico/.ct-icon (design-guardian-аудит). */
+  border-radius: var(--radius-sm);
   background: var(--green-tint);
   color: var(--green-700);
   display: flex;
@@ -178,10 +180,18 @@
   margin-top: 8px;
 }
 .cp-certificate-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: var(--gold-soft);
   border-color: var(--gold);
   color: color-mix(in srgb, var(--gold) 55%, var(--cb-black));
   font-weight: 600;
+}
+.cp-certificate-hint svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 /* quiz options (single/multi) */
@@ -210,6 +220,10 @@
 }
 .opt:active {
   transform: scale(0.99);
+}
+.opt:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
 }
 .opt.selected {
   border-color: var(--cb-primary);

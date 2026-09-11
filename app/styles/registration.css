@@ -83,7 +83,7 @@
   min-height: 52px;
   background: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-input);
   color: var(--ink);
   font-family: inherit;
   /* max(16px, ...) — не менше 16px незалежно від --fs-scale (навіть якщо
@@ -167,6 +167,10 @@
 .reg-info-btn:active {
   transform: scale(0.9);
 }
+.reg-info-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
 
 /* two-step flow: identity (name + code) -> pin confirmation */
 .reg-step {
@@ -206,4 +210,9 @@
 .reg-link-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+.reg-link-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+  border-radius: var(--radius-sm);
 }

@@ -15,9 +15,6 @@ export default async function ManagerCoursesPage() {
       <div className="greeting">МОЇ КУРСИ</div>
       <h1 className="hub-h1">Курси</h1>
 
-      <div className="hub-sec-title">
-        <h3>Ваші курси</h3>
-      </div>
       {enrollments.length > 0 ? (
         enrollments.map((enrollment) => (
           <CourseTile

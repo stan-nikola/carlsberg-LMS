@@ -1410,7 +1410,13 @@ export function AdminCourseEditor({ courseId }) {
   }
 
   if (loadError) return <p className="admin-page admin-error">Не вдалося завантажити курс: {loadError}</p>;
-  if (!course) return <p className="admin-page">Завантаження…</p>;
+  if (!course)
+    return (
+      <p className="admin-page">
+        <SpinnerIcon />
+        Завантаження…
+      </p>
+    );
 
   return (
     <div className="admin-editor">

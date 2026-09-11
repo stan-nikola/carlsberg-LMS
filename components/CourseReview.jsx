@@ -68,7 +68,8 @@ export function CourseReview({ course, modules, scorePercent }) {
                 </a>
               ) : (
                 <p className="cp-note cp-certificate-hint">
-                  🏆 Перепройдіть слабший модуль на 100%, щоб отримати сертифікат за курс!
+                  <CertificateIcon />
+                  <span>Перепройдіть слабший модуль на 100% — і отримаєте сертифікат за курс!</span>
                 </p>
               )}
             </div>

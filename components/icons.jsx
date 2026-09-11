@@ -263,17 +263,36 @@ export function MedalIcon({ tier = "gold" }) {
   );
 }
 
-/** Документ + медальйон-стрічка внизу — впізнаваний символ "сертифікат",
- * той самий stroke-стиль, що й решта іконок (не MedalIcon-подібний
- * suddenly-fill варіант — тут це кнопка дії, не декоративна нагорода). */
+/** Документ (currentColor — підхоплює колір батька) + ЧЕРВОНА печатка-
+ * стрічка внизу (var(--danger), той самий токен, що й скрізь у проєкті
+ * для акценту — не вигаданий hex): впізнаваний символ "сертифікат".
+ * Єдиний компонент на весь проєкт — заміна кольору/форми тут одразу
+ * поширюється на всі місця використання. */
 export function CertificateIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2.5" y="2.5" width="19" height="13" rx="2" />
-      <line x1="6" y1="6.5" x2="18" y2="6.5" />
-      <line x1="6" y1="10" x2="14" y2="10" />
-      <circle cx="12" cy="18.3" r="2.7" />
-      <path d="M9.9 20.6 8.8 22.7 10.6 21.7 12 23.2 13.4 21.7 15.2 22.7 14.1 20.6" />
+    <svg viewBox="0 0 24 24" fill="none">
+      <rect
+        x="2.5"
+        y="2.5"
+        width="19"
+        height="12"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line x1="6" y1="6.3" x2="18" y2="6.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <line x1="6" y1="9.7" x2="14" y2="9.7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M9.9 20.4 8.8 22.6 10.6 21.6 12 23.1 13.4 21.6 15.2 22.6 14.1 20.4"
+        stroke="var(--danger, #f45f5e)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="17.6" r="3" fill="var(--danger, #f45f5e)" />
+      <circle cx="12" cy="17.6" r="1.3" fill="none" stroke="#fff" strokeWidth="0.9" />
     </svg>
   );
 }

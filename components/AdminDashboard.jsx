@@ -832,7 +832,10 @@ export function AdminDashboard() {
       )}
 
       {!courses ? (
-        <p>Завантаження…</p>
+        <p>
+          <SpinnerIcon />
+          Завантаження…
+        </p>
       ) : courses.length === 0 ? (
         <p>Курсів ще немає.</p>
       ) : (

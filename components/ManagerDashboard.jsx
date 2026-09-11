@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronIcon, TrendIcon, PeopleIcon, ClockIcon, CalendarIcon, MedalIcon, CheckIcon, XIcon } from "@/components/icons";
+import {
+  ChevronIcon,
+  TrendIcon,
+  PeopleIcon,
+  ClockIcon,
+  CalendarIcon,
+  MedalIcon,
+  CheckIcon,
+  XIcon,
+  SpinnerIcon,
+} from "@/components/icons";
 import { medalTier } from "@/lib/progress";
 import { ProfileCard } from "@/components/ProfileCard";
 import { MarqueeText } from "@/components/MarqueeText";
@@ -298,7 +308,12 @@ function TeamNode({ node, summaryByEmployeeId }) {
 
       {showDetail && (
         <div className="mgr-team-detail">
-          {detailLoading && <p className="admin-hint">Завантаження…</p>}
+          {detailLoading && (
+            <p className="admin-hint">
+              <SpinnerIcon />
+              Завантаження…
+            </p>
+          )}
           {detailError && <p className="admin-hint">Не вдалося завантажити.</p>}
           {detail && detail.length === 0 && <p className="admin-hint">Курсів не призначено.</p>}
           {detail && detail.length > 0 && (
@@ -415,7 +430,10 @@ export function ManagerDashboard() {
   if (state.loading) {
     return (
       <div className="admin-page manager-page">
-        <p className="admin-subtitle">Завантаження…</p>
+        <p className="admin-subtitle">
+          <SpinnerIcon />
+          Завантаження…
+        </p>
       </div>
     );
   }

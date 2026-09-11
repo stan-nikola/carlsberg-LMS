@@ -551,7 +551,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 6px 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--green-tint);
   border: 1px solid var(--line);
   font-size: 12.5px;
@@ -865,11 +865,17 @@
   width: 52px;
   padding: 4px 6px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-input);
   font: inherit;
   /* 16px, не успадкований 12px батька — той самий анти-зум фікс. */
   font-size: 16px;
   text-align: center;
+  transition: border-color var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
+}
+.admin-module-unlock input:focus {
+  outline: none;
+  border-color: var(--cb-secondary);
+  box-shadow: var(--cb-focus-ring);
 }
 
 .admin-image-picker {
@@ -970,6 +976,10 @@
 .admin-block-list-link:hover {
   border: 1px solid var(--green-700);
   padding: 7px 9px;
+}
+.admin-block-list-link:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
 }
 .admin-block-list-item {
   display: flex;

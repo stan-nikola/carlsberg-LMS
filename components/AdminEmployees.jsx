@@ -93,7 +93,10 @@ export function AdminEmployees() {
       />
 
       {loading ? (
-        <p className="admin-subtitle">Завантаження…</p>
+        <p className="admin-subtitle">
+          <SpinnerIcon />
+          Завантаження…
+        </p>
       ) : employees.length === 0 ? (
         <p className="admin-subtitle">Нікого не знайдено.</p>
       ) : (

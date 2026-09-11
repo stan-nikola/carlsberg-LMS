@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { renderRichText } from "@/lib/richText";
-import { ChevronIcon, CheckIcon, XIcon } from "@/components/icons";
+import { ChevronIcon, CheckIcon, XIcon, CertificateIcon } from "@/components/icons";
 import {
   AccordionScreen,
   ChecklistScreen,
@@ -818,7 +818,8 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
                     сертифікат видається лише за 100%, за проханням
                     користувача. */}
                 <p className="cp-note cp-certificate-hint">
-                  🏆 Постарайтесь пройти курс на 100% — за це видається іменний сертифікат!
+                  <CertificateIcon />
+                  <span>Пройдіть курс на всі 100% — і отримаєте іменний сертифікат!</span>
                 </p>
                 {lockedNotice && <p className="cp-note">{lockedNotice}</p>}
               </div>

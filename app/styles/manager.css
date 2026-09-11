@@ -109,8 +109,20 @@ body:has(.manager-shell) {
   flex-shrink: 0;
   padding: 8px 14px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-input);
+  /* Бордерована кнопка-посилання, не текстове поле — прямокутний
+     Malty-паттерн (--radius-btn), не --radius-input (той лише для
+     справжніх текстових полів, atoms/Input). */
+  border-radius: var(--radius-btn);
   text-decoration: none;
+  transition: border-color var(--dur-fast) var(--ease-premium);
+}
+@media (hover: hover) {
+  .mgr-export-link:hover {
+    border-color: var(--green-700);
+  }
+}
+.mgr-export-link:focus-visible {
+  border-radius: var(--radius-btn);
 }
 
 /* ---- Каркас: sidebar (десктоп/планшет) ↔ appbar+burger+шторка (мобільний) ----

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CourseIcon, ChevronIcon, CheckIcon, XIcon, LockIcon, MedalIcon, CertificateIcon } from "@/components/icons";
+import { CourseIcon, ChevronIcon, CheckIcon, XIcon, LockIcon, MedalIcon, CertificateIcon, ClockIcon } from "@/components/icons";
 import { courseTileStatus, isRecentlyAssigned, isOverdue, medalTier } from "@/lib/progress";
 import { pluralize } from "@/lib/pluralize";
 import { MarqueeText } from "@/components/MarqueeText";
@@ -36,7 +36,19 @@ function ModuleRow({ courseModule }) {
         <ModuleStatusIcon status={courseModule.status} />
       </span>
       <MarqueeText className="ct-module-title">{courseModule.title}</MarqueeText>
-      {courseModule.scorePercent != null && <span className="ct-module-score">{courseModule.scorePercent}%</span>}
+      {courseModule.scorePercent != null ? (
+        <span className="ct-module-score">{courseModule.scorePercent}%</span>
+      ) : (
+        // Орієнтовний час — лише поки модуль ще не пройдено (після цього
+        // важливіший реальний бал, не приблизна оцінка "скільки б це
+        // зайняло"). Порахований автоматично з реального контенту модуля
+        // (lib/courseContent.js estimateModuleMinutes), не ручне поле в
+        // /admin — завжди відповідає справжньому вмісту.
+        <span className="ct-module-time" title="Орієнтовний час проходження">
+          <ClockIcon />
+          {courseModule.estimatedMinutes} хв
+        </span>
+      )}
       {courseModule.longestCorrectStreak > 0 && (
         <span className="ct-module-streak" title="Найдовша серія поспіль правильних відповідей у цьому модулі">
           🎯 {courseModule.longestCorrectStreak}
@@ -199,7 +211,7 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
           явного підпису людина могла й не здогадатись, що по іконці
           сертифіката взагалі можна натиснути. */}
       {isActuallyDone && hasCertificate && (
-        <p className="ct-certificate-caption">🏆 Натисніть на іконку сертифіката праворуч, щоб завантажити</p>
+        <p className="ct-certificate-caption">Натисніть на іконку сертифіката праворуч, щоб завантажити</p>
       )}
       {!isActuallyDone && (
         <Link href={`/courses/${course.slug}`} className="ct-enter-link">
