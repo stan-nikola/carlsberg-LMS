@@ -116,18 +116,21 @@ export function AdminEmployees() {
                 {emp.position?.name || "—"}
                 {emp.territory ? ` · ${emp.territory.name}` : ""}
               </span>
-              <select
-                className="admin-select"
-                value={emp.role}
-                disabled={roleSaving[emp.id]}
-                onChange={(e) => handleRoleChange(emp.id, e.target.value)}
-              >
-                {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <select
+                  className="admin-select"
+                  value={emp.role}
+                  disabled={roleSaving[emp.id]}
+                  onChange={(e) => handleRoleChange(emp.id, e.target.value)}
+                >
+                  {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                {roleSaving[emp.id] && <SpinnerIcon />}
+              </span>
               <button
                 className="admin-btn-link"
                 disabled={pinStatus[emp.id] === "sending"}

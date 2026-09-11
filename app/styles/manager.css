@@ -154,6 +154,19 @@ body:has(.manager-shell) {
   color: var(--green-700);
   margin-bottom: 26px;
 }
+/* Розшифровка абревіатури "CLS" — дрібним підписом під самою назвою, і
+   в сайдбарі, і в мобільному appbar (.admin-topbar-title-short нижче). */
+.mgr-sidebar-brand-full {
+  display: block;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 10.5px;
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
+}
+.admin-topbar-title-short .mgr-sidebar-brand-full {
+  margin-top: 1px;
+}
 .mgr-nav {
   display: flex;
   flex-direction: column;
@@ -610,8 +623,9 @@ body:has(.manager-shell) {
 .mgr-ring-fill {
   /* Кінці НЕ заокруглені (без strokeLinecap="round" у JSX — стандартний
      butt) + анімоване заповнення при появі даних, ті самі токени руху,
-     що й бари вище. */
-  transition: stroke-dasharray var(--dur-slow) var(--ease-premium);
+     що й бари вище. Довше за звичайний --dur-slow (×1.5) — на повному
+     колі заповнення "з нуля" на 400мс виглядало занадто різко. */
+  transition: stroke-dasharray calc(var(--dur-slow) * 1.5) var(--ease-premium);
 }
 .mgr-bar-list {
   list-style: none;
@@ -654,8 +668,9 @@ body:has(.manager-shell) {
   /* --dur-slow/--ease-premium — ті самі токени руху, що вже скрізь у
      проєкті (не власна довільна тривалість) — заповнення анімується від
      0% при появі даних (components/ManagerDashboard.jsx, barsAnimated),
-     не стрибає миттєво на фінальне значення. */
-  transition: width var(--dur-slow) var(--ease-premium);
+     не стрибає миттєво на фінальне значення. ×1.5 — те саме сповільнення,
+     що й .mgr-ring-fill/.mgr-trend-bar-fill. */
+  transition: width calc(var(--dur-slow) * 1.5) var(--ease-premium);
 }
 .mgr-bar-value {
   flex: 0 0 auto;
@@ -699,7 +714,9 @@ body:has(.manager-shell) {
   width: 100%;
   background: var(--cb-primary);
   min-height: 3px;
-  transition: height var(--dur-slow) var(--ease-premium);
+  /* ×1.5 --dur-slow — те саме сповільнення, що й .mgr-ring-fill/
+     .mgr-bar-fill, щоб заповнення при появі даних не стрибало миттєво. */
+  transition: height calc(var(--dur-slow) * 1.5) var(--ease-premium);
 }
 .mgr-trend-count {
   margin-top: 4px;

@@ -618,7 +618,8 @@ function NewModuleInlineForm({ courseId, nextOrder, onCreated }) {
     <div className="admin-row admin-new-lesson">
       <input placeholder="Назва нового модуля" value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" />
       <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Створити новий модуль у цьому курсі">
-        {saving ? "…" : "+ Додати модуль"}
+        {saving && <SpinnerIcon />}
+        {saving ? "Створення…" : "+ Додати модуль"}
       </button>
     </div>
   );

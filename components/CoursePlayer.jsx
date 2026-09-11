@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { renderRichText } from "@/lib/richText";
-import { ChevronIcon, CheckIcon, XIcon, CertificateIcon } from "@/components/icons";
+import { ChevronIcon, CheckIcon, XIcon, CertificateIcon, SpinnerIcon, ClockIcon } from "@/components/icons";
 import {
   AccordionScreen,
   ChecklistScreen,
@@ -17,6 +17,7 @@ import {
 } from "@/components/ScreenComponents";
 import { isGateSatisfied, gateTotal, gateHint } from "@/lib/componentTypes";
 import { courseStreakMessages, pickStreakMessage, resolveStreakSub, isScheduledStreak } from "@/lib/streakMessages";
+import { estimateMinutesFromComponentCount } from "@/lib/estimateTime";
 
 // Плеєр курсу. Крім info/quiz підтримує інтерактивні компоненти, портовані
 // з попередньої vanilla-JS розробки "8 кроків телесейлінгу": accordion,
@@ -301,7 +302,12 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
         </div>
       )}
 
-      {saving && <p className="cp-save-status">Зберігаємо результат…</p>}
+      {saving && (
+        <p className="cp-save-status">
+          <SpinnerIcon />
+          Зберігаємо результат…
+        </p>
+      )}
       {saveError && <p className="cp-save-status cp-save-error">Не вдалося зберегти результат: {saveError}</p>}
 
       <button type="button" className="btn-primary-full" onClick={passed ? onContinue : onRetry}>
@@ -335,7 +341,12 @@ function CompleteScreen({ result, onRetake }) {
         <span> правильних ({scorePercent}%)</span>
       </div>
 
-      {submitting && <p className="cp-save-status">Зберігаємо результат…</p>}
+      {submitting && (
+        <p className="cp-save-status">
+          <SpinnerIcon />
+          Зберігаємо результат…
+        </p>
+      )}
       {submitError && <p className="cp-save-status cp-save-error">Не вдалося зберегти результат: {submitError}</p>}
       {!submitting && !submitError && <p className="cp-save-status">Результат збережено.</p>}
 
@@ -413,6 +424,19 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
   // пропущених модулів (skippedModuleScores), а не лише ці.
   const quizComponentIds = useMemo(
     () => screens.flatMap((s) => s.components.filter((c) => c.type === "quiz").map((c) => c.id)),
+    [screens]
+  );
+
+  // Орієнтовний час проходження — та сама формула (45с/компонент), що вже
+  // показує ModuleRow у CourseTile.jsx (lib/courseContent.js
+  // estimateModuleMinutes), тільки порахована прямо тут із власного
+  // `screens` плеєра: він і так уже СЕСІЙНО-обмежений (getPlayableModules —
+  // пройдені й ще на паузі перепроходження модулі сюди не потрапляють), як
+  // і сусідні "N екранів"/"N питань" на цьому ж вступному екрані. Формула
+  // винесена в lib/estimateTime.js окремо від lib/courseContent.js саме
+  // тому, що той тягне @/lib/prisma — непридатне для "use client".
+  const estimatedMinutes = useMemo(
+    () => estimateMinutesFromComponentCount(screens.reduce((sum, s) => sum + s.components.length, 0)),
     [screens]
   );
 
@@ -812,6 +836,13 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
                   <div className="stat">
                     <b>{quizComponentIds.length}</b>
                     <span>питань</span>
+                  </div>
+                  <div className="stat">
+                    <b className="cp-stat-time">
+                      <ClockIcon />
+                      {estimatedMinutes}
+                    </b>
+                    <span>хв</span>
                   </div>
                 </div>
                 {/* Заохочення старатись, а не просто "пройти поріг" (80%) —

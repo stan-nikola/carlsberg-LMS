@@ -92,6 +92,7 @@ function ImagePicker({ image, onChange, onRemove, onUploadingChange }) {
           disabled={uploading}
           title="Завантажити файл зображення з комп'ютера"
         >
+          {uploading && <SpinnerIcon />}
           {uploading ? "Завантаження…" : "Обрати фото…"}
         </button>
         <input
@@ -673,7 +674,7 @@ function ComponentEditForm({ component, onSaved, onDeleted, onDuplicate, onLiveC
           className="admin-btn"
           title="Зберегти зміни цього екрану"
         >
-          {saving && <SpinnerIcon />}
+          {(saving || imageUploading) && <SpinnerIcon />}
           {imageUploading ? "Зачекайте, фото вантажиться…" : saving ? "Збереження…" : "Зберегти"}
         </button>
         <button type="button" onClick={() => onDuplicate(component)} className="admin-btn-link" title="Створити копію цього екрану одразу після нього">
