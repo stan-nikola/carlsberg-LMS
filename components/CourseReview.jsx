@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronIcon, CertificateIcon } from "@/components/icons";
+import { ChevronIcon, CertificateIcon, SpinnerIcon } from "@/components/icons";
 import { ComponentScreen } from "@/components/CoursePlayer";
 import { ImageLightbox } from "@/components/ScreenComponents";
 import { getLocalDisplayName } from "@/lib/localName";
+import { downloadCertificate } from "@/lib/downloadCertificate";
 
 /**
  * "Курс-методичка" — читальний режим без тестів/гейтів/геймефікації:
@@ -31,6 +32,22 @@ export function CourseReview({ course, modules, scorePercent, hasEmail = true })
       if (local) setCertName(local);
     }
   }, [hasEmail]);
+  // Той самий fetch+blob підхід, що CourseTile.jsx — звичайний <a href>
+  // на мобільному/PWA відкривав PDF прямо у вкладці замість завантаження,
+  // без жодної навігації назад (реальна скарга користувача).
+  const [certDownloading, setCertDownloading] = useState(false);
+  const [certDownloadError, setCertDownloadError] = useState("");
+  async function handleDownloadCertificate() {
+    setCertDownloading(true);
+    setCertDownloadError("");
+    try {
+      await downloadCertificate(course.slug, certName);
+    } catch (err) {
+      setCertDownloadError(err.message || "Не вдалося завантажити сертифікат.");
+    } finally {
+      setCertDownloading(false);
+    }
+  }
 
   // Наскрізний номер кроку — чисто функціонально (без мутації лічильника
   // під час рендеру, react-hooks/immutability це забороняє): спочатку
@@ -74,13 +91,18 @@ export function CourseReview({ course, modules, scorePercent, hasEmail = true })
                 проходження він знову з&apos;явиться в плеєрі.
               </p>
               {scorePercent === 100 ? (
-                <a
-                  href={`/api/courses/${course.slug}/certificate${certName ? `?name=${encodeURIComponent(certName)}` : ""}`}
-                  className="ct-certificate-link"
-                >
-                  <CertificateIcon />
-                  <span>Завантажити сертифікат</span>
-                </a>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleDownloadCertificate}
+                    disabled={certDownloading}
+                    className="ct-certificate-link"
+                  >
+                    {certDownloading ? <SpinnerIcon /> : <CertificateIcon />}
+                    <span>Завантажити сертифікат</span>
+                  </button>
+                  {certDownloadError && <p className="cp-note ct-certificate-error">{certDownloadError}</p>}
+                </>
               ) : (
                 <p className="cp-note cp-certificate-hint">
                   <CertificateIcon />

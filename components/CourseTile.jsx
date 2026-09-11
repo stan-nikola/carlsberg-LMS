@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CourseIcon, ChevronIcon, CheckIcon, XIcon, LockIcon, MedalIcon, CertificateIcon, ClockIcon } from "@/components/icons";
+import { CourseIcon, ChevronIcon, CheckIcon, XIcon, LockIcon, MedalIcon, CertificateIcon, ClockIcon, SpinnerIcon } from "@/components/icons";
 import { courseTileStatus, isRecentlyAssigned, isOverdue, medalTier } from "@/lib/progress";
 import { pluralize } from "@/lib/pluralize";
 import { MarqueeText } from "@/components/MarqueeText";
 import { getLocalDisplayName } from "@/lib/localName";
+import { downloadCertificate } from "@/lib/downloadCertificate";
 
 const MODULE_STATUS_META = {
   completed: { label: "Складено", className: "is-completed" },
@@ -93,6 +94,24 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
       if (local) setCertName(local);
     }
   }, [hasEmail]);
+  // Раніше — звичайний <a href="...certificate">: на мобільному/PWA це
+  // відкривало PDF прямо у вкладці замість завантаження, без жодної
+  // навігації назад (реальна скарга користувача). Тепер тягнемо файл
+  // через fetch+blob (lib/downloadCertificate.js) — сторінка нікуди не
+  // переходить, лише системний діалог "Зберегти файл".
+  const [certDownloading, setCertDownloading] = useState(false);
+  const [certDownloadError, setCertDownloadError] = useState("");
+  async function handleDownloadCertificate() {
+    setCertDownloading(true);
+    setCertDownloadError("");
+    try {
+      await downloadCertificate(course.slug, certName);
+    } catch (err) {
+      setCertDownloadError(err.message || "Не вдалося завантажити сертифікат.");
+    } finally {
+      setCertDownloading(false);
+    }
+  }
   const cs = courseTileStatus(enrollment);
   const desc = cs.status === "in_progress" && inProgressDescription ? inProgressDescription : description;
   const isNew = isRecentlyAssigned(enrollment);
@@ -204,14 +223,16 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
             </span>
           </Link>
           {hasCertificate ? (
-            <a
-              href={`/api/courses/${course.slug}/certificate${certName ? `?name=${encodeURIComponent(certName)}` : ""}`}
+            <button
+              type="button"
+              onClick={handleDownloadCertificate}
+              disabled={certDownloading}
               className="ct-cert-square"
               aria-label="Завантажити сертифікат"
               title="Завантажити сертифікат"
             >
-              <CertificateIcon />
-            </a>
+              {certDownloading ? <SpinnerIcon /> : <CertificateIcon />}
+            </button>
           ) : (
             <span
               className="ct-cert-square ct-cert-square-disabled"
@@ -229,6 +250,7 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
       {isActuallyDone && hasCertificate && (
         <p className="ct-certificate-caption">Натисніть на іконку сертифіката праворуч, щоб завантажити</p>
       )}
+      {certDownloadError && <p className="ct-certificate-caption ct-certificate-error">{certDownloadError}</p>}
       {!isActuallyDone && (
         <Link href={`/courses/${course.slug}`} className="ct-enter-link">
           <span>{enterLabel}</span>

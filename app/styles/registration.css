@@ -1,6 +1,8 @@
 /* ===================== REGISTRATION SCREEN =====================
-   Портовано з legacy/css/registration.css без змін. Залежить від токенів
-   та .btn-primary-full/.sheet* з app/globals.css (колишній base.css). */
+   Спочатку портовано з legacy/css/registration.css без змін, відтоді
+   не раз редизайнено (бренд-мітка/іконки/відступи — див. git log цього
+   файлу). Залежить від токенів та .btn-primary-full/.sheet* з
+   app/globals.css (колишній base.css). */
 
 @keyframes logoPop {
   0% {

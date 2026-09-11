@@ -526,10 +526,12 @@ body:has(.manager-shell) {
   flex-shrink: 0;
   align-items: center;
   padding: 3px 9px;
-  /* Без border-radius — за проханням користувача, як офіційні атоми
+  /* Без заокруглення — за проханням користувача, як офіційні атоми
      Malty (.admin-btn у admin.css той самий принцип): статус-піл тут
-     навмисно прямокутний, не заокруглена "пігулка". */
-  border-radius: 0;
+     навмисно прямокутний, не заокруглена "пігулка". var(--radius-btn),
+     не літеральний 0 — той самий токен, що й .admin-btn, а не
+     дубльоване "на око" значення. */
+  border-radius: var(--radius-btn);
   font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -813,8 +815,8 @@ body:has(.manager-shell) {
   font-weight: 600;
   color: var(--ink-soft);
   background: var(--surface-2);
-  /* Без border-radius — той самий принцип, що .mgr-pill вище. */
-  border-radius: 0;
+  /* Без заокруглення — той самий принцип/токен, що .mgr-pill вище. */
+  border-radius: var(--radius-btn);
   padding: 3px 9px;
   white-space: nowrap;
 }

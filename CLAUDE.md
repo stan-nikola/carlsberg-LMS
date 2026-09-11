@@ -74,16 +74,23 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
   Транслітерація в реальних даних нестабільна (одна й та сама буква різні
   люди пишуть по-різному) — покладатись на це не можна.
 
-## Курси (Course → Block → Module → Lesson)
+## Курси (Course → Module → Screen → Component)
 
-- Ієрархія контенту: **Course → Block → Module → Lesson**, не пласка
-  Course → Module. Block — угруповання для навігації, Enrollment
-  рахується по Course в цілому.
-- **"Пауза між блоками"** (`Block.cooldownDays`) — наступний блок
+- Ієрархія контенту: **Course → Module → Screen → Component**, не
+  пласка Course → Module. (До 2026-09 рівні називались
+  Course → Block → Module → Lesson — перейменовано: старий Block став
+  Module, старий Module став Screen, старий Lesson став Component; див.
+  `///`-коментар при `model Module` у `schema.prisma`.) Module —
+  угруповання для навігації, Enrollment рахується по Course в цілому, не
+  по модулю.
+- **"Пауза між модулями"** (`Module.cooldownDays`) — наступний модуль
   відкривається лише після того, як склали (80%+) усі тести
-  ПОПЕРЕДНЬОГО (`BlockCompletion`), і минула пауза. Не плутати з
-  `Module.unlockAfterDays` — той рахує від дати ПРИЗНАЧЕННЯ курсу
-  (календарний графік), а не від факту складання.
+  ПОПЕРЕДНЬОГО (`ModuleCompletion.passed=true`), і минула пауза, що
+  рахується від РЕАЛЬНОЇ дати складання (`ModuleCompletion.completedAt`),
+  а не від дати призначення курсу. Окремого календарного механізму
+  (колишній `unlockAfterDays`, рахував від дати ПРИЗНАЧЕННЯ курсу) в
+  схемі більше нема — прибрали (2026-09), лишився лише
+  completion-based `cooldownDays`.
 - **`Course.targetPositions`/`targetTerritories`/`publishAt`** — це лише
   ЗБЕРЕЖЕНИЙ НАМІР. Сам по собі не створює жодного `Enrollment`. Реальне
   призначення — кнопка «Призначити зараз» в /admin (одразу) або
@@ -103,8 +110,8 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
 
 ## Логін співробітника
 
-- PIN генерується заново при КОЖНОМУ запиті (не статичний), живе 1
-  годину (`PIN_TTL_MS` у `lib/auth.js`).
+- PIN генерується заново при КОЖНОМУ запиті (не статичний), живе 12
+  годин (`PIN_TTL_MS` у `lib/auth.js`).
 - Продакшн завжди шле через Resend, незалежно від `EMAIL_PROVIDER` — та
   змінна читається лише поза продом (dev може перемкнутись на Gmail SMTP,
   `lib/mailer.js`).

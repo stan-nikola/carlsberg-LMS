@@ -73,7 +73,9 @@ export function HubShell({ children, isAdmin = false }) {
                   aria-selected={isActive}
                   title={label}
                 >
-                  <Icon filled={isActive} />
+                  <span className="tab-btn-indicator">
+                    <Icon filled={isActive} />
+                  </span>
                 </Link>
               );
             })}

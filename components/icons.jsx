@@ -1,5 +1,7 @@
-// Іконки з legacy index.html, винесені в окремі компоненти — самі inline
-// SVG не змінювались, тільки перенесені з розмітки в JSX.
+// Здебільшого іконки з legacy index.html, винесені в окремі компоненти —
+// inline SVG не змінювались, тільки перенесені з розмітки в JSX. Виняток —
+// таббар HubShell (HomeIcon/LearnIcon/AchievementsIcon нижче): їх з того
+// часу перемалювали на строгий лінійний стиль, див. коментар при TabSvg.
 
 export function GearIcon() {
   return (

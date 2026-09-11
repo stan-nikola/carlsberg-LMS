@@ -10,6 +10,13 @@ import { PLATFORM_NAME, PLATFORM_TAGLINE, PLATFORM_LOGO_PATH } from "@/lib/brand
 const BRAND_GREEN = "#0b4a34";
 const BRAND_GOLD = "#b49132";
 const LOGO_ABSOLUTE_PATH = path.join(process.cwd(), PLATFORM_LOGO_PATH);
+// Водяний знак справа на фоні — той самий "crafted hops leaf" (лінійна
+// графіка, brandbook-правило "subtle, tone-in-tone", public/assets/brand/README.md),
+// що вже стоїть декоративним акцентом на .profile-card (hub.css). Great-
+// варіант (не small) — тут набагато більша площа (майже пів сторінки),
+// дрібний варіант розтягнутим до такого розміру втратив би чіткість ліній.
+const WATERMARK_PATH = path.join(process.cwd(), "public/assets/brand/hops-leaf-large-green.png");
+const WATERMARK_ASPECT = 1236 / 1150; // реальні px hops-leaf-large-green.png
 
 // pdfkit-овий "Helvetica"/"Helvetica-Bold" — це один зі стандартних 14
 // base-шрифтів PDF (WinAnsiEncoding), у якого ФІЗИЧНО немає кириличних
@@ -45,6 +52,19 @@ function buildCertificatePdf({ employeeName, courseTitle, completedAt }) {
     // Рамка — подвійна лінія, класичний вигляд сертифіката.
     doc.rect(24, 24, width - 48, height - 48).lineWidth(2).stroke(BRAND_GREEN);
     doc.rect(34, 34, width - 68, height - 68).lineWidth(0.75).stroke(BRAND_GOLD);
+
+    // Водяний знак-трилисток на фоні справа — обрізаний точно по
+    // внутрішній (золотій) рамці (save/clip/restore), щоб нічого не
+    // виходило за неї праворуч. 15% opacity — за проханням користувача
+    // (перше прев'ю на 8% узгодили як застартову точку, попросили
+    // насиченіше).
+    doc.save();
+    doc.rect(34, 34, width - 68, height - 68).clip();
+    doc.opacity(0.15);
+    const wmHeight = height * 0.85;
+    const wmWidth = wmHeight * WATERMARK_ASPECT;
+    doc.image(WATERMARK_PATH, width - wmWidth * 0.62, height / 2 - wmHeight / 2, { width: wmWidth, height: wmHeight });
+    doc.restore();
 
     // Той самий логотип, що й PWA-іконка застосунку (public/icons/) —
     // єдине джерело правди lib/branding.js, а не окрема картинка "для PDF".
