@@ -4,8 +4,9 @@
 // звичайну вкладку браузера (з адресним рядком), а не повноекранний
 // застосунок зі своєю іконкою — саме це і було проблемою.
 //
-// Іконки — ті самі, що вже використовувались у legacy vanilla-JS версії
-// (legacy/manifest.json), просто скопійовані в public/icons/, не нові.
+// Іконки — public/icons/icon-*.png (спершу скопійовані з legacy
+// vanilla-JS версії, потім перегенеровані на суцільний трилисток без
+// рамки — див. public/icons/README.md для деталей і причин).
 import { PLATFORM_NAME, PLATFORM_SHORT_NAME, PLATFORM_TAGLINE } from "@/lib/branding";
 
 export default function manifest() {

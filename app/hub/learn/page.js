@@ -14,9 +14,6 @@ export default async function HubLearnPage() {
       <div className="greeting">РОЗДІЛИ НАВЧАННЯ</div>
       <h1 className="hub-h1">Навчання</h1>
 
-      <div className="hub-sec-title">
-        <h3>Ваші курси</h3>
-      </div>
       {enrollments.length > 0 ? (
         enrollments.map((enrollment) => (
           <CourseTile
@@ -24,6 +21,7 @@ export default async function HubLearnPage() {
             course={enrollment.course}
             enrollment={enrollment}
             description={enrollment.course.description || ""}
+            hasEmail={Boolean(employee.email)}
           />
         ))
       ) : (

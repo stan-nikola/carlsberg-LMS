@@ -125,7 +125,14 @@ a {
   height: min(812px, 88vh);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 30px;
+  /* Без заокруглення — за проханням користувача (той самий принцип, що
+     .mgr-pill/.mgr-badge/.admin-btn: квадратні атоми Malty, не заокруглені).
+     Раніше тут були сирі 30px, потім var(--radius-xl) (28px) за іншим
+     рішенням того самого користувача — це свідома зміна поверх того
+     рішення, не регрес. var(--radius-card), не літеральний 0 — це і є
+     "картка"-контейнер (весь телефонний корпус), той самий токен, що
+     решта карток у застосунку. */
+  border-radius: var(--radius-card);
   overflow: hidden;
   box-shadow: var(--shadow);
   display: flex;
@@ -137,6 +144,65 @@ a {
   gap: 8px;
   padding: 16px 14px 10px;
   flex-shrink: 0;
+}
+/* components/PlatformBrand.jsx — спільна бренд-мітка (хмелевий трилисток +
+   "CarLS"/розшифровка), використовується і в .appbar хаба (компактний
+   "sm"), і в сайдбарі/appbar кабінету керівника (app/styles/manager.css
+   додає лише розмір "lg" — сама структура тут), і на реєстрації/логіні
+   (.reg-badge, "xl" — єдиний героїчний розмір). */
+.platform-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.platform-brand-xl {
+  flex: none;
+  gap: 12px;
+}
+/* Лого над текстом, по центру — 3 рядки (лого / "CarLS" / розшифровка)
+   замість звичного рядка. */
+.platform-brand-stacked {
+  flex-direction: column;
+}
+.platform-brand-stacked .platform-brand-text {
+  align-items: center;
+  text-align: center;
+}
+.platform-brand-logo {
+  flex-shrink: 0;
+}
+.platform-brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.platform-brand-name {
+  font-family: var(--font-display);
+  font-weight: 900;
+  line-height: 1.2;
+  color: var(--green-700);
+}
+.platform-brand-sm .platform-brand-name {
+  font-size: calc(14px * var(--fs-scale));
+}
+.platform-brand-lg .platform-brand-name {
+  font-size: 20px;
+}
+.platform-brand-xl .platform-brand-name {
+  font-size: 30px;
+}
+.platform-brand-full {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 10.5px;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
+}
+.platform-brand-xl .platform-brand-full {
+  font-size: 13px;
 }
 .iconbtn {
   width: 34px;
@@ -167,6 +233,14 @@ a {
 .iconbtn svg {
   width: 16px;
   height: 16px;
+}
+/* Той самий .iconbtn, без рамки/фону в стані спокою — сама іконка,
+   "плаваюча" на екрані без контейнера навколо (за проханням
+   користувача — колесико налаштувань на реєстрації). Hover/focus/tap-
+   фідбек лишаються ті самі (успадковані від .iconbtn вище). */
+.iconbtn-bare {
+  border-color: transparent;
+  background: transparent;
 }
 
 .photo-frame {
@@ -220,7 +294,9 @@ a {
   max-height: 82vh;
   overflow-y: auto;
   background: var(--surface);
-  border-radius: 24px 24px 0 0;
+  /* Раніше сирі 24px — за рішенням користувача приведено до токена
+     (design-guardian-аудит), найближчий за шкалою. */
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   padding: 8px 20px 26px;
   transform: translateY(30px);
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -233,7 +309,7 @@ a {
 .sheet-handle {
   width: 36px;
   height: 4px;
-  border-radius: 99px;
+  border-radius: var(--radius-pill);
   background: var(--line);
   margin: 10px auto 15px;
 }
@@ -268,7 +344,9 @@ a {
 .settings-ico {
   width: 32px;
   height: 32px;
-  border-radius: 9px;
+  /* Раніше сирі 9px — за рішенням користувача зведено до спільного
+     токена разом із .ct-icon/.cp-kicker-num (design-guardian-аудит). */
+  border-radius: var(--radius-sm);
   background: var(--green-tint);
   color: var(--green-700);
   display: flex;
@@ -311,10 +389,13 @@ a {
   appearance: none;
   width: 74px;
   height: 4px;
-  border-radius: 99px;
+  border-radius: var(--radius-pill);
   background: var(--surface-2);
   outline: none;
   cursor: pointer;
+}
+#fsSlider:focus-visible {
+  box-shadow: var(--cb-focus-ring);
 }
 #fsSlider::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -324,7 +405,11 @@ a {
   border-radius: 50%;
   background: var(--green-700);
   border: 2px solid var(--surface);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  /* Раніше сирий чорний box-shadow — замінено на фірмовий elevation-токен
+     (design-guardian-аудит): та сама роль ("тінь під елементом control"),
+     колір узгоджений з рештою системи (digital-black overlay), а не
+     довільний rgba(0,0,0,...). */
+  box-shadow: var(--shadow-resting);
   cursor: pointer;
 }
 #fsSlider::-moz-range-thumb {
@@ -333,7 +418,7 @@ a {
   border-radius: 50%;
   background: var(--green-700);
   border: 2px solid var(--surface);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-resting);
   cursor: pointer;
   border-width: 2px;
 }
@@ -392,7 +477,7 @@ a {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2.5px solid rgba(255, 255, 255, 0.35);
+  border: 2.5px solid var(--cb-white-overlay-25);
   border-top-color: var(--cb-white);
   flex-shrink: 0;
   animation: btnSpin 0.7s linear infinite;

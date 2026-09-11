@@ -4,14 +4,19 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { slugify, uniqueSlug } from "@/lib/slug";
 
 // GET /api/admin/courses — легкий список курсів із блоками (без
-// модулів/уроків) для дерева на дашборді /admin.
+// модулів/уроків) для дерева на дашборді /admin. _count.enrollments —
+// Фаза E (пошук/фільтр каталогу) — щоб список показував "Призначено: N"
+// без окремого запиту на кожен курс.
 export async function GET() {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const courses = await prisma.course.findMany({
     orderBy: { title: "asc" },
-    include: { modules: { orderBy: { order: "asc" } } },
+    include: {
+      modules: { orderBy: { order: "asc" } },
+      _count: { select: { enrollments: true } },
+    },
   });
   return NextResponse.json(courses);
 }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, LogoutIcon } from "@/components/icons";
-import { PLATFORM_SHORT_NAME, PLATFORM_TAGLINE_SHORT } from "@/lib/branding";
+import { PlatformBrand } from "@/components/PlatformBrand";
 
 const NAV_ITEMS = [
   { href: "/manager", label: "Команда", Icon: HomeIcon },
@@ -76,7 +76,9 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
     <div className="manager-shell">
       {/* ---- Десктоп/планшет (≥900px): постійний сайдбар зліва ---- */}
       <aside className="mgr-sidebar">
-        <div className="mgr-sidebar-brand">{PLATFORM_SHORT_NAME}</div>
+        <div className="mgr-sidebar-brand">
+          <PlatformBrand size="lg" />
+        </div>
         {navLinks()}
         <div className="mgr-sidebar-footer">
           <div className="mgr-sidebar-user">
@@ -91,10 +93,7 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
 
       {/* ---- Мобільний (<900px): верхній appbar + бургер + шторка ---- */}
       <header className="mgr-appbar">
-        <span className="admin-topbar-title">
-          <span className="admin-topbar-title-full">{PLATFORM_TAGLINE_SHORT}</span>
-          <span className="admin-topbar-title-short">{PLATFORM_SHORT_NAME}</span>
-        </span>
+        <PlatformBrand size="sm" />
         <button
           type="button"
           className="mgr-burger-btn"

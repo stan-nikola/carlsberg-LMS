@@ -1,20 +1,21 @@
 import { getCurrentUser } from "@/lib/session";
-import { getEmployeeEnrollments } from "@/lib/employeeProgress";
+import { getEmployeeBadgesView, getTerritoryLeaderboard } from "@/lib/achievements";
 import { AchievementsPanel } from "@/components/AchievementsPanel";
 
 // "Досягнення" керівника — та сама панель, що й app/hub/achievements/page.js
-// (components/AchievementsPanel.jsx), рахована по власних enrollments
-// керівника.
+// (components/AchievementsPanel.jsx), рахована по власних даних керівника.
 export default async function ManagerAchievementsPage() {
   const employee = await getCurrentUser();
-  const enrollments = await getEmployeeEnrollments(employee.id);
-  const passedCount = enrollments.filter((e) => e.status === "completed" && e.passed).length;
+  const [badges, leaderboard] = await Promise.all([
+    getEmployeeBadgesView(employee.id),
+    getTerritoryLeaderboard(employee.territoryId),
+  ]);
 
   return (
     <div className="manager-page manager-hub-page">
       <div className="greeting">ВАШ ПРОГРЕС</div>
       <h1 className="hub-h1">Досягнення</h1>
-      <AchievementsPanel passedCount={passedCount} />
+      <AchievementsPanel badges={badges} leaderboard={leaderboard} currentEmployeeId={employee.id} />
     </div>
   );
 }

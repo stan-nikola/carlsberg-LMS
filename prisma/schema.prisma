@@ -71,7 +71,7 @@ model Employee {
   externalCode String    @unique
   /// Поточний PIN для входу. Генерується заново при КОЖНОМУ запиті (в т.ч.
   /// "Надіслати ще раз") і одразу ж перезаписує попередній — а сам живе не
-  /// довше pinIssuedAt + 1 година (PIN_TTL_MS у lib/auth.js), далі
+  /// довше pinIssuedAt + 12 годин (PIN_TTL_MS у lib/auth.js), далі
   /// недійсний. Висилається на пошту самого співробітника, якщо вона є, або
   /// на пошту керівника (employee.manager.email) — див. lib/auth.js.
   loginPin     String?
@@ -94,9 +94,21 @@ model Employee {
   /// Прямые подчинённые (следующая ступень вниз по иерархии).
   subordinates Employee[] @relation("EmployeeHierarchy")
 
-  enrollments         Enrollment[]   @relation("EnrollmentEmployee")
-  assignedEnrollments Enrollment[]   @relation("EnrollmentAssignedBy")
+  enrollments         Enrollment[]    @relation("EnrollmentEmployee")
+  assignedEnrollments Enrollment[]    @relation("EnrollmentAssignedBy")
   notifications       Notification[]
+  apiTokens           AdminApiToken[]
+  badgesReceived      EmployeeBadge[] @relation("BadgeRecipient")
+  badgesAwarded       EmployeeBadge[] @relation("BadgeAwardedBy")
+
+  /// Soft-delete/деактивація для адмінського CRUD співробітників.
+  /// Навмисно НЕ hard delete — Employee має self-relation (managerId/
+  /// subordinates) і Enrollment/Notification без onDelete: Cascade, а
+  /// джерело даних (зовнішня система) реальних людей теж не видаляє,
+  /// лише перейменовує/деактивує. Деактивований співробітник не може
+  /// залогінитись (lib/auth.js), але вся історія (підлеглі, enrollments,
+  /// бейджі) лишається цілою й оборотною.
+  isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -364,6 +376,11 @@ model Enrollment {
   attempts          EnrollmentAttempt[]
   moduleCompletions ModuleCompletion[]
 
+  /// Аудит-слід ручної корекції адміном (Фаза D адмінки) — чому статус/бал
+  /// був змінений вручну (напр. "пройшов офлайн, підтверджено керівником").
+  /// null — жодного разу не корегувалось вручну.
+  adminNote String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -408,4 +425,82 @@ model Notification {
   isRead  Boolean @default(false)
 
   createdAt DateTime @default(now())
+}
+
+/// Токен для "живого" Excel-підключення (Фаза B3 адмінки) — Power Query
+/// (Data > Get Data > From Web) тягне JSON з app/api/data/*, авторизуючись
+/// заголовком Authorization: Bearer <токен>, окремо від admin_session
+/// cookie (та прив'язана до браузера, не переживе відкриття Excel).
+/// ОБОВ'ЯЗКОВО прив'язаний до конкретного Employee з role admin/hr_manager
+/// (не до анонімної /admin-сесії) — саме так з'являється "прив'язка до
+/// email", яку просив користувач: сама /admin-сесія спільна на пароль, а
+/// токен — персональний, видається конкретній людині з реальною поштою.
+/// Сирий токен показується ОДИН раз у момент створення (UI), у базі —
+/// лише sha256-хеш (той самий принцип, що з паролями: не зберігати
+/// секрет у відкритому вигляді навіть свій згенерований).
+model AdminApiToken {
+  id         Int       @id @default(autoincrement())
+  /// Підпис для людини ("Excel — Станіслав Карманов") — не сам токен.
+  label      String?
+  tokenHash  String    @unique
+  employeeId Int
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+}
+
+// ---------------------------------------------------------------------
+// Ачивки/заслуги (Фаза C адмінки)
+// ---------------------------------------------------------------------
+
+/// manual — адмін вручну створює тип і видає конкретній людині (аналог
+/// "kudos"/spot-award у Lattice/Culture Amp). auto — нараховується самому
+/// щоденним cron за реальними даними (lib/badgeRules.js), як у
+/// Duolingo/Salesforce Trailhead.
+enum BadgeKind {
+  manual
+  auto
+}
+
+/// Тип ачивки/заслуги — сам "значок", ще не прив'язаний до людини
+/// (прив'язка — EmployeeBadge нижче). Для kind=auto ruleKey вказує, яку
+/// функцію з lib/badgeRules.js рахувати; для kind=manual ruleKey — null,
+/// адмін видає вручну з картки співробітника.
+model Badge {
+  id          Int             @id @default(autoincrement())
+  /// Стабільний ключ — для auto badge_rules.js звертається саме по ньому,
+  /// не по назві (назву адмін може перейменувати, не ламаючи авто-правило).
+  code        String          @unique
+  title       String
+  description String?
+  /// emoji або ключ SVG-іконки — той самий підхід, що вже є в
+  /// AchievementsPanel.jsx (badge-ico), не нова система іконок.
+  icon        String?
+  kind        BadgeKind
+  ruleKey     String?
+  createdAt   DateTime        @default(now())
+  awards      EmployeeBadge[]
+}
+
+/// Факт видачі конкретної ачивки конкретній людині. @@unique — і захист
+/// від дублів при повторному прогоні auto-правил (cron може безпечно
+/// прогонятись хоч щодня), і природне обмеження "одна й та сама ачивка
+/// людині — один раз" для manual (повторна видача = помилка UI, не нова
+/// заслуга).
+model EmployeeBadge {
+  id          Int       @id @default(autoincrement())
+  employeeId  Int
+  employee    Employee  @relation("BadgeRecipient", fields: [employeeId], references: [id])
+  badgeId     Int
+  badge       Badge     @relation(fields: [badgeId], references: [id])
+  awardedAt   DateTime  @default(now())
+  /// null — нараховано авто-правилом (система), не людиною.
+  awardedById Int?
+  awardedBy   Employee? @relation("BadgeAwardedBy", fields: [awardedById], references: [id])
+  /// Текст "заслуги" при ручній видачі (напр. "За рекордний квартал") —
+  /// для auto зазвичай порожній, самого факту досягнення достатньо.
+  note        String?
+
+  @@unique([employeeId, badgeId])
 }

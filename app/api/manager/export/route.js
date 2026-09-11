@@ -3,105 +3,18 @@ import { getCurrentUser } from "@/lib/session";
 import { isManagerTier, getAllSubordinates } from "@/lib/permissions";
 import { getExportData, getDashboardStats } from "@/lib/managerDashboard";
 import { PLATFORM_NAME } from "@/lib/branding";
-
-const STATUS_LABELS = {
-  not_started: "Не розпочато",
-  in_progress: "В процесі",
-  overdue: "Прострочено",
-};
-
-// completed саме по собі означає лише "дійшов до кінця" — НЕ "склав".
-// Прохідний бал 80% (той самий поріг passed = scorePercent >= 80, що
-// вже рахується при генерації Enrollment/ModuleCompletion) — тому
-// статус курсу, пройденого нижче порогу, тут явно позначений окремо,
-// а не тоне в загальному "Завершено" (той самий фікс, що StatusPill у
-// components/ManagerDashboard.jsx).
-function statusLabel(status, passed) {
-  if (status === "completed") return passed ? "Складено" : "Завершено, не складено";
-  return STATUS_LABELS[status] || status;
-}
-
-function fmtDate(value) {
-  if (!value) return "";
-  return new Date(value).toISOString().slice(0, 10);
-}
-
-function fmtMinutes(seconds) {
-  if (seconds == null) return "";
-  return Math.round(seconds / 60);
-}
-
-// Золото/срібло/бронза — той самий поріг (100% / 95%+ / 90%+), що вже
-// показує MedalIcon у кабінеті керівника (components/ManagerDashboard.jsx,
-// medalTier) — тут просто емодзі замість SVG (Excel не малює React-іконки,
-// а емодзі рендериться нативно в будь-якій клітинці).
-function medalEmoji(scorePercent) {
-  if (scorePercent == null) return "";
-  if (scorePercent >= 100) return "🥇";
-  if (scorePercent >= 95) return "🥈";
-  if (scorePercent >= 90) return "🥉";
-  return "";
-}
-
-const BRAND_GREEN = "FF00321E";
-const HEADER_FILL = "FFEFF3F0";
-const FAIL_FILL = "FFFFE1E1";
-const BORDER_COLOR = "FFD7E0E2";
-const THIN_BORDER = { style: "thin", color: { argb: BORDER_COLOR } };
-const CELL_BORDER = { top: THIN_BORDER, left: THIN_BORDER, bottom: THIN_BORDER, right: THIN_BORDER };
-
-function styleHeaderRow(row) {
-  row.font = { bold: true, color: { argb: BRAND_GREEN } };
-  row.eachCell((cell) => {
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
-    cell.border = CELL_BORDER;
-  });
-  row.commit();
-}
-
-/** Рамки по кожній клітинці таблиці (не лише лінія під заголовком) — без
- * цього дані виглядали як текст, "приблизно вирівняний по колонках", а не
- * як справжня таблиця. Легка сіра штрихова лінія (--line-подібний тон),
- * не чорна — читабельно, але не перевантажено. */
-function addBorders(ws, firstRow, lastRow, colCount) {
-  for (let r = firstRow; r <= lastRow; r++) {
-    const row = ws.getRow(r);
-    for (let c = 1; c <= colCount; c++) {
-      row.getCell(c).border = CELL_BORDER;
-    }
-    row.commit();
-  }
-}
-
-function autoSheet(wb, name, columns, rows) {
-  const ws = wb.addWorksheet(name, { views: [{ state: "frozen", ySplit: 1 }] });
-  ws.columns = columns;
-  styleHeaderRow(ws.getRow(1));
-  rows.forEach((r) => ws.addRow(r));
-  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
-  if (rows.length > 0) addBorders(ws, 2, rows.length + 1, columns.length);
-  return ws;
-}
-
-const GREEN_TINT = "FFE3F5EA";
-const RED_TINT = FAIL_FILL;
-
-/** Фарбує кожен рядок даних у зелений/червоний за колонкою "Так"/"Ні"
- * (Складено) — той самий сигнал, що StatusPill у кабінеті керівника, але
- * в Excel: скан очима по кольору, не по тексту в кожній клітинці. */
-function highlightPassColumn(ws, columnKey) {
-  const colIndex = ws.columns.findIndex((c) => c.key === columnKey) + 1;
-  if (!colIndex) return;
-  ws.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return;
-    const value = row.getCell(colIndex).value;
-    if (value !== "Так" && value !== "Ні") return;
-    const fill = { type: "pattern", pattern: "solid", fgColor: { argb: value === "Так" ? GREEN_TINT : RED_TINT } };
-    row.eachCell((cell) => {
-      cell.fill = fill;
-    });
-  });
-}
+import {
+  BRAND_GREEN,
+  FAIL_FILL,
+  statusLabel,
+  fmtDate,
+  fmtMinutes,
+  medalEmoji,
+  styleHeaderRow,
+  addBorders,
+  autoSheet,
+  highlightPassColumn,
+} from "@/lib/excelReport";
 
 // GET /api/manager/export — повний Excel-звіт по видимій команді керівника.
 // "Зведення" (перша вкладка) — підсумкові числа команди + наочні data-bar

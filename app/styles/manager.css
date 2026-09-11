@@ -109,8 +109,20 @@ body:has(.manager-shell) {
   flex-shrink: 0;
   padding: 8px 14px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-input);
+  /* Бордерована кнопка-посилання, не текстове поле — прямокутний
+     Malty-паттерн (--radius-btn), не --radius-input (той лише для
+     справжніх текстових полів, atoms/Input). */
+  border-radius: var(--radius-btn);
   text-decoration: none;
+  transition: border-color var(--dur-fast) var(--ease-premium);
+}
+@media (hover: hover) {
+  .mgr-export-link:hover {
+    border-color: var(--green-700);
+  }
+}
+.mgr-export-link:focus-visible {
+  border-radius: var(--radius-btn);
 }
 
 /* ---- Каркас: sidebar (десктоп/планшет) ↔ appbar+burger+шторка (мобільний) ----
@@ -135,11 +147,10 @@ body:has(.manager-shell) {
   top: 0;
   height: 100vh;
 }
+/* Сам бренд-блок — components/PlatformBrand.jsx (спільний з хабом,
+   app/globals.css .platform-brand*); тут лише відступ під нього в
+   контексті сайдбара. */
 .mgr-sidebar-brand {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 20px;
-  color: var(--green-700);
   margin-bottom: 26px;
 }
 .mgr-nav {
@@ -294,20 +305,6 @@ body:has(.manager-shell) {
   }
   .mgr-nav-sheet-overlay {
     display: none !important;
-  }
-}
-
-@media (max-width: 560px) {
-  .manager-shell .admin-topbar-title-full {
-    display: none;
-  }
-  .manager-shell .admin-topbar-title-short {
-    display: inline;
-  }
-}
-@media (min-width: 561px) {
-  .manager-shell .admin-topbar-title-short {
-    display: none;
   }
 }
 
@@ -529,7 +526,12 @@ body:has(.manager-shell) {
   flex-shrink: 0;
   align-items: center;
   padding: 3px 9px;
-  border-radius: var(--radius-pill);
+  /* Без заокруглення — за проханням користувача, як офіційні атоми
+     Malty (.admin-btn у admin.css той самий принцип): статус-піл тут
+     навмисно прямокутний, не заокруглена "пігулка". var(--radius-btn),
+     не літеральний 0 — той самий токен, що й .admin-btn, а не
+     дубльоване "на око" значення. */
+  border-radius: var(--radius-btn);
   font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -598,8 +600,9 @@ body:has(.manager-shell) {
 .mgr-ring-fill {
   /* Кінці НЕ заокруглені (без strokeLinecap="round" у JSX — стандартний
      butt) + анімоване заповнення при появі даних, ті самі токени руху,
-     що й бари вище. */
-  transition: stroke-dasharray var(--dur-slow) var(--ease-premium);
+     що й бари вище. Довше за звичайний --dur-slow (×1.5) — на повному
+     колі заповнення "з нуля" на 400мс виглядало занадто різко. */
+  transition: stroke-dasharray calc(var(--dur-slow) * 1.5) var(--ease-premium);
 }
 .mgr-bar-list {
   list-style: none;
@@ -642,8 +645,9 @@ body:has(.manager-shell) {
   /* --dur-slow/--ease-premium — ті самі токени руху, що вже скрізь у
      проєкті (не власна довільна тривалість) — заповнення анімується від
      0% при появі даних (components/ManagerDashboard.jsx, barsAnimated),
-     не стрибає миттєво на фінальне значення. */
-  transition: width var(--dur-slow) var(--ease-premium);
+     не стрибає миттєво на фінальне значення. ×1.5 — те саме сповільнення,
+     що й .mgr-ring-fill/.mgr-trend-bar-fill. */
+  transition: width calc(var(--dur-slow) * 1.5) var(--ease-premium);
 }
 .mgr-bar-value {
   flex: 0 0 auto;
@@ -687,7 +691,9 @@ body:has(.manager-shell) {
   width: 100%;
   background: var(--cb-primary);
   min-height: 3px;
-  transition: height var(--dur-slow) var(--ease-premium);
+  /* ×1.5 --dur-slow — те саме сповільнення, що й .mgr-ring-fill/
+     .mgr-bar-fill, щоб заповнення при появі даних не стрибало миттєво. */
+  transition: height calc(var(--dur-slow) * 1.5) var(--ease-premium);
 }
 .mgr-trend-count {
   margin-top: 4px;
@@ -809,7 +815,8 @@ body:has(.manager-shell) {
   font-weight: 600;
   color: var(--ink-soft);
   background: var(--surface-2);
-  border-radius: var(--radius-pill);
+  /* Без заокруглення — той самий принцип/токен, що .mgr-pill вище. */
+  border-radius: var(--radius-btn);
   padding: 3px 9px;
   white-space: nowrap;
 }

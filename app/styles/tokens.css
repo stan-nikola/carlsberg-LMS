@@ -50,11 +50,25 @@
   --cb-overlay-25: rgba(33, 40, 51, 0.25);
   --cb-overlay-50: rgba(33, 40, 51, 0.5);
   --cb-overlay-75: rgba(33, 40, 51, 0.75);
+  /* Дзеркало шкали вище, білим — colors.json overlay-шкала в Malty лише
+     чорна (для світлого фону); тут той самий крок 5/10/25/50/75, білим,
+     для елементів на темному/кольоровому фоні (.profile-card тощо), що
+     раніше писали довільний rgba(255,255,255,X) без токена. */
+  --cb-white-overlay-5: rgba(255, 255, 255, 0.05);
+  --cb-white-overlay-10: rgba(255, 255, 255, 0.1);
+  --cb-white-overlay-25: rgba(255, 255, 255, 0.25);
+  --cb-white-overlay-50: rgba(255, 255, 255, 0.5);
+  --cb-white-overlay-75: rgba(255, 255, 255, 0.75);
 
   /* Похідні від бренду — для ledge/hover/фокус-станів */
   --cb-primary-tint: rgba(0, 50, 30, 0.06);
   --cb-secondary-tint: rgba(23, 177, 105, 0.1);
   --cb-focus-ring: 0 0 0 3px rgba(23, 177, 105, 0.25);
+  /* Фірмова зелена тінь (.profile-card, hub.css) — раніше сире
+     rgba(11,74,52,...), портоване з legacy ще до Malty й ніколи не
+     звірене з реальним токеном; тепер той самий rgb(0,50,30), що й
+     --cb-primary/--cb-primary-tint вище, той самий принцип "не на око". */
+  --cb-primary-shadow: rgba(0, 50, 30, 0.55);
 
   /* ---- Sizes / spacing (sizes.json) ---- */
   --size-5xs: 2px;

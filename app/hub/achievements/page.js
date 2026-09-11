@@ -1,22 +1,24 @@
 import { getCurrentUser } from "@/lib/session";
-import { getEmployeeEnrollments } from "@/lib/employeeProgress";
+import { getEmployeeBadgesView, getTerritoryLeaderboard } from "@/lib/achievements";
 import { AchievementsPanel } from "@/components/AchievementsPanel";
 
 // Портовано з .hub-screen[data-tab="achievements"] в legacy index.html.
-// Значки й рейтинг лишились здебільшого захардкодженими заглушками, як і
-// в legacy — реальна логіка є лише для "Курс складено" (badgeCourseDone).
-// Сам вміст (значки+рейтинг) — components/AchievementsPanel.jsx, той
-// самий блок рендерить і /manager/achievements.
+// Раніше значки й рейтинг були захардкодженими заглушками (Фаза C
+// адмінки замінила це на реальні дані — lib/achievements.js). Сам вміст
+// (значки+рейтинг) — components/AchievementsPanel.jsx, той самий блок
+// рендерить і /manager/achievements.
 export default async function HubAchievementsPage() {
   const employee = await getCurrentUser();
-  const enrollments = await getEmployeeEnrollments(employee.id);
-  const passedCount = enrollments.filter((e) => e.status === "completed" && e.passed).length;
+  const [badges, leaderboard] = await Promise.all([
+    getEmployeeBadgesView(employee.id),
+    getTerritoryLeaderboard(employee.territoryId),
+  ]);
 
   return (
     <section className="hub-screen">
       <div className="greeting">ВАШ ПРОГРЕС</div>
       <h1 className="hub-h1">Досягнення</h1>
-      <AchievementsPanel passedCount={passedCount} />
+      <AchievementsPanel badges={badges} leaderboard={leaderboard} currentEmployeeId={employee.id} />
     </section>
   );
 }

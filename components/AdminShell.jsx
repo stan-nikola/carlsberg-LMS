@@ -26,6 +26,9 @@ export function AdminShell({ children }) {
           <Link href="/admin/employees" className="admin-btn-link">
             Співробітники
           </Link>
+          <Link href="/admin/badges" className="admin-btn-link">
+            Ачивки
+          </Link>
           <button className="admin-btn-link" onClick={handleLogout}>
             Вийти
           </button>

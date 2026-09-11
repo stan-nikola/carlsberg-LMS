@@ -1,5 +1,7 @@
-// Іконки з legacy index.html, винесені в окремі компоненти — самі inline
-// SVG не змінювались, тільки перенесені з розмітки в JSX.
+// Здебільшого іконки з legacy index.html, винесені в окремі компоненти —
+// inline SVG не змінювались, тільки перенесені з розмітки в JSX. Виняток —
+// таббар HubShell (HomeIcon/LearnIcon/AchievementsIcon нижче): їх з того
+// часу перемалювали на строгий лінійний стиль, див. коментар при TabSvg.
 
 export function GearIcon() {
   return (
@@ -10,54 +12,62 @@ export function GearIcon() {
   );
 }
 
-/** Нижній таббар (HubShell) — у стилі Instagram: контурна іконка неактивної
- * вкладки, суцільно залита — активної. Кожна іконка тут — ОДИН і той самий
- * `d` для обох станів (просто перемикаємо fill↔stroke), щоб при заливці
- * форма контуру не "стрибала" на інший силует, як було з попереднім
- * набором (окремі path для outline/filled малювались незалежно і не
- * збігались один з одним). */
-function TabSvg({ d, filled }) {
-  return filled ? (
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d={d} fillRule="evenodd" />
-    </svg>
-  ) : (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round">
-      <path d={d} fillRule="evenodd" />
+/** Нижній таббар (HubShell) — суворий контурний стиль (не "заливка
+ * Instagram", як було раніше): та сама лінійна мова, що й решта іконок
+ * проєкту (ClockIcon/CalendarIcon/ChevronIcon — fill:none, strokeWidth 2,
+ * round caps/joins), а не окремий візуальний діалект лише для таббару.
+ * Активний стан — трохи товща лінія (2.3 проти 1.8), не суцільна заливка:
+ * разом із кольором (--cb-primary) і масштабом (.tab-btn.active svg у
+ * hub.css) цього досить, щоб стан читався однозначно, без візуального
+ * шуму заливки на маленькому розмірі. */
+function TabSvg({ filled, children }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={filled ? 2.3 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+      {children}
     </svg>
   );
 }
 
-// Будиночок з навісом даху (дах ширший за стіни) і дверима-"вирізом" —
-// навіть в залитому стані читається однозначно як дім, а не просто
-// п'ятикутник (fillRule="evenodd" робить прямокутник дверей "діркою").
-const HOME_PATH = "M12 2 22 11 19 11 19 21 5 21 5 11 2 11Z M10 21 10 14 14 14 14 21Z";
+// Один замкнений контур-п'ятикутник (дах+стіни одним штрихом) замість
+// трьох окремих ліній — максимально зведена форма, той самий принцип
+// строгого мінімалізму, що й зірка/шапка нижче.
 export function HomeIcon({ filled = false }) {
-  return <TabSvg d={HOME_PATH} filled={filled} />;
+  return (
+    <TabSvg filled={filled}>
+      <path d="M4 11 12 4 20 11V20H4Z" />
+    </TabSvg>
+  );
 }
 
-// Закрита книга з чітким "корінцем" — вертикальна лінія-виріз біля
-// заокругленого краю відділяє обкладинку від сторінок, тож форма
-// однозначно читається як книга, а не закладка чи картка.
-const LEARN_PATH = "M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z M7.6 4 7.6 20 8.4 20 8.4 4Z";
+// Академічна шапка (ромб + стрічка-основа) — усталений символ навчання,
+// впізнаваніший за книгу на маленькому розмірі таббару.
 export function LearnIcon({ filled = false }) {
-  return <TabSvg d={LEARN_PATH} filled={filled} />;
+  return (
+    <TabSvg filled={filled}>
+      <path d="M12 4 22 9 12 14 2 9Z" />
+      <path d="M6 11.5V17c0 1.5 2.8 3 6 3s6-1.5 6-3v-5.5" />
+    </TabSvg>
+  );
 }
 
-// Кубок-трофей: чаша на ніжці й підставці + дві "ручки" по боках
-// (окремі замкнені підшляхи), щоб форма однозначно читалась як трофей,
-// а не абстрактна фігура.
-const ACHIEVEMENTS_PATH =
-  "M6 3h12v6a6 6 0 0 1-5 5.92V17h2.5a1 1 0 0 1 1 1v2H7.5v-2a1 1 0 0 1 1-1H11v-2.08A6 6 0 0 1 6 9Z M6 4.5C2.5 4.8.8 6.8.8 8.5S2.5 12.2 6 12.5C4 12 3 10.5 3 8.5S4 5 6 4.5Z M18 4.5C21.5 4.8 23.2 6.8 23.2 8.5S21.5 12.2 18 12.5C20 12 21 10.5 21 8.5S20 5 18 4.5Z";
+// П'ятикутна зірка одним замкненим контуром — той самий принцип, що
+// HomeIcon вище, і зрозуміліший символ "досягнення", ніж кубок-трофей.
 export function AchievementsIcon({ filled = false }) {
-  return <TabSvg d={ACHIEVEMENTS_PATH} filled={filled} />;
+  return (
+    <TabSvg filled={filled}>
+      <path d="M12 3 14.6 8.6 20.7 9.4 16.2 13.6 17.4 19.7 12 16.9 6.6 19.7 7.8 13.6 3.3 9.4 9.4 8.6Z" />
+    </TabSvg>
+  );
 }
 
-// Коло-голова + плечі — компактний бюст, як в іконці профілю Instagram.
-const PROFILE_PATH =
-  "M12 3.3a4.3 4.3 0 1 0 0 8.6 4.3 4.3 0 1 0 0-8.6Z M4.2 21a7.8 7.8 0 0 1 15.6 0 1 1 0 0 1-1 1H5.2a1 1 0 0 1-1-1Z";
+// Коло-голова + плечі — компактний бюст, лінією.
 export function ProfileIcon({ filled = false }) {
-  return <TabSvg d={PROFILE_PATH} filled={filled} />;
+  return (
+    <TabSvg filled={filled}>
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 20a7 7 0 0 1 14 0" />
+    </TabSvg>
+  );
 }
 
 /** Кружечок завантаження для кнопок дій (Зберегти/Призначити/Створити
@@ -229,20 +239,6 @@ export function TrendIcon() {
   );
 }
 
-/** Кегля для боулінгу — "страйк" (streak) курсу телесейлінгу, гра слів
- * страйк-рейт/страйк у боулінгу. Для конфігурації мотиваційних тостів
- * (Course.streakMessages.icon) поруч із наявними emoji-іконками. Суцільна
- * заливка (не тонкий 1.8px контур) — тонкі лінії губились у locked-стані
- * бейджа (grayscale+opacity:0.6, components/AchievementsPanel.jsx), суцільний
- * силует лишається впізнаваним навіть притлумленим. */
-export function BowlingPinIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2.2c-1.05 0-1.9.85-1.9 1.9 0 .55.24 1.04.6 1.39-1.1 1.6-1.7 3.5-1.7 5.31 0 1.55-1.4 3.9-1.4 6.1C7.6 19.6 9.5 21.8 12 21.8s4.4-2.2 4.4-4.9c0-2.2-1.4-4.55-1.4-6.1 0-1.81-.6-3.71-1.7-5.31.36-.35.6-.84.6-1.39 0-1.05-.85-1.9-1.9-1.9Z" />
-    </svg>
-  );
-}
-
 const MEDAL_COLORS = {
   gold: "var(--gold, #b49132)",
   silver: "#9aa4ab",
@@ -263,17 +259,36 @@ export function MedalIcon({ tier = "gold" }) {
   );
 }
 
-/** Документ + медальйон-стрічка внизу — впізнаваний символ "сертифікат",
- * той самий stroke-стиль, що й решта іконок (не MedalIcon-подібний
- * suddenly-fill варіант — тут це кнопка дії, не декоративна нагорода). */
+/** Документ (currentColor — підхоплює колір батька) + ЧЕРВОНА печатка-
+ * стрічка внизу (var(--danger), той самий токен, що й скрізь у проєкті
+ * для акценту — не вигаданий hex): впізнаваний символ "сертифікат".
+ * Єдиний компонент на весь проєкт — заміна кольору/форми тут одразу
+ * поширюється на всі місця використання. */
 export function CertificateIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2.5" y="2.5" width="19" height="13" rx="2" />
-      <line x1="6" y1="6.5" x2="18" y2="6.5" />
-      <line x1="6" y1="10" x2="14" y2="10" />
-      <circle cx="12" cy="18.3" r="2.7" />
-      <path d="M9.9 20.6 8.8 22.7 10.6 21.7 12 23.2 13.4 21.7 15.2 22.7 14.1 20.6" />
+    <svg viewBox="0 0 24 24" fill="none">
+      <rect
+        x="2.5"
+        y="2.5"
+        width="19"
+        height="12"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line x1="6" y1="6.3" x2="18" y2="6.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <line x1="6" y1="9.7" x2="14" y2="9.7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M9.9 20.4 8.8 22.6 10.6 21.6 12 23.1 13.4 21.6 15.2 22.6 14.1 20.4"
+        stroke="var(--danger, #f45f5e)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="17.6" r="3" fill="var(--danger, #f45f5e)" />
+      <circle cx="12" cy="17.6" r="1.3" fill="none" stroke="#fff" strokeWidth="0.9" />
     </svg>
   );
 }
