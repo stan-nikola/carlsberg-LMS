@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { SpinnerIcon } from "@/components/icons";
 import { EmployeeTree } from "@/components/EmployeeTree";
+import { ExcelLivePanel } from "@/components/ExcelLivePanel";
 
 const ROLE_LABELS = {
   employee: "Співробітник",
@@ -81,6 +82,74 @@ function EmployeeCreateForm({ onCreated, onCancel }) {
   );
 }
 
+function EmployeeImportForm({ onImported, onCancel }) {
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+
+  async function handleUpload() {
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    setResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/admin/employees/import", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setResult(data);
+      if (data.createdCount > 0) onImported();
+    } catch (err) {
+      setError("Помилка імпорту: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="admin-form-section">
+      <p className="admin-subtitle">
+        Тільки додавання НОВИХ співробітників (за externalCode) — існуючих не чіпає.{" "}
+        {/* Файл-завантаження (xlsx), не навігація на сторінку — той самий
+            патерн, що вже є в ManagerDashboard.jsx (посилання на
+            /api/manager/export): звичайний <a href>, не <Link>, щоб браузер
+            сам ініціював завантаження файлу. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a className="admin-btn-link" href="/api/admin/employees/import-template">
+          Завантажити шаблон
+        </a>
+      </p>
+      <input type="file" accept=".xlsx" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+      {error && <p className="admin-error">{error}</p>}
+      {result && (
+        <div className="admin-hint" style={{ marginTop: 8 }}>
+          <p>Створено: {result.createdCount}</p>
+          {result.skippedRows.length > 0 && (
+            <ul>
+              {result.skippedRows.map((s, i) => (
+                <li key={i}>
+                  Рядок {s.row}: {s.reason}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      <div className="admin-btn-group" style={{ marginTop: 8 }}>
+        <button className="admin-btn" disabled={!file || uploading} onClick={handleUpload}>
+          {uploading && <SpinnerIcon />}
+          Завантажити
+        </button>
+        <button className="admin-btn-link" onClick={onCancel} disabled={uploading}>
+          Закрити
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Екран /admin/employees: список (пошук + роль + PIN, як і раніше) або
  * дерево організації (EmployeeTree.jsx) — перемикач зверху. Рядки списку
@@ -91,6 +160,7 @@ export function AdminEmployees() {
   const searchParams = useSearchParams();
   const [view, setView] = useState(searchParams.get("view") === "tree" ? "tree" : "list");
   const [showCreate, setShowCreate] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const [q, setQ] = useState("");
   const [showInactive, setShowInactive] = useState(false);
@@ -99,6 +169,7 @@ export function AdminEmployees() {
   const [loading, setLoading] = useState(true);
   const [pinStatus, setPinStatus] = useState({});
   const [roleSaving, setRoleSaving] = useState({});
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (view !== "list") return;
@@ -125,7 +196,7 @@ export function AdminEmployees() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [q, showInactive, view]);
+  }, [q, showInactive, view, refreshKey]);
 
   async function handleResetPin(employeeId) {
     setPinStatus((prev) => ({ ...prev, [employeeId]: "sending" }));
@@ -161,7 +232,9 @@ export function AdminEmployees() {
       <p className="admin-subtitle">
         {view === "list"
           ? "Пошук за ім'ям або кодом — картка, скидання PIN і роль."
-          : "Дерево підпорядкування — перетягніть вузол на іншого керівника, щоб переприв'язати."}
+          : view === "tree"
+            ? "Дерево підпорядкування — перетягніть вузол на іншого керівника, щоб переприв'язати."
+            : "Жива Excel-книга — Power Query підключається до бази напряму й оновлюється кнопкою в Excel."}
       </p>
 
       <div className="admin-btn-group" style={{ marginTop: 16, marginBottom: 16 }}>
@@ -171,10 +244,23 @@ export function AdminEmployees() {
         <button className={view === "tree" ? "admin-btn" : "admin-btn-link"} onClick={() => setView("tree")}>
           Дерево
         </button>
-        <button className="admin-btn-link" onClick={() => setShowCreate((v) => !v)} style={{ marginLeft: "auto" }}>
+        <button className={view === "excel" ? "admin-btn" : "admin-btn-link"} onClick={() => setView("excel")}>
+          Excel (жива книга)
+        </button>
+        <a className="admin-btn-link" href="/api/admin/export" style={{ marginLeft: "auto" }}>
+          Завантажити всю базу (Excel)
+        </a>
+        <button className="admin-btn-link" onClick={() => setShowImport((v) => !v)}>
+          Імпорт з Excel
+        </button>
+        <button className="admin-btn-link" onClick={() => setShowCreate((v) => !v)}>
           + Новий співробітник
         </button>
       </div>
+
+      {showImport && (
+        <EmployeeImportForm onImported={() => setRefreshKey((k) => k + 1)} onCancel={() => setShowImport(false)} />
+      )}
 
       {showCreate && (
         <EmployeeCreateForm
@@ -188,6 +274,8 @@ export function AdminEmployees() {
 
       {view === "tree" ? (
         <EmployeeTree />
+      ) : view === "excel" ? (
+        <ExcelLivePanel />
       ) : (
         <>
           <div className="admin-form-row" style={{ marginBottom: 16 }}>

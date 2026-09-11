@@ -97,6 +97,7 @@ model Employee {
   enrollments         Enrollment[]   @relation("EnrollmentEmployee")
   assignedEnrollments Enrollment[]   @relation("EnrollmentAssignedBy")
   notifications       Notification[]
+  apiTokens           AdminApiToken[]
 
   /// Soft-delete/деактивація для адмінського CRUD співробітників.
   /// Навмисно НЕ hard delete — Employee має self-relation (managerId/
@@ -417,4 +418,27 @@ model Notification {
   isRead  Boolean @default(false)
 
   createdAt DateTime @default(now())
+}
+
+/// Токен для "живого" Excel-підключення (Фаза B3 адмінки) — Power Query
+/// (Data > Get Data > From Web) тягне JSON з app/api/data/*, авторизуючись
+/// заголовком Authorization: Bearer <токен>, окремо від admin_session
+/// cookie (та прив'язана до браузера, не переживе відкриття Excel).
+/// ОБОВ'ЯЗКОВО прив'язаний до конкретного Employee з role admin/hr_manager
+/// (не до анонімної /admin-сесії) — саме так з'являється "прив'язка до
+/// email", яку просив користувач: сама /admin-сесія спільна на пароль, а
+/// токен — персональний, видається конкретній людині з реальною поштою.
+/// Сирий токен показується ОДИН раз у момент створення (UI), у базі —
+/// лише sha256-хеш (той самий принцип, що з паролями: не зберігати
+/// секрет у відкритому вигляді навіть свій згенерований).
+model AdminApiToken {
+  id         Int       @id @default(autoincrement())
+  /// Підпис для людини ("Excel — Станіслав Карманов") — не сам токен.
+  label      String?
+  tokenHash  String    @unique
+  employeeId Int
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
 }
