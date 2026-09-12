@@ -175,8 +175,28 @@ model Course {
   modules     Module[]
   enrollments Enrollment[]
 
+  /// Папка каталогу /admin (Фаза E адмінки, "провідник файлів" для
+  /// курсів) — null означає корінь каталогу, без папки.
+  folderId Int?
+  folder   CourseFolder? @relation(fields: [folderId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Папка каталогу курсів в /admin — суто для навігації/групування (як
+/// папки у файловому провіднику), не бізнес-сутність: не впливає на
+/// призначення/проходження курсів, лише на те, де курс видно в списку
+/// /admin. Ієрархічна (parentId), як Territory.
+model CourseFolder {
+  id       Int            @id @default(autoincrement())
+  name     String
+  parentId Int?
+  parent   CourseFolder?  @relation("CourseFolderHierarchy", fields: [parentId], references: [id])
+  children CourseFolder[] @relation("CourseFolderHierarchy")
+  courses  Course[]
+
+  createdAt DateTime @default(now())
 }
 
 /// Модуль курсу — проміжне угруповання між Course і Screen (Курс -> Модуль ->

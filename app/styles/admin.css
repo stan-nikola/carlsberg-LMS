@@ -6,12 +6,16 @@
   /* На весь екран — це десктопний інструмент для адміна, не мобільний
      екран співробітника (звідси й немає max-width, як у .stage). */
   width: 100%;
-  padding: 32px 40px 80px;
+  padding: 10px 5px 0px;
   font-family: var(--font-body);
   color: var(--ink);
   background: var(--surface);
   min-height: 100vh;
   box-sizing: border-box;
+  /* min-height нижче для .adm-shell .admin-page перевизначає це на
+     zoom-компенсований варіант — САМ .admin-page також рендериться на
+     /admin/login (поза .adm-shell, без zoom), де звичайний 100vh лишається
+     правильним, тому базове правило тут займати не можна. */
   /* БЕЗ min-width і без overflow-x тут навмисно. Раніше тут стояв
      min-width:1120px, розрахований на 3-колоночну форму "Кому
      призначати" — але та форма давно живе в .admin-editor (окремий
@@ -61,9 +65,12 @@
 .admin-input-flex {
   /* flex: 1 працює лише всередині flex-батька (.admin-row) — там, де
      батько звичайний блок (.admin-field у формах курсу), рятує width:
-     100%, інакше input лишається у власній вузькій дефолтній ширині. */
+     100%, інакше input лишається у власній вузькій дефолтній ширині.
+     min-width: 0 — flex-дитина інакше не стискається нижче своєї
+     дефолтної intrinsic ширини й може виштовхнути ряд за межі блока. */
   flex: 1;
   width: 100%;
+  min-width: 0;
   padding: 7px 9px;
   border: 1px solid var(--line);
   border-radius: var(--radius-input);
@@ -72,6 +79,11 @@
   transition: border-color var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
 }
 .admin-select {
+  /* max-width: 100% — <select> за замовчуванням сам собі рахує ширину під
+     НАЙДОВШИЙ <option> (тут може бути довга назва департаменту) і, без
+     явного обмеження, вилазить за край свого контейнера — на відміну від
+     <input>, де текст значення просто скролиться всередині поля. */
+  max-width: 100%;
   padding: 7px 9px;
   border: 1px solid var(--line);
   border-radius: var(--radius-input);
@@ -106,6 +118,17 @@
   vertical-align: -2px;
   margin-right: 6px;
   animation: admin-spin 0.7s linear infinite;
+  /* Виміряно покадрово на реальному записі з iPhone (122 кадри,
+     least-squares підгонка кола по пікселях штриха): радіус дуги
+     стабільний (60.3-60.9px, <1% розкиду), але ЦЕНТР описує власне
+     коло ~13px і робить це синхронно з кожним обертом (кадр 0 ≈ кадр 42
+     ≈ кадр 84). Чистий CSS transform:rotate() сам по собі так робити не
+     може (центр математично фіксований) — це растеризаційний артефакт:
+     маленька векторна фігура без окремого композитного шару
+     перемальовується з вихідної геометрії щокадру, і згладжування
+     "плаває" по-різному на різних кутах повороту. will-change виносить
+     елемент на GPU-шар — растеризація один раз, а не щокадру. */
+  will-change: transform;
 }
 @keyframes admin-spin {
   to {
@@ -142,16 +165,16 @@
 .admin-btn-danger {
   background: transparent;
   color: var(--danger);
-  border-color: var(--danger);
+  border-color: transparent;
 }
 .admin-btn-danger:hover:not(:disabled) {
   filter: none;
-  background: var(--cb-fail-light);
+  text-decoration: underline;
 }
 .admin-btn-danger:disabled {
   background: transparent;
   color: var(--cb-overlay-25);
-  border-color: var(--cb-overlay-10);
+  border-color: transparent;
 }
 .admin-new-lesson {
   margin-top: 4px;
@@ -168,12 +191,16 @@
 
 .admin-field {
   margin-bottom: 12px;
+  min-width: 0; /* те саме, що min-width:0 на .admin-form-section — без
+    цього flex-дитина (.admin-form-row нижче) не стискається за свій
+    контент, і довге значення поля/опції може виштовхнути блок за межі
+    grid-колонки. */
 }
 .admin-label {
   display: block;
   font-size: 11.5px;
   font-weight: 600;
-  text-transform: uppercase;
+  text-transform: capitalize;
   letter-spacing: 0.03em;
   color: var(--ink-soft);
   margin-bottom: 5px;
@@ -319,30 +346,182 @@
   accent-color: var(--green-700);
   cursor: pointer;
 }
+/* .admin-checkbox — flex-рядок з white-space:nowrap (нижче), розрахований
+   на короткі підписи; з довшим текстом (як тут) він вилазить за межі
+   вузької grid-колонки .admin-form-columns. Дозволяємо перенос: normal
+   на самому лейблі + min-width:0 саме на текстовому <span> (перший span —
+   checkbox input не span, другий span це вже .admin-info-tip і його чіпати
+   не треба), щоб той міг стиснутись і перенестись, а не виштовхнути ряд. */
+.admin-checkbox-wrap {
+  white-space: normal;
+}
+.admin-checkbox-wrap span:first-of-type {
+  min-width: 0;
+}
 .admin-checkbox {
   color: var(--green-700);
   font-weight: 600;
   font-size: 12px;
 }
 
-/* ---- /admin вхід + дашборд (login page, AdminShell, course list) ---- */
-.admin-topbar {
+/* ---- /admin — єдиний дашборд із сайдбар-навігацією (AdminShell.jsx) ----
+   Той самий адаптивний патерн, що .mgr-sidebar/.mgr-appbar у manager.css
+   (постійний сайдбар ≥900px, appbar+шторка нижче), тут — своя палітра:
+   квадратні кути (--radius-btn: 0, як усі .admin-btn/.admin-page), не
+   --radius-sm (10px), яким користується /manager. */
+.adm-shell {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-1);
+  flex-direction: column;
+  /* Виміряно (getBoundingClientRect у реальному вьюпорті 900px заввишки):
+     звичайний min-height:100vh тут дає РЕАЛЬНУ висоту лише 765px, не 900 —
+     zoom:85% (нижче) масштабує вже РОЗРАХОВАНУ висоту вниз так само, як і
+     текст, тому 100vh-контейнер після зуму фізично не сягає низу вьюпорта
+     (лишає ~15% порожнього простору знизу). /0.85 наперед компенсує це
+     стискання, щоб after-zoom висота знову дорівнювала рівно 100vh. */
+  min-height: calc(100vh / 0.85);
+  /* -15% усього тексту й розмірів по всій /admin (за проханням
+     користувача, скопом ЛИШЕ на адмінку — не на /hub/register, де в
+     співробітників є власний повзунок --fs-scale, накладення поверх
+     нього урізало б їхній діапазон читабельності). zoom, не
+     transform:scale — zoom бере участь у розкладці (розміри/переноси
+     рахуються вже в масштабованих координатах), transform лише
+     перемальовує піксель на екрані без перерахунку layout, що зламало б
+     переноси тексту й overflow. Підтримка: Chrome/Edge/Safari (в т.ч.
+     iOS) — давно, Firefox — з версії 126 (2024). */
+  zoom: 85%;
+  /* .adm-nav-sheet (мобільна шторка) використовує .logout-row/.sheet із
+     hub.css — той несе calc(Npx * var(--fs-scale)), реагуючи на
+     персональний розмір тексту, який співробітник міг колись виставити
+     на /hub (SettingsSheet.jsx, зберігається в localStorage й лишається
+     на <html> між сесіями). /admin, як і /manager (manager.css, той
+     самий фікс), не має власного перемикача розміру тексту — гасимо
+     успадкування тут повністю, щоб адмінка завжди рахувала на чистих px. */
+  --fs-scale: 1;
 }
-.admin-topbar-title {
+.adm-sidebar {
+  display: none;
+  flex-direction: column;
+  width: 190px;
+  flex-shrink: 0;
+  padding: 20px 5px;
+  border-right: 1px solid var(--line);
+  background: var(--surface-1);
+  position: sticky;
+  top: 0;
+  /* Той самий zoom:85%-компенсаційний розрахунок, що й .adm-shell вище —
+     .adm-sidebar задає свою власну height:100vh НЕЗАЛЕЖНО від батька, тож
+     має той самий баг сам по собі (виміряно: 765px замість 900px). */
+  height: calc(100vh / 0.85);
+}
+.adm-sidebar-title {
   font-weight: 700;
   color: var(--ink);
   text-decoration: none;
+  padding: 0 12px;
+  margin-bottom: 18px;
 }
-.admin-topbar-nav {
+.adm-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+.adm-nav-link {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-btn);
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.adm-nav-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.adm-nav-link svg {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+}
+@media (hover: hover) {
+  .adm-nav-link:hover {
+    background: var(--cb-overlay-10);
+    color: var(--ink);
+  }
+}
+.adm-nav-link:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.adm-nav-link.active {
+  background: var(--green-tint);
+  color: var(--green-700);
+}
+.adm-sidebar-footer {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+/* ---- Мобільний (<900px): верхній appbar + бургер-кнопка ---- */
+.adm-appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-1);
+}
+.adm-burger-btn {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.adm-burger-btn span {
+  display: block;
+  height: 2px;
+  background: var(--ink);
+  border-radius: var(--radius-btn);
+}
+.adm-nav-sheet .adm-nav {
+  margin-top: 8px;
+}
+.adm-nav-sheet .adm-nav-link {
+  font-size: 15px;
+  padding: 12px;
+}
+@media (min-width: 900px) {
+  .adm-shell {
+    flex-direction: row;
+  }
+  .adm-sidebar {
+    display: flex;
+  }
+  .adm-appbar,
+  .adm-nav-sheet-overlay {
+    display: none;
+  }
+}
+.adm-main {
+  flex: 1;
+  min-width: 0;
+}
+/* .admin-page всередині .adm-shell — той самий zoom:85%-баг, що вже
+   виправлено на .adm-shell/.adm-sidebar вище (виміряно: 765px замість
+   900px), лише тут скоуплено до вкладеного випадку — сам .admin-page ще
+   рендериться і на /admin/login, поза .adm-shell/без zoom, де базовий
+   100vh (вище) лишається правильним і його займати не можна. */
+.adm-shell .admin-page {
+  min-height: calc(100vh / 0.85);
 }
 
 /* ---- /admin/employees (пошук, роль, скидання PIN) ---- */
@@ -417,7 +596,7 @@
 .admin-editor {
   /* На весь екран (десктопний інструмент, не мобільний .stage) */
   width: 100%;
-  padding: 28px 40px 80px;
+  padding: 5px;
   box-sizing: border-box;
 }
 .admin-editor-header {
@@ -429,6 +608,10 @@
 }
 .admin-editor-header h1 {
   margin: 0;
+  font-size: 20px;
+}
+.admin-editor-header .admin-btn-link {
+  font-size: 15px;
 }
 .admin-editor-header > div {
   display: flex;
@@ -440,7 +623,7 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 20px 22px;
+  padding: 10px 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface-1);
@@ -475,6 +658,23 @@
   gap: 28px;
   align-items: start;
 }
+/* -20% розміру шрифта всіх текстових елементів усередині форми курсу
+   (напр. .admin-input-flex/.admin-select нижче йдуть з 16px на 13px —
+   ТАК САМО порушуючи межу проти автозуму iOS Safari при фокусі на полі,
+   як і .adm-toolbar-input вище — за явним проханням користувача). */
+.admin-form-columns .admin-label {
+  font-size: 9.9px;
+}
+.admin-form-columns .admin-form-section-title {
+  font-size: 11px;
+}
+.admin-form-columns .admin-input-flex,
+.admin-form-columns .admin-select {
+  font-size: 14.3px;
+}
+.admin-form-columns .admin-checkbox {
+  font-size: 11px;
+}
 @media (max-width: 760px) {
   .admin-form-columns {
     grid-template-columns: 1fr;
@@ -503,6 +703,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
 }
 /* Згорнутий заголовок акордеону території — той самий caret/summary
  * стиль, що й Block/Module у редакторі курсу (.admin-accordion-*), щоб
@@ -705,6 +906,12 @@
   font-size: 12.5px;
   color: var(--ink-soft);
 }
+/* Скоуплено лише на .admin-status-line у CourseSettingsBar (3 кнопки:
+   Зберегти/Призначити/Видалити) — у CourseCreateForm (Створити курс/
+   Скасувати) той самий .admin-status-line лишається звичайним row. */
+.admin-status-line-reverse {
+  flex-direction: row-reverse;
+}
 /* Однакові відступи між кнопками дій — замість крихкого "{' '}"
  * (буквальний пробіл-текст) між <button> у JSX. */
 .admin-btn-group {
@@ -721,12 +928,27 @@
 }
 .admin-editor-edit {
   min-width: 0;
+  /* width, не zoom — те саме рішення, що й .admin-editor-preview нижче:
+     звужуємо сам контейнер у межах батьківської grid-колонки замість
+     zoom-масштабування вмісту. */
+  width: 60%;
 }
 .admin-editor-preview {
   position: sticky;
   top: 24px;
   display: flex;
   justify-content: center;
+  /* width:40% (не zoom) — .iphone-mockup усередині вже сам масштабується
+     пропорційно під РЕАЛЬНУ ширину батька (width:100% + aspect-ratio +
+     max-width нижче), тож досить звузити сам контейнер-батько; zoom тут
+     зайвий і ризикований — .admin-editor-preview ще й position:sticky,
+     а zoom спотворює координати, в яких браузер рахує sticky-зсув. */
+  width: 40%;
+  /* justify-self:center — з явним width grid-айтем більше НЕ stretch за
+     замовчуванням (те саме, що з auto-width), тож без цього коробка
+     прилипає до лівого краю 520px-колонки замість того, щоб лишатись по
+     центру, як була до появи явного width. */
+  justify-self: center;
 }
 
 /* ---- Прев'ю в рамці iPhone 17 Pro Max ----
@@ -967,6 +1189,13 @@
   padding: 10px 14px 14px;
   border-top: 1px solid var(--line);
   background: var(--surface);
+  /* +10% всього тексту в блоці — zoom, не per-елементний font-size:
+     усередині вже є явні px-перевизначення (.admin-form-columns .admin-label
+     і т.д. з окремого -20%/+10% запиту вище), які font-size на предку не
+     перебив би (px на нащадку завжди сильніший за успадкований розмір), а
+     zoom масштабує візуально ВСЕ, включно з ними, так само як .adm-shell
+     вище. */
+  zoom: 110%;
 }
 .admin-block-list {
   list-style: none;
@@ -1251,4 +1480,295 @@
   align-items: stretch;
   padding: 12px 14px;
   background: var(--surface);
+}
+
+/* ---- Каталог курсів: "провідник файлів" — папки + drag&drop (Фаза E) ---- */
+.adm-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  /* БЕЗ margin-bottom тут навмисно (було 14px) — асиметричний margin
+     лише знизу на flex-елементі в РЯДКУ (не в колонці, де він додає
+     звичного проміжку) зсуває візуальний центр margin-box угору,
+     тому сусідня кнопка "Нова папка" виглядала не по центру відносно
+     цього nav, хоч align-items:center на батьківському flex і був
+     коректний. Відступ знизу під усім рядком тепер на обгортці в
+     AdminDashboard.jsx (marginBottom інлайн-стилем), не тут. */
+}
+.adm-breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.adm-breadcrumb-sep {
+  color: var(--ink-soft);
+  margin: 0 2px;
+}
+.adm-breadcrumb-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: var(--radius-btn);
+  background: none;
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.adm-breadcrumb-crumb svg {
+  width: 15px;
+  height: 15px;
+}
+.adm-breadcrumb-crumb:hover {
+  background: var(--surface-1);
+  color: var(--ink);
+}
+.adm-breadcrumb-crumb.current {
+  color: var(--ink);
+  cursor: default;
+}
+
+/* ---- Каталог курсів — сітка плиток "провідник файлів" (Фаза E,
+   максимальна схожість із Windows Explorer, за явним проханням
+   користувача — тут свідомо дозволено відійти від суворого квадратного
+   Malty-стилю решти /admin: заокруглені плитки, м'яке виділення). ---- */
+.adm-view-toggle {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-btn);
+  overflow: hidden;
+}
+.adm-view-toggle button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.adm-view-toggle button svg {
+  width: 17px;
+  height: 17px;
+}
+.adm-view-toggle button + button {
+  border-left: 1px solid var(--line);
+}
+.adm-view-toggle button.active {
+  background: var(--green-tint);
+  color: var(--green-700);
+}
+
+.adm-explorer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 4px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+.adm-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px 10px 0;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  text-align: center;
+  user-select: none;
+}
+.adm-tile:hover {
+  background: var(--surface-1);
+}
+.adm-tile.selected {
+  background: var(--green-tint);
+  border-color: var(--green-700);
+}
+.adm-tile.drag-over {
+  background: var(--green-tint);
+  border-color: var(--green-700);
+  border-style: dashed;
+}
+.adm-tile-hit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+/* Плитка курсу (без перейменування, на відміну від папки) — увесь вміст
+   (іконка+назва+лічильник) в ОДНІЙ кнопці, щоб клікабельною/pointer була
+   вся плитка, а не лише іконка. */
+.adm-tile-hit-full {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.adm-tile-icon {
+  display: flex;
+  width: 44px;
+  height: 44px;
+}
+.adm-tile-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.adm-tile-icon-folder {
+  color: var(--gold, #b49132);
+}
+.adm-tile-icon-course {
+  color: var(--green-700);
+}
+.adm-tile-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.adm-tile-sub {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.adm-tile-rename-input {
+  width: 100%;
+  font-size: 12.5px;
+  text-align: center;
+  padding: 2px 4px;
+  border: 1px solid var(--green-700);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.adm-context-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.adm-context-menu {
+  position: fixed;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow, 0 8px 24px rgba(0, 0, 0, 0.15));
+}
+.adm-context-menu button {
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 13px;
+  color: var(--ink);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.adm-context-menu button:hover {
+  background: var(--surface-1);
+}
+
+.adm-explorer-detail {
+  margin-top: 4px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+}
+
+/* .admin-icon-btn скрізь несе текстовий гліф "✕" (не SVG) — це доповнення
+   лише для двох нових кнопок папки (Перейменувати/Видалити,
+   FolderRow/list-вигляд), щоб SVG-іконка всередині центрувалась і мала
+   розумний розмір, не чіпаючи саму .admin-icon-btn для решти місць. */
+.adm-row-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.adm-row-icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Компактніші select/input у тулбарі каталогу курсів (-30% padding
+   відносно базових .admin-select/.admin-input-flex) — font-size НАВМИСНО
+   лишається 16px, не зменшується: це нижня межа, що рятує від
+   автозуму iOS Safari при фокусі на полі (див. коментар над
+   .admin-input-flex вище) — адмінку реально відкривають з телефону
+   (підтверджено цієї ж сесії), тож ця межа не просто теоретична. */
+.adm-toolbar-input {
+  padding: 4px 5px;
+  /* font-size 13px тут явно ПОРУШУЄ межу 16px, яку .admin-input-flex/
+     .admin-select тримають навмисно (коментар вище) — на iPhone Safari
+     фокус на полі з font-size < 16px автоматично зумить сторінку, і сам
+     зум користувач після цього зняти не може (лише назад/перезавантаження).
+     Свідомо застосовано за повторним явним проханням користувача (двічі
+     попереджав) — якщо поле "Пошук курсу"/"Усі департаменти" стане
+     незручним з телефону саме через це, причина тут. */
+  font-size: 13px;
+}
+
+/* Кнопка "Нова папка" біля хлібних крихт каталогу курсів — на 20%
+   більша за базовий .iconbtn (34px→41px, іконка 16px→19px), без зміни
+   самого спільного .iconbtn для решти місць застосунку. */
+.adm-new-folder-btn {
+  width: 35px;
+  height: 35px;
+  padding-right: 6px;
+}
+.adm-new-folder-btn svg {
+  width: 23px;
+  height: 23px;
+}
+
+/* ---- Модальне вікно (перший реальний модал у проєкті — досі всюди був
+   лише браузерний confirm()). Створення папки каталогу курсів свідомо
+   винесено з інлайн-рядка в модал: сама дія одноразова й короткочасна,
+   не потребує лишатись видимою частиною сторінки як постійний елемент
+   форми. ---- */
+.adm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 20px;
+}
+.adm-modal {
+  width: 100%;
+  max-width: 360px;
+  padding: 20px;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow, 0 12px 32px rgba(0, 0, 0, 0.25));
+}
+.adm-modal-title {
+  font-size: 16px;
+  margin-bottom: 12px;
 }

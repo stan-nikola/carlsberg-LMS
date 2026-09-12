@@ -23,7 +23,7 @@ export async function GET() {
 
 // POST /api/admin/courses — { title, description?, category?, isMandatory?,
 // deadlineDays?, streakMessages?, targetPositions?, targetTerritories?,
-// targetEmployeeIds?, publishAt? }
+// targetEmployeeIds?, publishAt?, folderId? }
 // slug генерується з title автоматично (транслітерація + унікальність).
 export async function POST(request) {
   const admin = await requireAdmin();
@@ -49,8 +49,9 @@ export async function POST(request) {
       targetTerritories: body.targetTerritories || [],
       targetEmployeeIds: body.targetEmployeeIds || [],
       publishAt: body.publishAt ? new Date(body.publishAt) : null,
+      folderId: body.folderId != null ? Number(body.folderId) : null,
     },
-    include: { modules: true },
+    include: { modules: true, _count: { select: { enrollments: true } } },
   });
   return NextResponse.json(course, { status: 201 });
 }
