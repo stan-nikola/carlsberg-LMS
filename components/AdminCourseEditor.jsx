@@ -1428,7 +1428,6 @@ export function AdminCourseEditor({ courseId }) {
           </Link>
           <h1>{course.title}</h1>
         </div>
-        <span className="admin-hint">/{course.slug}</span>
       </div>
 
       <div className="admin-editor-grid">

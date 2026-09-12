@@ -31,7 +31,9 @@ export async function GET(request, { params }) {
 
 // PATCH /api/admin/courses/:courseId — { title?, description?, category?,
 // isMandatory?, deadlineDays?, streakMessages?, targetPositions?,
-// targetTerritories?, targetEmployeeIds?, publishAt? }
+// targetTerritories?, targetEmployeeIds?, publishAt?, folderId? }
+// folderId — переміщення курсу в папку каталогу (CourseFolder, Фаза E
+// адмінки) drag-and-drop'ом; null повертає курс у корінь каталогу.
 // Курсовий рівень налаштувань (хто і коли отримує курс) — не плутати з
 // призначенням "тут і зараз" через /assign. Зміна title перегенеровує slug
 // (транслітерація), якщо на курс ще нема жодного Enrollment.
@@ -70,6 +72,7 @@ export async function PATCH(request, { params }) {
   if (body.targetPositions !== undefined) data.targetPositions = body.targetPositions;
   if (body.targetTerritories !== undefined) data.targetTerritories = body.targetTerritories;
   if (body.targetEmployeeIds !== undefined) data.targetEmployeeIds = body.targetEmployeeIds;
+  if (body.folderId !== undefined) data.folderId = body.folderId === null ? null : Number(body.folderId);
   if (body.publishAt !== undefined) {
     data.publishAt = body.publishAt ? new Date(body.publishAt) : null;
     // Дату публікації змінили вручну — скидаємо позначку "вже

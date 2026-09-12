@@ -2,7 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GripIcon, ChevronIcon, SpinnerIcon, InfoIcon } from "@/components/icons";
+import {
+  GripIcon,
+  ChevronIcon,
+  SpinnerIcon,
+  InfoIcon,
+  FolderIcon,
+  NewFolderIcon,
+  GridViewIcon,
+  ListViewIcon,
+  CourseIcon,
+  PencilIcon,
+  XIcon,
+} from "@/components/icons";
 import { TerritoryPicker } from "@/components/TerritoryPicker";
 import { COURSE_CATEGORIES } from "@/lib/courseCategories";
 import { STREAK_PRESET_MESSAGES } from "@/lib/streakMessages";
@@ -12,6 +24,27 @@ import { STREAK_PRESET_MESSAGES } from "@/lib/streakMessages";
 // AdminCourseEditor.jsx) одразу до цього модуля (?module=ID). Тут же — форми
 // створення нового курсу (назва + всі атрибути, як у CourseSettingsBar
 // редактора) і нового модуля всередині вже наявного курсу.
+
+// Кольорова "схема" для іконок папок у сітці Провідника — різні папки
+// різного кольору для швидкої візуальної орієнтації (як кольорові папки в
+// Google Drive/Windows), а не всі однаковим --gold. Лише реальні токени
+// tokens.css, БЕЗ --cb-fail (в цьому ж компоненті червоний вже означає
+// "видалити" — колір-код папки не повинен конфліктувати з цим значенням).
+// Прив'язка до folder.id (не до індексу в масиві) — колір лишається
+// стабільним для конкретної папки навіть коли список пересортовується
+// (API віддає папки за назвою, alphabetically) або поповнюється новими.
+const FOLDER_TILE_COLORS = [
+  "var(--cb-tertiary)",
+  "var(--cb-notification)",
+  "var(--cb-secondary)",
+  "var(--cb-alert)",
+  "var(--cb-primary)",
+  "var(--cb-success)",
+];
+function folderTileColor(folderId) {
+  const idx = ((folderId % FOLDER_TILE_COLORS.length) + FOLDER_TILE_COLORS.length) % FOLDER_TILE_COLORS.length;
+  return FOLDER_TILE_COLORS[idx];
+}
 
 function toDatetimeLocalValue(iso) {
   if (!iso) return "";
@@ -83,14 +116,14 @@ function StreakMessagesField({ value, onChange }) {
 
   return (
     <div className="admin-field">
-      <label className="admin-checkbox">
+      <label className="admin-checkbox admin-checkbox-wrap">
         <input
           type="checkbox"
           checked={enabled}
           onChange={(e) => onChange(e.target.checked ? STREAK_PRESET_MESSAGES : null)}
         />
-        <span>Мотиваційні тости за серію відповідей</span>
-        <InfoTip text="Банер з конфеті на 2, 5, 10-й правильній відповіді поспіль (далі що 5) і за ідеально пройдений модуль питань." />
+        <span>Повідомлення за серію правильних відповідей</span>
+        <InfoTip text="Повідомлення з конфеті на 2, 5, 10-й правильній відповіді поспіль (далі що 5) і за ідеально пройдений модуль питань." />
       </label>
     </div>
   );
@@ -162,13 +195,13 @@ function TerritoryAccordionField({ territories, employees, value, onChange, empl
   );
 }
 
-function CourseCreateForm({ positions, territories, employees, onCreated, onCancel }) {
+function CourseCreateForm({ positions, territories, employees, folderId, onCreated, onCancel }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [isMandatory, setIsMandatory] = useState(false);
+  const [isMandatory, setIsMandatory] = useState(true);
   const [deadlineDays, setDeadlineDays] = useState("");
-  const [streakMessages, setStreakMessages] = useState(null);
+  const [streakMessages, setStreakMessages] = useState(STREAK_PRESET_MESSAGES);
   const [targetPositions, setTargetPositions] = useState([]);
   const [targetTerritories, setTargetTerritories] = useState([]);
   const [targetEmployeeIds, setTargetEmployeeIds] = useState([]);
@@ -195,6 +228,7 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
           targetTerritories,
           targetEmployeeIds,
           publishAt: publishAt ? new Date(publishAt).toISOString() : null,
+          folderId,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -221,7 +255,7 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
               <input value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input-flex" />
             </div>
             <div className="admin-field">
-              <label className="admin-label">Тема (необов&apos;язково)</label>
+              <label className="admin-label">Департамент (необов&apos;язково)</label>
               <select value={category} onChange={(e) => setCategory(e.target.value)} className="admin-select" style={{ width: "100%" }}>
                 <option value="">— без теми —</option>
                 {COURSE_CATEGORIES.map((c) => (
@@ -232,6 +266,7 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
               </select>
             </div>
           </div>
+          <StreakMessagesField value={streakMessages} onChange={setStreakMessages} />
         </div>
 
         <div className="admin-form-section">
@@ -257,7 +292,6 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
             <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
             <span>Обов&apos;язковий курс</span>
           </label>
-          <StreakMessagesField value={streakMessages} onChange={setStreakMessages} />
         </div>
 
         <div className="admin-form-section">
@@ -283,12 +317,12 @@ function CourseCreateForm({ positions, territories, employees, onCreated, onCanc
       <div className="admin-status-line">
         {error && <span className="admin-error">{error}</span>}
         <span className="admin-btn-group">
-          <button type="button" onClick={onCancel} className="admin-btn-link" title="Закрити форму без збереження">
-            Скасувати
-          </button>
           <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Зберегти курс і додати його до списку">
             {saving && <SpinnerIcon />}
             {saving ? "Створення…" : "Створити курс"}
+          </button>
+          <button type="button" onClick={onCancel} className="admin-btn-danger" title="Закрити форму без збереження">
+            Скасувати
           </button>
         </span>
       </div>
@@ -467,7 +501,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
               <input value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input-flex" />
             </div>
             <div className="admin-field">
-              <label className="admin-label">Тема (необов&apos;язково)</label>
+              <label className="admin-label">Департамент (необов&apos;язково)</label>
               <select value={category} onChange={(e) => setCategory(e.target.value)} className="admin-select" style={{ width: "100%" }}>
                 <option value="">— без теми —</option>
                 {COURSE_CATEGORIES.map((c) => (
@@ -478,6 +512,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
               </select>
             </div>
           </div>
+          <StreakMessagesField value={streakMessages} onChange={setStreakMessages} />
         </div>
 
         <div className="admin-form-section">
@@ -504,12 +539,11 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
               />
             </div>
           </div>
+          <p className="admin-hint" style={{ fontSize: "0.8em" }}>{statusText}</p>
           <label className="admin-checkbox">
             <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
             <span>Обов&apos;язковий курс</span>
           </label>
-          <p className="admin-hint">{statusText}</p>
-          <StreakMessagesField value={streakMessages} onChange={setStreakMessages} />
         </div>
 
         <div className="admin-form-section">
@@ -559,18 +593,12 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
         </div>
       )}
 
-      <div className="admin-status-line">
+      <div className="admin-status-line admin-status-line-reverse">
         <span className="admin-error">{error}</span>
         <span className="admin-btn-group">
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={saving}
-            className="admin-btn admin-btn-danger"
-            title="Видалити курс назавжди (заблоковано, якщо є активні призначення)"
-          >
+          <button type="button" onClick={handleSave} disabled={saving} className="admin-btn" title="Зберегти зміни налаштувань курсу">
             {saving && <SpinnerIcon />}
-            Видалити курс
+            {saving ? "Збереження…" : "Зберегти налаштування"}
           </button>
           <button
             type="button"
@@ -582,9 +610,15 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
             {assigning && <SpinnerIcon />}
             {assigning ? "Призначення…" : "Призначити зараз"}
           </button>
-          <button type="button" onClick={handleSave} disabled={saving} className="admin-btn" title="Зберегти зміни налаштувань курсу">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving}
+            className="admin-btn admin-btn-danger"
+            title="Видалити курс назавжди (заблоковано, якщо є активні призначення)"
+          >
             {saving && <SpinnerIcon />}
-            {saving ? "Збереження…" : "Зберегти налаштування"}
+            Видалити курс
           </button>
         </span>
       </div>
@@ -692,11 +726,25 @@ function ModuleList({ courseId, modules, onReordered }) {
   );
 }
 
-function CourseRow({ course, positions, territories, employees, onModuleAdded, onModulesReordered, onCourseSaved, onCourseDeleted }) {
-  const [expanded, setExpanded] = useState(false);
+function CourseRow({
+  course,
+  positions,
+  territories,
+  employees,
+  onModuleAdded,
+  onModulesReordered,
+  onCourseSaved,
+  onCourseDeleted,
+  onDragStart,
+  onDragEnd,
+  initialExpanded,
+}) {
+  // initialExpanded — лише ПОЧАТКОВЕ значення (щойно створений курс
+  // одразу відкритий); далі рядок керує своїм expanded сам, як і раніше.
+  const [expanded, setExpanded] = useState(initialExpanded || false);
 
   return (
-    <li className="admin-course-row">
+    <li className="admin-course-row" draggable onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <button
         type="button"
         className="admin-course-list-link admin-course-row-toggle"
@@ -704,6 +752,9 @@ function CourseRow({ course, positions, territories, employees, onModuleAdded, o
         title={expanded ? "Згорнути список модулів курсу" : "Розгорнути список модулів курсу"}
       >
         <span>
+          <span className="admin-drag-handle" title="Перетягніть у папку">
+            <GripIcon />
+          </span>
           <span className={`admin-course-row-caret${expanded ? " open" : ""}`}>
             <ChevronIcon />
           </span>{" "}
@@ -716,36 +767,56 @@ function CourseRow({ course, positions, territories, employees, onModuleAdded, o
       </button>
 
       {expanded && (
-        <div className="admin-course-row-body">
-          <CourseSettingsBar
-            course={course}
-            positions={positions}
-            territories={territories}
-            employees={employees}
-            onSaved={(updated) => onCourseSaved(course.id, updated)}
-            onDeleted={onCourseDeleted}
-          />
-
-          <label className="admin-label" style={{ marginTop: 10, display: "block" }}>
-            Модулі
-          </label>
-          {course.modules.length === 0 ? (
-            <p className="admin-hint">Модулів ще немає.</p>
-          ) : (
-            <ModuleList
-              courseId={course.id}
-              modules={course.modules}
-              onReordered={(reordered) => onModulesReordered(course.id, reordered)}
-            />
-          )}
-          <NewModuleInlineForm
-            courseId={course.id}
-            nextOrder={course.modules.length + 1}
-            onCreated={(created) => onModuleAdded(course.id, created)}
-          />
-        </div>
+        <CourseExpandedBody
+          course={course}
+          positions={positions}
+          territories={territories}
+          employees={employees}
+          onModuleAdded={onModuleAdded}
+          onModulesReordered={onModulesReordered}
+          onCourseSaved={onCourseSaved}
+          onCourseDeleted={onCourseDeleted}
+        />
       )}
     </li>
+  );
+}
+
+/** Налаштування курсу + список модулів — тіло розгортання. Винесено
+ * окремо від CourseRow (список), бо в сітковому виді (Фаза E, "провідник
+ * файлів") клік по плитці курсу теж розгортає це саме тіло, але ПІД
+ * усією сіткою (одну плитку розтягувати всередині grid — зламало б
+ * розкладку сусідніх плиток), а не всередині рядка. */
+function CourseExpandedBody({ course, positions, territories, employees, onModuleAdded, onModulesReordered, onCourseSaved, onCourseDeleted }) {
+  return (
+    <div className="admin-course-row-body">
+      <CourseSettingsBar
+        course={course}
+        positions={positions}
+        territories={territories}
+        employees={employees}
+        onSaved={(updated) => onCourseSaved(course.id, updated)}
+        onDeleted={onCourseDeleted}
+      />
+
+      <label className="admin-label" style={{ marginTop: 10, display: "block" }}>
+        Модулі
+      </label>
+      {course.modules.length === 0 ? (
+        <p className="admin-hint">Модулів ще немає.</p>
+      ) : (
+        <ModuleList
+          courseId={course.id}
+          modules={course.modules}
+          onReordered={(reordered) => onModulesReordered(course.id, reordered)}
+        />
+      )}
+      <NewModuleInlineForm
+        courseId={course.id}
+        nextOrder={course.modules.length + 1}
+        onCreated={(created) => onModuleAdded(course.id, created)}
+      />
+    </div>
   );
 }
 
@@ -766,19 +837,50 @@ export function AdminDashboard() {
   const [courseQuery, setCourseQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
 
+  // Папки каталогу (провідник файлів для курсів) — плаский список,
+  // дерево/breadcrumb будуються з нього клієнтськи (той самий підхід, що
+  // territories у TerritoryPicker.jsx). currentFolderId: null — корінь.
+  const [folders, setFolders] = useState([]);
+  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [folderError, setFolderError] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  // draggedItem: { type: "course"|"folder", id } | null — той самий
+  // патерн, що EmployeeTree.jsx (стан замість dataTransfer, бо drag і
+  // drop завжди в межах одного компонента).
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState(undefined); // undefined — нічого не підсвічено, null — сам корінь
+
+  // Сітка плиток "як провідник файлів" (за погодженням з користувачем) —
+  // за замовчуванням, з перемикачем назад на компактний список.
+  const [viewMode, setViewMode] = useState("grid");
+  // У сітці клік по плитці курсу не може розтягувати САМУ плитку
+  // (зламало б сітку сусідів) — розгортає єдину спільну панель під усією
+  // сіткою, тому стан "яка плитка розгорнута" тут, на рівні дашборда, а
+  // не локально в плитці (на відміну від CourseRow у списковому режимі).
+  const [expandedCourseId, setExpandedCourseId] = useState(null);
+  // Контекстне меню правого кліку по плитці папки (Перейменувати/Видалити)
+  // — той самий Explorer-патерн, що просив користувач.
+  const [contextMenu, setContextMenu] = useState(null); // { folderId, x, y } | null
+  const [renamingFolderId, setRenamingFolderId] = useState(null);
+  const [deletingFolderId, setDeletingFolderId] = useState(null);
+
   useEffect(() => {
     let cancelled = false;
     Promise.all([
       fetch("/api/admin/courses").then((r) => r.json()),
       fetch("/api/admin/positions").then((r) => r.json()),
       fetch("/api/admin/territories").then((r) => r.json()),
+      fetch("/api/admin/course-folders").then((r) => r.json()),
     ])
-      .then(([coursesData, positionsData, territoriesData]) => {
+      .then(([coursesData, positionsData, territoriesData, folderData]) => {
         if (cancelled) return;
         setCourses(coursesData);
         setPositions(positionsData);
         setTerritories(territoriesData.territories);
         setEmployees(territoriesData.employees);
+        setFolders(folderData.folders || []);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(err.message);
@@ -799,6 +901,11 @@ export function AdminDashboard() {
   function handleCourseCreated(createdCourse) {
     setCourses((cs) => [...cs, createdCourse].sort((a, b) => a.title.localeCompare(b.title, "uk")));
     setShowCreate(false);
+    // Форма створення закривається, але не "в нікуди" — одразу відкриваємо
+    // щойно створений курс у режимі редагування (той самий
+    // CourseExpandedBody/CourseSettingsBar), щоб адмін міг одразу
+    // призначити посади/території, не шукаючи курс у списку заново.
+    setExpandedCourseId(createdCourse.id);
   }
 
   // PATCH /api/admin/courses/:id повертає курс БЕЗ modules — зберігаємо
@@ -811,18 +918,163 @@ export function AdminDashboard() {
     setCourses((cs) => cs.filter((c) => c.id !== courseId));
   }
 
+  // Дублікат — та сама назва (без урахування регістру) вже є серед папок
+  // з тим самим parentId (як в Провіднику Windows — заборона лише в межах
+  // однієї батьківської папки, не глобально по всьому каталогу).
+  function findDuplicateFolder(name, parentId, excludeId) {
+    const lower = name.toLowerCase();
+    return folders.find((f) => f.id !== excludeId && f.parentId === parentId && f.name.toLowerCase() === lower);
+  }
+
+  async function handleCreateFolder() {
+    const name = newFolderName.trim();
+    if (!name) return;
+    if (findDuplicateFolder(name, currentFolderId, null)) {
+      setFolderError("Папка з такою назвою вже існує тут.");
+      return;
+    }
+    setFolderError("");
+    setCreatingFolder(true);
+    try {
+      const res = await fetch("/api/admin/course-folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, parentId: currentFolderId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setFolders((fs) => [...fs, data]);
+      setNewFolderName("");
+      setShowCreateFolder(false);
+    } catch (err) {
+      setFolderError("Помилка створення папки: " + err.message);
+    } finally {
+      setCreatingFolder(false);
+    }
+  }
+
+  async function handleRenameFolder(folderId, name) {
+    const current = folders.find((f) => f.id === folderId);
+    if (current && findDuplicateFolder(name, current.parentId, folderId)) {
+      window.alert("Папка з такою назвою вже існує тут.");
+      return;
+    }
+    const res = await fetch(`/api/admin/course-folders/${folderId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setFolders((fs) => fs.map((f) => (f.id === folderId ? updated : f)));
+    } else {
+      const data = await res.json().catch(() => ({}));
+      window.alert(data.error || "Не вдалося перейменувати папку.");
+    }
+  }
+
+  async function handleDeleteFolder(folderId) {
+    setDeletingFolderId(folderId);
+    try {
+      const res = await fetch(`/api/admin/course-folders/${folderId}`, { method: "DELETE" });
+      if (res.ok) {
+        setFolders((fs) => fs.filter((f) => f.id !== folderId));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        window.alert(data.error || "Не вдалося видалити папку.");
+      }
+    } finally {
+      setDeletingFolderId(null);
+    }
+  }
+
+  // targetFolderId: null означає корінь каталогу — валідна ціль.
+  async function handleDropOnFolder(targetFolderId) {
+    const item = draggedItem;
+    setDraggedItem(null);
+    setDragOverFolderId(undefined);
+    if (!item) return;
+
+    if (item.type === "course") {
+      const course = (courses || []).find((c) => c.id === item.id);
+      if (!course || course.folderId === targetFolderId) return;
+      const res = await fetch(`/api/admin/courses/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderId: targetFolderId }),
+      });
+      if (res.ok) {
+        setCourses((cs) => cs.map((c) => (c.id === item.id ? { ...c, folderId: targetFolderId } : c)));
+      }
+      return;
+    }
+
+    if (item.type === "folder") {
+      if (item.id === targetFolderId) return; // папка сама на себе
+      const res = await fetch(`/api/admin/course-folders/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parentId: targetFolderId }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setFolders((fs) => fs.map((f) => (f.id === item.id ? updated : f)));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        window.alert(data.error || "Не вдалося перемістити папку.");
+      }
+    }
+  }
+
   if (loadError) return <p className="admin-page admin-error">Не вдалося завантажити курси: {loadError}</p>;
+
+  const isSearching = Boolean(courseQuery.trim() || categoryFilter);
 
   const visibleCourses = (courses || []).filter((c) => {
     if (categoryFilter && c.category !== categoryFilter) return false;
     if (courseQuery.trim() && !c.title.toLowerCase().includes(courseQuery.trim().toLowerCase())) return false;
+    if (!isSearching && c.folderId !== currentFolderId) return false;
     return true;
   });
 
+  const visibleFolders = isSearching ? [] : folders.filter((f) => f.parentId === currentFolderId);
+
+  // Хлібні крихти поточної папки — від кореня до currentFolderId.
+  const breadcrumb = [];
+  {
+    let cursor = currentFolderId;
+    const folderById = new Map(folders.map((f) => [f.id, f]));
+    while (cursor != null) {
+      const f = folderById.get(cursor);
+      if (!f) break;
+      breadcrumb.unshift(f);
+      cursor = f.parentId;
+    }
+  }
+
+  function folderItemCount(folderId) {
+    const subCount = folders.filter((f) => f.parentId === folderId).length;
+    const courseCount = (courses || []).filter((c) => c.folderId === folderId).length;
+    return subCount + courseCount;
+  }
+
   return (
     <div className="admin-page">
-      <div className="admin-editor-header">
-        <h1>Курси</h1>
+      <div
+        className="admin-btn-group"
+        style={{
+          width: "100%",
+          height: 42,
+          alignItems: "center",
+          borderTop: "1px solid var(--line)",
+          borderLeft: "1px solid var(--line)",
+          borderRight: "1px solid var(--line)",
+          borderBottom: isSearching ? "1px solid var(--line)" : "none",
+          borderRadius: "var(--radius-btn)",
+          padding: "8px 10px",
+          boxSizing: "border-box",
+        }}
+      >
         <button
           type="button"
           className="admin-btn"
@@ -831,38 +1083,164 @@ export function AdminDashboard() {
         >
           {showCreate ? "Скасувати" : "+ Додати курс"}
         </button>
+        {courses && courses.length > 0 && (
+          <>
+            <select
+              className="admin-select adm-toolbar-input"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              style={{ marginLeft: "auto" }}
+            >
+              <option value="">Усі департаменти</option>
+              {COURSE_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+            <input
+              className="admin-input-flex adm-toolbar-input"
+              placeholder="Пошук курсу"
+              value={courseQuery}
+              onChange={(e) => setCourseQuery(e.target.value)}
+              style={{ maxWidth: 160 }}
+            />
+          </>
+        )}
+        <div className="adm-view-toggle">
+          <button
+            type="button"
+            className={viewMode === "grid" ? "active" : ""}
+            title="Плитки"
+            aria-label="Плитки"
+            onClick={() => setViewMode("grid")}
+          >
+            <GridViewIcon />
+          </button>
+          <button
+            type="button"
+            className={viewMode === "list" ? "active" : ""}
+            title="Список"
+            aria-label="Список"
+            onClick={() => setViewMode("list")}
+          >
+            <ListViewIcon />
+          </button>
+        </div>
       </div>
-      <p className="admin-subtitle">Оберіть курс, щоб розгорнути модулі, або модуль — щоб редагувати екрани та компоненти.</p>
 
       {showCreate && (
         <CourseCreateForm
           positions={positions}
           territories={territories}
           employees={employees}
+          folderId={currentFolderId}
           onCreated={handleCourseCreated}
           onCancel={() => setShowCreate(false)}
         />
       )}
 
-      {courses && courses.length > 0 && (
-        <div className="admin-form-row" style={{ marginBottom: 12 }}>
-          <input
-            className="admin-input-flex"
-            placeholder="Пошук курсу за назвою…"
-            value={courseQuery}
-            onChange={(e) => setCourseQuery(e.target.value)}
-            style={{ maxWidth: 320 }}
-          />
-          <select className="admin-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            <option value="">Усі теми</option>
-            {COURSE_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+      {showCreateFolder && (
+        <div
+          className="adm-modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCreateFolder(false);
+          }}
+          onKeyDown={(e) => e.key === "Escape" && setShowCreateFolder(false)}
+        >
+          <div className="adm-modal" role="dialog" aria-modal="true" aria-labelledby="newFolderModalTitle">
+            <h2 id="newFolderModalTitle" className="adm-modal-title">
+              Нова папка
+            </h2>
+            <input
+              className="admin-input-flex"
+              placeholder="Назва папки…"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && newFolderName.trim() && !creatingFolder && handleCreateFolder()}
+              disabled={creatingFolder}
+              autoFocus
+            />
+            {folderError && <p className="admin-error">{folderError}</p>}
+            <div className="admin-btn-group" style={{ marginTop: 14, justifyContent: "flex-end" }}>
+              <button type="button" className="admin-btn" disabled={!newFolderName.trim() || creatingFolder} onClick={handleCreateFolder}>
+                {creatingFolder ? <SpinnerIcon /> : "Створити"}
+              </button>
+              <button type="button" className="admin-btn-danger" disabled={creatingFolder} onClick={() => setShowCreateFolder(false)}>
+                Скасувати
+              </button>
+            </div>
+          </div>
         </div>
       )}
+
+      {!isSearching && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0,
+            height: 42,
+            border: "1px solid var(--line)",
+            borderRadius: "var(--radius-btn)",
+            padding: "0 8px",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+        >
+          <button
+            type="button"
+            className="iconbtn adm-new-folder-btn"
+            title={showCreateFolder ? "Скасувати" : "Нова папка"}
+            aria-label="Нова папка"
+            onClick={() => setShowCreateFolder((v) => !v)}
+          >
+            <NewFolderIcon />
+          </button>
+          <nav className="adm-breadcrumb">
+            <button
+              type="button"
+              className={`adm-breadcrumb-crumb${dragOverFolderId === null ? " admin-drag-over" : ""}${currentFolderId === null ? " current" : ""}`}
+            onClick={() => setCurrentFolderId(null)}
+            onDragOver={(e) => {
+              if (draggedItem) {
+                e.preventDefault();
+                setDragOverFolderId(null);
+              }
+            }}
+            onDragLeave={() => setDragOverFolderId((v) => (v === null ? undefined : v))}
+            onDrop={() => handleDropOnFolder(null)}
+          >
+            <FolderIcon /> /
+          </button>
+          {breadcrumb.map((f, i) => (
+            <span key={f.id} className="adm-breadcrumb-item">
+              {/* Перший роздільник після кореня не рендеримо — коренева
+                  крихта сама вже закінчується на "/" (FolderIcon + "/"
+                  вище), інакше вийде подвійний "//". */}
+              {i > 0 && <span className="adm-breadcrumb-sep">/</span>}
+              <button
+                type="button"
+                className={`adm-breadcrumb-crumb${dragOverFolderId === f.id ? " admin-drag-over" : ""}${i === breadcrumb.length - 1 ? " current" : ""}`}
+                onClick={() => setCurrentFolderId(f.id)}
+                onDragOver={(e) => {
+                  if (draggedItem && draggedItem.id !== f.id) {
+                    e.preventDefault();
+                    setDragOverFolderId(f.id);
+                  }
+                }}
+                onDragLeave={() => setDragOverFolderId((v) => (v === f.id ? undefined : v))}
+                onDrop={() => handleDropOnFolder(f.id)}
+              >
+                {f.name}
+              </button>
+            </span>
+          ))}
+          </nav>
+        </div>
+      )}
+
+      {isSearching && <p className="admin-hint" style={{ marginBottom: 8 }}>Пошук по всьому каталогу, не лише поточній папці.</p>}
 
       {!courses ? (
         <p>
@@ -871,25 +1249,375 @@ export function AdminDashboard() {
         </p>
       ) : courses.length === 0 ? (
         <p>Курсів ще немає.</p>
-      ) : visibleCourses.length === 0 ? (
-        <p className="admin-hint">Нічого не знайдено за цим фільтром.</p>
-      ) : (
-        <ul className="admin-course-list">
-          {visibleCourses.map((course) => (
-            <CourseRow
-              key={course.id}
-              course={course}
-              positions={positions}
-              territories={territories}
-              employees={employees}
-              onModuleAdded={handleModuleAdded}
-              onModulesReordered={handleModulesReordered}
-              onCourseSaved={handleCourseSaved}
-              onCourseDeleted={handleCourseDeleted}
+      ) : visibleCourses.length === 0 && visibleFolders.length === 0 ? (
+        <p className="admin-hint" style={{ marginTop: 10 }}>{isSearching ? "Нічого не знайдено за цим фільтром." : "Тут поки порожньо."}</p>
+      ) : viewMode === "grid" ? (
+        <>
+          <div className="adm-explorer-grid">
+            {visibleFolders.map((folder) => (
+              <FolderTile
+                key={`f${folder.id}`}
+                folder={folder}
+                itemCount={folderItemCount(folder.id)}
+                isDragOver={dragOverFolderId === folder.id}
+                isRenaming={renamingFolderId === folder.id}
+                isDeleting={deletingFolderId === folder.id}
+                onOpen={() => setCurrentFolderId(folder.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ folderId: folder.id, x: e.clientX, y: e.clientY });
+                }}
+                onRenameSubmit={(name) => {
+                  handleRenameFolder(folder.id, name);
+                  setRenamingFolderId(null);
+                }}
+                onRenameCancel={() => setRenamingFolderId(null)}
+                onDragStart={() => setDraggedItem({ type: "folder", id: folder.id })}
+                onDragEnd={() => {
+                  setDraggedItem(null);
+                  setDragOverFolderId(undefined);
+                }}
+                onDragOverFolder={() => {
+                  if (draggedItem && !(draggedItem.type === "folder" && draggedItem.id === folder.id)) {
+                    setDragOverFolderId(folder.id);
+                  }
+                }}
+                onDragLeaveFolder={() => setDragOverFolderId((v) => (v === folder.id ? undefined : v))}
+                onDropOnFolder={() => handleDropOnFolder(folder.id)}
+              />
+            ))}
+            {visibleCourses.map((course) => (
+              <CourseTile
+                key={`c${course.id}`}
+                course={course}
+                selected={expandedCourseId === course.id}
+                onClick={() => setExpandedCourseId((id) => (id === course.id ? null : course.id))}
+                onDragStart={() => setDraggedItem({ type: "course", id: course.id })}
+                onDragEnd={() => {
+                  setDraggedItem(null);
+                  setDragOverFolderId(undefined);
+                }}
+              />
+            ))}
+          </div>
+
+          {contextMenu && (
+            <FolderContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              onClose={() => setContextMenu(null)}
+              onRename={() => {
+                setRenamingFolderId(contextMenu.folderId);
+                setContextMenu(null);
+              }}
+              onDelete={() => {
+                handleDeleteFolder(contextMenu.folderId);
+                setContextMenu(null);
+              }}
             />
-          ))}
-        </ul>
+          )}
+
+          {expandedCourseId &&
+            (() => {
+              const course = visibleCourses.find((c) => c.id === expandedCourseId);
+              if (!course) return null;
+              return (
+                <div className="adm-explorer-detail">
+                  <div className="admin-hint" style={{ marginBottom: 5, fontSize: "0.95em" }}>
+                    /{course.slug} · {course.modules.length} {course.modules.length === 1 ? "модуль" : "модулів"} ·
+                    Призначено: {course._count?.enrollments ?? 0}
+                  </div>
+                  <CourseExpandedBody
+                    course={course}
+                    positions={positions}
+                    territories={territories}
+                    employees={employees}
+                    onModuleAdded={handleModuleAdded}
+                    onModulesReordered={handleModulesReordered}
+                    onCourseSaved={handleCourseSaved}
+                    onCourseDeleted={(id) => {
+                      handleCourseDeleted(id);
+                      setExpandedCourseId(null);
+                    }}
+                  />
+                </div>
+              );
+            })()}
+        </>
+      ) : (
+        <>
+          {visibleFolders.length > 0 && (
+            <ul className="admin-course-list" style={{ marginBottom: visibleCourses.length > 0 ? 8 : 0 }}>
+              {visibleFolders.map((folder) => (
+                <FolderRow
+                  key={folder.id}
+                  folder={folder}
+                  itemCount={folderItemCount(folder.id)}
+                  isDragOver={dragOverFolderId === folder.id}
+                  isDeleting={deletingFolderId === folder.id}
+                  onOpen={() => setCurrentFolderId(folder.id)}
+                  onRename={(name) => handleRenameFolder(folder.id, name)}
+                  onDelete={() => handleDeleteFolder(folder.id)}
+                  onDragStart={() => setDraggedItem({ type: "folder", id: folder.id })}
+                  onDragEnd={() => {
+                    setDraggedItem(null);
+                    setDragOverFolderId(undefined);
+                  }}
+                  onDragOverFolder={() => {
+                    if (draggedItem && !(draggedItem.type === "folder" && draggedItem.id === folder.id)) {
+                      setDragOverFolderId(folder.id);
+                    }
+                  }}
+                  onDragLeaveFolder={() => setDragOverFolderId((v) => (v === folder.id ? undefined : v))}
+                  onDropOnFolder={() => handleDropOnFolder(folder.id)}
+                />
+              ))}
+            </ul>
+          )}
+
+          {visibleCourses.length > 0 && (
+            <ul className="admin-course-list">
+              {visibleCourses.map((course) => (
+                <CourseRow
+                  key={course.id}
+                  course={course}
+                  positions={positions}
+                  territories={territories}
+                  employees={employees}
+                  initialExpanded={course.id === expandedCourseId}
+                  onModuleAdded={handleModuleAdded}
+                  onModulesReordered={handleModulesReordered}
+                  onCourseSaved={handleCourseSaved}
+                  onCourseDeleted={handleCourseDeleted}
+                  onDragStart={() => setDraggedItem({ type: "course", id: course.id })}
+                  onDragEnd={() => {
+                    setDraggedItem(null);
+                    setDragOverFolderId(undefined);
+                  }}
+                />
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
+  );
+}
+
+/** Плитка папки в сітковому виді — велика іконка + назва під нею, як у
+ * Провіднику Windows. Перетягується (переміщення в іншу папку) і сама є
+ * ціллю drop (прийом курсу/іншої папки). Дії (перейменувати/видалити) —
+ * НЕ видимі кнопки, а контекстне меню по правому кліку (FolderContextMenu
+ * нижче) — за проханням користувача, максимально по-Explorer'івськи. */
+function FolderTile({
+  folder,
+  itemCount,
+  isDragOver,
+  isRenaming,
+  isDeleting,
+  onOpen,
+  onContextMenu,
+  onRenameSubmit,
+  onRenameCancel,
+  onDragStart,
+  onDragEnd,
+  onDragOverFolder,
+  onDragLeaveFolder,
+  onDropOnFolder,
+}) {
+  const [name, setName] = useState(folder.name);
+
+  return (
+    <div
+      className={`adm-tile${isDragOver ? " drag-over" : ""}`}
+      draggable={!isRenaming && !isDeleting}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOverFolder();
+      }}
+      onDragLeave={onDragLeaveFolder}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDropOnFolder();
+      }}
+      onContextMenu={isDeleting ? undefined : onContextMenu}
+    >
+      <button
+        type="button"
+        className="adm-tile-hit"
+        onClick={() => !isRenaming && !isDeleting && onOpen()}
+        disabled={isDeleting}
+        title={`${folder.name} — ${itemCount === 0 ? "порожньо" : itemCount + (itemCount === 1 ? " елемент" : " елементів")}`}
+      >
+        <span className="adm-tile-icon adm-tile-icon-folder" style={isDeleting ? undefined : { color: folderTileColor(folder.id) }}>
+          {isDeleting ? <SpinnerIcon /> : <FolderIcon />}
+        </span>
+      </button>
+      {isRenaming ? (
+        <input
+          className="adm-tile-rename-input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && name.trim()) onRenameSubmit(name.trim());
+            if (e.key === "Escape") onRenameCancel();
+          }}
+          onBlur={() => (name.trim() && name.trim() !== folder.name ? onRenameSubmit(name.trim()) : onRenameCancel())}
+          autoFocus
+        />
+      ) : (
+        <span className="adm-tile-label">{folder.name}</span>
+      )}
+    </div>
+  );
+}
+
+/** Плитка курсу в сітковому виді — клік перемикає розгорнуту панель під
+ * сіткою (AdminDashboard), не саму плитку (щоб не ламати сітку сусідів). */
+function CourseTile({ course, selected, onClick, onDragStart, onDragEnd }) {
+  return (
+    <div
+      className={`adm-tile${selected ? " selected" : ""}`}
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
+      <button type="button" className="adm-tile-hit-full" onClick={onClick} title={course.title}>
+        <span className="adm-tile-icon adm-tile-icon-course">
+          <CourseIcon />
+        </span>
+        <span className="adm-tile-label">{course.title}</span>
+        <span className="adm-tile-sub">{course._count?.enrollments ?? 0} призначено</span>
+      </button>
+    </div>
+  );
+}
+
+/** Контекстне меню правого кліку по плитці папки — Провідник-патерн:
+ * фіксоване позиціювання за курсором + невидимий backdrop на весь екран,
+ * що закриває меню кліком повз нього (найлегший спосіб без порталу чи
+ * постійного document-листенера). */
+function FolderContextMenu({ x, y, onRename, onDelete, onClose }) {
+  return (
+    <>
+      <div className="adm-context-backdrop" onClick={onClose} onContextMenu={(e) => e.preventDefault()} />
+      <div className="adm-context-menu" style={{ left: x, top: y }}>
+        <button type="button" onClick={onRename}>
+          Перейменувати
+        </button>
+        <button type="button" onClick={onDelete}>
+          Видалити
+        </button>
+      </div>
+    </>
+  );
+}
+
+function FolderRow({
+  folder,
+  itemCount,
+  isDragOver,
+  isDeleting,
+  onOpen,
+  onRename,
+  onDelete,
+  onDragStart,
+  onDragEnd,
+  onDragOverFolder,
+  onDragLeaveFolder,
+  onDropOnFolder,
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(folder.name);
+
+  function handleSaveRename() {
+    if (name.trim() && name.trim() !== folder.name) onRename(name.trim());
+    setRenaming(false);
+  }
+
+  return (
+    <li
+      className={`admin-course-row${isDragOver ? " admin-drag-over" : ""}`}
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOverFolder();
+      }}
+      onDragLeave={onDragLeaveFolder}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDropOnFolder();
+      }}
+    >
+      {renaming ? (
+        <div className="admin-course-list-link" style={{ gap: 8 }}>
+          <span className="admin-drag-handle">
+            <FolderIcon />
+          </span>
+          <input
+            className="admin-input-flex"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSaveRename()}
+            autoFocus
+            style={{ flex: 1 }}
+          />
+          <button type="button" className="admin-btn-link" onClick={handleSaveRename}>
+            Зберегти
+          </button>
+        </div>
+      ) : (
+        // Один <button> на весь рядок (як у CourseRow) робив би
+        // "Перейменувати"/"Видалити" вкладеними інтерактивними елементами
+        // всередині <button> — невалідний HTML і непередбачувана
+        // поведінка кліків/фокусу. Тому тут рядок — <div> з ТРЬОМА
+        // окремими кнопками-сусідами: відкрити (займає весь простір, що
+        // лишився) + перейменувати + видалити.
+        <div className="admin-course-list-link" style={{ padding: 0 }}>
+          <button
+            type="button"
+            className="admin-course-row-toggle"
+            onClick={onOpen}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 14px", border: "none", background: "none", textAlign: "left" }}
+          >
+            <span>
+              <span className="admin-drag-handle" title="Перетягніть у іншу папку">
+                <FolderIcon />
+              </span>{" "}
+              {folder.name}
+            </span>
+            <span className="admin-hint">
+              {itemCount === 0 ? "порожньо" : `${itemCount} ${itemCount === 1 ? "елемент" : "елементів"}`}
+            </span>
+          </button>
+          <button
+            type="button"
+            className="admin-icon-btn adm-row-icon-btn"
+            style={{ color: "var(--ink-soft)" }}
+            title="Перейменувати"
+            aria-label="Перейменувати"
+            onClick={() => setRenaming(true)}
+          >
+            <PencilIcon />
+          </button>
+          <button
+            type="button"
+            className="admin-icon-btn adm-row-icon-btn"
+            style={{ marginRight: 14 }}
+            title="Видалити"
+            aria-label="Видалити"
+            onClick={onDelete}
+            disabled={isDeleting}
+          >
+            {isDeleting ? <SpinnerIcon /> : <XIcon />}
+          </button>
+        </div>
+      )}
+    </li>
   );
 }
