@@ -23,10 +23,11 @@ const STATUS_META = {
 };
 
 // status="completed" саме по собі означає лише "пройшов до кінця" —
-// НЕ "склав". Прохідний бал 80% (той самий поріг, що вже рахує
-// passed = scorePercent >= 80 при генерації даних) — completed з
-// passed:false мусить бути червоним "Не складено", а не зеленим
-// "Завершено", інакше провалений курс візуально виглядає як успіх.
+// НЕ "склав". Прохідний бал налаштовується per-курс (Course.passThreshold,
+// дефолт 80% — той самий поріг, що вже рахує passed = scorePercent >=
+// course.passThreshold при генерації даних) — completed з passed:false
+// мусить бути червоним "Не складено", а не зеленим "Завершено", інакше
+// провалений курс візуально виглядає як успіх.
 function StatusPill({ status, passed }) {
   if (status === "completed") {
     return passed ? (
@@ -255,6 +256,10 @@ function TeamNode({ node, summaryByEmployeeId }) {
 
   const summary = summaryByEmployeeId[node.id];
   const hasChildren = node.children && node.children.length > 0;
+  // Усі призначені курси реально завершені й усі складені — не лише
+  // "дійшов до кінця" (summary.completed), а й жодного summary.failed
+  // (Enrollment.passed === false десь серед завершених).
+  const allCoursesPassed = Boolean(summary && summary.total > 0 && summary.completed === summary.total && summary.failed === 0);
 
   async function toggleDetail() {
     const next = !showDetail;
@@ -334,7 +339,27 @@ function TeamNode({ node, summaryByEmployeeId }) {
               <span className="mgr-badge">
                 {summary.completed}/{summary.total} курсів
               </span>
-              {summary.avgScore != null && <span className="mgr-badge mgr-badge-score">{summary.avgScore}%</span>}
+              {/* Червона заливка, коли є завершене, але НЕ складене
+                  призначення (summary.failed — реальний Enrollment.passed,
+                  кожен модуль ≥ Course.passThreshold per-курс, а не
+                  порівняння з захардкодженими 80% тут). */}
+              {summary.avgScore != null && (
+                <span className={`mgr-badge mgr-badge-score${summary.failed > 0 ? " mgr-badge-fail" : ""}`}>
+                  {summary.avgScore}%
+                </span>
+              )}
+              {/* "Курс виконано" + медаль — лише коли ВСІ призначені курси
+                  завершені і ВСІ складені (жодного summary.failed). */}
+              {allCoursesPassed && (
+                <>
+                  <span className="mgr-badge mgr-badge-success">Курс виконано</span>
+                  {medalTier(summary.avgScore) && (
+                    <span className="mgr-badge-medal" title={`${summary.avgScore}% — медаль`}>
+                      <MedalIcon tier={medalTier(summary.avgScore)} />
+                    </span>
+                  )}
+                </>
+              )}
               {summary.overdue > 0 && <span className="mgr-badge mgr-badge-overdue">{summary.overdue} прострочено</span>}
             </div>
           </div>
@@ -578,14 +603,20 @@ export function ManagerDashboard() {
         </div>
       </section>
 
-      {/* % виконання по курсу — на всю ширину (не третьою карткою поруч
+      {/* % складання по курсу — на всю ширину (не третьою карткою поруч
           з кільцями/трендом): назви курсів довгі, вузька колонка й так
           вимагала біжучого рядка для кожної, а повна ширина дає бару
-          реально показати пропорцію без урізання. */}
+          реально показати пропорцію без урізання.
+          Було "% виконання" (рахувало status===completed, тобто й
+          провалені курси теж) — перейменовано разом зі зміною лічильника
+          в lib/managerDashboard.js getDashboardStats(): тепер рахує лише
+          РЕАЛЬНО складені (passed===true, кожен модуль ≥ Course.
+          passThreshold), інакше курс без жодного складеного показував би
+          оманливі 100% лише тому, що всі до нього "дійшли". */}
       <section className="mgr-section">
         <div className="mgr-chart-card">
           <h2>
-            <TrendIcon /> % виконання по курсу
+            <TrendIcon /> % складання по курсу
           </h2>
           {stats.courseBreakdown.length === 0 ? (
             <p className="admin-hint">Немає даних.</p>

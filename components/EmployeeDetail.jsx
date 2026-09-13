@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SpinnerIcon } from "@/components/icons";
 import { EmployeeBadgesSection } from "@/components/EmployeeBadgesSection";
 import { EmployeeCoursesSection } from "@/components/EmployeeCoursesSection";
+import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
 
 const ROLE_LABELS = {
   employee: "Співробітник",
@@ -56,6 +57,7 @@ export function EmployeeDetail({ employeeId }) {
         name: emp.name,
         email: emp.email || "",
         role: emp.role,
+        department: emp.department || "",
         positionId: emp.positionId || "",
         territoryId: emp.territoryId || "",
         isActive: emp.isActive,
@@ -117,6 +119,7 @@ export function EmployeeDetail({ employeeId }) {
           name: form.name.trim(),
           email: form.email.trim() || null,
           role: form.role,
+          department: form.department || null,
           positionId: form.positionId === "" ? null : Number(form.positionId),
           territoryId: form.territoryId === "" ? null : Number(form.territoryId),
         }),
@@ -240,6 +243,24 @@ export function EmployeeDetail({ employeeId }) {
         </div>
 
         <div className="admin-form-columns">
+          <div className="admin-field">
+            <label className="admin-label" htmlFor="empDepartment">
+              Департамент
+            </label>
+            <select
+              id="empDepartment"
+              className="admin-select"
+              value={form.department}
+              onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}
+            >
+              <option value="">—</option>
+              {EMPLOYEE_DEPARTMENTS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="admin-field">
             <label className="admin-label" htmlFor="empPosition">
               Посада

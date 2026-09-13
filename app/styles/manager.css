@@ -823,9 +823,28 @@ body:has(.manager-shell) {
 .mgr-badge-score {
   color: var(--green-700);
 }
+/* Середній бал команди по цій людині, коли є хоч одне ЗАВЕРШЕНЕ, але НЕ
+   складене призначення (summary.failed > 0) — той самий сигнал, що вже
+   реально порахований на бекенді (Enrollment.passed, кожен модуль ≥
+   Course.passThreshold — per-курс поріг, не захардкоджені 80%), просто
+   візуалізований тут червоним замість звичайного зеленого тексту. */
+.mgr-badge-score.mgr-badge-fail {
+  background: var(--cb-fail-light);
+  color: color-mix(in srgb, var(--cb-fail) 45%, var(--cb-black));
+}
 .mgr-badge-overdue {
   background: var(--cb-fail-light);
   color: color-mix(in srgb, var(--cb-fail) 45%, var(--cb-black));
+}
+/* "Курс виконано" — усі призначені курси завершені й усі складені
+   (summary.completed === summary.total && summary.failed === 0). */
+.mgr-badge-success {
+  background: var(--cb-success-light);
+  color: color-mix(in srgb, var(--cb-success) 45%, var(--cb-black));
+}
+.mgr-badge-medal {
+  display: inline-flex;
+  align-items: center;
 }
 .mgr-team-detail {
   /* Та сама "лінія структури", що .mgr-team-children (border-left + відступ)

@@ -22,11 +22,14 @@ import {
 // справжні вбудовані діаграми Excel — це задокументоване обмеження, не
 // недогляд; data-bar умовне форматування — найближчий реальний
 // візуальний еквівалент, який Excel відображає нативно). "Рекомендації"
-// — модулі з балом нижче прохідних 80%, відсортовані від найгірших,
-// плюс теми, де "проседає" одразу кілька людей (систематична, не
-// індивідуальна проблема). Решта вкладок — повна деталізація по всьому,
-// що реально зберігається в БД (відповіді на конкретні питання ніде не
-// пишуться — найдрібніший наявний рівень це бал за МОДУЛЬ).
+// — модулі, які НЕ складено (ModuleCompletion.passed===false — реальний
+// прохідний поріг ЦЬОГО курсу на момент складання, Course.passThreshold,
+// НЕ захардкоджені 80%, бо поріг тепер редагується per-курс в
+// конструкторі), відсортовані від найгірших, плюс теми, де "проседає"
+// одразу кілька людей (систематична, не індивідуальна проблема). Решта
+// вкладок — повна деталізація по всьому, що реально зберігається в БД
+// (відповіді на конкретні питання ніде не пишуться — найдрібніший
+// наявний рівень це бал за МОДУЛЬ).
 export async function GET() {
   const employee = await getCurrentUser();
   if (!employee) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
@@ -56,7 +59,11 @@ export async function GET() {
   const kpiRows = [
     ["У команді", stats.teamSize],
     ["Виконано, %", stats.completionRate],
-    ["Складено (80%+), %", stats.passRate],
+    // "80%+" у назві прибрано — поріг тепер per-курс (Course.passThreshold,
+    // редагується в конструкторі), не єдина захардкоджена цифра; сам
+    // stats.passRate вже й раніше рахувався з реального Enrollment.passed,
+    // не з порівняння з 80 тут.
+    ["Складено, %", stats.passRate],
     ["Вчасно, %", stats.onTimeRate],
     ["Розпочали, %", stats.engagementRate],
     ["Середній бал, %", stats.avgScore ?? ""],
@@ -71,7 +78,11 @@ export async function GET() {
   addBorders(summaryWs, kpiFirstDataRow, kpiLastDataRow, 2);
 
   summaryWs.addRow([]);
-  const courseHeaderRow = summaryWs.addRow(["Курс", "% виконання команди", null, "Завершено / всього"]);
+  // Той самий лічильник, що стовпчик "% складання по курсу" на
+  // /manager (lib/managerDashboard.js getDashboardStats.courseBreakdown)
+  // — рахує passed===true, не просто status===completed (провалені курси
+  // сюди не потрапляють).
+  const courseHeaderRow = summaryWs.addRow(["Курс", "% складання команди", null, "Складено / всього"]);
   styleHeaderRow(courseHeaderRow);
   const courseFirstDataRow = courseHeaderRow.number + 1;
   stats.courseBreakdown.forEach((c) => {
@@ -119,8 +130,12 @@ export async function GET() {
   }
 
   // ==================== 2. Рекомендації ====================
+  // m.passed — реальний прохідний поріг САМЕ ТОГО курсу на момент
+  // складання (Course.passThreshold), не захардкоджені 80% — поріг тепер
+  // редагується per-курс у конструкторі, тож єдине порівняльне число тут
+  // було б неправильним для курсів з іншим порогом.
   const weakModules = moduleCompletions
-    .filter((m) => m.scorePercent < 80)
+    .filter((m) => m.passed === false)
     .map((m) => {
       const e = enrollmentById.get(m.enrollmentId);
       return {

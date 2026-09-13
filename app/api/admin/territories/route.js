@@ -26,7 +26,7 @@ export async function GET() {
     prisma.territory.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, parentId: true } }),
     prisma.employee.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true, territoryId: true, managerId: true, position: { select: { name: true } } },
+      select: { id: true, name: true, email: true, department: true, territoryId: true, managerId: true, position: { select: { name: true } } },
     }),
   ]);
 
@@ -35,7 +35,9 @@ export async function GET() {
     employees: employees.map((e) => ({
       id: e.id,
       name: e.name,
+      email: e.email,
       positionName: e.position?.name || null,
+      department: e.department,
       territoryId: e.territoryId,
       managerId: e.managerId,
     })),

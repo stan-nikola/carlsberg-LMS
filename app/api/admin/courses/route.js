@@ -44,6 +44,13 @@ export async function POST(request) {
       category: body.category || null,
       isMandatory: Boolean(body.isMandatory),
       deadlineDays: body.deadlineDays === "" || body.deadlineDays == null ? null : Number(body.deadlineDays),
+      passThreshold: body.passThreshold === "" || body.passThreshold == null ? 80 : Number(body.passThreshold),
+      // "phone"/"laptop" — під який екран НАСАМПЕРЕД узгоджували контент
+      // курсу (Загальна інформація в /admin), лише прапорець-намір для
+      // прев'ю в AdminCourseEditor.jsx; реальний застосунок співробітника
+      // сам адаптується під його справжній екран (@container-запити в
+      // course-player.css), це поле на нього не впливає.
+      previewDevice: body.previewDevice === "laptop" ? "laptop" : "phone",
       streakMessages: body.streakMessages || null,
       targetPositions: body.targetPositions || [],
       targetTerritories: body.targetTerritories || [],
