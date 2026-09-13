@@ -83,15 +83,23 @@ export default async function CoursePage({ params }) {
     .map((m) => {
       const completion = completionsByModuleId.get(m.id);
       if (!completion) return null;
+      // passed — РЕАЛЬНЕ збережене значення з ModuleCompletion (пройдений
+      // поріг на момент складання ЦЬОГО модуля), не перерахунок за
+      // поточним course.passThreshold: якщо поріг курсу змінили пізніше,
+      // уже складені модулі не повинні заднім числом "перескладатись".
       if (completion.scoreRaw != null && completion.scoreMax != null) {
-        return { scoreRaw: completion.scoreRaw, scoreMax: completion.scoreMax };
+        return { scoreRaw: completion.scoreRaw, scoreMax: completion.scoreMax, passed: completion.passed };
       }
       // Легасі-рядок, записаний до появи scoreRaw/scoreMax на
       // ModuleCompletion, — best-effort реконструкція з реальної к-сті
       // питань модуля й округленого scorePercent (трохи менш точно за
       // оригінал, але краще, ніж узагалі загубити внесок цього модуля).
       const quizCount = m.screens.reduce((sum, s) => sum + s.components.filter((c) => c.type === "quiz").length, 0);
-      return { scoreRaw: Math.round((completion.scorePercent / 100) * quizCount), scoreMax: quizCount };
+      return {
+        scoreRaw: Math.round((completion.scorePercent / 100) * quizCount),
+        scoreMax: quizCount,
+        passed: completion.passed,
+      };
     })
     .filter(Boolean);
 

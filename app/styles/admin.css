@@ -412,13 +412,110 @@
      .adm-sidebar задає свою власну height:100vh НЕЗАЛЕЖНО від батька, тож
      має той самий баг сам по собі (виміряно: 765px замість 900px). */
   height: calc(100vh / 0.85);
+  /* transition лише на width — щоб згортання/розгортання (кнопка нижче)
+     не було миттєвим "стрибком" колонки, який зсуває весь конструктор
+     праворуч від неї. */
+  transition: width var(--dur-fast) var(--ease-premium);
+}
+/* Згорнутий сайдбар — лише іконки (за проханням користувача: звільнити
+   ширину вьюпорту під конструктор курсу/прев'ю на пристрої,
+   .admin-editor-grid). 56px = .iconbtn(34px) + padding(5px×2) + трохи
+   запасу, той самий принцип "по контенту", що й .adm-sidebar-collapse-btn
+   нижче. */
+.adm-sidebar.is-collapsed {
+  width: 56px;
 }
 .adm-sidebar-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
   font-weight: 700;
   color: var(--ink);
   text-decoration: none;
   padding: 0 12px;
   margin-bottom: 18px;
+}
+.adm-sidebar-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* У згорнутому стані сам текст-лейбл ховаємо (не display:none на
+   .adm-sidebar-title — лінк-обгортка лишається клікабельною й
+   доступною, з title="Адмін-панель" на самому <Link>, див. JSX). */
+.adm-sidebar.is-collapsed .adm-sidebar-title-text {
+  display: none;
+}
+.adm-sidebar.is-collapsed .adm-sidebar-title {
+  padding: 0;
+  justify-content: center;
+}
+/* Кнопка згортання — не в шапці поруч із заголовком (там вона накладалась
+   на напис "Адмін-панель", реальний баг користувача), а абсолютно
+   позиційована рівно по вертикальному центру ВСІЄЇ панелі, просто на лінії
+   border-right (.adm-sidebar вже position:sticky — теж containing block
+   для абсолюта). Без .iconbtn (без рамки/фону в стані спокою, за
+   проханням "без контейнера") — гола іконка "плаває" прямо на межі
+   колонки; невеликий hover-фон лише для тактильного відгуку кліку, не
+   постійний контейнер. */
+.adm-sidebar-collapse-btn {
+  position: absolute;
+  top: 50%;
+  /* -15px = половина власної ширини (30px) — кнопка симетрично "сидить"
+     на лінії border-right: половина в колонці, половина зовні, той самий
+     принцип, що collapse-хендли в VS Code/Notion. */
+  right: -15px;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  /* Коло завжди видиме (перенесено зі стану ховера, за проханням
+     користувача) — не "гола" іконка в стані спокою, а стабільний
+     орієнтир на межі колонки, який видно одразу, не лише при наведенні. */
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface-1);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-premium), border-color var(--dur-fast) var(--ease-premium),
+    color var(--dur-fast) var(--ease-premium);
+}
+/* Інший ховер, ніж просто "з'явилось коло" (те, що раніше й було станом
+   спокою) — акцентний зелений, той самий, що вже позначає активний пункт
+   навігації (.adm-nav-link.active), тож ховер тут читається як "готово до
+   дії", не просто generic overlay. */
+@media (hover: hover) {
+  .adm-sidebar-collapse-btn:hover {
+    background: var(--green-tint);
+    border-color: var(--green-700);
+    color: var(--green-700);
+  }
+}
+.adm-sidebar-collapse-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.adm-sidebar-collapse-btn:active {
+  transform: translateY(-50%) scale(0.9);
+}
+/* +20% за проханням користувача (16px, як .iconbtn svg -> 19.2px) — для
+   кращого візуального сприйняття самотньої іконки без рамки навколо. */
+.adm-sidebar-collapse-btn svg {
+  width: 19.2px;
+  height: 19.2px;
+  /* ChevronIcon за замовчуванням "›" — розгорнутий стан крутимо на 180°
+     ("‹", натиск згортає панель), згорнутий лишаємо "›" (натиск
+     розгортає). Той самий rotate-патерн, що вже є в проєкті для
+     ChevronIcon (напр. .admin-course-row-caret.open). */
+  transition: transform var(--dur-fast) var(--ease-premium);
+  transform: rotate(180deg);
+}
+.adm-sidebar.is-collapsed .adm-sidebar-collapse-btn svg {
+  transform: rotate(0deg);
 }
 .adm-nav {
   display: flex;
@@ -460,10 +557,24 @@
   background: var(--green-tint);
   color: var(--green-700);
 }
+/* Згорнутий стан — лише .adm-nav-icon лишається видимим (другий <span>
+   з лейблом ховаємо), сама кнопка центрується під вузьку 56px колонку;
+   title=label на самому <Link> (JSX) лишається як tooltip-заміна тексту. */
+.adm-sidebar.is-collapsed .adm-nav-link {
+  justify-content: center;
+  padding: 10px 0;
+}
+.adm-sidebar.is-collapsed .adm-nav-link span:not(.adm-nav-icon) {
+  display: none;
+}
 .adm-sidebar-footer {
+  display: flex;
   border-top: 1px solid var(--line);
   padding-top: 12px;
   margin-top: 12px;
+}
+.adm-sidebar.is-collapsed .adm-sidebar-footer {
+  justify-content: center;
 }
 /* ---- Мобільний (<900px): верхній appbar + бургер-кнопка ---- */
 .adm-appbar {
@@ -536,7 +647,7 @@
 }
 .admin-employee-row {
   display: grid;
-  grid-template-columns: 1.4fr 0.9fr 1.6fr 1fr auto;
+  grid-template-columns: 1.4fr 0.9fr 0.9fr 1.3fr 1fr auto;
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
@@ -922,33 +1033,34 @@
 
 .admin-editor-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 520px;
-  gap: 24px;
+  /* 3fr/2fr, не minmax(0,1fr) 520px + вкладені width:60%/40% (як було) —
+     той варіант рахував 60%/40% ВІД УЖЕ звуженої власної колонки (60% від
+     "1fr мінус фіксовані 520px", 40% від тих самих 520px), тож реально на
+     екрані лишалась велика порожня смуга між колонкою редагування й
+     крихітним телефоном — саме це користувач і побачив на скріншоті.
+     fr-одиниці ділять РЕШТУ ширини (після gap) рівно в пропорції 3:2 =
+     60%/40% від усього блоку без сайдбару — без цього подвійного
+     звуження. */
+  grid-template-columns: 3fr 2fr;
+  /* Мінімальний, але видимий проміжок між колонками (за проханням
+     "мінімальні маржини паддінги") — було 24px. */
+  gap: 14px;
   align-items: start;
 }
 .admin-editor-edit {
   min-width: 0;
-  /* width, не zoom — те саме рішення, що й .admin-editor-preview нижче:
-     звужуємо сам контейнер у межах батьківської grid-колонки замість
-     zoom-масштабування вмісту. */
-  width: 60%;
 }
 .admin-editor-preview {
   position: sticky;
-  top: 24px;
+  top: 14px;
   display: flex;
-  justify-content: center;
-  /* width:40% (не zoom) — .iphone-mockup усередині вже сам масштабується
-     пропорційно під РЕАЛЬНУ ширину батька (width:100% + aspect-ratio +
-     max-width нижче), тож досить звузити сам контейнер-батько; zoom тут
-     зайвий і ризикований — .admin-editor-preview ще й position:sticky,
-     а zoom спотворює координати, в яких браузер рахує sticky-зсув. */
-  width: 40%;
-  /* justify-self:center — з явним width grid-айтем більше НЕ stretch за
-     замовчуванням (те саме, що з auto-width), тож без цього коробка
-     прилипає до лівого краю 520px-колонки замість того, щоб лишатись по
-     центру, як була до появи явного width. */
-  justify-self: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  /* Без width:40%/justify-self:center — колонка вже РІВНО 40% від
+     grid-template-columns вище, звужувати вміст ще раз не треба;
+     .iphone-mockup/.laptop-mockup нижче самі заповнюють цю колонку
+     (width:100% + свій max-width на випадок дуже високих екранів). */
 }
 
 /* ---- Прев'ю в рамці iPhone 17 Pro Max ----
@@ -979,9 +1091,41 @@
      (div.iphone-mockup 500×704.35 — це 0.71, а має бути 0.46) підтвердила
      саме цей конфлікт двох обмежень. */
   width: 100%;
-  max-width: min(500px, calc(min(1084px, 92vh) * 9 / 19.5));
+  /* Було min(500px, ...) — фіксована 500px-стеля не мала стосунку до
+     реальної висоти екрана і саме вона не давала макету дорости до своєї
+     нової 40%-колонки (.admin-editor-grid вище) на звичайних/широких
+     моніторах. Лишається лише висото-безпечна частина формули: на
+     height-обмеженому екрані ширина не дасть макету вилізти по вертикалі
+     за 92vh, а 1084px — стеля лише для дуже високих (портретних)
+     моніторів, щоб макет не роздувався абсурдно. Ширину зверху все одно
+     додатково ріже сам батько (.admin-editor-preview, рівно 40% блоку). */
+  /* × 1.2 × 0.85 — спершу "+20% по діагоналі", потім, окремим проханням,
+     "зменш на 15%" (кнопки-перемикач над мокапом у докнутій колонці
+     з'їдали вертикальний простір, і нижній край телефону вилазив за межі
+     видимої області — 1.2×0.85=1.02, тобто зараз лише трохи більше за
+     самий перший розмір, з запасом саме під ці кнопки над макетом). */
+  max-width: calc(min(1084px, 92vh) * 9 / 19.5 * 1.2 * 0.85);
   aspect-ratio: 9 / 19.5;
   margin: 0 auto;
+}
+/* Телефон У МОДАЛЦІ (не докнутий) — інша, значно щедріша стеля: докнута
+   версія вище навмисно тримається "реалістичної" щільності маленького
+   екрана, а в повноекранній модалці для такого стримування немає причин
+   (за проханням користувача "увеличь ее в размер вьюпорта" для телефону
+   в модалці) — той самий підхід, що й .laptop-mockup нижче: майже весь
+   вьюпорт, не штучно занижений розмір. */
+.iphone-mockup--modal {
+  /* Точний розрахунок (100vh - 20px, під 10px+10px padding оверлея нижче),
+     не приблизне min(1400px,96vh) — той самий фікс, що вже зробили для
+     .laptop-mockup (наближення лишало помітний запас зверху/знизу, видно
+     на скріншоті користувача: рамка не діставала до країв модалки).
+     Стеля 600px (не вище) — навмисна межа: .course-card усередині
+     (inset 2.33% з кожного боку, нижче) при 600px рамки виходить ~572px,
+     з запасом ПІД 640px-поріг @container cp-card (course-player.css) —
+     телефон-мокап, хай і в модалці, має лишатись мобільним, не раптово
+     "перемкнутись" на десктопний reflow лише тому, що дозволили йому
+     вирости завеликим. */
+  max-width: min(600px, calc((100vh - 20px) * 9 / 19.5));
 }
 .iphone-mockup .course-card {
   position: absolute;
@@ -1028,12 +1172,213 @@
 .iphone-mockup .navwrap {
   padding-bottom: 35px;
 }
+
+/* ---- "Реалістична" щільність контенту в мокапах ----
+   .course-card розтягнутий (у прев'ю) до розміру, ЩІЛЬНІШОГО за реальний
+   вьюпорт сучасного телефону (390-430 CSS px) — весь текст/кнопки/відступи
+   в course-player.css задані у px, тож коли РАМКА мокапу більша за
+   справжній телефон, той самий px-текст виглядає МЕНШИМ відносно рамки,
+   ніж на реальному пристрої (де контент "щільніший" — той самий шрифт,
+   значно вужчий екран). zoom (не transform:scale — той самий підхід, що
+   вже є в .adm-shell/AdminShell.jsx: масштабує САМЕ РОЗКЛАДКУ, а не лише
+   малюнок) на ОКРЕМІЙ обгортці ВСЕРЕДИНІ .course-card, не на самій
+   .course-card — інакше зум впливав би на те, як % inset вище рахує
+   розмір самої картки відносно рамки (course-card має лишитись у
+   "реальних" координатах рамки, зменшити треба лише те, що ВСЕРЕДИНІ).
+   .cp-zoom-wrap{height:100%} обчислюється ще ДО власного zoom (проти
+   .course-card, не проти вьюпорту, тому не потребує компенсації на кшталт
+   /0.85 в .adm-shell — там саме vh, тут звичайний %) — сама коробка
+   лишається на всю висоту картки, лише контент усередині рендериться
+   дрібніше/щільніше. */
+.cp-zoom-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.iphone-mockup .cp-zoom-wrap {
+  /* -30% за проханням користувача ("розмір блоків на 30% менше"). */
+  zoom: 0.7;
+}
+.laptop-mockup .cp-zoom-wrap {
+  /* Було 0.56 — за словами користувача, це "сильно зменшило" контент і
+     він через це й читався як стиснута мобільна колонка всередині
+     широкої рамки, а не як власне десктопний вигляд. Логіка "зменшити під
+     реальну щільність телефону" (.iphone-mockup вище) для ноутбука
+     НЕПРАВИЛЬНА за задумом — на реальному ноутбуці текст НЕ виглядає
+     дрібнішим за мобільний, навпаки, комфортно читається на повний зріст;
+     "по-десктопному" тут забезпечує НЕ zoom-стиснення, а сама широка
+     колонка/сітка нижче (.cp-screen/.opt-group). Без zoom тут узагалі
+     (1 = як є) — лише кегль/відступи природного розміру на великій рамці. */
+  zoom: 1;
+}
+
+/* ---- Прев'ю в рамці ноутбука ----
+   Той самий принцип, що .iphone-mockup вище (position:absolute курс-картка
+   + SVG-рамка поверх, aspect-ratio під власний viewBox LaptopFrame). Курс-
+   картка тут широка (position:absolute inset нижче) — і саме тому
+   всередині спрацьовують ті самі РЕАЛЬНІ @container cp-card правила
+   (app/styles/course-player.css), що й на десктопі в реальному
+   застосунку співробітника: ширший reflow тут — не окрема "картинка про
+   запас", а буквально той самий код, який реально побачить людина. */
+.laptop-mockup {
+  position: relative;
+  width: 100%;
+  /* Висото-безпечна формула, під власний viewBox LaptopFrame (1060×608,
+     не 640 — нижня частина рамки щойно зменшена на 30%, див. LaptopFrame).
+     Раніше тут БУВ баг: до "висото-безпечного" width(=height×aspectRatio)
+     домножали ще ×1.3 ("+30% розміру") — але це домноження ламало саму
+     гарантію (той самий доданок, що обмежує ВИСОТУ, після множення вже не
+     відповідав реальній стелі), тому макет і виліз за межі вьюпорту
+     (реальний баг користувача). Просто calc(100vh - 20px) замість
+     min(1400px,96vh)-екстраполяції — 20px = подвійний padding оверлея,
+     тепер рівно 10px+10px (.admin-preview-modal-overlay) — дає ТОЧНУ (не
+     приблизну) доступну висоту без жодного зайвого множника; "більше"
+     тепер забезпечує сама точність (менше "запасу про всяк випадок"), не
+     штучний коефіцієнт. */
+  max-width: min(1600px, calc((100vh - 20px) * 1060 / 608));
+  aspect-ratio: 1060 / 608;
+  margin: 0 auto;
+}
+.laptop-mockup .course-card {
+  position: absolute;
+  /* top right bottom left — узгоджено з вирізом (20,20)-(980,540) у
+     LaptopFrame відносно повного viewBox -30..1030 × 0..608 (висота
+     зменшена на 30% знизу, звідси й 608, не 640 — див. LaptopFrame):
+     top=20/608=3.289%, left/right=(20-(-30))/1060=4.717% (без змін, ширина
+     та сама), bottom=(608-540)/608=11.184% (екран-вивід закінчується над
+     шарніром/базою клавіатури, не заходить у них). */
+  inset: 3.289% 4.717% 11.184%;
+  width: auto;
+  height: auto;
+  border: none;
+  border-radius: 10px / 8px;
+  box-shadow: none;
+}
+.laptop-mockup-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 6;
+  filter: drop-shadow(0 18px 30px rgba(20, 22, 26, 0.25));
+}
+/* Широкий reflow контенту всередині ноутбук-мокапу — БІЛЬШЕ НЕ ТУТ.
+   Тепер це реальні, універсальні @container cp-card (min-width:640px)
+   правила в app/styles/course-player.css (.cp-screen/.opt-group/.opt/
+   .navbar/.appbar/.cp-progress-track) — той самий код, що бачить кожен
+   співробітник на десктопі (.stage--course-player, globals.css), і
+   .laptop-mockup .course-card тут просто достатньо широка (>640px), щоб
+   ті самі правила спрацювали й у прев'ю. Окремих .laptop-mockup-scoped
+   дублікатів більше немає навмисно — один набір правил, не два, що могли
+   б розійтись. */
+.laptop-mockup .navwrap {
+  padding-bottom: 20px;
+}
+
 .admin-preview-empty {
   color: var(--ink-soft);
   font-size: 13px;
   text-align: center;
   padding: 40px 20px;
 }
+
+/* ---- Ноутбук-плейсхолдер у докнутій колонці ----
+   Ноутбук-мокап туди більше НЕ рендериться — фіксована 40%-колонка
+   (.admin-editor-grid) занадто вузька для широкого макета (саме це й
+   "не вміщалось нормально", реальна скарга користувача); тут лише
+   запрошення відкрити повноекранну модалку нижче. */
+.admin-laptop-preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 56px 24px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-card);
+  color: var(--ink-soft);
+  text-align: center;
+}
+.admin-laptop-preview-placeholder svg {
+  width: 34px;
+  height: 34px;
+}
+.admin-laptop-preview-placeholder p {
+  margin: 0;
+  font-size: 13px;
+  max-width: 240px;
+}
+.admin-preview-expand-btn {
+  font-size: 12.5px;
+}
+
+/* ---- Повноекранна модалка прев'ю ----
+   Єдине місце в проєкті з "справжнім" центрованим модальним вікном (див.
+   AGENTS.md-коментар в AdminShell.jsx: раніше в проєкті модалок не було
+   взагалі, лише bottom-sheet .sheet-overlay/.sheet для мобільної
+   навігації) — навмисно НЕ перевикористовує .sheet-overlay: те слайд-ап
+   знизу для меню, тут потрібен центрований, великий (майже на весь
+   екран) оверлей, де в ноутбук-мокапу реально є місце розгорнутись.
+   Рендериться через createPortal у document.body (components/
+   AdminCourseEditor.jsx), НЕ як звичайний вкладений JSX — інакше DOM-вузол
+   лишався б усередині .adm-shell і успадковував його zoom:85%, який тихо
+   стискав усі vh-розрахунки нижче на 15% (реальна причина, чому модалка
+   раз у раз виходила меншою за розрахунок). */
+.admin-preview-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 22, 26, 0.6);
+  /* Портал виносить вузол з-під .adm-shell, тож і --fs-scale:1
+     (AdminShell.jsx) більше не успадковується звідти — повторюємо тут,
+     щоб calc(Npx * var(--fs-scale)) у course-player.css й далі рахував на
+     чистих px, а не на персональному розмірі шрифту якогось employee
+     (малоймовірно, але дешево підстрахуватись). */
+  --fs-scale: 1;
+  /* Рівно 10px за проханням користувача — і мокап-формули нижче
+     (.iphone-mockup--modal/.laptop-mockup) рахують доступну висоту як
+     100vh - 20px (10px зверху + 10px знизу), тож це значення МАЄ
+     лишатись синхронним з тим "20px" у їхніх calc(). */
+  padding: 10px;
+}
+.admin-preview-modal {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.admin-preview-modal-close {
+  /* Було position:absolute; top:-48px відносно .admin-preview-modal — коли
+     оверлей мав великий padding, кнопка "виїжджала" вище нього й на 1/3
+     ховалась під сайдбаром/шапкою сторінки позаду (реальний баг
+     користувача). Зафіксовано відносно ВЬЮПОРТУ (не модалки), у
+     safe-контрольованому куті — більше не залежить від розміру самої
+     модалки. */
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 60;
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--shadow-md);
+}
+.admin-preview-modal-body {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Усередині модалки й .iphone-mockup, і .laptop-mockup лишаються тими
+   самими компонентами з тими самими висото-безпечними max-width
+   формулами (92vh/1084px) — тут просто НАРЕШТІ є фізичний простір
+   (до 1400px, не 40%-колонка), у який ці формули можуть реально рости. */
 
 .admin-lesson-nav {
   display: flex;

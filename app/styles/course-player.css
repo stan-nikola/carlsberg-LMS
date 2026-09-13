@@ -1117,3 +1117,59 @@
 .resume-prompt-actions .btn {
   flex: 1;
 }
+
+/* ===================== Широкий reflow (@container) =====================
+   Спрацьовує, коли .course-card (globals.css, container-name:cp-card)
+   РЕАЛЬНО широка — і в застосунку співробітника на десктопі
+   (.stage--course-player @media у globals.css розтягує .course-card на
+   десктопних вьюпортах), і в мокапі ноутбука адмін-конструктора
+   (.laptop-mockup .course-card, app/styles/admin.css). Один набір правил,
+   не дубльований під кожен контекст окремо — тому й @container (реагує на
+   РЕАЛЬНУ ширину елемента), а не @media (реагував би на вікно браузера:
+   мокап телефону в конструкторі рендериться в широкому вікні адміна, і
+   @media показав би десктопний вигляд навіть у вузькій рамці телефону).
+   640px — з запасом і над мобільною шириною .course-card (≤430px), і під
+   розширеною десктопною (900+px/ноутбук-мокап). */
+@container cp-card (min-width: 640px) {
+  .appbar {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  .cp-progress-track {
+    margin-left: 24px;
+    margin-right: 24px;
+  }
+  .cp-screen {
+    /* 960px, не 720 — за словами користувача, вужчий варіант + сильний
+       zoom-shrink (раніше, лише в мокапі) виглядав "по принципу мобілки",
+       не як версія під ноутбук/десктоп. */
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 44px 40px 56px;
+  }
+  /* Варіанти тесту — 3 колонки: 960px реально вміщує 3 нормальні кнопки-
+     варіанти в ряд, ближче до того, як десктопний тест виглядав би
+     насправді, а не 2 колонки, що лишали б забагато порожнього простору
+     обабіч. */
+  .opt-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .opt {
+    margin-bottom: 0;
+  }
+  .navbar {
+    max-width: 960px;
+    margin: 0 auto;
+    padding-left: 40px;
+    padding-right: 40px;
+    /* Назад ліворуч / Далі праворуч — звичний десктопний патерн, не
+       впритул поруч зліва (те, що дало б сам лише flex:0). */
+    justify-content: space-between;
+  }
+  .navbar .btn {
+    flex: 0 0 auto;
+    min-width: 160px;
+  }
+}

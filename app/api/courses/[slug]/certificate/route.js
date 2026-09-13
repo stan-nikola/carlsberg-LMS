@@ -129,9 +129,10 @@ function buildCertificatePdf({ employeeName, courseTitle, completedAt }) {
 }
 
 // GET /api/courses/:slug/certificate — PDF-сертифікат про 100% проходження.
-// Навмисно 100%, не "просто складено" (>=80%): сертифікат — окрема,
-// вища планка, щоб мотивувати вчити матеріал по-справжньому, а не лише
-// "пройти поріг" (те саме прохання користувача — заохотити старатись).
+// Навмисно рівно 100%, не "просто складено" (Enrollment.passed — кожен
+// модуль ≥ Course.passThreshold, per-курс налаштовуваний поріг): сертифікат
+// — окрема, вища планка, щоб мотивувати вчити матеріал по-справжньому, а
+// не лише "пройти поріг" (те саме прохання користувача — заохотити старатись).
 export async function GET(request, { params }) {
   const { slug } = await params;
   const employee = await getCurrentUser();

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { SpinnerIcon } from "@/components/icons";
 import { EmployeeTree } from "@/components/EmployeeTree";
 import { ExcelLivePanel } from "@/components/ExcelLivePanel";
+import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
 
 const ROLE_LABELS = {
   employee: "Співробітник",
@@ -163,6 +164,7 @@ export function AdminEmployees() {
   const [showImport, setShowImport] = useState(false);
 
   const [q, setQ] = useState("");
+  const [department, setDepartment] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [limit, setLimit] = useState(null);
@@ -179,7 +181,7 @@ export function AdminEmployees() {
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(
-          `/api/admin/employees?q=${encodeURIComponent(q)}&showInactive=${showInactive ? "1" : "0"}`,
+          `/api/admin/employees?q=${encodeURIComponent(q)}&showInactive=${showInactive ? "1" : "0"}&department=${encodeURIComponent(department)}`,
           { signal: controller.signal }
         );
         const data = await res.json();
@@ -196,7 +198,7 @@ export function AdminEmployees() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [q, showInactive, view, refreshKey]);
+  }, [q, department, showInactive, view, refreshKey]);
 
   async function handleResetPin(employeeId) {
     setPinStatus((prev) => ({ ...prev, [employeeId]: "sending" }));
@@ -286,6 +288,14 @@ export function AdminEmployees() {
               onChange={(e) => setQ(e.target.value)}
               style={{ maxWidth: 360 }}
             />
+            <select className="admin-select" value={department} onChange={(e) => setDepartment(e.target.value)}>
+              <option value="">Усі департаменти</option>
+              {EMPLOYEE_DEPARTMENTS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
             <label className="admin-checkbox">
               <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
               Показати деактивованих
@@ -304,6 +314,7 @@ export function AdminEmployees() {
               <div className="admin-employee-row admin-employee-row-head">
                 <span>Ім&apos;я</span>
                 <span>Код</span>
+                <span>Департамент</span>
                 <span>Посада / територія</span>
                 <span>Роль</span>
                 <span>PIN</span>
@@ -317,6 +328,7 @@ export function AdminEmployees() {
                     {emp.isActive === false && <span className="admin-hint"> · деактивовано</span>}
                   </span>
                   <span className="mono">{emp.externalCode}</span>
+                  <span className="admin-employee-meta">{emp.department || "—"}</span>
                   <span className="admin-employee-meta">
                     {emp.position?.name || "—"}
                     {emp.territory ? ` · ${emp.territory.name}` : ""}

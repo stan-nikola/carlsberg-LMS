@@ -62,8 +62,17 @@ export function TerritoryPicker({ territories, employees, value, onChange, emplo
   const [expandedTerritories, setExpandedTerritories] = useState(() => new Set());
   const [expandedPeople, setExpandedPeople] = useState(() => new Set());
 
-  const { byId, childrenOf, roots, descendantsOf, employeesById, employeesByTerritory, employeesByManager, personDescendantsOf } =
-    useMemo(() => {
+  const {
+    byId,
+    childrenOf,
+    roots,
+    descendantsOf,
+    employeesById,
+    employeesByTerritory,
+    employeesByManager,
+    personDescendantsOf,
+    rootPeople,
+  } = useMemo(() => {
       const byId = new Map(territories.map((t) => [t.id, t]));
       const childrenOf = new Map();
       for (const t of territories) {
@@ -116,7 +125,27 @@ export function TerritoryPicker({ territories, employees, value, onChange, emplo
       }
       employees.forEach((e) => collectPerson(e.id));
 
-      return { byId, childrenOf, roots, descendantsOf, employeesById, employeesByTerritory, employeesByManager, personDescendantsOf };
+      // "Кореневі" люди — БЕЗ territoryId (не sales-гілка, напр. керівники
+      // департаментів HR/Виробництво/Маркетинг) І без managerId (самі
+      // top-level) — дерево територій їх узагалі не бачить (воно росте
+      // лише з Territory.parentId===null), тому без цього списку такі люди
+      // не показувались і не шукались у "За співробітниками" НІКОЛИ,
+      // включно з їхніми підлеглими — знайдений баг, не проєктне рішення.
+      const rootPeople = employees
+        .filter((e) => e.territoryId == null && e.managerId == null)
+        .sort((a, b) => a.name.localeCompare(b.name, "uk"));
+
+      return {
+        byId,
+        childrenOf,
+        roots,
+        descendantsOf,
+        employeesById,
+        employeesByTerritory,
+        employeesByManager,
+        personDescendantsOf,
+        rootPeople,
+      };
     }, [territories, employees]);
 
   const matchedIds = useMemo(() => {
@@ -128,7 +157,10 @@ export function TerritoryPicker({ territories, employees, value, onChange, emplo
           (t) =>
             t.name.toLowerCase().includes(q) ||
             (employeesByTerritory.get(t.id) || []).some(
-              (e) => e.name.toLowerCase().includes(q) || (e.positionName || "").toLowerCase().includes(q)
+              (e) =>
+                e.name.toLowerCase().includes(q) ||
+                (e.positionName || "").toLowerCase().includes(q) ||
+                (e.email || "").toLowerCase().includes(q)
             )
         )
         .map((t) => t.id)
@@ -152,6 +184,38 @@ export function TerritoryPicker({ territories, employees, value, onChange, emplo
     }
     return visible;
   }, [matchedIds, descendantsOf, byId]);
+
+  // Пошук серед "кореневих" людей (rootPeople) і їхніх підлеглих — окремо
+  // від matchedIds/visibleIds вище (ті працюють лише в межах дерева
+  // територій). matchedPersonIds — хто збігається САМ; personSubtreeHasMatch
+  // — чи є збіг десь під цією людиною (щоб авто-розгорнути шлях до нього,
+  // так само як територіальне дерево розгортає шлях до знайденого вузла).
+  const matchedPersonIds = useMemo(() => {
+    if (!query.trim()) return null;
+    const q = query.trim().toLowerCase();
+    return new Set(
+      employees
+        .filter(
+          (e) =>
+            e.name.toLowerCase().includes(q) ||
+            (e.positionName || "").toLowerCase().includes(q) ||
+            (e.email || "").toLowerCase().includes(q)
+        )
+        .map((e) => e.id)
+    );
+  }, [employees, query]);
+
+  function personSubtreeHasMatch(id) {
+    if (!matchedPersonIds) return false;
+    if (matchedPersonIds.has(id)) return true;
+    return (personDescendantsOf.get(id) || []).some((d) => matchedPersonIds.has(d));
+  }
+
+  const visibleRootPeople = useMemo(() => {
+    if (!matchedPersonIds) return rootPeople;
+    return rootPeople.filter((p) => personSubtreeHasMatch(p.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootPeople, matchedPersonIds]);
 
   function toggleTerritoryExpand(id) {
     setExpandedTerritories((prev) => {
@@ -209,7 +273,7 @@ export function TerritoryPicker({ territories, employees, value, onChange, emplo
   // і так само розгортається вглиб, якщо в НЕЇ теж є підлеглі.
   function renderPersonNode(person) {
     const subs = employeesByManager.get(person.id) || [];
-    const isOpen = expandedPeople.has(person.id);
+    const isOpen = matchedPersonIds ? personSubtreeHasMatch(person.id) : expandedPeople.has(person.id);
     const covered = [person.id, ...(personDescendantsOf.get(person.id) || [])];
     const selectedCount = covered.filter((id) => employeeValue.includes(id)).length;
     const checked = selectedCount === covered.length;
@@ -323,15 +387,21 @@ export function TerritoryPicker({ territories, employees, value, onChange, emplo
       )}
       <input
         className="admin-input-flex"
-        placeholder="Пошук території, посади або ПІБ (наприклад: Арциз, ТП, Ковальчук)…"
+        placeholder="Пошук території, посади, ПІБ або email (наприклад: Арциз, ТП, Ковальчук, ivan@…)…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
       <div className="territory-tree">
-        {visibleRoots.length === 0 ? (
+        {visibleRoots.length === 0 && visibleRootPeople.length === 0 ? (
           <p className="admin-hint territory-empty">Нічого не знайдено за «{query}».</p>
         ) : (
-          visibleRoots.map((r) => renderNode(r))
+          <>
+            {visibleRoots.map((r) => renderNode(r))}
+            {/* "Кореневі" люди — керівники, не прив'язані до жодної
+                території (напр. департаменти HR/Виробництво/Маркетинг) —
+                окремим списком під географічним деревом. */}
+            {visibleRootPeople.map((p) => renderPersonNode(p))}
+          </>
         )}
       </div>
       <p className="admin-hint">Клік вибирає рівень і все, що під ним. Розгорніть дерево — можна дійти до конкретного співробітника.</p>

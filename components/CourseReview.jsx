@@ -68,7 +68,12 @@ export function CourseReview({ course, modules, scorePercent, hasEmail = true })
     .filter((group) => group.reviewComponents.length > 0);
 
   return (
-    <div className="stage">
+    // stage--course-player — та сама десктопна ширина/reflow, що й у
+    // "живому" CoursePlayer.jsx (globals.css/@container cp-card,
+    // course-player.css): "методичка" показує ТОЙ САМИЙ контент курсу,
+    // просто без тестів/гейтів, і мала лишатись вузькою мобільною
+    // карткою по центру десктопного екрана — реальний баг користувача.
+    <div className="stage stage--course-player">
       <div className="course-col">
         <div className="course-card">
           <div className="appbar">

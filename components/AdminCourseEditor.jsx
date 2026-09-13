@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ComponentScreen, QuizScreen } from "@/components/CoursePlayer";
-import { ChevronIcon, GripIcon, SpinnerIcon } from "@/components/icons";
+import { ChevronIcon, GripIcon, SpinnerIcon, XIcon } from "@/components/icons";
 import { pluralize } from "@/lib/pluralize";
 import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, defaultContentForType } from "@/lib/componentTypes";
 import { ListRowControls, useListOps } from "@/components/ListEditor";
@@ -724,14 +725,64 @@ function IPhoneFrame() {
 }
 
 /**
- * Права колонка показує ЦІЛИЙ поточний екран — усі його компоненти стеком
- * (components), не лише той один, що зараз редагується зліва: інакше автор
- * не побачив би, як насправді виглядає екран з кількома компонентами разом
- * (саме це раніше "губилось" — прев'ю рендерив лише вибраний component).
- * components[] — уже змержений список: той, що зараз редагується, замінено
- * на його ЖИВИЙ (незбережений) стан, решта — як збережено на сервері.
+ * Рамка ноутбука (той самий mask-прийом, що й IPhoneFrame — суцільна форма
+ * мінус прозорий виріз під контент). viewBox навмисно ширший за саму
+ * "кришку" (-30..1030 замість 0..1000) — база клавіатури свідомо ширша за
+ * екран (справжня пропорція лаптопа), і зайвий простір ліворуч/праворуч
+ * саме під це. Координати вирізу (20,20)-(980,540) узгоджені з inset у
+ * .laptop-mockup .course-card (app/styles/admin.css) так само, як для
+ * iPhone.
+ *
+ * Нижня частина (шарнір+база клавіатури, усе нижче y=560) зменшена на 30%
+ * за проханням користувача — було 640 повної висоти (80px "хвоста" під
+ * екраном), стало 608 (56px): та сама пропорція шарніра/бази/виїмки,
+ * просто масштабована ×0.7 відносно лінії y=560, де закінчується сам
+ * екран. Це й зменшує загальну висоту рамки (менше "зайвого" знизу), і
+ * прямо допомагає з переповненням вьюпорту (нижче, .laptop-mockup) —
+ * коротша рамка при тій самій ширині фізично нижча.
  */
-function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext }) {
+function LaptopFrame() {
+  return (
+    <svg className="laptop-mockup-frame" viewBox="-30 0 1060 608" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <defs>
+        <mask id="laptopScreenMask">
+          <rect x="0" y="0" width="1000" height="560" rx="26" fill="#fff" />
+          <rect x="20" y="20" width="960" height="520" rx="12" fill="#000" />
+        </mask>
+      </defs>
+      {/* Кришка з екраном */}
+      <rect x="0" y="0" width="1000" height="560" rx="26" fill="#1d1d1f" mask="url(#laptopScreenMask)" />
+      <rect x="0.5" y="0.5" width="999" height="559" rx="26" fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="1" />
+      {/* Камера */}
+      <circle cx="500" cy="12" r="3.2" fill="#05070a" />
+      {/* Шарнір */}
+      <rect x="60" y="561.4" width="880" height="7" rx="3" fill="#2a2a2d" />
+      {/* База клавіатури — ширша за екран, з виїмкою під трекпад спереду */}
+      <rect x="-25" y="572.6" width="1050" height="35" rx="7" fill="#3a3a3d" />
+      <rect x="410" y="572.6" width="180" height="5.6" rx="2.8" fill="#1d1d1f" opacity="0.5" />
+    </svg>
+  );
+}
+
+function LaptopDeviceIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="12" rx="1.3" />
+      <line x1="1" y1="20" x2="23" y2="20" />
+    </svg>
+  );
+}
+
+/**
+ * Сам вміст мокапу — .course-card (шапка/прогрес/контент/навігація) +
+ * SVG-рамка, спільні для ДОКНУТОГО телефонного прев'ю (завжди на екрані,
+ * поруч з редактором) і повноекранної модалки (components нижче) —
+ * інакше довелось би тримати той самий JSX у двох місцях. device —
+ * "phone"|"laptop", вирішує лише яка обгортка/рамка рендериться, самі
+ * пропси екрана (components/stepNumber/onBack/...) не залежать від
+ * пристрою.
+ */
+function DeviceMockup({ device, components, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, inModal }) {
   const hasScreen = components && components.length > 0;
   // Той самий скрол-контейнер, що й у реальному плеєрі (.cp-viewport) — той
   // самий фікс: без явного скидання наступний екран у прев'ю відкривався
@@ -740,73 +791,183 @@ function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, 
   useEffect(() => {
     viewportRef.current?.scrollTo({ top: 0 });
   }, [stepNumber]);
+  const isLaptop = device === "laptop";
+  // inModal — телефон У МОДАЛЦІ навмисно БІЛЬШИЙ за докнуту версію (за
+  // проханням користувача "увеличь ее в размер вьюпорта"): докнута версія
+  // навмисно тримається реалістичної щільності маленького екрана (formula
+  // в .iphone-mockup), а в повноекранній модалці для цього немає причин —
+  // там, як і для ноутбука, варто реально заповнити виділений простір.
+  // Модифікатор-клас (.iphone-mockup--modal), а не інший формула прямо тут,
+  // щоб .cp-zoom-wrap-щільність (app/styles/admin.css) лишалась спільною.
+  const mockupClass = isLaptop ? "laptop-mockup" : inModal ? "iphone-mockup iphone-mockup--modal" : "iphone-mockup";
   return (
-    <div className="admin-editor-preview">
-      <div className="iphone-mockup">
-        <div className="course-card">
-          <div className="appbar">
-            <button type="button" className="iconbtn" onClick={onBack} disabled={!canGoBack} aria-label="Назад" title="Попередній екран у прев'ю">
-              <span style={{ transform: "rotate(180deg)", display: "inline-flex" }}>
-                <ChevronIcon />
-              </span>
-            </button>
-            <div style={{ flex: 1 }} />
-            {hasScreen && (
-              <span className="cp-step-count">
-                {stepNumber}/{totalSteps}
-              </span>
-            )}
-          </div>
+    <div className={mockupClass}>
+      <div className="course-card">
+        {/* Окрема обгортка, а не zoom напряму на .course-card — .course-card
+            сам позиціонується через position:absolute+inset% відносно
+            рамки (iphone-mockup/laptop-mockup), і саме ЦІ percentage-
+            обчислення мають лишитись у "реальних" (незумлених) координатах
+            рамки; zoom тут скоуплено лише на дитину, що вже отримала свій
+            розмір (height:100% від .course-card, обчислений ДО зуму) —
+            тож сама коробка не змінюється, лише контент усередині
+            рендериться дрібніше/щільніше (app/styles/admin.css). */}
+        <div className="cp-zoom-wrap">
+        <div className="appbar">
+          <button type="button" className="iconbtn" onClick={onBack} disabled={!canGoBack} aria-label="Назад" title="Попередній екран у прев'ю">
+            <span style={{ transform: "rotate(180deg)", display: "inline-flex" }}>
+              <ChevronIcon />
+            </span>
+          </button>
+          <div style={{ flex: 1 }} />
           {hasScreen && (
-            <div className="cp-progress-track">
-              <div className="cp-progress-fill" style={{ width: `${Math.round((stepNumber / totalSteps) * 100)}%` }} />
-            </div>
+            <span className="cp-step-count">
+              {stepNumber}/{totalSteps}
+            </span>
           )}
-
-          <div className="cp-viewport" ref={viewportRef}>
-            {!hasScreen ? (
-              <p className="admin-preview-empty">Оберіть екран зліва, щоб побачити прев&apos;ю.</p>
-            ) : (
-              <div className="cp-screen">
-                {components.map((component) => (
-                  <div className="screen-component" key={component.id}>
-                    {component.type === "quiz" ? (
-                      <PreviewQuiz component={component} />
-                    ) : (
-                      // Той самий диспетчер, що й у плеєрі — інтерактивні екрани в
-                      // прев'ю справді клікаються (картки розгортаються, репліки
-                      // з'являються), щоб автор одразу перевірив механіку, а не
-                      // здогадувався по полях форми. key — щоб при перемиканні
-                      // типу внутрішній стан взаємодії починався з нуля.
-                      <ComponentScreen key={`${component.id}-${component.type}`} component={component} screenNumber={stepNumber} />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+        </div>
+        {hasScreen && (
+          <div className="cp-progress-track">
+            <div className="cp-progress-fill" style={{ width: `${Math.round((stepNumber / totalSteps) * 100)}%` }} />
           </div>
+        )}
 
-          {hasScreen && (
-            <div className="navwrap">
-              <div className="navbar">
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={onBack}
-                  style={{ visibility: canGoBack ? "visible" : "hidden" }}
-                  title="Попередній екран у прев'ю"
-                >
-                  Назад
-                </button>
-                <button type="button" className="btn btn-primary" onClick={onNext} disabled={!canGoNext} title="Наступний екран у прев'ю">
-                  Далі
-                </button>
-              </div>
+        <div className="cp-viewport" ref={viewportRef}>
+          {!hasScreen ? (
+            <p className="admin-preview-empty">Оберіть екран зліва, щоб побачити прев&apos;ю.</p>
+          ) : (
+            <div className="cp-screen">
+              {components.map((component) => (
+                <div className="screen-component" key={component.id}>
+                  {component.type === "quiz" ? (
+                    <PreviewQuiz component={component} />
+                  ) : (
+                    // Той самий диспетчер, що й у плеєрі — інтерактивні екрани в
+                    // прев'ю справді клікаються (картки розгортаються, репліки
+                    // з'являються), щоб автор одразу перевірив механіку, а не
+                    // здогадувався по полях форми. key — щоб при перемиканні
+                    // типу внутрішній стан взаємодії починався з нуля.
+                    <ComponentScreen key={`${component.id}-${component.type}`} component={component} screenNumber={stepNumber} />
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
-        <IPhoneFrame />
+
+        {hasScreen && (
+          <div className="navwrap">
+            <div className="navbar">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={onBack}
+                style={{ visibility: canGoBack ? "visible" : "hidden" }}
+                title="Попередній екран у прев'ю"
+              >
+                Назад
+              </button>
+              <button type="button" className="btn btn-primary" onClick={onNext} disabled={!canGoNext} title="Наступний екран у прев'ю">
+                Далі
+              </button>
+            </div>
+          </div>
+        )}
+        </div>
       </div>
+      {isLaptop ? <LaptopFrame /> : <IPhoneFrame />}
+    </div>
+  );
+}
+
+/**
+ * Права колонка. Докнутий інлайн-мокап — ЗАВЖДИ телефон (єдиний формат,
+ * що реально влазить у фіксовану 40%-колонку поруч із редактором, не
+ * ламаючись і не обрізаючись) — ноутбук у ту саму колонку МЕХАНІЧНО не
+ * влазить (ширший за пропорцією, довший рядок тексту), тому для нього
+ * (і за бажанням для телефону теж, кнопкою "На весь екран") прев'ю
+ * відкривається в модалці на весь екран, де під пристрій реально є
+ * місце — той самий підхід, що Webflow/Framer ("Preview" відкриває
+ * повноекранний режим, а не намагається влізти в бокову панель).
+ */
+function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, previewDevice }) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const isLaptop = previewDevice === "laptop";
+
+  // Було: авто-відкриття модалки одразу, щойно isLaptop===true — за
+  // словами користувача, це означало, що модалка вилазила ВІДРАЗУ при
+  // самому вході в конструктор ноутбук-курсу, ще до будь-якої дії адміна —
+  // неочікуваний "сюрприз-модал". Тепер модалка відкривається ЛИШЕ явним
+  // кліком (кнопка нижче), як і для телефону.
+
+  // Esc закриває модалку — очікувана клавіатурна поведінка для будь-якого
+  // overlay/діалогу.
+  useEffect(() => {
+    if (!modalOpen) return undefined;
+    function handleKey(e) {
+      if (e.key === "Escape") setModalOpen(false);
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [modalOpen]);
+
+  const previewProps = { components, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext };
+
+  return (
+    <div className="admin-editor-preview">
+      {/* Без мітки платформи й без перемикача — платформа обирається ОДИН
+          РАЗ у "Загальна інформація" (components/AdminDashboard.jsx,
+          Course.previewDevice), тут просто мокап відповідного пристрою,
+          за проханням користувача, без зайвого напису над ним. */}
+      {isLaptop ? (
+        // Ноутбук ніколи не докується інлайн (саме це "не вміщалось
+        // нормально") — тут лише запрошення відкрити повноекранну модалку.
+        <div className="admin-laptop-preview-placeholder">
+          <LaptopDeviceIcon />
+          <p>Прев&apos;ю ноутбука відкривається на весь екран — там достатньо місця під широкий макет.</p>
+          <button type="button" className="admin-btn" onClick={() => setModalOpen(true)}>
+            Відкрити прев&apos;ю
+          </button>
+        </div>
+      ) : (
+        <>
+          <DeviceMockup device="phone" {...previewProps} />
+          <button type="button" className="admin-btn-link admin-preview-expand-btn" onClick={() => setModalOpen(true)}>
+            ⛶ На весь екран
+          </button>
+        </>
+      )}
+
+      {/* createPortal у document.body, не звичайний вкладений JSX — .adm-shell
+          (components/AdminShell.jsx) несе zoom:85% на весь свій піддерево
+          (навмисно, компенсує розмір тексту адмінки), і position:fixed
+          НЕ рятує від успадкованого zoom — усі vh-розрахунки модалки
+          (.laptop-mockup/.iphone-mockup--modal, app/styles/admin.css)
+          тихо рахувались у вже стиснутих на 15% координатах, тому модалка
+          щоразу виходила меншою за розрахунок (реальний баг користувача,
+          не вигадана обережність) — так само, як .adm-shell сам собі
+          компенсує це через calc(100vh/0.85) для min-height. Портал
+          повністю виносить DOM-вузол модалки з-під того zoom, тож 100vh
+          усередині — це справді 100vh. */}
+      {modalOpen &&
+        createPortal(
+          <div className="admin-preview-modal-overlay" onClick={(e) => e.target === e.currentTarget && setModalOpen(false)}>
+            <div className="admin-preview-modal">
+              <button
+                type="button"
+                className="iconbtn admin-preview-modal-close"
+                onClick={() => setModalOpen(false)}
+                aria-label="Закрити прев'ю"
+                title="Закрити"
+              >
+                <XIcon />
+              </button>
+              <div className="admin-preview-modal-body">
+                <DeviceMockup device={previewDevice} inModal {...previewProps} />
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
@@ -1570,6 +1731,7 @@ export function AdminCourseEditor({ courseId }) {
           onNext={() => goToScreenOffset(1)}
           canGoBack={previewScreenIndex > 0}
           canGoNext={previewScreenIndex >= 0 && previewScreenIndex < flatScreens.length - 1}
+          previewDevice={course.previewDevice || "phone"}
         />
       </div>
     </div>

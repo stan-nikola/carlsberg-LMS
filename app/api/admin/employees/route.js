@@ -17,10 +17,12 @@ export async function GET(request) {
 
   const q = request.nextUrl.searchParams.get("q")?.trim();
   const showInactive = request.nextUrl.searchParams.get("showInactive") === "1";
+  const department = request.nextUrl.searchParams.get("department")?.trim();
 
   const employees = await prisma.employee.findMany({
     where: {
       ...(showInactive ? {} : { isActive: true }),
+      ...(department ? { department } : {}),
       ...(q
         ? {
             OR: [
@@ -39,6 +41,7 @@ export async function GET(request) {
       email: true,
       role: true,
       isActive: true,
+      department: true,
       position: { select: { code: true, name: true } },
       territory: { select: { name: true } },
     },
@@ -76,6 +79,7 @@ export async function POST(request) {
         name,
         externalCode,
         email: body.email || null,
+        department: body.department || null,
         positionId: body.positionId != null ? Number(body.positionId) : null,
         territoryId: body.territoryId != null ? Number(body.territoryId) : null,
         managerId: body.managerId != null ? Number(body.managerId) : null,
@@ -87,6 +91,7 @@ export async function POST(request) {
         email: true,
         role: true,
         isActive: true,
+        department: true,
         position: { select: { code: true, name: true } },
         territory: { select: { name: true } },
       },
