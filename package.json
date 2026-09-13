@@ -40,6 +40,6 @@
     "xlsx": "^0.18.5"
   },
   "lint-staged": {
-    "*.{js,jsx}": "eslint --fix"
+    "*.{js,jsx,ts,tsx}": "eslint --fix"
   }
 }
