@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CourseIcon, PeopleIcon, AchievementsIcon, LogoutIcon } from "@/components/icons";
+import { CourseIcon, PeopleIcon, AchievementsIcon, LogoutIcon, ChevronIcon } from "@/components/icons";
+
+// Ключ localStorage для згорнутого стану сайдбара — суто персональна
+// зручність адміна (не дані курсу/бази), тому localStorage, а не БД.
+const SIDEBAR_COLLAPSED_KEY = "admin-sidebar-collapsed";
 
 // match — не проста рівність href, а й піддерева: /admin/courses/[id]
 // (редактор курсу) належить пункту "Курси", /admin/employees/[id]
@@ -31,6 +35,41 @@ export function AdminShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
+  // Згорнутий (лише іконки) десктопний сайдбар — за проханням користувача,
+  // щоб звільнити ширину вьюпорту під конструктор курсу й прев'ю на
+  // пристрої (.admin-editor-grid). false на першому рендері (SSR-безпечно,
+  // localStorage тут недоступний) — реальне збережене значення підхоплює
+  // useEffect нижче; можливий короткий "спалах" розгорнутого стану на
+  // перших мілісекундах для адміна, який раніше згорнув панель, — прийнятна
+  // ціна за єдине SSR-безпечне джерело правди без flash-of-wrong-layout на
+  // КОЖНОМУ завантаженні (на відміну від body-класу для full-bleed вище,
+  // де jump стосувався б усіх, а не лише тих, хто змінив налаштування).
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    // Читаємо localStorage один раз при монтуванні — lazy useState-
+    // ініціалізатор тут не підходить: компонент рендериться і на сервері
+    // (SSR), де localStorage відсутній (той самий випадок, що вже є в
+    // SettingsSheet.jsx для --fs-scale).
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1") setCollapsed(true);
+    } catch {
+      // localStorage недоступний (приватний режим тощо) — лишаємось розгорнутими.
+    }
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+      } catch {
+        // Не критично — просто не запам'ятається між сесіями.
+      }
+      return next;
+    });
+  }
 
   // full-bleed для /admin — скидання body-центрування/padding/градієнта
   // (розраховані на телефонну .course-card) робиться ЧИСТИМ CSS
@@ -58,6 +97,10 @@ export function AdminShell({ children }) {
             className={`adm-nav-link${isActive ? " active" : ""}`}
             onClick={onNavigate}
             aria-current={isActive ? "page" : undefined}
+            // title — підказка при наведенні: у згорнутому десктопному
+            // сайдбарі текстовий span ховається CSS-ом, лишається саме
+            // іконка, і без title розпізнати пункт можна лише "на око".
+            title={label}
           >
             <span className="adm-nav-icon">
               <Icon />
@@ -71,10 +114,13 @@ export function AdminShell({ children }) {
 
   return (
     <div className="adm-shell">
-      {/* ---- Десктоп/планшет (≥900px): постійний сайдбар зліва ---- */}
-      <aside className="adm-sidebar">
-        <Link href="/admin" className="adm-sidebar-title">
-          Адмін-панель
+      {/* ---- Десктоп/планшет (≥900px): постійний сайдбар зліва ----
+          is-collapsed — лише іконки, звужує колонку зі 190px до 56px,
+          щоб звільнити ширину під конструктор курсу/прев'ю на пристрої
+          (за проханням користувача). */}
+      <aside className={`adm-sidebar${collapsed ? " is-collapsed" : ""}`}>
+        <Link href="/admin" className="adm-sidebar-title" title="Адмін-панель">
+          <span className="adm-sidebar-title-text">Адмін-панель</span>
         </Link>
         {navLinks()}
         <div className="adm-sidebar-footer">
@@ -82,6 +128,24 @@ export function AdminShell({ children }) {
             <LogoutIcon />
           </button>
         </div>
+        {/* Кнопка згортання — НЕ в один рядок із заголовком (там вона
+            накладалась на напис "Адмін-панель", реальний баг, знайдений
+            користувачем), а абсолютно позиційована рівно по вертикальному
+            центру всієї панелі, просто на лінії border-right (.adm-sidebar
+            вже position:sticky — це теж containing block для абсолюта, як
+            і relative/fixed, окремого position:relative не треба). Без
+            .iconbtn (без рамки/фону в стані спокою — "без контейнера") —
+            гола іконка-кнопка "плаває" прямо на межі колонки. */}
+        <button
+          type="button"
+          className="adm-sidebar-collapse-btn"
+          title={collapsed ? "Розгорнути панель" : "Згорнути панель"}
+          aria-label={collapsed ? "Розгорнути панель" : "Згорнути панель"}
+          aria-expanded={!collapsed}
+          onClick={toggleCollapsed}
+        >
+          <ChevronIcon />
+        </button>
       </aside>
 
       {/* ---- Мобільний (<900px): верхній appbar + бургер + шторка ---- */}

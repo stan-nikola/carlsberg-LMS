@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 import { getAllSubordinates } from "@/lib/permissions";
+import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
 
 const VALID_ROLES = ["employee", "admin", "hr_manager"];
 // Поля, які адмін може реально редагувати з детальної картки співробітника
@@ -9,7 +10,7 @@ const VALID_ROLES = ["employee", "admin", "hr_manager"];
 // login-ключ, що збігається із зовнішньою системою (Monolit Agent), його
 // зміна зламала б і вхід, і майбутню синхронізацію; якщо колись знадобиться
 // його виправити — окремий, явно небезпечний шлях, не звичайний PATCH.
-const EDITABLE_FIELDS = ["name", "email", "positionId", "territoryId", "managerId", "isActive", "role"];
+const EDITABLE_FIELDS = ["name", "email", "department", "positionId", "territoryId", "managerId", "isActive", "role"];
 
 const EMPLOYEE_SELECT = {
   id: true,
@@ -20,6 +21,7 @@ const EMPLOYEE_SELECT = {
   isActive: true,
   firstLoginAt: true,
   createdAt: true,
+  department: true,
   positionId: true,
   position: { select: { id: true, code: true, name: true, level: true } },
   territoryId: true,
@@ -69,6 +71,9 @@ export async function PATCH(request, { params }) {
 
   if ("role" in data && !VALID_ROLES.includes(data.role)) {
     return NextResponse.json({ error: `role must be one of: ${VALID_ROLES.join(", ")}` }, { status: 400 });
+  }
+  if ("department" in data && data.department != null && !EMPLOYEE_DEPARTMENTS.includes(data.department)) {
+    return NextResponse.json({ error: `department must be one of: ${EMPLOYEE_DEPARTMENTS.join(", ")}` }, { status: 400 });
   }
   if ("name" in data && !String(data.name || "").trim()) {
     return NextResponse.json({ error: "name must not be empty" }, { status: 400 });

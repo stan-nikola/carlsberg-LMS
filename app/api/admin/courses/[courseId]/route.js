@@ -68,6 +68,10 @@ export async function PATCH(request, { params }) {
   if (body.category !== undefined) data.category = body.category || null;
   if (body.isMandatory !== undefined) data.isMandatory = body.isMandatory;
   if (body.deadlineDays !== undefined) data.deadlineDays = body.deadlineDays;
+  if (body.passThreshold !== undefined) data.passThreshold = body.passThreshold === "" || body.passThreshold == null ? 80 : Number(body.passThreshold);
+  // "phone"/"laptop" — перемикач прев'ю над макетом у AdminCourseEditor.jsx,
+  // не впливає на реальний застосунок співробітника.
+  if (body.previewDevice !== undefined) data.previewDevice = body.previewDevice === "laptop" ? "laptop" : "phone";
   if (body.streakMessages !== undefined) data.streakMessages = body.streakMessages || null;
   if (body.targetPositions !== undefined) data.targetPositions = body.targetPositions;
   if (body.targetTerritories !== undefined) data.targetTerritories = body.targetTerritories;

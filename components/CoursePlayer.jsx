@@ -603,7 +603,13 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
     const scoreMax = rangeIds.length;
     // Модуль без питань (лише інфо-екрани) нікого не блокує — 100%.
     const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 100;
-    return { scoreRaw, scoreMax, scorePercent, passed: scorePercent >= 80, longestCorrectStreak: longestStreakOf(rangeIds) };
+    return {
+      scoreRaw,
+      scoreMax,
+      scorePercent,
+      passed: scorePercent >= (course.passThreshold ?? 80),
+      longestCorrectStreak: longestStreakOf(rangeIds),
+    };
   }
 
   async function postModuleCompletion(moduleId, score) {
@@ -666,7 +672,15 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
     const scoreRaw = sessionRaw + skippedRaw;
     const scoreMax = sessionMax + skippedMax;
     const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 0;
-    const passed = scorePercent >= 80;
+    // Курс "складено" лише якщо КОЖЕН модуль курсу окремо набрав поріг —
+    // не сукупний відсоток по всіх питаннях разом (те, що було раніше).
+    // Модулі цієї сесії — реальний per-модуль scoreForSegment(...).passed;
+    // модулі, пропущені цього разу (вже складені раніше, пауза
+    // перепроходження ще діє) — їхнє РЕАЛЬНЕ збережене passed з
+    // ModuleCompletion (app/courses/[slug]/page.js), не перерахунок.
+    const sessionModulesPassed = moduleSegments.every((s) => scoreForSegment(s).passed);
+    const skippedModulesPassed = skippedModuleScores.every((m) => m.passed === true);
+    const passed = sessionModulesPassed && skippedModulesPassed;
     const completedAt = new Date().toISOString();
     const durationSeconds = Math.round(
       (new Date(completedAt) - new Date(startedAtRef.current)) / 1000
@@ -799,7 +813,10 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
   const progressPct = Math.round((idx / (totalSteps - 1)) * 100);
 
   return (
-    <div className="stage">
+    // stage--course-player — вужчий скоуп для десктопного розширення
+    // .course-card (globals.css, @media min-width:900px) саме тут, не в
+    // /hub чи /register, які й далі лишаються "телефон по центру екрана".
+    <div className="stage stage--course-player">
       <div className="course-col">
         <div className="course-card">
           {resumePrompt && <ResumePrompt onResume={handleResumeContinue} onRestart={handleResumeRestart} />}

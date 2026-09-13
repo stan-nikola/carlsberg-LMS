@@ -16,7 +16,7 @@ import {
   XIcon,
 } from "@/components/icons";
 import { TerritoryPicker } from "@/components/TerritoryPicker";
-import { COURSE_CATEGORIES } from "@/lib/courseCategories";
+import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
 import { STREAK_PRESET_MESSAGES } from "@/lib/streakMessages";
 
 // Дашборд /admin: курси розгортаються списком своїх модулів (клік по
@@ -133,8 +133,14 @@ function StreakMessagesField({ value, onChange }) {
 // співробітниками") — якщо так, "не обрано" тут не показуємо: людина вже
 // бачить, що призначення налаштовано (через конкретних людей), і друге
 // "не обрано" поруч лише плутає, ніби взагалі нічого не вибрано.
-function PositionsAccordionField({ positions, value, onChange, otherSelected }) {
-  const names = positions.filter((p) => value.includes(p.code)).map((p) => p.name);
+// filterDepartment — обраний Course.category (лейбл "Департамент"):
+// звужує список до посад ЦЬОГО департаменту (Position.department), щоб не
+// пропонувати, наприклад, збутові посади для HR-курсу. Порожній
+// filterDepartment ("необов'язково" не обрано) — показує всі посади, як і
+// раніше.
+function PositionsAccordionField({ positions, value, onChange, otherSelected, filterDepartment }) {
+  const visiblePositions = filterDepartment ? positions.filter((p) => p.department === filterDepartment) : positions;
+  const names = visiblePositions.filter((p) => value.includes(p.code)).map((p) => p.name);
   const summary =
     names.length > 0
       ? names.length <= 2
@@ -151,7 +157,7 @@ function PositionsAccordionField({ positions, value, onChange, otherSelected }) 
   return (
     <AccordionField title="За посадами" summary={summary}>
       <div className="admin-checkbox-grid">
-        {positions.map((p) => (
+        {visiblePositions.map((p) => (
           <label key={p.code} className="admin-checkbox">
             <input type="checkbox" checked={value.includes(p.code)} onChange={() => toggle(p.code)} />
             <span>{p.name}</span>
@@ -165,7 +171,22 @@ function PositionsAccordionField({ positions, value, onChange, otherSelected }) 
 // positionsSelected: чи вже обрано хоч одну посаду в сусідній картці —
 // тоді порожній вибір тут означає щось конкретне ("всім із посади"), а не
 // голе "не обрано" (та ж логіка узгодженості, що й у PositionsAccordionField).
-function TerritoryAccordionField({ territories, employees, value, onChange, employeeValue, onEmployeeChange, positionsSelected }) {
+function TerritoryAccordionField({
+  territories,
+  employees,
+  value,
+  onChange,
+  employeeValue,
+  onEmployeeChange,
+  positionsSelected,
+  filterDepartment,
+}) {
+  // Той самий принцип, що в PositionsAccordionField — звужуємо список до
+  // обраного департаменту, але лише для ВІДОБРАЖЕННЯ в пікері: мапа імен
+  // (employeesById) лишається на повному списку, щоб уже обрані раніше
+  // employeeValue коректно показували ім'я навіть якщо департамент курсу
+  // потім змінили.
+  const visibleEmployees = filterDepartment ? employees.filter((e) => e.department === filterDepartment) : employees;
   const byId = new Map(territories.map((t) => [t.id, t]));
   const employeesById = new Map(employees.map((e) => [e.id, e]));
   const names = [
@@ -185,7 +206,7 @@ function TerritoryAccordionField({ territories, employees, value, onChange, empl
     <AccordionField title="За співробітниками" summary={summary} footer="Порожньо = всім із обраної посади.">
       <TerritoryPicker
         territories={territories}
-        employees={employees}
+        employees={visibleEmployees}
         value={value}
         onChange={onChange}
         employeeValue={employeeValue}
@@ -201,6 +222,8 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
   const [category, setCategory] = useState("");
   const [isMandatory, setIsMandatory] = useState(true);
   const [deadlineDays, setDeadlineDays] = useState("");
+  const [passThreshold, setPassThreshold] = useState(80);
+  const [previewDevice, setPreviewDevice] = useState("phone");
   const [streakMessages, setStreakMessages] = useState(STREAK_PRESET_MESSAGES);
   const [targetPositions, setTargetPositions] = useState([]);
   const [targetTerritories, setTargetTerritories] = useState([]);
@@ -223,6 +246,8 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
           category: category || null,
           isMandatory,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
+          passThreshold: passThreshold === "" ? 80 : Number(passThreshold),
+          previewDevice,
           streakMessages,
           targetPositions,
           targetTerritories,
@@ -255,14 +280,31 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
               <input value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input-flex" />
             </div>
             <div className="admin-field">
-              <label className="admin-label">Департамент (необов&apos;язково)</label>
+              <label className="admin-label">Департамент</label>
               <select value={category} onChange={(e) => setCategory(e.target.value)} className="admin-select" style={{ width: "100%" }}>
-                <option value="">— без теми —</option>
-                {COURSE_CATEGORIES.map((c) => (
+                <option value="">— без департаменту —</option>
+                {EMPLOYEE_DEPARTMENTS.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div className="admin-field">
+              {/* Під який екран НАСАМПЕРЕД узгоджували контент — лише
+                  прапорець-намір для прев'ю в конструкторі
+                  (components/AdminCourseEditor.jsx), реальний застосунок
+                  співробітника сам адаптується під його справжній екран
+                  незалежно від цього вибору. */}
+              <label className="admin-label">Платформа конструктора</label>
+              <select
+                value={previewDevice}
+                onChange={(e) => setPreviewDevice(e.target.value)}
+                className="admin-select"
+                style={{ width: "100%" }}
+              >
+                <option value="phone">Мобільний</option>
+                <option value="laptop">Ноутбук</option>
               </select>
             </div>
           </div>
@@ -287,6 +329,17 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
               <label className="admin-label">Дата публікації (авто-призначення)</label>
               <input type="datetime-local" value={publishAt} onChange={(e) => setPublishAt(e.target.value)} className="admin-input-flex" />
             </div>
+            <div className="admin-field">
+              <label className="admin-label">Прохідний бал (%)</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={passThreshold}
+                onChange={(e) => setPassThreshold(e.target.value)}
+                className="admin-input-flex"
+              />
+            </div>
           </div>
           <label className="admin-checkbox">
             <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
@@ -301,6 +354,7 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
             value={targetPositions}
             onChange={setTargetPositions}
             otherSelected={targetTerritories.length > 0 || targetEmployeeIds.length > 0}
+            filterDepartment={category || null}
           />
           <TerritoryAccordionField
             territories={territories}
@@ -310,6 +364,7 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
             employeeValue={targetEmployeeIds}
             onEmployeeChange={setTargetEmployeeIds}
             positionsSelected={targetPositions.length > 0}
+            filterDepartment={category || null}
           />
         </div>
       </div>
@@ -338,6 +393,8 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
   const [category, setCategory] = useState(course.category || "");
   const [isMandatory, setIsMandatory] = useState(course.isMandatory);
   const [deadlineDays, setDeadlineDays] = useState(course.deadlineDays ?? "");
+  const [passThreshold, setPassThreshold] = useState(course.passThreshold ?? 80);
+  const [previewDevice, setPreviewDevice] = useState(course.previewDevice || "phone");
   const [streakMessages, setStreakMessages] = useState(course.streakMessages || null);
   const [targetPositions, setTargetPositions] = useState(course.targetPositions);
   const [targetTerritories, setTargetTerritories] = useState(course.targetTerritories);
@@ -464,6 +521,8 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
           category: category || null,
           isMandatory,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
+          passThreshold: passThreshold === "" ? 80 : Number(passThreshold),
+          previewDevice,
           streakMessages,
           targetPositions,
           targetTerritories,
@@ -501,14 +560,31 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
               <input value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input-flex" />
             </div>
             <div className="admin-field">
-              <label className="admin-label">Департамент (необов&apos;язково)</label>
+              <label className="admin-label">Департамент</label>
               <select value={category} onChange={(e) => setCategory(e.target.value)} className="admin-select" style={{ width: "100%" }}>
-                <option value="">— без теми —</option>
-                {COURSE_CATEGORIES.map((c) => (
+                <option value="">— без департаменту —</option>
+                {EMPLOYEE_DEPARTMENTS.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div className="admin-field">
+              {/* Під який екран НАСАМПЕРЕД узгоджували контент — лише
+                  прапорець-намір для прев'ю в конструкторі
+                  (components/AdminCourseEditor.jsx), реальний застосунок
+                  співробітника сам адаптується під його справжній екран
+                  незалежно від цього вибору. */}
+              <label className="admin-label">Платформа конструктора</label>
+              <select
+                value={previewDevice}
+                onChange={(e) => setPreviewDevice(e.target.value)}
+                className="admin-select"
+                style={{ width: "100%" }}
+              >
+                <option value="phone">Мобільний</option>
+                <option value="laptop">Ноутбук</option>
               </select>
             </div>
           </div>
@@ -538,6 +614,17 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
                 className="admin-input-flex"
               />
             </div>
+            <div className="admin-field">
+              <label className="admin-label">Прохідний бал (%)</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={passThreshold}
+                onChange={(e) => setPassThreshold(e.target.value)}
+                className="admin-input-flex"
+              />
+            </div>
           </div>
           <p className="admin-hint" style={{ fontSize: "0.8em" }}>{statusText}</p>
           <label className="admin-checkbox">
@@ -553,6 +640,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
             value={targetPositions}
             onChange={setTargetPositions}
             otherSelected={targetTerritories.length > 0 || targetEmployeeIds.length > 0}
+            filterDepartment={category || null}
           />
           <TerritoryAccordionField
             territories={territories}
@@ -562,6 +650,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
             employeeValue={targetEmployeeIds}
             onEmployeeChange={setTargetEmployeeIds}
             positionsSelected={targetPositions.length > 0}
+            filterDepartment={category || null}
           />
         </div>
       </div>
@@ -1092,7 +1181,7 @@ export function AdminDashboard() {
               style={{ marginLeft: "auto" }}
             >
               <option value="">Усі департаменти</option>
-              {COURSE_CATEGORIES.map((cat) => (
+              {EMPLOYEE_DEPARTMENTS.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
                 </option>
