@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronIcon, CheckIcon } from "@/components/icons";
+import { isHotspotHit } from "@/lib/componentTypes";
 
 /**
  * Інтерактивні компоненти екрана, портовані з попередньої vanilla-JS
@@ -81,9 +82,11 @@ export function ScreenMedia({ images, title, onZoomImage }) {
 
 export function AccordionScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
   const { kicker, lead, images = [], items = [] } = component.content || {};
-  const [openIdx, setOpenIdx] = useState(null);
-  // "Колись відкриті" — гейт зараховує сам факт відкриття, а не те, що
-  // картка лишилась розгорнутою (як .ever-open у legacy).
+  // Відкрита картка більше НЕ закривається — ні кліком по ній, ні
+  // відкриттям сусідньої. Раніше відкритою могла бути лише одна, і щоб
+  // порівняти дві картки, доводилось перемикатись туди-сюди по пам'яті.
+  // Тепер прочитане лишається перед очима. Той самий стан і для гейта:
+  // «відкрито» = «зараховано».
   const [everOpened, setEverOpened] = useState(() => new Set());
 
   useEffect(() => {
@@ -91,7 +94,6 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
   }, [everOpened, onGateProgress]);
 
   function toggle(i) {
-    setOpenIdx((cur) => (cur === i ? null : i));
     setEverOpened((prev) => (prev.has(i) ? prev : new Set(prev).add(i)));
   }
 
@@ -103,14 +105,14 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="acc-list">
         {items.map((item, i) => (
-          <div key={i} className={`acc-item${openIdx === i ? " open" : ""}${everOpened.has(i) ? " seen" : ""}`}>
-            <button type="button" className="acc-head" onClick={() => toggle(i)} aria-expanded={openIdx === i}>
+          <div key={i} className={`acc-item${everOpened.has(i) ? " open seen" : ""}`}>
+            <button type="button" className="acc-head" onClick={() => toggle(i)} aria-expanded={everOpened.has(i)}>
               <span className="acc-title">{item.title || `Картка ${i + 1}`}</span>
               <span className="acc-chevron">
                 <ChevronIcon />
               </span>
             </button>
-            {openIdx === i && <div className="acc-body">{item.body}</div>}
+            {everOpened.has(i) && <div className="acc-body">{item.body}</div>}
           </div>
         ))}
       </div>
@@ -455,6 +457,144 @@ export function StreakToast({ icon, title, sub }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Конфеті на весь екран — для фінального екрана курсу, пройденого на
+ * 100%. Той самий прийом, що й у StreakToast (CSS-анімація, без
+ * бібліотеки й без canvas), але більше шматочків і на всю висоту вікна,
+ * а не в межах банера.
+ *
+ * Позиції рахуються один раз при монтуванні: інакше кожен ререндер
+ * батька (а він там є — статус збереження результату) пересував би
+ * шматочки посеред польоту.
+ *
+ * aria-hidden: це чисто декоративний шар. Сам факт "курс складено на
+ * 100%" озвучений текстом поруч, тож читачеві екрана конфеті не потрібне.
+ */
+export function ConfettiBurst({ pieces = 40 }) {
+  const [items] = useState(() =>
+    Array.from({ length: pieces }, (_, i) => ({
+      left: Math.random() * 100,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      delay: Math.random() * 900,
+      duration: 2200 + Math.random() * 1400,
+      drift: Math.random() * 60 - 30,
+      size: 6 + Math.random() * 6,
+    }))
+  );
+
+  return (
+    <div className="cp-confetti" aria-hidden="true">
+      {items.map((p, i) => (
+        <span
+          key={i}
+          className="cp-confetti-piece"
+          style={{
+            left: `${p.left}%`,
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            background: p.color,
+            animationDelay: `${p.delay}ms`,
+            animationDuration: `${p.duration}ms`,
+            "--drift": `${p.drift}px`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ===================== HOTSPOT (гаряча точка на фото) ===================== */
+
+/**
+ * Знайти й натиснути потрібне місце на фото. Це ПИТАННЯ: результат іде в
+ * бал нарівні з quiz, тому компонент повідомляє нагору onAnswer(boolean),
+ * а не onGateProgress.
+ *
+ * Зони зберігаються у ВІДСОТКАХ від розміру зображення — те саме фото
+ * показується і на телефоні, і на ноутбуці, піксельні координати там
+ * розійшлися б. Влучанням вважається клік усередині будь-якої зони:
+ * "покажи помилку на полиці" часто має кілька однаково правильних
+ * відповідей.
+ *
+ * Фото навмисно НЕ відкривається в лайтбоксі, поки не відповіли: інакше
+ * тап по зображенню означав би дві різні дії одночасно.
+ */
+export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
+  const { kicker, lead, images = [], zones = [], explanation } = component.content || {};
+  const [click, setClick] = useState(null);
+  const isAnswered = answer !== undefined;
+  const image = images.find((img) => img.url);
+
+  function handleClick(e) {
+    if (isAnswered || !image) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    // Фото ще не завантажилось (або блок прихований) — кадр нульового
+    // розміру. Без цієї перевірки ділення дає NaN, влучання не
+    // зараховується, і людині записується НЕПРАВИЛЬНА відповідь просто за
+    // те, що вона натиснула раніше, ніж підвантажилась картинка. Нічого
+    // не фіксуємо — хай натисне ще раз.
+    if (!rect.width || !rect.height) return;
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setClick({ x, y });
+    // Сам розрахунок влучання — у lib/componentTypes.js (isHotspotHit),
+    // щоб його можна було перевірити тестом: тут він жив би всередині
+    // React-компонента, для якого в проєкті немає тестового середовища.
+    onAnswer(isHotspotHit({ x, y }, zones, rect.height / rect.width));
+  }
+
+  if (!image) {
+    return (
+      <>
+        <Kicker screenNumber={screenNumber} text={kicker} />
+        {component.title && <h2 className="cp-h2">{component.title}</h2>}
+        <p className="cp-lead">Для цього питання ще не додано фото.</p>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Kicker screenNumber={screenNumber} text={kicker} />
+      {component.title && <h2 className="cp-h2">{component.title}</h2>}
+      {lead && <p className="cp-lead">{lead}</p>}
+
+      <div
+        className={`hs-frame${isAnswered ? " answered" : ""}`}
+        onClick={handleClick}
+        role={isAnswered ? undefined : "button"}
+        tabIndex={isAnswered ? undefined : 0}
+        aria-label={isAnswered ? undefined : "Натисніть потрібне місце на фото"}
+      >
+        <Image src={image.url} alt={image.caption || component.title || ""} width={800} height={500} style={{ width: "100%", height: "auto" }} />
+
+        {/* Правильні зони показуємо ЛИШЕ після відповіді — інакше питання
+            не мало б сенсу. */}
+        {isAnswered &&
+          zones.map((z, i) => (
+            <span
+              key={i}
+              className="hs-zone"
+              style={{ left: `${z.x}%`, top: `${z.y}%`, width: `${(z.r || 8) * 2}%`, aspectRatio: "1" }}
+            />
+          ))}
+
+        {click && (
+          <span className={`hs-pin${answer ? " ok" : " bad"}`} style={{ left: `${click.x}%`, top: `${click.y}%` }} />
+        )}
+      </div>
+      {image.caption && <div className="cp-photo-caption">{image.caption}</div>}
+
+      {isAnswered && (
+        <div className={`q-fb show ${answer ? "ok" : "bad"}`}>
+          <b className="q-fb-verdict">{answer ? "Влучно!" : "Не те місце — правильне обведено зеленим."}</b>
+          {explanation && <span className="q-fb-explain">{explanation}</span>}
+        </div>
+      )}
+    </>
   );
 }
 

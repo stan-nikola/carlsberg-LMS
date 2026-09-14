@@ -2223,3 +2223,72 @@
   font-size: 16px;
   margin-bottom: 12px;
 }
+
+/* ---- Редактор гарячих точок (components/AdminCourseEditor.jsx
+   HotspotFields): клік по фото ставить зону. Координати рахуються від
+   РЕАЛЬНОЇ геометрії цього <img>, тому ніякого ресайзу тут бути не
+   повинно — лише природний розмір у межах ширини колонки. ---- */
+.adm-hotspot-canvas {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+  cursor: crosshair;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.adm-hotspot-canvas img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.adm-hotspot-zone {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid var(--cb-secondary);
+  background: var(--cb-secondary-tint);
+  color: var(--green-900);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Кнопки під мокапом прев'ю: розгорнути один екран і пройти курс цілком. */
+.admin-preview-actions {
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+/* Повне проходження в прев'ю (components/AdminCourseEditor.jsx
+   CourseRunPreview): усередині мокапа живе справжній CoursePlayer, тож
+   рамка мусить дати йому повну висоту й власний скрол, а не обрізати. */
+.adm-run-preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Постійна плашка «це прев'ю» — щоб автор ніколи не переплутав пробіг із
+   реальним проходженням і не чекав, що бал кудись запишеться. */
+.adm-run-preview-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  padding: 4px 8px;
+  background: var(--cb-tertiary);
+  color: var(--cb-black);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  pointer-events: none;
+}

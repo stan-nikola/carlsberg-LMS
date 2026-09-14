@@ -4,11 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ComponentScreen, QuizScreen } from "@/components/CoursePlayer";
+import { ComponentScreen, QuizScreen, CoursePlayer } from "@/components/CoursePlayer";
+import { HotspotScreen } from "@/components/ScreenComponents";
 import { ChevronIcon, GripIcon, SpinnerIcon, XIcon } from "@/components/icons";
 import { pluralize } from "@/lib/pluralize";
 import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, RETIRED_COMPONENT_TYPES, defaultContentForType } from "@/lib/componentTypes";
 import { ListRowControls, useListOps } from "@/components/ListEditor";
+import { HintDot } from "@/components/HintDot";
 
 // Десктопний редактор контенту курсу.
 //
@@ -346,6 +348,35 @@ function QuizFields({ content, onChange, radioGroupName, onUploadingChange }) {
           на зображення («що не так на цій викладці?»). */}
       <ImageListEditor images={c.images || []} onChange={set("images")} onUploadingChange={onUploadingChange} />
       <OptionListEditor options={c.options} onChange={set("options")} />
+      <div className="admin-field">
+        <label className="admin-checkbox">
+          {/* !== false, а не === true: питання, створені до появи поля,
+              мусять перемішуватись — так поводився legacy-курс. */}
+          <input
+            type="checkbox"
+            checked={c.shuffleOptions !== false}
+            onChange={(e) => set("shuffleOptions")(e.target.checked)}
+          />
+          <span>Перемішувати варіанти</span>
+          <HintDot
+            align="start"
+            text="Порядок варіантів змінюється при кожному показі. Курси пересдають, і без перемішування з другого разу запам'ятовується позиція правильної відповіді, а не сама відповідь. Вимкніть, якщо варіанти мають стояти в конкретному порядку (наприклад «усі перелічені вище»)."
+          />
+        </label>
+      </div>
+      <div className="admin-field">
+        <label className="admin-label">
+          Пояснення до відповіді{" "}
+          <span className="admin-hint">— показується ПІСЛЯ відповіді, і правильної теж</span>
+        </label>
+        <textarea
+          value={c.explanation || ""}
+          onChange={(e) => set("explanation")(e.target.value)}
+          rows={2}
+          placeholder="Чому саме так — коротко, одним-двома реченнями"
+          className="admin-textarea"
+        />
+      </div>
     </>
   );
 }
@@ -618,6 +649,100 @@ function PhotoFields({ content, onChange, onUploadingChange }) {
 
 /** Поле "довільний ввід" — лише підпис/плейсхолдер, значення ніде не
  * зберігається (гейт "щось введено", перевіряється в плеєрі). */
+/**
+ * Гаряча точка на фото. Зони задаються КЛІКОМ прямо по зображенню —
+ * набирати координати числами було б знущанням, а drag-and-drop погано
+ * працює на тач-екранах, з яких цю адмінку теж відкривають.
+ *
+ * Координати й радіус — у відсотках від ширини фото: те саме зображення
+ * показується співробітнику на телефоні й на ноутбуці різного розміру,
+ * піксельні значення там розійшлися б.
+ */
+function HotspotFields({ content, onChange, onUploadingChange }) {
+  const c = { kicker: "", lead: "", explanation: "", ...content, images: content.images || [], zones: content.zones || [] };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+  const [radius, setRadius] = useState(8);
+  const image = c.images.find((img) => img.url);
+
+  function addZoneAt(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    set("zones")([...c.zones, { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)), r: radius }]);
+  }
+
+  return (
+    <>
+      <ScreenHeaderFields c={c} set={set} onUploadingChange={onUploadingChange} />
+      <div className="admin-field">
+        <label className="admin-label">
+          Правильні зони{" "}
+          <span className="admin-hint">— натисніть по фото, щоб додати зону; влучанням вважається будь-яка з них</span>
+        </label>
+        {!image ? (
+          <p className="admin-hint">Спочатку додайте фото вище — зони ставляться прямо по ньому.</p>
+        ) : (
+          <>
+            <div className="admin-row">
+              <label className="admin-label" style={{ margin: 0 }}>
+                Радіус зони, % ширини
+              </label>
+              <input
+                type="number"
+                min="2"
+                max="40"
+                value={radius}
+                onChange={(e) => setRadius(Number(e.target.value) || 8)}
+                className="admin-input-flex"
+                style={{ maxWidth: 90 }}
+              />
+              <button
+                type="button"
+                className="admin-btn-link"
+                onClick={() => set("zones")([])}
+                disabled={c.zones.length === 0}
+              >
+                Очистити зони
+              </button>
+            </div>
+            {/* Звичайний <img>, а не next/image: тут важлива рівно та
+                геометрія, по якій рахуються відсоткові координати кліку,
+                без будь-якого ресайзу під капотом. */}
+            <div className="adm-hotspot-canvas" onClick={addZoneAt} role="presentation">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={image.url} alt="" />
+              {c.zones.map((z, i) => (
+                <span
+                  key={i}
+                  className="adm-hotspot-zone"
+                  style={{ left: `${z.x}%`, top: `${z.y}%`, width: `${(z.r || 8) * 2}%` }}
+                >
+                  {i + 1}
+                </span>
+              ))}
+            </div>
+            <p className="admin-hint">
+              {c.zones.length === 0 ? "Жодної зони — питання поки не має правильної відповіді." : `Зон: ${c.zones.length}`}
+            </p>
+          </>
+        )}
+      </div>
+      <div className="admin-field">
+        <label className="admin-label">
+          Пояснення до відповіді <span className="admin-hint">— показується ПІСЛЯ відповіді, і правильної теж</span>
+        </label>
+        <textarea
+          value={c.explanation || ""}
+          onChange={(e) => set("explanation")(e.target.value)}
+          rows={2}
+          placeholder="Чому саме це місце — коротко"
+          className="admin-textarea"
+        />
+      </div>
+    </>
+  );
+}
+
 function InputFields({ content, onChange }) {
   const c = { label: "", placeholder: "", multiline: false, ...content };
   const set = (field) => (value) => onChange({ ...c, [field]: value });
@@ -657,6 +782,8 @@ function ComponentTypeFields({ type, content, onChange, componentId, onUploading
       return <TimelineFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
     case "photo":
       return <PhotoFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
+    case "hotspot":
+      return <HotspotFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
     case "input":
       return <InputFields content={content} onChange={onChange} />;
     default:
@@ -1083,7 +1210,74 @@ function DeviceMockup({ device, components, stepNumber, totalSteps, onBack, onNe
  * місце — той самий підхід, що Webflow/Framer ("Preview" відкриває
  * повноекранний режим, а не намагається влізти в бокову панель).
  */
-function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, previewDevice }) {
+/**
+ * Повне проходження курсу в прев'ю — той самий CoursePlayer, що бачить
+ * співробітник, від вступного екрана до фінального з конфеті й
+ * сертифікатом. previewMode вимикає БУДЬ-ЯКИЙ запис: ні submit, ні
+ * module-complete, ні localStorage (ключ прогресу там спільний зі
+ * справжнім курсом — без цього автор затирав би власний реальний прогрес).
+ *
+ * Портал у document.body — з тієї самої причини, що й у модалки прев'ю
+ * нижче: .adm-shell несе zoom:85% на все піддерево, і vh-розрахунки
+ * всередині нього тихо стискаються.
+ */
+function CourseRunPreview({ course, onClose }) {
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Той самий плаский список екранів, що будує сторінка курсу
+  // (app/courses/[slug]/page.js) — плеєр очікує саме таку форму.
+  const screens = (course.modules || []).flatMap((m) =>
+    (m.screens || []).map((s) => ({
+      id: s.id,
+      title: s.title,
+      moduleId: m.id,
+      moduleTitle: m.title,
+      components: s.components || [],
+    }))
+  );
+
+  return createPortal(
+    <div className="admin-preview-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="admin-preview-modal">
+        <button type="button" className="iconbtn admin-preview-modal-close" onClick={onClose} aria-label="Закрити прев'ю" title="Закрити">
+          <XIcon />
+        </button>
+        <div className="admin-preview-modal-body">
+          <div className={`${course.previewDevice === "laptop" ? "laptop-mockup" : "iphone-mockup"} iphone-mockup--modal adm-run-preview`}>
+            <div className="adm-run-preview-badge">Прев&apos;ю — результати не зберігаються</div>
+            {screens.length === 0 ? (
+              <p className="admin-hint" style={{ padding: 20 }}>У курсі ще немає жодного екрана.</p>
+            ) : (
+              <CoursePlayer
+                previewMode
+                course={{
+                  id: course.id,
+                  slug: course.slug,
+                  title: course.title,
+                  description: course.description,
+                  streakMessages: course.streakMessages,
+                  passThreshold: course.passThreshold,
+                  certificateEnabled: course.certificateEnabled,
+                }}
+                screens={screens}
+                enrollmentId={null}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, previewDevice, onRunCourse }) {
   const [modalOpen, setModalOpen] = useState(false);
   const isLaptop = previewDevice === "laptop";
 
@@ -1130,9 +1324,21 @@ function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, 
       ) : (
         <>
           <DeviceMockup device="phone" {...previewProps} />
-          <button type="button" className="admin-btn-link admin-preview-expand-btn" onClick={() => setModalOpen(true)}>
-            ⛶ На весь екран
-          </button>
+          <div className="admin-row admin-preview-actions">
+            <button type="button" className="admin-btn-link admin-preview-expand-btn" onClick={() => setModalOpen(true)}>
+              ⛶ На весь екран
+            </button>
+            {/* Повне проходження від вступу до сертифіката — щоб автор
+                побачив те саме, що й співробітник, а не окремі екрани. */}
+            <button
+              type="button"
+              className="admin-btn-link"
+              onClick={onRunCourse}
+              title="Пройти курс цілком, як співробітник — без збереження результатів"
+            >
+              ▶ Пройти курс
+            </button>
+          </div>
         </>
       )}
 
@@ -1181,7 +1387,8 @@ function PreviewQuiz({ component }) {
   // (правки контенту вживу), не тільки при зміні обраного екрана.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setAnswer(undefined), [component.id, component.content]);
-  return <QuizScreen component={component} screenNumber={1} answer={answer} onAnswer={setAnswer} />;
+  const Screen = component.type === "hotspot" ? HotspotScreen : QuizScreen;
+  return <Screen component={component} screenNumber={1} answer={answer} onAnswer={setAnswer} />;
 }
 
 /** Список компонентів екрана з перетягуванням (та сама механіка, що й
@@ -1522,6 +1729,9 @@ export function AdminCourseEditor({ courseId }) {
   const [expandedModuleId, setExpandedModuleId] = useState(null);
   const [expandedScreenId, setExpandedScreenId] = useState(null);
   const [livePreviewComponent, setLivePreviewComponent] = useState(null);
+  // Повне проходження курсу в прев'ю (CourseRunPreview) — окремо від
+  // модалки одного екрана.
+  const [runPreview, setRunPreview] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [dragModuleIndex, setDragModuleIndex] = useState(null);
   const [overModuleIndex, setOverModuleIndex] = useState(null);
@@ -1939,7 +2149,9 @@ export function AdminCourseEditor({ courseId }) {
           canGoBack={previewScreenIndex > 0}
           canGoNext={previewScreenIndex >= 0 && previewScreenIndex < flatScreens.length - 1}
           previewDevice={course.previewDevice || "phone"}
+          onRunCourse={() => setRunPreview(true)}
         />
+        {runPreview && <CourseRunPreview course={course} onClose={() => setRunPreview(false)} />}
       </div>
     </div>
   );

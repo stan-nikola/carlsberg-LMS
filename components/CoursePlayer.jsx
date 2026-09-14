@@ -14,11 +14,16 @@ import {
   InputScreen,
   ImageLightbox,
   ScreenMedia,
+  ConfettiBurst,
+  HotspotScreen,
   StreakToast,
 } from "@/components/ScreenComponents";
-import { isGateSatisfied, gateTotal, gateHint } from "@/lib/componentTypes";
+import { isGateSatisfied, gateTotal, gateHint, isScored } from "@/lib/componentTypes";
 import { courseStreakMessages, pickStreakMessage, resolveStreakSub, isScheduledStreak } from "@/lib/streakMessages";
 import { estimateMinutesFromComponentCount } from "@/lib/estimateTime";
+import { numberComponents, shuffleArray } from "@/lib/coursePlayerLogic";
+import { downloadCertificate } from "@/lib/downloadCertificate";
+import { getLocalDisplayName } from "@/lib/localName";
 
 // Плеєр курсу. Крім info/quiz підтримує інтерактивні компоненти, портовані
 // з попередньої vanilla-JS розробки "8 кроків телесейлінгу": accordion,
@@ -191,7 +196,12 @@ function NoteAccordion({ note }) {
 }
 
 export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomImage }) {
-  const { questionType, options } = component.content;
+  const { questionType, options: rawOptions, shuffleOptions, explanation } = component.content;
+  // Перемішуємо ОДИН раз при монтуванні: інакше варіанти стрибали б на
+  // кожен ререндер (а він тут є — вибір у multi). Порядок живий лише поки
+  // екран відкритий; повернувшись пізніше, людина побачить новий — так
+  // само поводився legacy-курс.
+  const [options] = useState(() => (shuffleOptions === false ? rawOptions : shuffleArray(rawOptions)));
   const [selected, setSelected] = useState([]);
   const isAnswered = answer !== undefined;
 
@@ -244,7 +254,12 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
             className={optionClass(opt, index)}
             onClick={() => (questionType === "multi" ? toggleMulti(index) : handleSingleClick(index))}
           >
-            {opt.text}
+            {/* Маркер вибору — кружечок для одного варіанта, квадратик із
+                галочкою для кількох. Повернуто з legacy-курсу: без нього
+                по варіанту не видно, що він взагалі вибирається, поки не
+                натиснеш. */}
+            <span className={`opt-mark${questionType === "multi" ? " chk" : ""}`} aria-hidden="true" />
+            <span className="opt-text">{opt.text}</span>
           </button>
         ))}
       </div>
@@ -257,13 +272,19 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
 
       {isAnswered && (
         <div className={`q-fb show ${answer ? "ok" : "bad"}`}>
-          {answer
-            ? questionType === "multi"
-              ? "Правильно! Усі варіанти обрано вірно."
-              : "Правильно!"
-            : questionType === "multi"
-              ? "Правильні варіанти виділені зеленим."
-              : "Правильна відповідь виділена зеленим."}
+          <b className="q-fb-verdict">
+            {answer
+              ? questionType === "multi"
+                ? "Правильно! Усі варіанти обрано вірно."
+                : "Правильно!"
+              : questionType === "multi"
+                ? "Правильні варіанти виділені зеленим."
+                : "Правильна відповідь виділена зеленим."}
+          </b>
+          {/* Пояснення автора — показуємо і при правильній відповіді:
+              вгадати можна й не зрозумівши, а сенс питання саме в тому,
+              щоб людина дізналась ЧОМУ. */}
+          {explanation && <span className="q-fb-explain">{explanation}</span>}
         </div>
       )}
     </>
@@ -276,10 +297,27 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
  * .screen-component (візуальний роздільник між сусідніми компонентами
  * одного екрана — див. course-player.css).
  */
-function ScreenComponentBlock({ component, screenNumber, answers, onQuizAnswer, gateProgress, onGateProgress, onZoomImage }) {
+function ScreenComponentBlock({
+  component,
+  screenNumber,
+  answers,
+  onQuizAnswer,
+  gateProgress,
+  onGateProgress,
+  onZoomImage,
+  blockRef,
+  nextComponentId,
+}) {
   return (
-    <div className="screen-component">
-      {component.type === "quiz" ? (
+    <div className="screen-component" ref={blockRef} data-next-component={nextComponentId ?? undefined}>
+      {component.type === "hotspot" ? (
+        <HotspotScreen
+          component={component}
+          screenNumber={screenNumber}
+          answer={answers[component.id]}
+          onAnswer={(isCorrect) => onQuizAnswer(component.id, isCorrect)}
+        />
+      ) : component.type === "quiz" ? (
         <QuizScreen
           component={component}
           screenNumber={screenNumber}
@@ -342,22 +380,69 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
   );
 }
 
-function CompleteScreen({ result, onRetake }) {
+function CompleteScreen({ result, onRetake, course, hasEmail, previewMode }) {
+  // Ім'я для сертифіката: у співробітників без email Employee.name —
+  // заглушка з посади, справжнє ім'я живе лише в localStorage пристрою
+  // (див. lib/localName.js). Той самий підхід, що і в картці курсу.
+  const [certName, setCertName] = useState("");
+  const [certDownloading, setCertDownloading] = useState(false);
+  const [certError, setCertError] = useState("");
+
+  useEffect(() => {
+    if (hasEmail) return;
+    const local = getLocalDisplayName();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (local) setCertName(local);
+  }, [hasEmail]);
+
+  async function handleDownloadCertificate() {
+    // У прев'ю справжній PDF не генеруємо: у автора немає Enrollment на
+    // цей курс, і роут відповів би 403 з незрозумілою помилкою.
+    if (previewMode) {
+      setCertError("Це прев'ю. Справжній сертифікат співробітник завантажить після реального проходження.");
+      return;
+    }
+    setCertDownloading(true);
+    setCertError("");
+    try {
+      await downloadCertificate(course.slug, certName);
+    } catch (err) {
+      setCertError(err.message || "Не вдалося завантажити сертифікат.");
+    } finally {
+      setCertDownloading(false);
+    }
+  }
+
   if (!result) return null;
   const { scorePercent, scoreRaw, scoreMax, passed, submitting, submitError } = result;
 
+  // Сертифікат — лише за РІВНО 100% і лише якщо він увімкнений для цього
+  // курсу (Course.certificateEnabled). Прохідний бал тут ні до чого: він
+  // дає "залік", сертифікат — свідомо вища планка.
+  const certificateAllowed = course?.certificateEnabled !== false;
+  const isPerfect = scorePercent === 100;
+  const showCertificate = isPerfect && certificateAllowed;
+  // Кнопку тримаємо неактивною, поки результат не долетів до сервера:
+  // роут сертифіката перевіряє саме збережений Enrollment і до того
+  // моменту відповів би 403.
+  const certificateReady = !submitting && !submitError;
+
   return (
     <div className="cp-screen cp-complete">
+      {/* Свято лише за бездоганне проходження — тоді воно щось означає. */}
+      {isPerfect && <ConfettiBurst />}
       <div className={`trophy ${passed ? "win" : ""}`}>
         {passed ? <CheckIcon /> : <XIcon />}
       </div>
       <h2 className="result-title">
-        {passed ? "Вітаємо! Тест складено успішно 🎉" : "Тест поки не пройдено"}
+        {isPerfect ? "Бездоганно! Курс пройдено на 100% 🎉" : passed ? "Вітаємо! Тест складено успішно 🎉" : "Тест поки не пройдено"}
       </h2>
       <p className="lead">
-        {passed
-          ? "Ви впевнено знаєте цей матеріал."
-          : "Перегляньте розділи ще раз і спробуйте пройти тест знову."}
+        {isPerfect
+          ? "Жодної помилки — ви знаєте цей матеріал досконало."
+          : passed
+            ? "Ви впевнено знаєте цей матеріал."
+            : "Перегляньте розділи ще раз і спробуйте пройти тест знову."}
       </p>
       <div className="score-num">
         <b>
@@ -375,9 +460,46 @@ function CompleteScreen({ result, onRetake }) {
       {submitError && <p className="cp-save-status cp-save-error">Не вдалося зберегти результат: {submitError}</p>}
       {!submitting && !submitError && <p className="cp-save-status">Результат збережено.</p>}
 
-      <button type="button" className="btn-primary-full" onClick={onRetake}>
-        <span className="btn-label">Пройти ще раз</span>
-      </button>
+      {showCertificate && (
+        <div className="cp-cert-block">
+          <span className="cp-cert-icon" aria-hidden="true">
+            <CertificateIcon />
+          </span>
+          <b className="cp-cert-title">Вам видано сертифікат про проходження курсу</b>
+          <span className="cp-cert-sub">
+            PDF із вашим ім&apos;ям, назвою курсу «{course.title}» та датою завершення.
+          </span>
+          <button
+            type="button"
+            className="btn-primary-full cp-cert-btn"
+            onClick={handleDownloadCertificate}
+            disabled={certDownloading || !certificateReady}
+            title={certificateReady ? "Завантажити PDF-сертифікат" : "Зачекайте, поки результат збережеться"}
+          >
+            {certDownloading ? <SpinnerIcon /> : <CertificateIcon />}
+            <span className="btn-label">{certDownloading ? "Готуємо сертифікат…" : "Завантажити сертифікат"}</span>
+          </button>
+          {certError && <p className="cp-save-status cp-save-error">{certError}</p>}
+        </div>
+      )}
+
+      {/* Склав, але не бездоганно — кажемо, що сертифікат узагалі існує і
+          що до нього лишилось небагато. Без цього людина просто не знає
+          про таку можливість. */}
+      {passed && !isPerfect && certificateAllowed && (
+        <p className="cp-cert-hint">
+          Сертифікат видається за 100% — вам лишилось зовсім небагато.
+        </p>
+      )}
+
+      {/* При 100% перепроходити нічого — кнопки в блоці немає взагалі.
+          Внизу в навігації в цьому випадку стоїть «Перейти на головну»
+          (див. navbar), тож двох однакових дій на екрані більше немає. */}
+      {!isPerfect && (
+        <button type="button" className="btn-primary-full" onClick={onRetake}>
+          <span className="btn-label">Пройти ще раз</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -411,7 +533,20 @@ function ResumePrompt({ onResume, onRestart }) {
   );
 }
 
-export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skippedModuleScores = [] }) {
+export function CoursePlayer({
+  course,
+  screens,
+  enrollmentId,
+  lockedNotice,
+  skippedModuleScores = [],
+  hasEmail = true,
+  // Режим прев'ю в /admin: той самий плеєр від початку до кінця, але
+  // БЕЗ жодного запису — ні в БД, ні в localStorage. Ключ прогресу в
+  // localStorage у прев'ю той самий, що й у справжнього курсу, тож без
+  // цього автор затирав би реальний прогрес співробітників на своєму
+  // ж пристрої.
+  previewMode = false,
+}) {
   const router = useRouter();
   const totalSteps = screens.length + 2; // + вступ + завершення
   const introIdx = 0;
@@ -448,9 +583,19 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
   // в submitResult() рахує ЦІ id ПЛЮС збережені scoreRaw/scoreMax
   // пропущених модулів (skippedModuleScores), а не лише ці.
   const quizComponentIds = useMemo(
-    () => screens.flatMap((s) => s.components.filter((c) => c.type === "quiz").map((c) => c.id)),
+    () => screens.flatMap((s) => s.components.filter(isScored).map((c) => c.id)),
     [screens]
   );
+
+  // Плаский список усіх компонентів — потрібен, щоб за id знайти сам
+  // компонент і спитати в lib/componentTypes.js, чи його гейт уже
+  // задоволений (для плавної прокрутки до наступного).
+  const allComponents = useMemo(() => screens.flatMap((s) => s.components), [screens]);
+
+  // Бездоганне проходження міняє нижню навігацію фінального екрана:
+  // «Назад» ховається, а замість «Пройти ще раз» лишається вихід на
+  // головну.
+  const isPerfectResult = result?.scorePercent === 100;
 
   // Орієнтовний час проходження — та сама формула (45с/компонент), що вже
   // показує ModuleRow у CourseTile.jsx (lib/courseContent.js
@@ -480,7 +625,7 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
     if (!segment) return false;
     const quizIds = screens
       .slice(segment.startIdx, segment.endIdx + 1)
-      .flatMap((s) => s.components.filter((c) => c.type === "quiz").map((c) => c.id));
+      .flatMap((s) => s.components.filter(isScored).map((c) => c.id));
     if (quizIds.length === 0 || quizIds[quizIds.length - 1] !== componentId) return false;
     return quizIds.every((id) => (id === componentId ? isCorrect : answers[id] === true));
   }
@@ -500,12 +645,41 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
     }
   }
 
+  /**
+   * Плавно підводимо наступний компонент того самого екрана, коли
+   * попередній повністю пройдено. На екрані з кількома компонентами
+   * наступний часто нижче згину, і людина не бачила, що з'явилось
+   * продовження — думала, що екран закінчився.
+   *
+   * requestAnimationFrame — щоб прокрутка почалась ПІСЛЯ того, як
+   * розкритий вміст (остання картка акордеону, остання репліка) уже
+   * перемалювався й висота стабілізувалась.
+   */
+  function scrollToNextComponent(componentId) {
+    const el = blockRefs.current.get(componentId);
+    const nextId = el?.dataset?.nextComponent;
+    if (!nextId) return;
+    const nextEl = blockRefs.current.get(Number(nextId));
+    if (!nextEl) return;
+    requestAnimationFrame(() => {
+      try {
+        nextEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch {
+        // Старі браузери без smooth — не критично, просто без анімації.
+      }
+    });
+  }
+
   function handleGateProgress(componentId, done) {
-    setGateProgress((g) =>
+    setGateProgress((g) => {
       // Прогрес гейта тільки зростає: повернувшись на екран назад, людина
       // не має "втратити" вже відкриті картки.
-      (g[componentId] || 0) >= done ? g : { ...g, [componentId]: done }
-    );
+      if ((g[componentId] || 0) >= done) return g;
+      const next = { ...g, [componentId]: done };
+      const component = allComponents.find((c) => c.id === componentId);
+      if (component && isGateSatisfied(component, done)) scrollToNextComponent(componentId);
+      return next;
+    });
   }
 
   useEffect(() => () => clearTimeout(streakTimerRef.current), []);
@@ -520,9 +694,28 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
   // через pathname. Без явного скидання, якщо попередній екран був
   // прогорнутий вниз (довгий текст/фото), наступний відкривався вже "з
   // середини" — верх нового екрана виглядав обрізаним.
+  // Наскрізна нумерація КОМПОНЕНТІВ, а не екранів. Раніше номер у кикері
+  // дорівнював номеру екрана, і два питання на одному екрані обидва
+  // показували «1». Тепер 1, 2, 3… по всьому курсу — людина бачить, де
+  // вона в загальному потоці, а не в межах одного кроку.
+  const componentNumbers = useMemo(() => numberComponents(screens), [screens]);
+
+  // DOM-вузли блоків компонентів — щоб плавно прокручувати до наступного,
+  // коли попередній повністю пройдено.
+  const blockRefs = useRef(new Map());
+  function registerBlock(componentId, el) {
+    if (el) blockRefs.current.set(componentId, el);
+    else blockRefs.current.delete(componentId);
+  }
+
   const viewportRef = useRef(null);
   useEffect(() => {
+    // Скидаємо і сам .cp-viewport, і вікно: на десктопі прокручується
+    // сторінка, а не внутрішній контейнер, і без другого виклику новий
+    // екран відкривався «з середини», якщо попередній був довгий (саме це
+    // й помітно на екранах із двома і більше компонентами).
     viewportRef.current?.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
     // "Пауза між модулями" (ModuleCheckpointScreen) підміняє вміст
     // .cp-viewport БЕЗ зміни idx (idx рухається далі лише по "Продовжити")
     // — без цього прапорця скидання не спрацьовувало саме на переході в
@@ -539,6 +732,7 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
   // з чого починати).
   const [resumePrompt, setResumePrompt] = useState(null);
   useEffect(() => {
+    if (previewMode) return;
     const saved = loadProgress(course.slug);
     if (saved && typeof saved.idx === "number" && saved.idx > introIdx) {
       setResumePrompt(saved);
@@ -555,7 +749,7 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
   }
 
   function handleResumeRestart() {
-    clearProgress(course.slug);
+    if (!previewMode) clearProgress(course.slug);
     setResumePrompt(null);
   }
 
@@ -573,7 +767,7 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
       skipFirstSaveRef.current = false;
       return;
     }
-    if (idx !== completeIdx) saveProgress(course.slug, idx, answers);
+    if (!previewMode && idx !== completeIdx) saveProgress(course.slug, idx, answers);
   }, [idx, answers, course.slug, completeIdx]);
 
   useEffect(() => {
@@ -623,7 +817,7 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
   function scoreForSegment(segment) {
     const rangeIds = screens
       .slice(segment.startIdx, segment.endIdx + 1)
-      .flatMap((s) => s.components.filter((c) => c.type === "quiz").map((c) => c.id));
+      .flatMap((s) => s.components.filter(isScored).map((c) => c.id));
     const scoreRaw = rangeIds.filter((id) => answers[id] === true).length;
     const scoreMax = rangeIds.length;
     // Модуль без питань (лише інфо-екрани) нікого не блокує — 100%.
@@ -712,7 +906,7 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
     );
 
     setResult({ scoreRaw, scoreMax, scorePercent, passed, submitting: true, submitError: null });
-    clearProgress(course.slug);
+    if (!previewMode) clearProgress(course.slug);
 
     // Останній модуль курсу теж фіксуємо як складений/ні — РАЗОМ із
     // /submit в одній транзакції (app/api/courses/[slug]/submit/route.js),
@@ -726,6 +920,12 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
     // розсинхрон: або записується все, або нічого.
     const lastSegment = moduleSegments[moduleSegments.length - 1];
     const lastModuleScore = lastSegment ? scoreForSegment(lastSegment) : null;
+
+    // У прев'ю результат лише ПОКАЗУЄМО — жодного запису на сервер.
+    if (previewMode) {
+      setResult({ scoreRaw, scoreMax, scorePercent, passed, submitting: false, submitError: null });
+      return;
+    }
 
     try {
       const res = await fetch(`/api/courses/${course.slug}/submit`, {
@@ -827,7 +1027,7 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
   }
 
   function handleRetake() {
-    clearProgress(course.slug);
+    if (!previewMode) clearProgress(course.slug);
     setAnswers({});
     setResult(null);
     startedAtRef.current = new Date().toISOString();
@@ -908,11 +1108,13 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
               <>
                 {idx > introIdx && idx <= screens.length && (
                   <div className="cp-screen">
-                    {screens[idx - 1].components.map((component) => (
+                    {screens[idx - 1].components.map((component, i) => (
                       <ScreenComponentBlock
                         key={component.id}
                         component={component}
-                        screenNumber={idx}
+                        screenNumber={componentNumbers.get(component.id) ?? idx}
+                        blockRef={(el) => registerBlock(component.id, el)}
+                        nextComponentId={screens[idx - 1].components[i + 1]?.id ?? null}
                         answers={answers}
                         onQuizAnswer={handleQuizAnswer}
                         gateProgress={gateProgress}
@@ -923,7 +1125,9 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
                   </div>
                 )}
 
-                {idx === completeIdx && <CompleteScreen result={result} onRetake={handleRetake} />}
+                {idx === completeIdx && (
+                  <CompleteScreen result={result} onRetake={handleRetake} course={course} hasEmail={hasEmail} previewMode={previewMode} />
+                )}
               </>
             )}
           </div>
@@ -943,13 +1147,26 @@ export function CoursePlayer({ course, screens, enrollmentId, lockedNotice, skip
                 );
               })()}
               <div className="navbar">
-                <button className="btn btn-ghost" onClick={goBack} style={{ visibility: idx === introIdx ? "hidden" : "visible" }}>
+                {/* Після бездоганного проходження повертатись нікуди:
+                    ховаємо «Назад» так само, як на вступному екрані. */}
+                <button
+                  className="btn btn-ghost"
+                  onClick={goBack}
+                  style={{ visibility: idx === introIdx || isPerfectResult ? "hidden" : "visible" }}
+                >
                   Назад
                 </button>
                 {idx === completeIdx ? (
-                  <button className="btn btn-primary" onClick={handleRetake}>
-                    Пройти ще раз
-                  </button>
+                  isPerfectResult ? (
+                    // 100% — єдина осмислена дія далі це піти з курсу.
+                    <button className="btn btn-primary" onClick={() => (previewMode ? handleRetake() : router.push("/hub"))}>
+                      {previewMode ? "Пройти прев'ю ще раз" : "Перейти на головну"}
+                    </button>
+                  ) : (
+                    <button className="btn btn-primary" onClick={handleRetake}>
+                      Пройти ще раз
+                    </button>
+                  )
                 ) : (
                   <button className="btn btn-primary" onClick={goNext} disabled={!currentScreenAllowsNext()}>
                     {idx === completeIdx - 1 ? "Завершити" : "Далі"}

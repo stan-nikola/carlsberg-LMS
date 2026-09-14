@@ -465,7 +465,8 @@ html:has(.adm-shell) {
    atoms/Button узагалі немає border-radius — фірмова мова прямокутна),
    висота 56px = комфортний touch-таргет на телефоні, головному пристрої
    співробітника. Hover — brightness, як у самому Malty-компоненті. */
-.btn-primary-full {
+.btn-primary-full,
+.btn-secondary-full {
   width: 100%;
   min-height: 56px;
   border: none;
@@ -485,6 +486,26 @@ html:has(.adm-shell) {
   box-shadow: var(--shadow-sm);
   transition: transform var(--dur-base) var(--ease-premium), box-shadow var(--dur-base) var(--ease-premium),
     background var(--dur-base) var(--ease-premium);
+}
+/* Другорядна дія тієї ж ширини й висоти — коли на екрані дві кнопки і
+   головна вже зайнята (фінальний екран курсу зі 100%: головна дія —
+   сертифікат, «Пройти ще раз» стає другорядним). Геометрію бере зі
+   спільного правила вище, тут лише заливка — тому блок мусить стояти
+   ПІСЛЯ нього, інакше спільне правило перебило б ці кольори. */
+.btn-secondary-full {
+  background: transparent;
+  color: var(--cb-primary);
+  border: 1px solid var(--cb-primary);
+  box-shadow: none;
+}
+@media (hover: hover) {
+  .btn-secondary-full:hover:not(:disabled) {
+    background: var(--cb-primary-tint);
+  }
+}
+.btn-secondary-full:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
 }
 @media (hover: hover) {
   .btn-primary-full:hover:not(:disabled) {

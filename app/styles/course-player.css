@@ -236,6 +236,69 @@
 .opt:active {
   transform: scale(0.99);
 }
+/* Маркер вибору з legacy-курсу: кружечок для одного варіанта, квадратик
+   із галочкою для кількох. Без нього по варіанту не видно, що він
+   взагалі вибирається, поки не натиснеш. */
+.opt-mark {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  flex-shrink: 0;
+  position: relative;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.opt-mark.chk {
+  border-radius: var(--radius-xs);
+}
+.opt-text {
+  min-width: 0;
+}
+.opt.selected .opt-mark,
+.opt.correct .opt-mark {
+  background: var(--green-700);
+  border-color: var(--green-700);
+}
+.opt.wrong .opt-mark {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+/* Галочка малюється повернутим кутом рамки — той самий прийом, що в
+   legacy, без окремої іконки. */
+.opt.selected .opt-mark.chk::after,
+.opt.correct .opt-mark.chk::after,
+.opt.wrong .opt-mark.chk::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0;
+  width: 5px;
+  height: 9px;
+  border: solid var(--cb-white);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+/* Легка реакція на розкриття відповіді: правильний варіант коротко
+   «дихає», щоб погляд одразу знайшов його серед решти. */
+.opt.correct {
+  animation: optCorrectPulse var(--dur-slow) var(--ease-out) both;
+}
+@keyframes optCorrectPulse {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.015);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .opt.correct {
+    animation: none;
+  }
+}
 .opt:focus-visible {
   outline: none;
   box-shadow: var(--cb-focus-ring);
@@ -255,11 +318,38 @@
 .opt.disabled {
   pointer-events: none;
 }
+/* Блок відповіді. З'являється вже після кліку, тому лагідно «висувається»
+   знизу, а не вистрибує: різка поява під пальцем читалась би як помилка
+   інтерфейсу. Тривалість — спільний токен, не власне число. */
 .q-fb {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   font-size: calc(12.4px * var(--fs-scale));
-  padding: 8px 12px;
+  line-height: 1.45;
+  padding: 10px 12px;
   border-radius: var(--radius-sm);
-  margin-top: 2px;
+  margin-top: 4px;
+  animation: qFbIn var(--dur-base) var(--ease-premium) both;
+}
+@keyframes qFbIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.q-fb-verdict {
+  font-weight: 700;
+}
+/* Пояснення автора — спокійнішим кольором за вердикт: це вже не оцінка
+   «правильно/ні», а текст, який треба прочитати. */
+.q-fb-explain {
+  color: var(--ink);
+  opacity: 0.85;
 }
 .q-fb.ok {
   background: var(--green-tint);
@@ -268,6 +358,11 @@
 .q-fb.bad {
   background: color-mix(in srgb, var(--danger) 14%, var(--surface-1));
   color: var(--danger);
+}
+@media (prefers-reduced-motion: reduce) {
+  .q-fb {
+    animation: none;
+  }
 }
 
 /* completion screen */
@@ -1056,6 +1151,99 @@
   opacity: 0.92;
   line-height: 1.35;
 }
+/* Блок сертифіката на фінальному екрані курсу, пройденого на 100%.
+   Золотий, а не зелений: зелений у плеєрі скрізь означає «правильно/
+   складено», а це інша сутність — нагорода, і вона має читатись окремо
+   від звичайного заліку. */
+.cp-cert-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 18px 0 12px;
+  padding: 18px 16px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-card);
+  background: var(--gold-soft);
+  text-align: center;
+}
+.cp-cert-icon {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  color: color-mix(in srgb, var(--gold) 65%, var(--cb-black));
+}
+.cp-cert-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.cp-cert-title {
+  font-size: calc(14.5px * var(--fs-scale));
+  line-height: 1.35;
+  color: var(--ink);
+}
+.cp-cert-sub {
+  font-size: calc(12.5px * var(--fs-scale));
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.cp-cert-btn {
+  margin-top: 6px;
+}
+.cp-cert-btn svg {
+  width: 20px;
+  height: 20px;
+}
+/* Підказка для тих, хто склав, але не на 100% — пояснює, що сертифікат
+   узагалі існує, і що до нього лишилось небагато. */
+.cp-cert-hint {
+  margin: 14px 0 2px;
+  font-size: calc(12.5px * var(--fs-scale));
+  line-height: 1.4;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+/* Конфеті на весь екран (components/ScreenComponents.jsx ConfettiBurst) —
+   фінальний екран курсу, пройденого на 100%. position:fixed, бо падати
+   має через усе вікно, а не в межах картки курсу. pointer-events:none —
+   шар декоративний і не повинен перехоплювати кліки по кнопці
+   сертифіката під ним. */
+.cp-confetti {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+}
+.cp-confetti-piece {
+  position: absolute;
+  top: -16px;
+  border-radius: 2px;
+  opacity: 0;
+  animation-name: cpConfettiFall;
+  animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
+  animation-fill-mode: forwards;
+}
+@keyframes cpConfettiFall {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift, 0), 100vh, 0) rotate(540deg);
+  }
+}
+/* Свято не варте того, щоб викликати запаморочення в того, хто вимкнув
+   анімації системно. */
+@media (prefers-reduced-motion: reduce) {
+  .cp-confetti {
+    display: none;
+  }
+}
+
 .streak-toast-confetti {
   position: absolute;
   inset: 0;
@@ -1313,5 +1501,68 @@
      виглядало б як зламана верстка, не як компактне поле вводу. */
   .cp-input-field {
     max-width: 480px;
+  }
+}
+
+/* ---- Гаряча точка на фото (components/ScreenComponents.jsx
+   HotspotScreen) ---- */
+.hs-frame {
+  position: relative;
+  display: block;
+  line-height: 0;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  cursor: crosshair;
+}
+.hs-frame.answered {
+  cursor: default;
+}
+.hs-frame:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+/* Правильна зона — показується ЛИШЕ після відповіді. Тонке коло, а не
+   заливка: під ним має лишатись видно саме фото, інакше пояснення
+   «чому тут» втрачає сенс. */
+.hs-zone {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid var(--cb-secondary);
+  background: var(--cb-secondary-tint);
+  pointer-events: none;
+  animation: hsZoneIn var(--dur-base) var(--ease-premium) both;
+}
+@keyframes hsZoneIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+/* Мітка там, куди людина натиснула — щоб було видно, наскільки
+   промахнулась, а не просто «не туди». */
+.hs-pin {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  border: 2px solid var(--cb-white);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+}
+.hs-pin.ok {
+  background: var(--cb-secondary);
+}
+.hs-pin.bad {
+  background: var(--danger);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hs-zone {
+    animation: none;
   }
 }

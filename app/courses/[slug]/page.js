@@ -134,9 +134,14 @@ export default async function CoursePage({ params }) {
         title: course.title,
         description: course.description,
         streakMessages: course.streakMessages,
+        certificateEnabled: course.certificateEnabled,
       }}
       screens={screens}
       enrollmentId={enrollment.id}
+      // Для співробітників без email Employee.name — заглушка з посади;
+      // справжнє ім'я лежить лише в localStorage пристрою й передається
+      // разово в запит на сертифікат (lib/downloadCertificate.js).
+      hasEmail={Boolean(employee.email)}
       lockedNotice={lockedNotice}
       skippedModuleScores={skippedModuleScores}
     />
