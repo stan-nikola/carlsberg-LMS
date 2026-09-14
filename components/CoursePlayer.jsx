@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { renderRichText } from "@/lib/richText";
-import { ChevronIcon, CheckIcon, XIcon, CertificateIcon, SpinnerIcon, ClockIcon } from "@/components/icons";
+import { ChevronIcon, CheckIcon, XIcon, CertificateIcon, SpinnerIcon, ClockIcon, ScreensIcon, QuestionIcon } from "@/components/icons";
 import {
   AccordionScreen,
   ChecklistScreen,
@@ -73,11 +73,16 @@ function clearProgress(slug) {
  * плеєрі, і в прев'ю /admin — щоб адміністратор бачив рівно те, що
  * побачить співробітник.
  */
-export function ComponentScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
+export function ComponentScreen({ component, screenNumber, onGateProgress, onZoomImage, readOnly = false, tapHint = true }) {
   // onZoomImage тепер потрібен КОЖНОМУ типу, а не лише photo/info: фото
   // можна додати до будь-якого компонента, і збільшувати його по кліку
   // має скрізь однаково.
-  const common = { component, screenNumber, onGateProgress, onZoomImage };
+  // readOnly — «методичка» (components/CourseReview.jsx): усе розкрито
+  // одразу, без гейтів, тапів і підсвітки наступного кроку — це довідник
+  // для підглядання, а не повторне проходження.
+  // tapHint — чи показувати перелив «тапни сюди» на наступній цілі; плеєр
+  // вмикає його лише для першого непройденого гейта екрана.
+  const common = { component, screenNumber, onGateProgress, onZoomImage, readOnly, tapHint };
   switch (component.type) {
     case "accordion":
       return <AccordionScreen {...common} />;
@@ -134,12 +139,7 @@ export function InfoScreen({ component, screenNumber, onZoomImage }) {
                 : undefined
             }
           >
-            <CourseImage src={img.url} alt={alt} />
-            {zoomable && (
-              <span className="zoom-badge" aria-hidden="true">
-                <ZoomIcon />
-              </span>
-            )}
+            <CourseImage src={img.url} alt={alt} zoomable={zoomable} />
             {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
           </div>
         );
@@ -170,23 +170,23 @@ export function InfoScreen({ component, screenNumber, onZoomImage }) {
   );
 }
 
-function ZoomIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="10" cy="10" r="7" />
-      <line x1="21" y1="21" x2="15.5" y2="15.5" />
-    </svg>
-  );
-}
-
 /** "Підказка" (Component.content.info.note) — розгортається по кліку, а не
  * видима завжди: щоб не перевантажувати екран текстом одразу і трохи
  * заохотити самому подумати перед тим, як підглянути відповідь/деталь. */
 function NoteAccordion({ note }) {
   const [open, setOpen] = useState(false);
+  const boxRef = useRef(null);
+  function toggle() {
+    const opening = !open;
+    setOpen(opening);
+    // Той самий патерн, що в акордеоні/таймлайні: розкрили — розкритий
+    // текст має лишитись на екрані, а не піти під нижній край
+    // (користувач, 2026-09-15: «Варто знати не скролить по паттерну»).
+    if (opening) requestAnimationFrame(() => peekScrollTo(null, { keepVisible: boxRef.current }));
+  }
   return (
-    <div className={`cp-note-accordion${open ? " open" : ""}`}>
-      <button type="button" className="cp-note-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+    <div className={`cp-note-accordion${open ? " open" : ""}`} ref={boxRef}>
+      <button type="button" className="cp-note-toggle" onClick={toggle} aria-expanded={open}>
         <b>Варто знати</b>
         <span className="cp-note-chevron">
           <ChevronIcon />
@@ -197,7 +197,7 @@ function NoteAccordion({ note }) {
   );
 }
 
-export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomImage }) {
+export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomImage, questionNumber, questionTotal }) {
   const { questionType, options: rawOptions, shuffleOptions, explanation } = component.content;
   // Перемішуємо ОДИН раз при монтуванні: інакше варіанти стрибали б на
   // кожен ререндер (а він тут є — вибір у multi). Порядок живий лише поки
@@ -243,6 +243,27 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
         <span className="cp-kicker-num">{screenNumber}</span>
         <span>Питання</span>
       </div>
+      {/* Банер блоку питань — як у legacy (course-assortment.html
+          .quiz-banner): золота плашка з пульсуючою іконкою і бліком, щоб
+          тест візуально відрізнявся від матеріалу і читався як «зараз
+          перевірка». Лічильник — наскрізний по оцінюваних компонентах
+          курсу; у прев'ю конструктора його нема — лише заголовок. */}
+      <div className="quiz-banner">
+        <span className="quiz-banner-ico" aria-hidden="true">
+          <QuestionIcon />
+        </span>
+        <span className="quiz-banner-txt">
+          <b>Блок питань</b>
+          {questionNumber && questionTotal ? (
+            <span>
+              Питання {questionNumber} з {questionTotal}
+            </span>
+          ) : (
+            <span>Оберіть відповідь</span>
+          )}
+        </span>
+      </div>
+      <span className="q-type-tag">{questionType === "multi" ? "Кілька правильних" : "Один варіант"}</span>
       <h2 className="cp-h2">{component.title}</h2>
       {/* Фото між питанням і варіантами — питання може спиратись саме на
           зображення ("що не так на цій викладці?"). */}
@@ -309,6 +330,9 @@ function ScreenComponentBlock({
   onZoomImage,
   blockRef,
   nextComponentId,
+  tapHint = true,
+  questionNumber,
+  questionTotal,
 }) {
   return (
     <div className="screen-component" ref={blockRef} data-next-component={nextComponentId ?? undefined}>
@@ -326,6 +350,8 @@ function ScreenComponentBlock({
           answer={answers[component.id]}
           onAnswer={(isCorrect) => onQuizAnswer(component.id, isCorrect)}
           onZoomImage={onZoomImage}
+          questionNumber={questionNumber}
+          questionTotal={questionTotal}
         />
       ) : (
         <ComponentScreen
@@ -334,6 +360,7 @@ function ScreenComponentBlock({
           gateDone={gateProgress[component.id]}
           onGateProgress={(done) => onGateProgress(component.id, done)}
           onZoomImage={onZoomImage}
+          tapHint={tapHint}
         />
       )}
     </div>
@@ -714,20 +741,30 @@ export function CoursePlayer({
     else blockRefs.current.delete(componentId);
   }
 
+  // Перелив «тапни сюди» — лише на ОДНОМУ компоненті екрана: першому
+  // згори, чий гейт ще не пройдено. Два гейти на екрані (таймлайн +
+  // акордеон) з двома переливами одночасно збивали з пантелику — незрозуміло,
+  // з чого починати (користувач, 2026-09-14). Наступний загоряється, коли
+  // попередній пройдено; оцінювані (quiz/hotspot) гейта не мають.
+  const firstOpenGateId =
+    idx > introIdx && idx <= screens.length && !moduleCheckpoint
+      ? (screens[idx - 1].components.find((c) => !isScored(c) && !isGateSatisfied(c, gateProgress[c.id]))?.id ?? null)
+      : null;
+
   const viewportRef = useRef(null);
+  // Ключ скрол-контейнера: новий екран = НОВИЙ елемент .cp-viewport, тобто
+  // scrollTop гарантовано 0 — не «скинутий», а такий від народження. Один
+  // лише scrollTo нижче на iPhone не спрацьовував (перевірено користувачем
+  // 2026-09-14: 3/12 → 4/12 відкривався з середини): iOS Safari ігнорує
+  // програмний scrollTo, поки триває інерційний скрол пальцем, а «Далі»
+  // зазвичай тапають одразу після прокрутки донизу. Чекпоінт між модулями
+  // теж у ключі — він підміняє вміст без зміни idx.
+  const viewportKey = `${idx}-${moduleCheckpoint ? "checkpoint" : "screen"}`;
   useEffect(() => {
-    // Скидаємо і сам .cp-viewport, і вікно: на десктопі прокручується
-    // сторінка, а не внутрішній контейнер, і без другого виклику новий
-    // екран відкривався «з середини», якщо попередній був довгий (саме це
-    // й помітно на екранах із двома і більше компонентами).
+    // Страховка для десктопа, де прокручується сторінка, а не контейнер.
     viewportRef.current?.scrollTo({ top: 0 });
     window.scrollTo({ top: 0 });
-    // "Пауза між модулями" (ModuleCheckpointScreen) підміняє вміст
-    // .cp-viewport БЕЗ зміни idx (idx рухається далі лише по "Продовжити")
-    // — без цього прапорця скидання не спрацьовувало саме на переході в
-    // чекпоінт і назад.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, Boolean(moduleCheckpoint)]);
+  }, [viewportKey]);
 
   // Відновлення прогресу з localStorage (лише на цьому пристрої — те саме,
   // що й legacy assort_progress_v1; сервер про це не знає). Не застосовуємо
@@ -1071,22 +1108,31 @@ export function CoursePlayer({
             <div className="cp-progress-fill" style={{ width: `${progressPct}%` }} />
           </div>
 
-          <div className="cp-viewport" ref={viewportRef}>
+          <div className="cp-viewport" ref={viewportRef} key={viewportKey}>
             {idx === introIdx && (
               <div className="cp-screen cp-intro">
                 <h1 className="cp-h1">{course.title}</h1>
                 {course.description && <p className="cp-lead">{course.description}</p>}
+                {/* Іконка перед числом у КОЖНІЙ плашці (раніше — лише у «хв»):
+                    три однакові за формою блоки з іконками читаються як один
+                    набір, а не як два числа й одна «особлива» плашка. */}
                 <div className="cp-intro-stats">
                   <div className="stat">
-                    <b>{screens.length}</b>
+                    <b className="cp-stat-val">
+                      <ScreensIcon />
+                      {screens.length}
+                    </b>
                     <span>екранів</span>
                   </div>
                   <div className="stat">
-                    <b>{quizComponentIds.length}</b>
+                    <b className="cp-stat-val">
+                      <QuestionIcon />
+                      {quizComponentIds.length}
+                    </b>
                     <span>питань</span>
                   </div>
                   <div className="stat">
-                    <b className="cp-stat-time">
+                    <b className="cp-stat-val">
                       <ClockIcon />
                       {estimatedMinutes}
                     </b>
@@ -1126,6 +1172,9 @@ export function CoursePlayer({
                         gateProgress={gateProgress}
                         onGateProgress={handleGateProgress}
                         onZoomImage={setZoomImage}
+                        tapHint={component.id === firstOpenGateId}
+                        questionNumber={quizComponentIds.indexOf(component.id) + 1 || undefined}
+                        questionTotal={quizComponentIds.length}
                       />
                     ))}
                   </div>
@@ -1152,16 +1201,18 @@ export function CoursePlayer({
                   </div>
                 );
               })()}
-              <div className="navbar">
-                {/* Після бездоганного проходження повертатись нікуди:
-                    ховаємо «Назад» так само, як на вступному екрані. */}
-                <button
-                  className="btn btn-ghost"
-                  onClick={goBack}
-                  style={{ visibility: idx === introIdx || isPerfectResult ? "hidden" : "visible" }}
-                >
-                  Назад
-                </button>
+              <div className={`navbar${isPerfectResult ? " navbar--solo" : ""}`}>
+                {/* Після бездоганного проходження повертатись нікуди: «Назад»
+                    не рендериться взагалі (не visibility:hidden — той лишав
+                    би порожні 80px зліва), і єдина кнопка «Перейти на головну»
+                    розтягується на всю ширину (.navbar--solo). На вступному
+                    екрані «Назад» лише ховається, щоб «Далі» стояла на тому ж
+                    місці, що й на всіх наступних екранах. */}
+                {!isPerfectResult && (
+                  <button className="btn btn-ghost" onClick={goBack} style={{ visibility: idx === introIdx ? "hidden" : "visible" }}>
+                    Назад
+                  </button>
+                )}
                 {idx === completeIdx ? (
                   isPerfectResult ? (
                     // 100% — єдина осмислена дія далі це піти з курсу.

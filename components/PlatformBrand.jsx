@@ -16,9 +16,10 @@ import { PLATFORM_SHORT_NAME, PLATFORM_ABBREVIATION_EXPANSION, PLATFORM_HOP_LOGO
  * навмання): `height:100%` + flex-stretch тут НЕ спрацював — Next/Image
  * сам додає inline aspect-ratio/розміри, які перебивали CSS-розтягування
  * і замість цього рендерили картинку в її повний інтринзик-розмір
- * (1482×1379px) — тому явний px, як і в решті іконок проєкту. Пропорції
- * 1482:1379 (реальні px public/assets/brand/hops-leaf-small-green.png)
- * збережено — ширина рахується з висоти, не окреме число.
+ * (1532×1417px) — тому явний px, як і в решті іконок проєкту. Пропорції
+ * 1532:1417 (реальні px public/assets/brand/trefoil-solid-green.png, той
+ * самий суцільний знак, що й PWA-іконка) збережено — ширина рахується з
+ * висоти, не окреме число.
  *
  * `size`: "xl" — героїчний момент реєстрації/логіну (app/register/page.js,
  * єдине місце цього розміру), "lg" — сайдбар кабінету керівника, "sm" —
@@ -40,7 +41,7 @@ import { PLATFORM_SHORT_NAME, PLATFORM_ABBREVIATION_EXPANSION, PLATFORM_HOP_LOGO
  * реальної користі, тільки нестабільний зайвий крок. `unoptimized`
  * віддає файл із /public напряму, як звичайний <img>.
  */
-const LOGO_ASPECT = 1482 / 1379;
+const LOGO_ASPECT = 1532 / 1417;
 const LOGO_HEIGHT = { xl: 64, lg: 38, sm: 30 };
 
 export function PlatformBrand({ size = "sm", stacked = false }) {

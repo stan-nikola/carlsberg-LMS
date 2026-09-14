@@ -303,6 +303,29 @@ export function ClockIcon() {
   );
 }
 
+/** Стос екранів — плашка «N екранів» на вступному екрані курсу
+ * (components/CoursePlayer.jsx). Той самий stroke/viewBox, що й ClockIcon
+ * поруч, щоб три плашки читались одним набором. */
+export function ScreensIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="7" width="14" height="14" rx="1.5" />
+      <path d="M7 7V4.5A1.5 1.5 0 0 1 8.5 3H19.5A1.5 1.5 0 0 1 21 4.5V15.5A1.5 1.5 0 0 1 19.5 17H17" />
+    </svg>
+  );
+}
+
+/** Знак питання в колі — плашка «N питань» на вступному екрані курсу. */
+export function QuestionIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.25c-.7.35-1.1.9-1.1 1.65V14" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
 /** Календар — для дат призначення/завершення в кабінеті керівника. */
 export function CalendarIcon() {
   return (

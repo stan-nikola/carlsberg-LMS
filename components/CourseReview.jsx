@@ -7,16 +7,23 @@ import { ComponentScreen } from "@/components/CoursePlayer";
 import { ImageLightbox } from "@/components/ScreenComponents";
 import { getLocalDisplayName } from "@/lib/localName";
 import { downloadCertificate } from "@/lib/downloadCertificate";
+import { isScored } from "@/lib/componentTypes";
 
 /**
  * "Курс-методичка" — читальний режим без тестів/гейтів/геймефікації:
- * показується ЗАМІСТЬ інтерактивного плеєра, коли всі модулі курсу вже
- * складено і жоден зараз не потребує (пере)проходження
- * (lib/courseContent.js getPlayableModules повертає порожній список).
+ * показується ЗАМІСТЬ інтерактивного плеєра, коли курс складено на 100%
+ * (тоді перепроходити нічого — назавжди) або коли всі модулі складено і
+ * жоден зараз не потребує (пере)проходження (lib/courseContent.js
+ * getPlayableModules повертає порожній список) — див.
+ * app/courses/[slug]/page.js.
  * Мета — швидко підглянути/повторити матеріал, а не пройти курс ще раз:
- * тому тут НЕМАЄ "Далі"/"Назад", НЕМАЄ quiz/input компонентів (тести й
- * рефлексія тут не потрібні — лише сам матеріал), просто суцільний
- * скрол по всьому контенту курсу, згрупований по модулях.
+ * тому тут НЕМАЄ "Далі"/"Назад", НЕМАЄ оцінюваних компонентів (quiz/
+ * hotspot) і input (тести й рефлексія тут не потрібні — лише сам
+ * матеріал), а решта рендериться в readOnly: акордеони/кроки розкриті,
+ * чек-лист і діалог показані повністю, без гейтів і підсвітки «тапни
+ * далі». Раніше методичка віддавала ті самі інтерактивні компоненти з
+ * гейтами — і читалась як повторне проходження (скарга користувача
+ * 2026-09-14).
  */
 export function CourseReview({ course, modules, scorePercent, hasEmail = true }) {
   const router = useRouter();
@@ -54,7 +61,7 @@ export function CourseReview({ course, modules, scorePercent, hasEmail = true })
   // плаский список усіх компонентів курсу, потім номер = позиція в ньому.
   const flatComponents = modules.flatMap((courseModule) =>
     courseModule.screens
-      .flatMap((screen) => screen.components.filter((c) => c.type !== "quiz" && c.type !== "input"))
+      .flatMap((screen) => screen.components.filter((c) => !isScored(c) && c.type !== "input"))
       .map((component) => ({ moduleId: courseModule.id, moduleTitle: courseModule.title, component }))
   );
   const moduleGroups = modules
@@ -91,9 +98,9 @@ export function CourseReview({ course, modules, scorePercent, hasEmail = true })
               <h1 className="cp-h1">{course.title}</h1>
               {course.description && <p className="cp-lead">{course.description}</p>}
               <p className="cp-note">
-                Усі модулі курсу вже складено — тут лише матеріал для повторення, без тестів і обмежень. Щоб
-                перепройти конкретний модуль ще раз (з тестами), поверніться пізніше — після паузи повторного
-                проходження він знову з&apos;явиться в плеєрі.
+                {scorePercent === 100
+                  ? "Курс складено на 100% — тут лише матеріал для повторення, без тестів і обмежень."
+                  : "Усі модулі курсу вже складено — тут лише матеріал для повторення, без тестів і обмежень. Щоб перепройти конкретний модуль ще раз (з тестами), поверніться пізніше — після паузи повторного проходження він знову з'явиться в плеєрі."}
               </p>
               {scorePercent === 100 ? (
                 <>
@@ -121,7 +128,7 @@ export function CourseReview({ course, modules, scorePercent, hasEmail = true })
                 <h2 className="cp-h2">{group.title}</h2>
                 {group.reviewComponents.map(({ component, stepNumber }) => (
                   <div className="screen-component" key={component.id}>
-                    <ComponentScreen component={component} screenNumber={stepNumber} onZoomImage={setZoomImage} />
+                    <ComponentScreen component={component} screenNumber={stepNumber} onZoomImage={setZoomImage} readOnly />
                   </div>
                 ))}
               </div>

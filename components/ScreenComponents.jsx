@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronIcon, CheckIcon } from "@/components/icons";
 import { isHotspotHit } from "@/lib/componentTypes";
-import { peekScrollTo } from "@/lib/scrollHints";
+import { peekScrollTo, scrollToEnd } from "@/lib/scrollHints";
 import { nextTimelineTarget } from "@/lib/coursePlayerLogic";
 
 /**
@@ -37,8 +37,27 @@ import { nextTimelineTarget } from "@/lib/coursePlayerLogic";
  * повторному відкритті екрана скелетон завис би назавжди (подія вже
  * відбулась до того, як ми підписались).
  */
-export function CourseImage({ src, alt, onLoaded }) {
+/** Значок «збільшити» на фото — живе всередині .cp-img-wrap, тобто
+ * завжди в куті САМОГО фото, а не рамки (на десктопі рамка ширша за
+ * звужене фото). */
+export function ZoomIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="10" cy="10" r="7" />
+      <line x1="21" y1="21" x2="15.5" y2="15.5" />
+    </svg>
+  );
+}
+
+export function CourseImage({ src, alt, onLoaded, zoomable = false }) {
   const [loaded, setLoaded] = useState(false);
+  // Реальні пропорції завантаженого фото — у CSS-змінну на обгортці:
+  // десктопний reflow (course-player.css, @container cp-card) обмежує фото
+  // по висоті (max-height) і має звузити коробку пропорційно, а не
+  // залишити рамку на всю колонку з порожніми боками. aspect-ratio з
+  // max-height у CSS робить саме це (transferred size), але сам ratio
+  // знає лише браузер після завантаження — звідси змінна.
+  const [aspect, setAspect] = useState(null);
   const wrapRef = useRef(null);
 
   useEffect(() => {
@@ -53,6 +72,7 @@ export function CourseImage({ src, alt, onLoaded }) {
     const img = wrapRef.current?.querySelector("img");
     if (!img) return undefined;
     const mark = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) setAspect(img.naturalWidth / img.naturalHeight);
       setLoaded(true);
       onLoaded?.();
     };
@@ -69,7 +89,11 @@ export function CourseImage({ src, alt, onLoaded }) {
   }, [src, onLoaded]);
 
   return (
-    <div ref={wrapRef} className={`cp-img-wrap${loaded ? " is-loaded" : ""}`}>
+    <div
+      ref={wrapRef}
+      className={`cp-img-wrap${loaded ? " is-loaded" : ""}`}
+      style={aspect ? { "--img-aspect": aspect } : undefined}
+    >
       {!loaded && <span className="cp-img-skeleton" aria-hidden="true" />}
       <Image
         src={src}
@@ -95,6 +119,13 @@ export function CourseImage({ src, alt, onLoaded }) {
           onLoaded?.();
         }}
       />
+      {/* Лупа — на КОЖНОМУ фото, яке відкривається в лайтбокс (раніше
+          лише в інфо-блоці, і там її перекривав <img> із z-index:1). */}
+      {zoomable && loaded && (
+        <span className="zoom-badge" aria-hidden="true">
+          <ZoomIcon />
+        </span>
+      )}
     </div>
   );
 }
@@ -146,7 +177,7 @@ export function ScreenMedia({ images, title, onZoomImage }) {
                 : undefined
             }
           >
-            <CourseImage src={img.url} alt={alt} />
+            <CourseImage src={img.url} alt={alt} zoomable={zoomable} />
             {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
           </div>
         );
@@ -157,7 +188,7 @@ export function ScreenMedia({ images, title, onZoomImage }) {
 
 /* ===================== ACCORDION ===================== */
 
-export function AccordionScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
+export function AccordionScreen({ component, screenNumber, onGateProgress, onZoomImage, readOnly = false, tapHint = true }) {
   const { kicker, lead, images = [], items = [] } = component.content || {};
   // Відкрита картка більше НЕ закривається — ні кліком по ній, ні
   // відкриттям сусідньої. Раніше відкритою могла бути лише одна, і щоб
@@ -172,10 +203,12 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
 
   const listRef = useRef(null);
   // Наступна ще не відкрита картка — саме її підсвічуємо переливом.
-  const nextIdx = items.findIndex((_, i) => !everOpened.has(i));
+  // У методичці все відкрито з самого початку — підсвічувати нічого.
+  const isOpen = (i) => readOnly || everOpened.has(i);
+  const nextIdx = readOnly || !tapHint ? -1 : items.findIndex((_, i) => !everOpened.has(i));
 
   function toggle(i) {
-    if (everOpened.has(i)) return;
+    if (readOnly || everOpened.has(i)) return;
     setEverOpened((prev) => new Set(prev).add(i));
     // Підводимо картку, що йде ЗА цією, а не «першу невідкриту»: людина
     // читає згори вниз, і стрибок назад збивав би. peekScrollTo лишає
@@ -184,10 +217,13 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
     // keepVisible — сама відкрита картка: на десктопі список у два
     // стовпці, «наступна» стоїть у тому ж ряду, і без цього розкритий
     // текст обрізало нижнім краєм в'юпорта.
+    // Остання картка: наступної нема — крутимо до самого низу, щоб було
+    // видно і її текст, і те, що стоїть під списком (підказка гейта,
+    // наступний компонент).
     const children = listRef.current?.children;
     const following = children?.[i + 1];
     const opened = children?.[i];
-    requestAnimationFrame(() => peekScrollTo(following, { keepVisible: opened }));
+    requestAnimationFrame(() => (following ? peekScrollTo(following, { keepVisible: opened }) : scrollToEnd(opened)));
   }
 
   return (
@@ -198,19 +234,26 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="acc-list" ref={listRef}>
         {items.map((item, i) => (
-          <div key={i} className={`acc-item${everOpened.has(i) ? " open seen" : ""}`}>
-            <button
-              type="button"
-              className={`acc-head${i === nextIdx ? " tap-next" : ""}`}
-              onClick={() => toggle(i)}
-              aria-expanded={everOpened.has(i)}
-            >
-              <span className="acc-title">{item.title || `Картка ${i + 1}`}</span>
-              <span className="acc-chevron">
-                <ChevronIcon />
-              </span>
-            </button>
-            {everOpened.has(i) && <div className="acc-body">{item.body}</div>}
+          <div key={i} className={`acc-item${isOpen(i) ? " open seen" : ""}`}>
+            {/* У методичці заголовок — не кнопка: нічого не розгортати. */}
+            {readOnly ? (
+              <div className="acc-head acc-head--static">
+                <span className="acc-title">{item.title || `Картка ${i + 1}`}</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={`acc-head${i === nextIdx ? " tap-next" : ""}`}
+                onClick={() => toggle(i)}
+                aria-expanded={everOpened.has(i)}
+              >
+                <span className="acc-title">{item.title || `Картка ${i + 1}`}</span>
+                <span className="acc-chevron">
+                  <ChevronIcon />
+                </span>
+              </button>
+            )}
+            {isOpen(i) && <div className="acc-body">{item.body}</div>}
           </div>
         ))}
       </div>
@@ -220,10 +263,10 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
 
 /* ===================== CHECKLIST ===================== */
 
-export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
+export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoomImage, readOnly = false, tapHint = true }) {
   const { kicker, lead, images = [], items = [] } = component.content || {};
   const [checked, setChecked] = useState(() => new Set());
-  const nextIdx = items.findIndex((_, i) => !checked.has(i));
+  const nextIdx = readOnly || !tapHint ? -1 : items.findIndex((_, i) => !checked.has(i));
 
   useEffect(() => {
     onGateProgress?.(checked.size);
@@ -245,20 +288,30 @@ export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoo
       {lead && <p className="cp-lead">{lead}</p>}
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="check-list">
-        {items.map((item, i) => (
-          <button
-            key={i}
-            type="button"
-            className={`check-item${checked.has(i) ? " done" : ""}${i === nextIdx ? " tap-next" : ""}`}
-            onClick={() => toggle(i)}
-            aria-pressed={checked.has(i)}
-          >
-            <span className="check-box">
-              <CheckIcon />
-            </span>
-            <span className="check-text">{item.text}</span>
-          </button>
-        ))}
+        {items.map((item, i) =>
+          readOnly ? (
+            // Методичка: статичний список з галочками, нічого не відмічати.
+            <div key={i} className="check-item done check-item--static">
+              <span className="check-box">
+                <CheckIcon />
+              </span>
+              <span className="check-text">{item.text}</span>
+            </div>
+          ) : (
+            <button
+              key={i}
+              type="button"
+              className={`check-item${checked.has(i) ? " done" : ""}${i === nextIdx ? " tap-next" : ""}`}
+              onClick={() => toggle(i)}
+              aria-pressed={checked.has(i)}
+            >
+              <span className="check-box">
+                <CheckIcon />
+              </span>
+              <span className="check-text">{item.text}</span>
+            </button>
+          )
+        )}
       </div>
     </>
   );
@@ -278,9 +331,10 @@ const BUBBLE_LABELS = {
   note: "",
 };
 
-export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
+export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomImage, readOnly = false, tapHint = true }) {
   const { kicker, lead, images = [], callLabel, bubbles = [] } = component.content || {};
-  const [revealed, setRevealed] = useState(0);
+  // Методичка: увесь діалог видно одразу, без «друкує…» і таймера дзвінка.
+  const [revealed, setRevealed] = useState(readOnly ? bubbles.length : 0);
   const [typing, setTyping] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const advanceRef = useRef(null);
@@ -293,9 +347,10 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
   // Таймер "дзвінка" — суто атмосферний елемент із legacy, показує, що
   // розмова триває, поки людина читає репліки.
   useEffect(() => {
+    if (readOnly) return undefined;
     timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(timerRef.current);
-  }, []);
+  }, [readOnly]);
 
   function revealNext() {
     if (typing || revealed >= bubbles.length) return;
@@ -330,9 +385,11 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
         <div className="call-bar">
           <span className="call-dot" />
           <span className="call-label">{callLabel || "Дзвінок із клієнтом"}</span>
-          <span className="call-time">
-            {mm}:{ss}
-          </span>
+          {!readOnly && (
+            <span className="call-time">
+              {mm}:{ss}
+            </span>
+          )}
         </div>
         <div className="script-dots">
           {bubbles.map((_, i) => (
@@ -361,7 +418,7 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
         {!done && (
           <button
             type="button"
-            className={`script-advance${typing ? "" : " tap-next"}`}
+            className={`script-advance${typing || !tapHint ? "" : " tap-next"}`}
             onClick={revealNext}
             ref={advanceRef}
             disabled={typing}
@@ -379,7 +436,7 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
 
 /* ===================== TIMELINE (кроки візиту / recap) ===================== */
 
-export function TimelineScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
+export function TimelineScreen({ component, screenNumber, onGateProgress, onZoomImage, readOnly = false, tapHint = true }) {
   const { kicker, lead, images = [], steps = [], highlight } = component.content || {};
   // Набір відкритих індексів (не один) — раніше відкриття нового кроку
   // автоматично згортало попередній (одна змінна openIdx), і людина, що
@@ -402,9 +459,12 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
   // Крок для переливу «тапни сюди»: без highlight — перший невідкритий,
   // з highlight — лише підсвічений (див. nextTimelineTarget, чому не
   // «перший невідкритий» в обох режимах).
-  const nextIdx = nextTimelineTarget(steps.length, everOpened, highlightIdx);
+  const nextIdx = readOnly || !tapHint ? -1 : nextTimelineTarget(steps.length, everOpened, highlightIdx);
+  // Методичка: усі кроки розкриті, заголовки не клікаються.
+  const isOpen = (i) => readOnly || openSet.has(i);
 
   function toggle(i) {
+    if (readOnly) return;
     const opening = !openSet.has(i);
     setOpenSet((prev) => {
       const next = new Set(prev);
@@ -430,7 +490,7 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
         {steps.map((step, i) => (
           <div
             key={i}
-            className={`tl-item${openSet.has(i) ? " open" : ""}${everOpened.has(i) ? " seen" : ""}${
+            className={`tl-item${isOpen(i) ? " open" : ""}${readOnly || everOpened.has(i) ? " seen" : ""}${
               highlightIdx === i ? " current" : ""
             }`}
           >
@@ -444,15 +504,21 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
               {i < steps.length - 1 && <span className="tl-line" />}
             </div>
             <div className="tl-body">
-              <button
-                type="button"
-                className={`tl-head${i === nextIdx ? " tap-next" : ""}`}
-                onClick={() => toggle(i)}
-                aria-expanded={openSet.has(i)}
-              >
-                <span className="tl-title">{step.title || `Крок ${i + 1}`}</span>
-              </button>
-              {openSet.has(i) && step.detail && <div className="tl-detail">{step.detail}</div>}
+              {readOnly ? (
+                <div className="tl-head tl-head--static">
+                  <span className="tl-title">{step.title || `Крок ${i + 1}`}</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={`tl-head${i === nextIdx ? " tap-next" : ""}`}
+                  onClick={() => toggle(i)}
+                  aria-expanded={openSet.has(i)}
+                >
+                  <span className="tl-title">{step.title || `Крок ${i + 1}`}</span>
+                </button>
+              )}
+              {isOpen(i) && step.detail && <div className="tl-detail">{step.detail}</div>}
             </div>
           </div>
         ))}
