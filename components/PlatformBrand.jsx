@@ -27,6 +27,18 @@ import { PLATFORM_SHORT_NAME, PLATFORM_ABBREVIATION_EXPANSION, PLATFORM_HOP_LOGO
  * `stacked` — лого над текстом, по центру (3 рядки: лого / "CarLS" /
  * розшифровка), замість звичного рядка "лого ліворуч, текст праворуч".
  * Поки що лише для "xl" (реєстрація) — за проханням користувача.
+ *
+ * `unoptimized`: іконка трилистка зникала на екрані входу (реальний баг,
+ * знайдений користувачем) — `<img>` зависав на запиті до `/_next/image`
+ * НАЗАВЖДИ (не помилка, не 404 — просто ніколи не завершувався; прямий
+ * curl на той самий URL відповідав миттєво, тобто це саме
+ * рантайм-оптимізація/перекодування зображення в dev-режимі зависало,
+ * а не сам файл чи мережа). Це вже готові PNG (public/assets/brand/
+ * README.md — растеризовані вручну з офіційних .emf, прозорий фон,
+ * antialiasing), не фото з телефону, яке треба стискати й підбирати
+ * формат під кожен viewport — Next-оптимізація тут ніколи не давала
+ * реальної користі, тільки нестабільний зайвий крок. `unoptimized`
+ * віддає файл із /public напряму, як звичайний <img>.
  */
 const LOGO_ASPECT = 1482 / 1379;
 const LOGO_HEIGHT = { xl: 64, lg: 38, sm: 30 };
@@ -36,7 +48,15 @@ export function PlatformBrand({ size = "sm", stacked = false }) {
   const width = Math.round(height * LOGO_ASPECT);
   return (
     <div className={`platform-brand platform-brand-${size}${stacked ? " platform-brand-stacked" : ""}`}>
-      <Image src={PLATFORM_HOP_LOGO_PATH} alt="" width={width} height={height} className="platform-brand-logo" />
+      <Image
+        src={PLATFORM_HOP_LOGO_PATH}
+        alt=""
+        width={width}
+        height={height}
+        className="platform-brand-logo"
+        priority={size === "xl"}
+        unoptimized
+      />
       <span className="platform-brand-text">
         <span className="platform-brand-name">{PLATFORM_SHORT_NAME}</span>
         <span className="platform-brand-full">{PLATFORM_ABBREVIATION_EXPANSION}</span>
