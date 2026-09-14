@@ -1172,4 +1172,119 @@
     flex: 0 0 auto;
     min-width: 160px;
   }
+
+  /* ---- Info: фото й текст поруч, не одне над одним ----
+     .cp-info-media/.cp-info-text — обгортки, додані в CoursePlayer.jsx
+     InfoScreen САМЕ під цей reflow (на мобільному вони нічим не
+     відрізняються від звичайних сусідніх блоків, там нема .course-card
+     з container-type у грі). Якщо фото нема — .cp-info-media відсутня
+     в DOM, .cp-info-text сама займає всю колонку (grid з одним треком
+     працює як звичайний блок). */
+  .cp-info-media {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .cp-info-media:has(+ .cp-info-text) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .cp-info-media:has(+ .cp-info-text) > .cp-info-text {
+    grid-column: 2;
+  }
+
+  /* ---- Accordion / Checklist: сітка 2 колонки, не вертикальний стек —
+     обидва мають однакову плоску структуру (.acc-list > .acc-item,
+     .check-list > .check-item), тож жодних змін JSX не треба.
+     align-items:start — інакше розкрита картка в одному ряду розтягує
+     сусідню на ту саму висоту (grid-дефолт stretch), лишаючи в ній
+     порожній простір знизу. */
+  .acc-list,
+  .check-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+
+  /* ---- Script/діалог: репліки лишаються вертикальним чатом (це
+     природний UX для дзвінка), лише обмежені по ширині — інакше "Так,
+     звісно" розтягується на всю 960px-колонку. */
+  .script-wrap {
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .bubble {
+    max-width: 88%;
+  }
+
+  /* ---- Timeline: горизontальний ланцюжок кроків замість вертикальної
+     стрічки — саме це й читається як "таймлайн" на широкому екрані.
+     Конектор між кроками — не .tl-line (той лишається для мобільної
+     вертикальної версії), а ::after на самому .tl-item: пів-лінія від
+     центру кружечка ЦЬОГО кроку до центру кружечка НАСТУПНОГО (в один
+     прохід, без подвійного малювання з обох боків). */
+  .timeline {
+    flex-direction: row;
+    align-items: flex-start;
+    overflow-x: auto;
+    gap: 4px;
+  }
+  .tl-item {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 150px;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    /* 14px = радіус .tl-num (28px/2) — конектор нижче малюється рівно на
+       висоті центру кружечка. */
+    padding-top: 14px;
+  }
+  .tl-item:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background: var(--line);
+  }
+  .tl-item.seen:not(:last-child)::after {
+    background: var(--cb-secondary);
+  }
+  .tl-rail {
+    flex-direction: row;
+    padding-top: 0;
+  }
+  /* Вертикальна сполучна лінія — замінена на ::after вище. */
+  .tl-line {
+    display: none;
+  }
+  .tl-body {
+    width: 100%;
+    text-align: center;
+  }
+  .tl-head {
+    justify-content: center;
+  }
+  .tl-detail {
+    text-align: left;
+  }
+
+  /* ---- Photo (окреме фото): обмежена ширина — вертикальне фото на всю
+     960px-колонку виглядає розтягнутим по горизонталі непропорційно. */
+  .photo-frame {
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* ---- Input: поле форми обмежене шириною — на всю 960px-колонку
+     виглядало б як зламана верстка, не як компактне поле вводу. */
+  .cp-input-field {
+    max-width: 480px;
+  }
 }

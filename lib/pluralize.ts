@@ -3,7 +3,7 @@
  * Було продубльовано локально в components/AdminCourseEditor.jsx —
  * винесено сюди як єдине джерело, щоб CourseTile міг використати ту саму
  * логіку для картки курсу в хабі. */
-export function pluralize(n, one, few, many) {
+export function pluralize(n: number, one: string, few: string, many: string): string {
   const mod10 = n % 10;
   const mod100 = n % 100;
   const word = mod10 === 1 && mod100 !== 11 ? one : mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20) ? few : many;

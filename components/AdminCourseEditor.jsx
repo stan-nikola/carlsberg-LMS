@@ -920,14 +920,19 @@ function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, 
           за проханням користувача, без зайвого напису над ним. */}
       {isLaptop ? (
         // Ноутбук ніколи не докується інлайн (саме це "не вміщалось
-        // нормально") — тут лише запрошення відкрити повноекранну модалку.
-        <div className="admin-laptop-preview-placeholder">
+        // нормально") — сама колонка тепер лише 10% ширини
+        // (.admin-editor-grid.is-laptop-preview), тож замість цілого
+        // плейсхолдера з іконкою й абзацом тексту — компактна кнопка,
+        // яка й так туди не влізла б.
+        <button
+          type="button"
+          className="iconbtn admin-laptop-preview-btn"
+          onClick={() => setModalOpen(true)}
+          title="Відкрити прев'ю ноутбука на весь екран"
+          aria-label="Відкрити прев'ю ноутбука на весь екран"
+        >
           <LaptopDeviceIcon />
-          <p>Прев&apos;ю ноутбука відкривається на весь екран — там достатньо місця під широкий макет.</p>
-          <button type="button" className="admin-btn" onClick={() => setModalOpen(true)}>
-            Відкрити прев&apos;ю
-          </button>
-        </div>
+        </button>
       ) : (
         <>
           <DeviceMockup device="phone" {...previewProps} />
@@ -1591,7 +1596,12 @@ export function AdminCourseEditor({ courseId }) {
         </div>
       </div>
 
-      <div className="admin-editor-grid">
+      {/* is-laptop-preview — коли курс узгоджено на "Ноутбук", докнута
+          колонка справа не показує сам мокап (він однаково відкривається
+          лише в модалці, .admin-laptop-preview-placeholder) — тож їй не
+          треба 30% ширини заради самої кнопки "Відкрити прев'ю", і
+          редактор отримує решту простору назад. */}
+      <div className={`admin-editor-grid${course.previewDevice === "laptop" ? " is-laptop-preview" : ""}`}>
         <div className="admin-editor-edit">
           {course.modules.map((courseModule, moduleIndex) => {
             const isModuleExpanded = expandedModuleId === courseModule.id;

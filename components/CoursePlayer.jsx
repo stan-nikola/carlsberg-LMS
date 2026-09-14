@@ -89,6 +89,60 @@ export function ComponentScreen({ component, screenNumber, onGateProgress, onZoo
 // той самий рендер, що бачить співробітник у плеєрі, не окрема копія розмітки.
 export function InfoScreen({ component, screenNumber, onZoomImage }) {
   const { kicker, lead, body, images, note } = component.content || {};
+  // Без картинок з URL — не пустий масив, а взагалі відсутність .cp-info-media
+  // в DOM (щоб CSS-селектор :has(+ .cp-info-text) у @container-reflow,
+  // course-player.css, коректно бачив "нема сусіда зліва" і не ділив
+  // порожню колонку навпіл).
+  const validImages = images?.filter((img) => img.url) || []; // без фільтра
+  // next/image кидає варнінг на порожній src — трапляється, коли в /admin
+  // додали слот під фото, але ще не встигли завантажити файл/вписати URL.
+  const hasMedia = validImages.length > 0;
+  const zoomable = typeof onZoomImage === "function";
+
+  const mediaNode = hasMedia && (
+    <div className="cp-info-media">
+      {validImages.map((img, i) => {
+        const alt = img.caption || component.title || "";
+        // Фото клікабельне лише там, де плеєр дав куди його відкрити
+        // (onZoomImage) — у статичних контекстах лишається звичайним.
+        return (
+          <div
+            className={`photo-frame${zoomable ? " zoomable" : ""}`}
+            key={i}
+            role={zoomable ? "button" : undefined}
+            tabIndex={zoomable ? 0 : undefined}
+            onClick={zoomable ? () => onZoomImage({ src: img.url, alt }) : undefined}
+            onKeyDown={
+              zoomable
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onZoomImage({ src: img.url, alt });
+                    }
+                  }
+                : undefined
+            }
+          >
+            <Image src={img.url} alt={alt} width={800} height={500} style={{ width: "100%", height: "auto" }} />
+            {zoomable && (
+              <span className="zoom-badge" aria-hidden="true">
+                <ZoomIcon />
+              </span>
+            )}
+            {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const textNode = (body || note) && (
+    <div className="cp-info-text">
+      {body && <div className="cp-body">{renderRichText(body)}</div>}
+      {note && <NoteAccordion note={note} />}
+    </div>
+  );
+
   return (
     <>
       {kicker && (
@@ -99,45 +153,8 @@ export function InfoScreen({ component, screenNumber, onZoomImage }) {
       )}
       {component.title && <h2 className="cp-h2">{component.title}</h2>}
       {lead && <p className="cp-lead">{lead}</p>}
-      {images
-        ?.filter((img) => img.url) // без цього next/image кидає варнінг на
-        // порожній src — трапляється, коли в /admin додали слот під фото,
-        // але ще не встигли завантажити файл або вписати URL.
-        .map((img, i) => {
-          const alt = img.caption || component.title || "";
-          // Фото клікабельне лише там, де плеєр дав куди його відкрити
-          // (onZoomImage) — у статичних контекстах лишається звичайним.
-          const zoomable = typeof onZoomImage === "function";
-          return (
-            <div
-              className={`photo-frame${zoomable ? " zoomable" : ""}`}
-              key={i}
-              role={zoomable ? "button" : undefined}
-              tabIndex={zoomable ? 0 : undefined}
-              onClick={zoomable ? () => onZoomImage({ src: img.url, alt }) : undefined}
-              onKeyDown={
-                zoomable
-                  ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        onZoomImage({ src: img.url, alt });
-                      }
-                    }
-                  : undefined
-              }
-            >
-              <Image src={img.url} alt={alt} width={800} height={500} style={{ width: "100%", height: "auto" }} />
-              {zoomable && (
-                <span className="zoom-badge" aria-hidden="true">
-                  <ZoomIcon />
-                </span>
-              )}
-              {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
-            </div>
-          );
-        })}
-      {body && <div className="cp-body">{renderRichText(body)}</div>}
-      {note && <NoteAccordion note={note} />}
+      {mediaNode}
+      {textNode}
     </>
   );
 }
