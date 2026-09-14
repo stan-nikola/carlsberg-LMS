@@ -278,6 +278,18 @@ export function RootIcon() {
   );
 }
 
+/** База даних (циліндр) — пункт сайдбару /admin "Дані": імпорт, експорт,
+ * жива Excel-книга (components/AdminDataPage.tsx). */
+export function DataIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5" rx="8" ry="3" />
+      <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
+      <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+    </svg>
+  );
+}
+
 /** Стрілка "назад" — підйом на рівень вище в каталозі курсів /admin
  * (components/AdminDashboard.jsx). Саме стрілка вліво, а не шеврон:
  * шеврон у цьому проєкті всюди означає "розгорнути/згорнути"
