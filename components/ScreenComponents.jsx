@@ -682,13 +682,13 @@ export function ConfettiBurst({ pieces = 40 }) {
   // платформи (маска з PNG у course-player.css, .cp-confetti-piece), колір
   // випадковий з фірмової палітри, оберт — випадковий кут 180–540°, повільно
   // й плавно разом із падінням (одна анімація, той самий easing). База
-  // падіння 4.1s — підібрана користувачем на стенді.
+  // падіння 3.3s — підібрана користувачем на стенді (2026-09-15, друга ітерація після 4.1s).
   const [items] = useState(() =>
     Array.from({ length: pieces }, () => ({
       left: Math.random() * 100,
       color: TREFOIL_CONFETTI_COLORS[Math.floor(Math.random() * TREFOIL_CONFETTI_COLORS.length)],
       delay: Math.random() * 900,
-      duration: 4100 + Math.random() * 1800,
+      duration: 3300 + Math.random() * 1800,
       drift: Math.random() * 80 - 40,
       spin: Math.round((Math.random() < 0.5 ? -1 : 1) * (180 + Math.random() * 360)),
       size: 10 + Math.random() * 8,
