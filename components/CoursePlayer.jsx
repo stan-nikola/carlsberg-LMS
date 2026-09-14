@@ -13,6 +13,7 @@ import {
   PhotoScreen,
   InputScreen,
   ImageLightbox,
+  ScreenMedia,
   StreakToast,
 } from "@/components/ScreenComponents";
 import { isGateSatisfied, gateTotal, gateHint } from "@/lib/componentTypes";
@@ -66,7 +67,10 @@ function clearProgress(slug) {
  * побачить співробітник.
  */
 export function ComponentScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
-  const common = { component, screenNumber, onGateProgress };
+  // onZoomImage тепер потрібен КОЖНОМУ типу, а не лише photo/info: фото
+  // можна додати до будь-якого компонента, і збільшувати його по кліку
+  // має скрізь однаково.
+  const common = { component, screenNumber, onGateProgress, onZoomImage };
   switch (component.type) {
     case "accordion":
       return <AccordionScreen {...common} />;
@@ -186,7 +190,7 @@ function NoteAccordion({ note }) {
   );
 }
 
-export function QuizScreen({ component, screenNumber, answer, onAnswer }) {
+export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomImage }) {
   const { questionType, options } = component.content;
   const [selected, setSelected] = useState([]);
   const isAnswered = answer !== undefined;
@@ -228,6 +232,9 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer }) {
         <span>Питання</span>
       </div>
       <h2 className="cp-h2">{component.title}</h2>
+      {/* Фото між питанням і варіантами — питання може спиратись саме на
+          зображення ("що не так на цій викладці?"). */}
+      <ScreenMedia images={component.content?.images} title={component.title} onZoomImage={onZoomImage} />
 
       <div className="opt-group">
         {options.map((opt, index) => (
@@ -278,6 +285,7 @@ function ScreenComponentBlock({ component, screenNumber, answers, onQuizAnswer, 
           screenNumber={screenNumber}
           answer={answers[component.id]}
           onAnswer={(isCorrect) => onQuizAnswer(component.id, isCorrect)}
+          onZoomImage={onZoomImage}
         />
       ) : (
         <ComponentScreen

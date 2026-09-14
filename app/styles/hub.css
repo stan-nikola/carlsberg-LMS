@@ -233,15 +233,61 @@
    плеєр, тепер клік по ній розгортає акордеон МОДУЛІВ цього курсу (курс —
    контейнер модулів, не пласкій пункт списку); вхід у сам плеєр — окрема
    дія, .ct-enter-link нижче. */
+/* Шапка картки — вертикальний СТОС, а не дві колонки: теги верхнім
+   рівнем, під ними сертифікат, і вже під ними назва курсу, кількість
+   модулів та опис на всю ширину картки.
+   Двоколонкова шапка (теги праворуч від назви) тут була і не вижила:
+   права колонка забирала до 45% ширини, і в картці сітки на опис
+   лишалось ~90px — текст ішов по одному слову в рядок. Стос поводиться
+   однаково на будь-якій ширині, тому й @container-перемикача тут більше
+   немає: нема чого перемикати.
+   Окремий <div>, а не сам <button>: кнопку сертифіката не можна вкласти
+   в кнопку-акордеон (див. коментар у CourseTile.jsx). */
+.ct-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ct-head-aside {
+  display: flex;
+  flex-direction: column;
+  /* Теги лишаються у верхньому правому куті, де вони в цій картці були
+     завжди — просто більше не тиснуть назву й опис. */
+  align-items: flex-end;
+  gap: 8px;
+}
+/* Підсумок пройденого курсу + сертифікат одним рядом: результат і дата
+   ліворуч, кнопка завантаження праворуч, усе на одному рівні. */
+.ct-done-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.ct-done-main {
+  min-width: 0;
+}
+.ct-cert-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
 .ct-toggle {
   display: flex;
   width: 100%;
+  min-width: 0;
   gap: 12px;
   align-items: flex-start;
   background: none;
   border: none;
   padding: 0;
-  margin: 0 0 10px;
+  /* Нижній відступ тепер на .ct-head — сам заголовок його не несе,
+     інакше під шапкою подвійна щілина. */
+  margin: 0;
   font: inherit;
   color: inherit;
   text-align: left;
@@ -264,8 +310,10 @@
 .ct-tags {
   display: flex;
   flex-wrap: wrap;
+  /* Праворуч: теги живуть у правій колонці шапки, і перенесений тег має
+     ставати під попереднім по правому краю, а не по лівому. */
+  justify-content: flex-end;
   gap: 4px;
-  margin-left: auto;
   flex-shrink: 0;
 }
 .ct-tag {
@@ -515,24 +563,16 @@
   margin: 0;
   vertical-align: baseline;
 }
-/* Рядок з двома прямокутниками, коли курс повністю пройдено: основна
-   кнопка "Переглянути курс" (гнучка ширина) + квадратна кнопка
-   сертифіката праворуч (фіксована, як сама висота ряду). */
-.ct-cta-row {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-}
-.ct-enter-link--flex {
-  flex: 1;
-  min-width: 0;
-}
+/* Квадрат сертифіката. Раніше стояв у нижньому ряду поруч із кнопкою
+   входу й тягнув висоту від неї (align-items:stretch) — тепер живе в
+   шапці під тегами, тому має власну висоту. */
 .ct-cert-square {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 44px;
+  width: 38px;
+  height: 38px;
   background: var(--gold-soft);
   color: color-mix(in srgb, var(--gold) 55%, var(--cb-black));
   text-decoration: none;

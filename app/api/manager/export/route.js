@@ -17,8 +17,10 @@ import {
 } from "@/lib/excelReport";
 
 // GET /api/manager/export — повний Excel-звіт по видимій команді керівника.
-// "Зведення" (перша вкладка) — підсумкові числа команди + наочні data-bar
-// смуги виконання по курсу (сама бібліотека exceljs НЕ вміє записувати
+// "Зведення" (перша вкладка) — дзеркало дашборда /manager: підсумкові
+// числа команди, складання по курсу, горизонт дедлайнів, розподіл балів,
+// складання з першої спроби й найскладніші модулі — усе наочними data-bar
+// смугами (сама бібліотека exceljs НЕ вміє записувати
 // справжні вбудовані діаграми Excel — це задокументоване обмеження, не
 // недогляд; data-bar умовне форматування — найближчий реальний
 // візуальний еквівалент, який Excel відображає нативно). "Рекомендації"
@@ -124,6 +126,101 @@ export async function GET() {
           ],
           color: { argb: "FF4B87C5" },
           priority: 2,
+        },
+      ],
+    });
+  }
+
+  // Блоки, що дзеркалять діаграми дашборда (lib/managerDashboard.js
+  // bucketDeadlineHorizon / bucketScores / computeFirstAttempt /
+  // rankHardestModules). Рахуються там само, що й на екрані — Excel не
+  // має бути "іншою правдою" з власною арифметикою; сюди приходять уже
+  // готові масиви з тими самими підписами.
+  let barPriority = 3;
+  const addCountBlock = (title, valueHeader, rows, barColor) => {
+    if (rows.length === 0) return;
+    summaryWs.addRow([]);
+    const headerRow = summaryWs.addRow([title, valueHeader]);
+    styleHeaderRow(headerRow);
+    const firstDataRow = headerRow.number + 1;
+    rows.forEach((r) => summaryWs.addRow([r.label, r.count]));
+    const lastDataRow = firstDataRow + rows.length - 1;
+    addBorders(summaryWs, firstDataRow, lastDataRow, 2);
+    // Максимум смуги — найбільша корзина, а не 100: тут абсолютні
+    // кількості, а не відсотки, і шкала 0-100 зробила б усі смуги
+    // однаково куцими на невеликій команді.
+    summaryWs.addConditionalFormatting({
+      ref: `B${firstDataRow}:B${lastDataRow}`,
+      rules: [
+        {
+          type: "dataBar",
+          cfvo: [
+            { type: "num", value: 0 },
+            { type: "num", value: Math.max(1, ...rows.map((r) => r.count)) },
+          ],
+          color: { argb: barColor },
+          priority: barPriority++,
+        },
+      ],
+    });
+  };
+
+  // Синій (нейтральний), а не червоний: у горизонті дедлайнів довга смуга
+  // сама по собі не погана — "понад 30 днів" це нормальний запас.
+  addCountBlock("Дедлайни на горизонті", "Незавершених призначень", stats.deadlineHorizon, "FF4B87C5");
+  addCountBlock("Розподіл балів", "Завершених курсів", stats.scoreDistribution, "FF17B169");
+  addCountBlock("Час на проходження", "Спроб", stats.durations.buckets, "FF4B87C5");
+  if (stats.durations.medianSeconds != null) {
+    // Медіана окремим рядком під розподілом — те саме, що підпис під
+    // діаграмою на дашборді. Середнє свідомо не пишемо: одна забута
+    // вкладка на кілька годин робить його неінформативним.
+    summaryWs.addRow([
+      "Медіана часу, хв",
+      Math.round(stats.durations.medianSeconds / 60),
+      stats.durations.medianActiveSeconds != null
+        ? `у фокусі ${Math.round(stats.durations.medianActiveSeconds / 60)} хв`
+        : "",
+    ]);
+  }
+
+  if (stats.firstAttempt.total > 0) {
+    summaryWs.addRow([]);
+    const firstTryHeaderRow = summaryWs.addRow(["З першої спроби", "Значення"]);
+    styleHeaderRow(firstTryHeaderRow);
+    const firstTryFirstRow = firstTryHeaderRow.number + 1;
+    summaryWs.addRow(["Складено з першої спроби, %", stats.firstAttempt.pct]);
+    summaryWs.addRow(["Склали одразу", stats.firstAttempt.passedFirst]);
+    summaryWs.addRow(["З другої спроби та далі", stats.firstAttempt.retried]);
+    addBorders(summaryWs, firstTryFirstRow, firstTryFirstRow + 2, 2);
+  }
+
+  // Найскладніші модулі — те саме, що однойменний блок на дашборді.
+  // Перетинається з "Системними темами" на вкладці "Рекомендації", але не
+  // дублює її: там — лише теми, де провалилось 2+ людини, і без
+  // знаменника; тут — повний рейтинг із "скільки з скількох".
+  if (stats.hardestModules.length > 0) {
+    summaryWs.addRow([]);
+    const hardHeaderRow = summaryWs.addRow(["Найскладніший модуль", "% провалу", "Курс", "Провалило / проходило"]);
+    styleHeaderRow(hardHeaderRow);
+    const hardFirstDataRow = hardHeaderRow.number + 1;
+    stats.hardestModules.forEach((m) => {
+      summaryWs.addRow([m.title, m.pct, m.course || "", `${m.failed}/${m.total}`]);
+    });
+    const hardLastDataRow = hardFirstDataRow + stats.hardestModules.length - 1;
+    addBorders(summaryWs, hardFirstDataRow, hardLastDataRow, 4);
+    // Червоний — тут довга смуга однозначно погана (на відміну від
+    // горизонту дедлайнів вище).
+    summaryWs.addConditionalFormatting({
+      ref: `B${hardFirstDataRow}:B${hardLastDataRow}`,
+      rules: [
+        {
+          type: "dataBar",
+          cfvo: [
+            { type: "num", value: 0 },
+            { type: "num", value: 100 },
+          ],
+          color: { argb: "FFD64545" },
+          priority: barPriority++,
         },
       ],
     });

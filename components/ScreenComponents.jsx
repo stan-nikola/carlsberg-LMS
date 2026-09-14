@@ -31,10 +31,56 @@ function Kicker({ screenNumber, text }) {
   );
 }
 
+/**
+ * Фото компонента — спільний блок для ВСІХ типів екрана, не лише для
+ * "фото". Фото стоїть одразу після вступного рядка й перед власним
+ * вмістом типу: у тому самому місці, де воно в конструкторі, щоб автор
+ * бачив той самий порядок, який редагує.
+ *
+ * Нічого не рендерить, якщо жодне фото ще не має url — слот у
+ * конструкторі створюють раніше, ніж встигає завантажитись файл, а
+ * next/image на порожньому src кидає варнінг.
+ */
+export function ScreenMedia({ images, title, onZoomImage }) {
+  const valid = (images || []).filter((img) => img.url);
+  if (valid.length === 0) return null;
+  const zoomable = typeof onZoomImage === "function";
+
+  return (
+    <div className="cp-screen-media">
+      {valid.map((img, i) => {
+        const alt = img.caption || title || "";
+        return (
+          <div
+            className={`photo-frame${zoomable ? " zoomable" : ""}`}
+            key={i}
+            role={zoomable ? "button" : undefined}
+            tabIndex={zoomable ? 0 : undefined}
+            onClick={zoomable ? () => onZoomImage({ src: img.url, alt }) : undefined}
+            onKeyDown={
+              zoomable
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onZoomImage({ src: img.url, alt });
+                    }
+                  }
+                : undefined
+            }
+          >
+            <Image src={img.url} alt={alt} width={800} height={500} style={{ width: "100%", height: "auto" }} />
+            {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ===================== ACCORDION ===================== */
 
-export function AccordionScreen({ component, screenNumber, onGateProgress }) {
-  const { kicker, lead, items = [] } = component.content || {};
+export function AccordionScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
+  const { kicker, lead, images = [], items = [] } = component.content || {};
   const [openIdx, setOpenIdx] = useState(null);
   // "Колись відкриті" — гейт зараховує сам факт відкриття, а не те, що
   // картка лишилась розгорнутою (як .ever-open у legacy).
@@ -54,6 +100,7 @@ export function AccordionScreen({ component, screenNumber, onGateProgress }) {
       <Kicker screenNumber={screenNumber} text={kicker} />
       {component.title && <h2 className="cp-h2">{component.title}</h2>}
       {lead && <p className="cp-lead">{lead}</p>}
+      <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="acc-list">
         {items.map((item, i) => (
           <div key={i} className={`acc-item${openIdx === i ? " open" : ""}${everOpened.has(i) ? " seen" : ""}`}>
@@ -73,8 +120,8 @@ export function AccordionScreen({ component, screenNumber, onGateProgress }) {
 
 /* ===================== CHECKLIST ===================== */
 
-export function ChecklistScreen({ component, screenNumber, onGateProgress }) {
-  const { kicker, lead, items = [] } = component.content || {};
+export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
+  const { kicker, lead, images = [], items = [] } = component.content || {};
   const [checked, setChecked] = useState(() => new Set());
 
   useEffect(() => {
@@ -95,6 +142,7 @@ export function ChecklistScreen({ component, screenNumber, onGateProgress }) {
       <Kicker screenNumber={screenNumber} text={kicker} />
       {component.title && <h2 className="cp-h2">{component.title}</h2>}
       {lead && <p className="cp-lead">{lead}</p>}
+      <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="check-list">
         {items.map((item, i) => (
           <button
@@ -117,10 +165,20 @@ export function ChecklistScreen({ component, screenNumber, onGateProgress }) {
 
 /* ===================== SCRIPT (діалог дзвінка) ===================== */
 
-const BUBBLE_LABELS = { me: "Ви кажете", client: "Клієнт", tip: "Порада", note: "" };
+// Підпис за замовчуванням для ролі. Перебивається власним b.label із
+// конструктора (для співрозмовника, якого немає в списку ролей).
+// "note" навмисно без підпису — це ремарка, а не чиясь репліка.
+const BUBBLE_LABELS = {
+  me: "Ви кажете",
+  client: "Клієнт",
+  manager: "Керівник",
+  colleague: "Колега",
+  tip: "Порада",
+  note: "",
+};
 
-export function ScriptScreen({ component, screenNumber, onGateProgress }) {
-  const { kicker, lead, callLabel, bubbles = [] } = component.content || {};
+export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
+  const { kicker, lead, images = [], callLabel, bubbles = [] } = component.content || {};
   const [revealed, setRevealed] = useState(0);
   const [typing, setTyping] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -165,6 +223,7 @@ export function ScriptScreen({ component, screenNumber, onGateProgress }) {
       <Kicker screenNumber={screenNumber} text={kicker} />
       {component.title && <h2 className="cp-h2">{component.title}</h2>}
       {lead && <p className="cp-lead">{lead}</p>}
+      <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
 
       <div className="script-wrap">
         <div className="call-bar">
@@ -213,8 +272,8 @@ export function ScriptScreen({ component, screenNumber, onGateProgress }) {
 
 /* ===================== TIMELINE (кроки візиту / recap) ===================== */
 
-export function TimelineScreen({ component, screenNumber, onGateProgress }) {
-  const { kicker, lead, steps = [], highlight } = component.content || {};
+export function TimelineScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
+  const { kicker, lead, images = [], steps = [], highlight } = component.content || {};
   // Набір відкритих індексів (не один) — раніше відкриття нового кроку
   // автоматично згортало попередній (одна змінна openIdx), і людина, що
   // гортає вниз по списку, бачила, як щойно прочитане ховається саме
@@ -247,6 +306,7 @@ export function TimelineScreen({ component, screenNumber, onGateProgress }) {
       <Kicker screenNumber={screenNumber} text={kicker} />
       {component.title && <h2 className="cp-h2">{component.title}</h2>}
       {lead && <p className="cp-lead">{lead}</p>}
+      <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="timeline">
         {steps.map((step, i) => (
           <div

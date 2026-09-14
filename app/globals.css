@@ -532,6 +532,113 @@ html:has(.adm-shell) {
   display: inline-block;
 }
 
+/* ---- Підказка по ховеру (components/HintDot.jsx) — спільний паттерн
+   для пояснень, які потрібні лише тому, хто спитав: що саме рахує
+   діаграма, що робить неочевидна кнопка. Текст приходить у data-hint і
+   малюється через ::after; ширина блоку обмежена, переноситься нормально.
+   Відкривається і по :focus-visible, не лише по ховеру — інакше з
+   клавіатури підказка недосяжна. */
+.hint-dot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--ink-soft);
+  cursor: help;
+}
+.hint-dot svg {
+  width: 15px;
+  height: 15px;
+}
+.hint-dot::after {
+  content: attr(data-hint);
+  position: absolute;
+  top: calc(100% + 8px);
+  z-index: 5;
+  width: max-content;
+  max-width: min(300px, 70vw);
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--cb-black);
+  color: var(--cb-white);
+  box-shadow: var(--shadow-lg);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: normal;
+  text-align: left;
+  letter-spacing: normal;
+  text-transform: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    visibility var(--dur-fast) var(--ease-out);
+  pointer-events: none;
+}
+/* Блок притискається до того краю, біля якого стоїть сама іконка —
+   інакше він вилазить за межі картки з протилежного боку. */
+.hint-dot-end::after {
+  right: 0;
+}
+.hint-dot-start::after {
+  left: 0;
+}
+.hint-dot:hover::after,
+.hint-dot:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.hint-dot:focus-visible {
+  outline: 2px solid var(--cb-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hint-dot::after {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ---- Сітка карток (.card-grid) — СПІЛЬНИЙ паттерн для будь-якого
+   набору однотипних карток: курси співробітника, призначення в кабінеті
+   керівника, каталог тощо.
+
+   Три правила, які тут закріплені (кожне з'явилось після реального
+   дефекту, не з естетики):
+
+   1. auto-fit + minmax(min(100%, …), 1fr) — кількість колонок рахує
+      браузер під реальну ширину, без ручних @media. min(100%, …)
+      обов'язковий: без нього на вузькому екрані колонка стає ширшою за
+      сторінку й з'являється горизонтальний скрол.
+   2. grid-auto-rows: 1fr + align-items: stretch — усі картки однакової
+      висоти, ПО НАЙБІЛЬШІЙ, і рядки рівні між собою теж. Картки, кожна
+      по своєму вмісту, дають рваний нижній край, який читається як збій
+      сітки.
+   3. Усередині вузької картки текст ПЕРЕНОСИТЬСЯ, а не їде біжучим
+      рядком. MarqueeText розрахований на широкий одиночний ряд; у сітці
+      він запускається на кожній картці одночасно, і в застиглій фазі
+      назва виглядає обрізаною з початку. Використовуй звичайний перенос
+      + overflow-wrap: anywhere.
+
+   Ширину картки задає --card-min на самому контейнері (дефолт 260px) —
+   не переоголошуй grid-template-columns у кожному місці.
+
+   Якщо в картці є фінальна дія (кнопка/посилання внизу) — зроби саму
+   картку flex-колонкою і притисни дію через margin-top:auto, інакше при
+   вирівняних висотах кнопки стоять на різних рівнях. */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--card-min, 260px)), 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  gap: var(--card-gap, 12px);
+}
+
 /* ---- Біжучий рядок (components/MarqueeText.jsx) — заміна text-overflow:
    ellipsis там, де текст не просто обрізається, а ламає контейнер
    (фіксовані вузькі колонки/пілли на різних ширинах екрана). Клас

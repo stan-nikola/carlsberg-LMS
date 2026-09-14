@@ -596,10 +596,25 @@
   background: var(--cb-primary);
   color: var(--cb-white);
 }
+/* Усі співрозмовники — праворуч, навпроти власних реплік співробітника
+   (.bubble.me ліворуч). Відрізняються заливкою, щоб у діалозі на три
+   голоси було видно, хто саме говорить, не вчитуючись у підпис. */
 .bubble.client {
   align-self: flex-end;
   background: var(--surface-1);
   border: 1px solid var(--line);
+  color: var(--ink);
+}
+.bubble.manager {
+  align-self: flex-end;
+  background: var(--cb-notification-light);
+  border: 1px solid var(--cb-notification);
+  color: var(--ink);
+}
+.bubble.colleague {
+  align-self: flex-end;
+  background: var(--cb-support-40);
+  border: 1px solid var(--cb-support-60);
   color: var(--ink);
 }
 .bubble.tip {
@@ -860,6 +875,18 @@
   font-weight: 700;
   color: var(--cb-primary);
   flex-shrink: 0;
+}
+
+/* Фото всередині будь-якого компонента (components/ScreenComponents.jsx
+   ScreenMedia) — стоїть між вступним рядком і власним вмістом типу.
+   Окремий клас від .cp-info-media: у інфо-блоку своя логіка з
+   @container-перерозкладкою "фото поруч із текстом", а тут фото завжди
+   йде своїм рядом над вмістом. */
+.cp-screen-media {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 /* ---- Зум фото (lightbox) ---- */

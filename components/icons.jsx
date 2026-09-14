@@ -261,6 +261,37 @@ export function InfoIcon() {
   );
 }
 
+/** Корінь каталогу курсів (/admin) — вершина ієрархії: один вузол
+ * угорі, від якого гілки вниз. Навмисно НЕ будиночок (той означає
+ * "головна сторінка", а не "верх дерева папок") і не звичайна папка —
+ * звичайна вже стоїть поруч у самій крихті "📁 /", і два однакові знаки
+ * підряд нічого не розрізняли б. */
+export function RootIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="3" width="6" height="5" rx="1" />
+      <path d="M12 8v3" />
+      <path d="M6 14v-3h12v3" />
+      <rect x="3" y="14" width="6" height="5" rx="1" />
+      <rect x="15" y="14" width="6" height="5" rx="1" />
+    </svg>
+  );
+}
+
+/** Стрілка "назад" — підйом на рівень вище в каталозі курсів /admin
+ * (components/AdminDashboard.jsx). Саме стрілка вліво, а не шеврон:
+ * шеврон у цьому проєкті всюди означає "розгорнути/згорнути"
+ * (.admin-course-row-caret), і плутати два різні жести одним знаком не
+ * варто. */
+export function ArrowBackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 12H5" />
+      <path d="M12 19l-7-7 7-7" />
+    </svg>
+  );
+}
+
 /** Годинник — для "час проходження" (EnrollmentAttempt.durationSeconds) у
  * кабінеті керівника (components/ManagerDashboard.jsx). */
 export function ClockIcon() {

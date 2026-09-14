@@ -7,7 +7,7 @@ import Link from "next/link";
 import { ComponentScreen, QuizScreen } from "@/components/CoursePlayer";
 import { ChevronIcon, GripIcon, SpinnerIcon, XIcon } from "@/components/icons";
 import { pluralize } from "@/lib/pluralize";
-import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, defaultContentForType } from "@/lib/componentTypes";
+import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, RETIRED_COMPONENT_TYPES, defaultContentForType } from "@/lib/componentTypes";
 import { ListRowControls, useListOps } from "@/components/ListEditor";
 
 // Десктопний редактор контенту курсу.
@@ -34,7 +34,11 @@ const emptyContent = {
   quiz: { questionType: "single", options: [] },
 };
 
-function ImagePicker({ image, onChange, onRemove, onUploadingChange }) {
+// Не більше трьох фото на екран: далі вони на телефоні перетворюються на
+// нескінченну стрічку, крізь яку треба гортати до тексту.
+const MAX_IMAGES = 3;
+
+function ImagePicker({ image, index, total, onChange, onMove, onRemove, onUploadingChange }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -102,9 +106,11 @@ function ImagePicker({ image, onChange, onRemove, onUploadingChange }) {
           onChange={(e) => onChange({ ...image, url: e.target.value })}
           className="admin-input-flex admin-input-mono"
         />
-        <button type="button" onClick={onRemove} className="admin-icon-btn" aria-label="Видалити зображення" title="Видалити це зображення">
-          ✕
-        </button>
+        {/* Стрілки + видалення — той самий спільний ListRowControls, що й
+            у решті списків конструктора (варіанти, пункти, кроки). Порядок
+            фото тут — це порядок, у якому їх побачить співробітник, тому
+            переставляти треба прямо тут, а не перезавантажувати файли. */}
+        <ListRowControls index={index} total={total} onMove={onMove} onRemove={() => onRemove(index)} label="зображення" />
       </div>
       <p className="admin-hint">Формати: JPEG, PNG, WebP, GIF · до 8 МБ.</p>
       <input
@@ -131,31 +137,36 @@ function ImageListEditor({ images, onChange, onUploadingChange }) {
     onUploadingChange?.(uploadingIndicesRef.current.size > 0);
   }
 
+  const ops = useListOps(images, onChange);
   function updateImage(index, next) {
     onChange(images.map((img, i) => (i === index ? next : img)));
   }
-  function removeImage(index) {
-    onChange(images.filter((_, i) => i !== index));
-  }
-  function addImage() {
-    onChange([...images, { url: "", caption: "" }]);
-  }
+  const atLimit = images.length >= MAX_IMAGES;
 
   return (
     <div className="admin-field">
-      <label className="admin-label">Зображення</label>
+      <label className="admin-label">
+        Зображення <span className="admin-hint">— до {MAX_IMAGES}, порядок задають стрілки</span>
+      </label>
       {images.map((img, i) => (
         <ImagePicker
           key={i}
           image={img}
+          index={i}
+          total={images.length}
           onChange={(next) => updateImage(i, next)}
-          onRemove={() => removeImage(i)}
+          onMove={ops.move}
+          onRemove={ops.remove}
           onUploadingChange={(isUploading) => reportUploading(i, isUploading)}
         />
       ))}
-      <button type="button" onClick={addImage} className="admin-btn-link" title="Додати ще один слот під фото">
-        + Додати зображення
-      </button>
+      {atLimit ? (
+        <p className="admin-hint">Більше {MAX_IMAGES} фото на один екран не додати — заберіть зайве, щоб додати інше.</p>
+      ) : (
+        <button type="button" onClick={() => ops.add({ url: "", caption: "" })} className="admin-btn-link" title="Додати ще один слот під фото">
+          + Додати зображення
+        </button>
+      )}
     </div>
   );
 }
@@ -199,6 +210,81 @@ function OptionListEditor({ options, onChange }) {
   );
 }
 
+/** Накреслення, доступні кнопками. Синтаксис має збігатись із тим, що
+ *  реально рендерить lib/richText.jsx — інакше автор натисне кнопку, а
+ *  співробітник побачить сирі зірочки. */
+const RICH_MARKS = [
+  { mark: "**", label: "Ж", title: "Жирний", css: { fontWeight: 800 } },
+  { mark: "*", label: "К", title: "Курсив", css: { fontStyle: "italic" } },
+  { mark: "__", label: "П", title: "Підкреслений", css: { textDecoration: "underline" } },
+];
+
+/**
+ * Textarea з кнопками накреслень. Кнопка обгортає ВИДІЛЕНИЙ фрагмент, а
+ * якщо нічого не виділено — вставляє порожню пару знаків і ставить
+ * курсор між ними. Повторне натискання на вже обгорнутому фрагменті
+ * знімає розмітку — інакше єдиним способом прибрати жирний було б
+ * стирати зірочки руками.
+ *
+ * Виділення відновлюється в useEffect по зміні value, а НЕ в
+ * requestAnimationFrame одразу після onChange: rAF не прив'язаний до
+ * коміту React і встигав спрацювати ще на старому значенні — курсор
+ * після цього стрибав у кінець тексту (перевірено на живій сторінці).
+ * Ефект же гарантовано йде після того, як textarea вже перемальована.
+ */
+function RichTextArea({ value, onChange, rows = 5, className = "admin-textarea" }) {
+  const ref = useRef(null);
+  const pendingSelection = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    const sel = pendingSelection.current;
+    if (!el || !sel) return;
+    pendingSelection.current = null;
+    el.focus();
+    el.setSelectionRange(sel[0], sel[1]);
+  }, [value]);
+
+  function applyMark(mark) {
+    const el = ref.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = value.slice(start, end);
+    const wrapped = selected.length > mark.length * 2 && selected.startsWith(mark) && selected.endsWith(mark);
+
+    const inner = wrapped ? selected.slice(mark.length, -mark.length) : selected;
+    const next = wrapped
+      ? value.slice(0, start) + inner + value.slice(end)
+      : value.slice(0, start) + mark + selected + mark + value.slice(end);
+    const selStart = wrapped ? start : start + mark.length;
+    pendingSelection.current = [selStart, selStart + inner.length];
+    onChange(next);
+  }
+
+  return (
+    <>
+      <div className="admin-richtext-toolbar">
+        {RICH_MARKS.map((m) => (
+          <button
+            key={m.mark}
+            type="button"
+            className="admin-richtext-btn"
+            style={m.css}
+            title={`${m.title} — ${m.mark}текст${m.mark}`}
+            aria-label={m.title}
+            onClick={() => applyMark(m.mark)}
+          >
+            {m.label}
+          </button>
+        ))}
+        <span className="admin-hint admin-richtext-hint">порожній рядок = новий абзац</span>
+      </div>
+      <textarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rows={rows} className={className} />
+    </>
+  );
+}
+
 function InfoFields({ content, onChange, onUploadingChange }) {
   const c = { ...emptyContent.info, ...content, images: content.images || [] };
   const set = (field) => (value) => onChange({ ...c, [field]: value });
@@ -213,17 +299,20 @@ function InfoFields({ content, onChange, onUploadingChange }) {
         <label className="admin-label">Вступний рядок (lead)</label>
         <textarea value={c.lead} onChange={(e) => set("lead")(e.target.value)} rows={2} className="admin-textarea" />
       </div>
-      <div className="admin-field">
-        <label className="admin-label">
-          Текст екрану{" "}
-          <span className="admin-hint">
-            — обгорніть слово подвійними зірочками, наприклад **<b>так</b>**, щоб зробити його{" "}
-            <b>жирним</b>; порожній рядок = новий абзац
-          </span>
-        </label>
-        <textarea value={c.body} onChange={(e) => set("body")(e.target.value)} rows={5} className="admin-textarea" />
-      </div>
+      {/* Зображення ПЕРЕД текстом екрану — рівно в тому порядку, в якому
+          блок збирається на самому екрані (components/CoursePlayer.jsx
+          InfoScreen: kicker → title → lead → mediaNode → textNode). Раніше
+          поле фото стояло останнім, і порядок полів у конструкторі не
+          збігався з тим, що автор бачив у прев'ю. */}
       <ImageListEditor images={c.images} onChange={set("images")} onUploadingChange={onUploadingChange} />
+      <div className="admin-field">
+        {/* Підказку про зірочки замінено кнопками: тепер розмітку не
+            треба пам'ятати й набирати руками — виділив і натиснув. Сам
+            синтаксис нікуди не подівся й лишається в title кнопки, бо
+            текст можна правити й напряму. */}
+        <label className="admin-label">Текст екрану</label>
+        <RichTextArea value={c.body} onChange={set("body")} rows={5} />
+      </div>
       <div className="admin-field">
         <label className="admin-label">
           Підказка «Варто знати» <span className="admin-hint">— розгортається по кліку (акордеон), не видима одразу</span>
@@ -234,7 +323,7 @@ function InfoFields({ content, onChange, onUploadingChange }) {
   );
 }
 
-function QuizFields({ content, onChange, radioGroupName }) {
+function QuizFields({ content, onChange, radioGroupName, onUploadingChange }) {
   const c = { ...emptyContent.quiz, ...content, options: content.options || [] };
   const set = (field) => (value) => onChange({ ...c, [field]: value });
 
@@ -253,6 +342,9 @@ function QuizFields({ content, onChange, radioGroupName }) {
           </label>
         </div>
       </div>
+      {/* Фото між питанням і варіантами — питання може спиратись саме
+          на зображення («що не так на цій викладці?»). */}
+      <ImageListEditor images={c.images || []} onChange={set("images")} onUploadingChange={onUploadingChange} />
       <OptionListEditor options={c.options} onChange={set("options")} />
     </>
   );
@@ -265,7 +357,7 @@ function QuizFields({ content, onChange, radioGroupName }) {
    переставити/видалити, плюс необов'язковий текст-підказка гейта. */
 
 /** Спільні поля-шапка (рубрика/вступ) — щоб не дублювати в кожному типі. */
-function ScreenHeaderFields({ c, set }) {
+function ScreenHeaderFields({ c, set, onUploadingChange }) {
   return (
     <>
       <div className="admin-field">
@@ -281,6 +373,11 @@ function ScreenHeaderFields({ c, set }) {
         <label className="admin-label">Вступний рядок (lead)</label>
         <textarea value={c.lead || ""} onChange={(e) => set("lead")(e.target.value)} rows={2} className="admin-textarea" />
       </div>
+      {/* Фото доступне КОЖНОМУ типу компонента, не лише інфо-блоку та
+          "фото". Стоїть одразу після вступного рядка — там само, де в
+          інфо-блоці, і там само, де плеєр його малює: порядок полів у
+          конструкторі збігається з порядком на екрані. */}
+      <ImageListEditor images={c.images || []} onChange={set("images")} onUploadingChange={onUploadingChange} />
     </>
   );
 }
@@ -308,14 +405,14 @@ function GateMsgField({ c, set, placeholder }) {
  * порядок, у якому співробітник побачить елементи, тому переставляти
  * треба прямо в конструкторі, а не перебиванням тексту між полями.
  */
-function AccordionFields({ content, onChange }) {
+function AccordionFields({ content, onChange, onUploadingChange }) {
   const c = { kicker: "", lead: "", gateMsg: "", ...content, items: content.items || [] };
   const set = (field) => (value) => onChange({ ...c, [field]: value });
   const ops = useListOps(c.items, set("items"));
 
   return (
     <>
-      <ScreenHeaderFields c={c} set={set} />
+      <ScreenHeaderFields c={c} set={set} onUploadingChange={onUploadingChange} />
       <div className="admin-field">
         <label className="admin-label">
           Картки <span className="admin-hint">— «Далі» відкриється, коли співробітник розгорне ВСІ</span>
@@ -349,14 +446,14 @@ function AccordionFields({ content, onChange }) {
   );
 }
 
-function ChecklistFields({ content, onChange }) {
+function ChecklistFields({ content, onChange, onUploadingChange }) {
   const c = { kicker: "", lead: "", gateMsg: "", ...content, items: content.items || [] };
   const set = (field) => (value) => onChange({ ...c, [field]: value });
   const ops = useListOps(c.items, set("items"));
 
   return (
     <>
-      <ScreenHeaderFields c={c} set={set} />
+      <ScreenHeaderFields c={c} set={set} onUploadingChange={onUploadingChange} />
       <div className="admin-field">
         <label className="admin-label">
           Пункти чек-листа <span className="admin-hint">— «Далі» відкриється, коли позначено всі</span>
@@ -381,21 +478,27 @@ function ChecklistFields({ content, onChange }) {
   );
 }
 
+// Роль визначає і підпис, і бік/колір бульбашки. "me" — єдина ліворуч
+// (це говорить сам співробітник), решта співрозмовників праворуч.
+// Значення мають збігатися з BUBBLE_LABELS у ScreenComponents.jsx і
+// класами .bubble.* у course-player.css.
 const BUBBLE_ROLES = [
   { value: "me", label: "Ви кажете" },
   { value: "client", label: "Клієнт" },
+  { value: "manager", label: "Керівник" },
+  { value: "colleague", label: "Колега" },
   { value: "tip", label: "Порада" },
   { value: "note", label: "Ремарка" },
 ];
 
-function ScriptFields({ content, onChange }) {
+function ScriptFields({ content, onChange, onUploadingChange }) {
   const c = { kicker: "", lead: "", gateMsg: "", callLabel: "Дзвінок із клієнтом", ...content, bubbles: content.bubbles || [] };
   const set = (field) => (value) => onChange({ ...c, [field]: value });
   const ops = useListOps(c.bubbles, set("bubbles"));
 
   return (
     <>
-      <ScreenHeaderFields c={c} set={set} />
+      <ScreenHeaderFields c={c} set={set} onUploadingChange={onUploadingChange} />
       <div className="admin-field">
         <label className="admin-label">Підпис у шапці дзвінка</label>
         <input value={c.callLabel} onChange={(e) => set("callLabel")(e.target.value)} className="admin-input-flex" />
@@ -414,6 +517,15 @@ function ScriptFields({ content, onChange }) {
                   </option>
                 ))}
               </select>
+              {/* Власний підпис поверх ролі — для співрозмовника, якого
+                  немає в списку ("Бариста", "Закупівельник"). Роль при
+                  цьому лишається: вона задає бік і колір бульбашки. */}
+              <input
+                value={b.label || ""}
+                onChange={(e) => ops.update(i, "label", e.target.value)}
+                placeholder={`підпис — за замовчуванням «${BUBBLE_ROLES.find((r) => r.value === (b.role || "me"))?.label}»`}
+                className="admin-input-flex"
+              />
               <ListRowControls index={i} total={c.bubbles.length} onMove={ops.move} onRemove={ops.remove} label="репліку" />
             </div>
             <textarea
@@ -434,14 +546,14 @@ function ScriptFields({ content, onChange }) {
   );
 }
 
-function TimelineFields({ content, onChange }) {
+function TimelineFields({ content, onChange, onUploadingChange }) {
   const c = { kicker: "", lead: "", gateMsg: "", highlight: null, ...content, steps: content.steps || [] };
   const set = (field) => (value) => onChange({ ...c, [field]: value });
   const ops = useListOps(c.steps, set("steps"));
 
   return (
     <>
-      <ScreenHeaderFields c={c} set={set} />
+      <ScreenHeaderFields c={c} set={set} onUploadingChange={onUploadingChange} />
       <div className="admin-field">
         <label className="admin-label">
           Кроки <span className="admin-hint">— «Далі» відкриється, коли торкнулись кожного</span>
@@ -534,15 +646,15 @@ function InputFields({ content, onChange }) {
 function ComponentTypeFields({ type, content, onChange, componentId, onUploadingChange }) {
   switch (type) {
     case "quiz":
-      return <QuizFields content={content} onChange={onChange} radioGroupName={`qtype-${componentId}`} />;
+      return <QuizFields content={content} onChange={onChange} radioGroupName={`qtype-${componentId}`} onUploadingChange={onUploadingChange} />;
     case "accordion":
-      return <AccordionFields content={content} onChange={onChange} />;
+      return <AccordionFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
     case "checklist":
-      return <ChecklistFields content={content} onChange={onChange} />;
+      return <ChecklistFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
     case "script":
-      return <ScriptFields content={content} onChange={onChange} />;
+      return <ScriptFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
     case "timeline":
-      return <TimelineFields content={content} onChange={onChange} />;
+      return <TimelineFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
     case "photo":
       return <PhotoFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
     case "input":
@@ -554,7 +666,7 @@ function ComponentTypeFields({ type, content, onChange, componentId, onUploading
 
 /** Тільки поля форми правки (без грід-обгортки) — рендериться в лівій
  * колонці спільного admin-editor-grid разом з навігацією по екранах. */
-function ComponentEditForm({ component, onSaved, onDeleted, onDuplicate, onLiveChange }) {
+function ComponentEditForm({ component, onSaved, onDeleted, onDuplicate, onLiveChange, onRegisterSave }) {
   const [title, setTitle] = useState(component.title || "");
   const [type, setType] = useState(component.type);
   const [content, setContent] = useState(component.content);
@@ -585,26 +697,87 @@ function ComponentEditForm({ component, onSaved, onDeleted, onDuplicate, onLiveC
   // Незбережені правки — порівнюємо з тим, що реально лежить на сервері
   // (component-пропс), а не з "чи змінили хоч раз" — так індикатор гасне
   // сам собою, якщо повернути значення до вихідного вручну.
+  // Те саме значення, що реально піде в PATCH — інакше в інфо-екрана з
+  // раніше збереженою назвою індикатор "незбережені зміни" світився б
+  // вічно: поле сховане, змінити його нічим, а порівняння не сходиться.
+  const effectiveTitle = type === "info" ? null : title || null;
   const isDirty =
-    title !== (component.title || "") ||
+    effectiveTitle !== (component.title || null) ||
     type !== component.type ||
     JSON.stringify(content) !== JSON.stringify(component.content);
+
+  // Застарілий тип лишається в списку ЛИШЕ поки він у цього
+  // компонента: обрати його заново, перемкнувшись на інший тип і назад,
+  // уже не можна.
+  const selectableTypes = COMPONENT_TYPES.some((t) => t.value === type)
+    ? COMPONENT_TYPES
+    : [...COMPONENT_TYPES, ...RETIRED_COMPONENT_TYPES.filter((t) => t.value === type)];
+
+  // Збереження відбувається ЛИШЕ при переході на інший компонент/екран
+  // (і по кнопці «Зберегти»). Автозбереження по таймеру тут свідомо
+  // немає: воно слало б PATCH кожні кілька секунд набору тексту — сотні
+  // зайвих записів у базу за одну сесію редагування замість одного.
+  //
+  // saveRef тримає АКТУАЛЬНУ версію handleSave (вона замикає title/type/
+  // content поточного рендера) — інакше батько викликав би збереження зі
+  // станом, яким він був на момент першого рендера. Оновлюємо в ефекті, а
+  // не в тілі компонента (запис у ref під час рендера — помилка
+  // react-hooks/refs); ефект без списку залежностей виконується після
+  // КОЖНОГО рендера, тож у ref завжди свіжа функція.
+  const saveRef = useRef(handleSave);
+  const isDirtyRef = useRef(isDirty);
+  useEffect(() => {
+    saveRef.current = handleSave;
+    isDirtyRef.current = isDirty;
+  });
+
+  // Остання страховка: закриття вкладки чи перехід за посиланням. Рівно
+  // ОДИН запит і лише якщо є що зберігати — це не автозбереження по
+  // таймеру, від якого ми свідомо відмовились. pagehide, а не
+  // beforeunload: той показує браузерний діалог "Покинути сайт?", якого
+  // тут бути не повинно.
+  useEffect(() => {
+    function flushOnLeave() {
+      if (!isDirtyRef.current) return;
+      saveRef.current({ silent: true, keepalive: true });
+    }
+    window.addEventListener("pagehide", flushOnLeave);
+    return () => window.removeEventListener("pagehide", flushOnLeave);
+  }, []);
+
+  // Батько зберігає цей компонент перед переходом на інший — тому йому
+  // потрібен доступ і до самої функції, і до того, чи є що зберігати.
+  useEffect(() => {
+    onRegisterSave?.({ save: () => saveRef.current({ silent: true }), isDirty });
+  }, [onRegisterSave, isDirty]);
 
   function handleTypeChange(newType) {
     setType(newType);
     setContent(defaultContentForType(newType));
   }
 
-  async function handleSave() {
+  /**
+   * @param {{ silent?: boolean }} [opts] silent — виклик не від кнопки, а
+   *   від автозбереження чи переходу на інший компонент. Тоді причини, з
+   *   яких зберігати ще рано (вантажиться фото, у питання немає тексту),
+   *   не показуються помилкою: користувач нічого не натискав, і червоний
+   *   рядок нізвідки лише збивав би з пантелику. Просто пропускаємо —
+   *   наступна спроба станеться сама.
+   */
+  async function handleSave(opts = {}) {
+    const silent = opts.silent === true;
+    // keepalive — щоб запит пережив закриття вкладки: звичайний fetch у
+    // цей момент браузер просто скасовує.
+    const keepalive = opts.keepalive === true;
     // Фото ще вантажиться (в тому ж content.images) — url на цю мить
     // порожній, зберегти зараз означало б записати екран без фото.
     if (imageUploading) {
-      setError("Зачекайте, поки фото завантажиться, і збережіть ще раз.");
-      return;
+      if (!silent) setError("Зачекайте, поки фото завантажиться, і збережіть ще раз.");
+      return false;
     }
     if (type === "quiz" && !title.trim()) {
-      setError("Для питання заголовок (текст питання) обов'язковий.");
-      return;
+      if (!silent) setError("Для питання заголовок (текст питання) обов'язковий.");
+      return false;
     }
     setError("");
     setSaving(true);
@@ -612,12 +785,21 @@ function ComponentEditForm({ component, onSaved, onDeleted, onDuplicate, onLiveC
       const res = await fetch(`/api/admin/components/${component.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title || null, type, content }),
+        // Для інфо-екрана поле сховане, тож і зберігаємо null, а не
+        // старе значення: інакше в навігації зліва лишався б підпис, який
+        // уже нічим не відредагувати й не прибрати.
+        body: JSON.stringify({ title: type === "info" ? null : title || null, type, content }),
+        keepalive,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       onSaved(await res.json());
+      return true;
     } catch (err) {
+      // Помилку показуємо ЗАВЖДИ, навіть при тихому збереженні: мовчки
+      // проковтнути невдалий запис означало б, що людина далі редагує
+      // курс у впевненості, що все збережено.
       setError("Помилка збереження: " + err.message);
+      return false;
     } finally {
       setSaving(false);
     }
@@ -632,19 +814,31 @@ function ComponentEditForm({ component, onSaved, onDeleted, onDuplicate, onLiveC
   return (
     <div className="admin-lesson-card">
       <div className="admin-row">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={type === "quiz" ? "Текст питання" : "Назва (лише для адмінки)"}
-          className="admin-input-flex admin-title-input"
-        />
+        {/* Інфо-екран не має службової назви: у нього вже є рубрика й
+            заголовок, які видно самому співробітнику, і третій підпис
+            "лише для адмінки" дублював їх, нічого не додаючи. В інших
+            типах поле лишається: у quiz це ТЕКСТ ПИТАННЯ (обов'язковий,
+            а не службовий підпис), у решти — єдиний спосіб розрізнити
+            однотипні екрани в навігації зліва. */}
+        {type !== "info" && (
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={type === "quiz" ? "Текст питання" : "Назва (лише для адмінки)"}
+            className="admin-input-flex admin-title-input"
+          />
+        )}
+        {/* Якщо в цього компонента застарілий тип (є в збереженому
+            контенті, але вже не пропонується) — додаємо його в список
+            окремим варіантом. Інакше select не знайшов би свого значення,
+            показав би чужий тип і перезаписав би його при збереженні. */}
         <select
           value={type}
           onChange={(e) => handleTypeChange(e.target.value)}
           className="admin-select"
-          title={COMPONENT_TYPES.find((t) => t.value === type)?.hint}
+          title={selectableTypes.find((t) => t.value === type)?.hint}
         >
-          {COMPONENT_TYPES.map((t) => (
+          {selectableTypes.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
             </option>
@@ -1507,25 +1701,29 @@ export function AdminCourseEditor({ courseId }) {
   );
   const previewScreenIndex = flatScreens.findIndex((f) => f.screen.id === selectedScreen?.id);
 
-  // livePreviewComponent дублює поточний стан форми (ComponentEditForm її
-  // туди прокидає щокрок для живої прев'ю) — порівнюючи його з
-  // selectedComponent (те, що реально збережено на сервері), знаємо, чи є
-  // незбережені правки, не піднімаючи власний dirty-стан із дочірньої
-  // форми окремим пропсом.
-  const isCurrentComponentDirty =
-    selectedComponent &&
-    livePreviewComponent &&
-    livePreviewComponent.id === selectedComponent.id &&
-    (livePreviewComponent.title !== selectedComponent.title ||
-      livePreviewComponent.type !== selectedComponent.type ||
-      JSON.stringify(livePreviewComponent.content) !== JSON.stringify(selectedComponent.content));
+  // Чи є що зберігати і як це зробити — приходить із самої
+  // ComponentEditForm через onRegisterSave. Раніше батько виводив це
+  // порівнянням livePreviewComponent із збереженим компонентом, але форма
+  // знає точніше: напр. в інфо-екрана title навмисно зберігається як null,
+  // і таке порівняння не сходилось би ніколи.
+  const componentSaveRef = useRef(null);
 
-  function selectComponent(moduleId, screenId, componentId) {
-    if (
-      isCurrentComponentDirty &&
-      !confirm("На поточному екрані є незбережені зміни. Перейти без збереження?")
-    ) {
-      return;
+  /**
+   * Перехід між компонентами/екранами ЗБЕРІГАЄ поточний, а не питає
+   * "перейти без збереження?". Раніше стояв confirm: він зупиняв роботу
+   * на кожному кроці й пропонував вибір, якого насправді ніхто не хоче
+   * ("так, втратьте мої правки"). Тепер зберігаємо мовчки й переходимо.
+   *
+   * Якщо збереження не вдалось (мережа, помилка сервера) — лишаємось на
+   * місці: перейти означало б показати людині інший екран, поки її
+   * правки нікуди не записались, а червоний рядок помилки лишився б
+   * позаду.
+   */
+  async function selectComponent(moduleId, screenId, componentId) {
+    const current = componentSaveRef.current;
+    if (current?.isDirty) {
+      const saved = await current.save();
+      if (!saved) return;
     }
     setSelectedComponentId(componentId);
     setExpandedModuleId(moduleId);
@@ -1547,17 +1745,13 @@ export function AdminCourseEditor({ courseId }) {
     if (firstComponent) selectComponent(target.courseModule.id, target.screen.id, firstComponent.id);
   }
 
-  // Попереджаємо і про закриття вкладки/перехід за посиланням — не лише
-  // про перемикання екрана всередині самого редактора.
-  useEffect(() => {
-    function handleBeforeUnload(e) {
-      if (!isCurrentComponentDirty) return;
-      e.preventDefault();
-      e.returnValue = "";
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isCurrentComponentDirty]);
+  // Браузерного "Покинути сайт?" тут навмисно НЕМАЄ (рішення користувача):
+  // воно спрацьовувало на будь-який дотик до форми й блокувало навіть
+  // звичайний перехід за посиланням усередині адмінки.
+  //
+  // Замість діалогу правки зберігаються при переході між
+  // компонентами/екранами, по кнопці «Зберегти» і ще раз — при самому
+  // закритті вкладки (ComponentEditForm, слухач pagehide з keepalive).
 
   async function handleDuplicateComponent(component) {
     const screen = allScreens.find((s) => s.components.some((comp) => comp.id === component.id));
@@ -1708,6 +1902,9 @@ export function AdminCourseEditor({ courseId }) {
                 onDeleted={(id) => removeComponentFromState(selectedScreen.id, id)}
                 onDuplicate={handleDuplicateComponent}
                 onLiveChange={setLivePreviewComponent}
+                onRegisterSave={(api) => {
+                  componentSaveRef.current = api;
+                }}
               />
               <div className="admin-row admin-lesson-step-nav">
                 <button

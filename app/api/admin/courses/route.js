@@ -45,6 +45,11 @@ export async function POST(request) {
       isMandatory: Boolean(body.isMandatory),
       deadlineDays: body.deadlineDays === "" || body.deadlineDays == null ? null : Number(body.deadlineDays),
       passThreshold: body.passThreshold === "" || body.passThreshold == null ? 80 : Number(body.passThreshold),
+      // Дефолти повторюють schema.prisma: сертифікат видається, якщо не
+      // сказано інакше; авто-призначення новоприбулим — лише за явним
+      // проханням.
+      certificateEnabled: body.certificateEnabled === undefined ? true : Boolean(body.certificateEnabled),
+      assignOnFirstLogin: Boolean(body.assignOnFirstLogin),
       // "phone"/"laptop" — під який екран НАСАМПЕРЕД узгоджували контент
       // курсу (Загальна інформація в /admin), лише прапорець-намір для
       // прев'ю в AdminCourseEditor.jsx; реальний застосунок співробітника

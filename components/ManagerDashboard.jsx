@@ -11,7 +11,9 @@ import {
   CheckIcon,
   XIcon,
   SpinnerIcon,
+  CourseIcon,
 } from "@/components/icons";
+import { HintDot } from "@/components/HintDot";
 import { medalTier } from "@/lib/progress";
 import { ProfileCard } from "@/components/ProfileCard";
 import { MarqueeText } from "@/components/MarqueeText";
@@ -101,6 +103,16 @@ function isNotableStreak(streak, scoreMax, passed) {
   return passed === true && Boolean(streak) && Boolean(scoreMax) && streak / scoreMax > 2 / 3;
 }
 
+/**
+ * Пояснення до діаграми по ховеру — спільний HintDot. Кожен блок
+ * дашборда рахує щось своє, і зі схожих назв ("Виконано" / "Складено" /
+ * "З першої спроби") різницю не видно: підказка каже, що САМЕ в
+ * знаменнику, бо неправильно прочитана метрика гірша за відсутню.
+ */
+function ChartHint({ text }) {
+  return <HintDot text={text} />;
+}
+
 function CompletionRing({ pct, label, color = "var(--cb-secondary)" }) {
   const [animated, setAnimated] = useState(false);
   useEffect(() => {
@@ -147,7 +159,11 @@ function EnrollmentRow({ enrollment }) {
   return (
     <li className="mgr-enrollment-row">
       <div className="mgr-enrollment-main">
-        <MarqueeText className="mgr-enrollment-title">{enrollment.course.title}</MarqueeText>
+        {/* Перенос у 2 рядки, а не біжучий рядок: відколи курси лежать у
+            гумовій сітці (до 4 в ряд), картка вдвічі-втричі вужча за
+            колишній рядок на всю ширину, і MarqueeText прокручував би
+            назву КОЖНОГО курсу — список читався б як зламаний. */}
+        <span className="mgr-enrollment-title">{enrollment.course.title}</span>
         <StatusPill status={enrollment.status} passed={enrollment.passed} />
       </div>
       <div className="mgr-enrollment-stats">
@@ -208,7 +224,7 @@ function EnrollmentRow({ enrollment }) {
               <span className="mgr-module-status-icon">
                 {m.passed === true ? <CheckIcon /> : m.passed === false ? <XIcon /> : <span className="mgr-module-dot" aria-hidden="true" />}
               </span>
-              <MarqueeText className="mgr-module-title">{m.title}</MarqueeText>
+              <span className="mgr-module-title">{m.title}</span>
               {m.scorePercent != null && <span className="mgr-module-score">{m.scorePercent}%</span>}
               {isNotableStreak(m.longestCorrectStreak, m.scoreMax, m.passed) && (
                 <span className="mgr-module-streak" title="Найдовша серія поспіль правильних відповідей у цьому модулі">
@@ -377,7 +393,7 @@ function TeamNode({ node, summaryByEmployeeId }) {
           {detailError && <p className="admin-hint">Не вдалося завантажити.</p>}
           {detail && detail.length === 0 && <p className="admin-hint">Курсів не призначено.</p>}
           {detail && detail.length > 0 && (
-            <ul className="mgr-enrollment-list">
+            <ul className="mgr-enrollment-list card-grid">
               {detail.map((e) => (
                 <EnrollmentRow key={e.id} enrollment={e} />
               ))}
@@ -512,6 +528,14 @@ export function ManagerDashboard() {
   // Для rateColor нижче — 4 показники "Показники команди" ранжуються один
   // відносно одного, не за фіксованим per-метрика кольором.
   const ringValues = [stats.completionRate, stats.passRate, stats.onTimeRate, stats.engagementRate];
+  // Бари в "Дедлайнах" і "Розподілі балів" міряються від найбільшої
+  // корзини, а не від суми: корзини взаємовиключні, і при 5 корзинах
+  // частка від суми зробила б усі бари однаково куцими.
+  const deadlineTotal = stats.deadlineHorizon.reduce((sum, b) => sum + b.count, 0);
+  const deadlineMax = Math.max(1, ...stats.deadlineHorizon.map((b) => b.count));
+  const scoreTotal = stats.scoreDistribution.reduce((sum, b) => sum + b.count, 0);
+  const scoreDistMax = Math.max(1, ...stats.scoreDistribution.map((b) => b.count));
+  const durationMax = Math.max(1, ...stats.durations.buckets.map((b) => b.count));
 
   return (
     <div className="admin-page manager-page">
@@ -554,7 +578,10 @@ export function ManagerDashboard() {
 
       <section className="mgr-section mgr-charts">
         <div className="mgr-chart-card">
-          <h2>Показники команди</h2>
+          <h2>
+            Показники команди
+            <ChartHint text="Чотири різні знаменники: «Виконано» — частка призначень, доведених до кінця; «Складено» — з них ті, що набрали прохідний бал курсу; «Вчасно» — вкладені в дедлайн серед тих, де дедлайн уже вирішено; «Розпочали» — частка людей, що взялися бодай за один курс." />
+          </h2>
           <div className="mgr-ring-grid">
             <CompletionRing pct={stats.completionRate} label="Виконано" color={rateColor(stats.completionRate, ringValues)} />
             <CompletionRing pct={stats.passRate} label="Складено (80%+)" color={rateColor(stats.passRate, ringValues)} />
@@ -570,6 +597,7 @@ export function ManagerDashboard() {
         <div className="mgr-chart-card mgr-trend-card">
           <h2>
             <CalendarIcon /> Активність по тижнях
+            <ChartHint text="Скільки модулів команда склала кожного з останніх 6 тижнів — за реальними датами складання. Наведіть на стовпчик, щоб побачити, хто саме складав того тижня." />
           </h2>
           {weeklyTrend.every((w) => w.count === 0) ? (
             <p className="admin-hint">Немає завершених модулів за останні 6 тижнів.</p>
@@ -601,22 +629,141 @@ export function ManagerDashboard() {
             </div>
           )}
         </div>
-      </section>
 
-      {/* % складання по курсу — на всю ширину (не третьою карткою поруч
-          з кільцями/трендом): назви курсів довгі, вузька колонка й так
-          вимагала біжучого рядка для кожної, а повна ширина дає бару
-          реально показати пропорцію без урізання.
-          Було "% виконання" (рахувало status===completed, тобто й
-          провалені курси теж) — перейменовано разом зі зміною лічильника
-          в lib/managerDashboard.js getDashboardStats(): тепер рахує лише
-          РЕАЛЬНО складені (passed===true, кожен модуль ≥ Course.
-          passThreshold), інакше курс без жодного складеного показував би
-          оманливі 100% лише тому, що всі до нього "дійшли". */}
-      <section className="mgr-section">
+        {/* Єдиний блок дашборда, що дивиться ВПЕРЕД — решта показників
+            ретроспективні. Рахуються лише незавершені призначення
+            (lib/managerDashboard.js bucketDeadlineHorizon): у завершеного
+            дедлайн уже не має сенсу, вкладеність у нього міряє окремий
+            показник "Вчасно". */}
         <div className="mgr-chart-card">
           <h2>
+            <ClockIcon /> Дедлайни на горизонті
+            <ChartHint text="Незавершені призначення за тим, скільки лишилось до дедлайну. Завершені сюди не входять — у них дедлайн уже вирішено. Відповідає на питання «кому написати цього тижня», а не «що вже сталось»." />
+          </h2>
+          {deadlineTotal === 0 ? (
+            <p className="admin-hint">Немає незавершених призначень.</p>
+          ) : (
+            <ul className="mgr-bar-list">
+              {stats.deadlineHorizon.map((b) => (
+                <li key={b.key} className="mgr-bar-row">
+                  <span className="mgr-bar-label">{b.label}</span>
+                  <div className="mgr-bar-track">
+                    <div
+                      className={`mgr-bar-fill${b.alert && b.count > 0 ? " mgr-bar-fill-alert" : ""}`}
+                      style={{ width: `${barsAnimated ? (b.count / deadlineMax) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="mgr-bar-value">{b.count}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Розкид за середнім балом: 86% — це може бути "вся команда рівно
+            на 86" або "половина на 100, половина ледь за порогом", і це
+            різні управлінські ситуації. */}
+        <div className="mgr-chart-card">
+          <h2>
+            <MedalIcon /> Розподіл балів
+            <ChartHint text="Скільки завершених курсів потрапило в кожен діапазон балу. Показує розкид, який ховається за одним середнім балом. Межі тут — просто рівні відрізки шкали, а не прохідний бал: він свій у кожного курсу." />
+          </h2>
+          {scoreTotal === 0 ? (
+            <p className="admin-hint">Немає завершених курсів із балом.</p>
+          ) : (
+            <ul className="mgr-bar-list">
+              {stats.scoreDistribution.map((b) => (
+                <li key={b.key} className="mgr-bar-row">
+                  <span className="mgr-bar-label">{b.label}</span>
+                  <div className="mgr-bar-track">
+                    <div
+                      className="mgr-bar-fill"
+                      style={{ width: `${barsAnimated ? (b.count / scoreDistMax) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="mgr-bar-value">{b.count}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Наскільки матеріал зрозумілий з першого проходження. Низький
+            відсоток при високому "Складено" означає, що команда бере курс
+            не знанням, а повторами. */}
+        <div className="mgr-chart-card mgr-chart-card-wide mgr-first-try-card">
+          <h2>
+            <CheckIcon /> З першої спроби
+            <ChartHint text="Частка призначень, де ПЕРША ж спроба була успішною, серед усіх, де спроба взагалі була. Ті, хто склав із другого разу або не склав досі, знижують показник. Низьке значення при високому «Складено» — курс беруть повторами, а не з розуміння." />
+          </h2>
+          {stats.firstAttempt.total === 0 ? (
+            <p className="admin-hint">Немає жодної завершеної спроби.</p>
+          ) : (
+            <div className="mgr-first-try-body">
+              <CompletionRing pct={stats.firstAttempt.pct} label="З першої спроби" />
+              <ul className="mgr-first-try-legend">
+                <li>
+                  <b>{stats.firstAttempt.passedFirst}</b>
+                  <span>склали одразу</span>
+                </li>
+                <li>
+                  <b>{stats.firstAttempt.retried}</b>
+                  <span>з другої та далі</span>
+                </li>
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Саме по собі "довго/швидко" не добре й не погано — цінність у
+            крайнощах: купка спроб "до 10 хв" на змістовному курсі означає,
+            що його прогортали, а хвіст "понад 40 хв" — що матеріал важкий
+            або незручно поданий. */}
+        <div className="mgr-chart-card mgr-chart-card-wide">
+          <h2>
+            <ClockIcon /> Час на проходження
+            <ChartHint text="Скільки часу займала одна спроба проходження. Поруч — МЕДІАНА, а не середнє: одна забута відкритою вкладка на три години зсунула б середнє так, що воно перестало б описувати команду. «У фокусі» — час, коли вкладка справді була активною; велика різниця між ним і загальним означає «відкрив і пішов»." />
+          </h2>
+          {stats.durations.total === 0 ? (
+            <p className="admin-hint">Немає жодної спроби з виміряним часом.</p>
+          ) : (
+            <>
+              <ul className="mgr-bar-list">
+                {stats.durations.buckets.map((b) => (
+                  <li key={b.key} className="mgr-bar-row">
+                    <span className="mgr-bar-label">{b.label}</span>
+                    <div className="mgr-bar-track">
+                      <div
+                        className="mgr-bar-fill"
+                        style={{
+                          width: `${barsAnimated ? (b.count / durationMax) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="mgr-bar-value">{b.count}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="admin-hint mgr-duration-median">
+                Медіана: {formatDuration(stats.durations.medianSeconds)}
+                {stats.durations.medianActiveSeconds != null
+                  ? ` · у фокусі ${formatDuration(stats.durations.medianActiveSeconds)}`
+                  : ""}
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Було "% виконання" (рахувало status===completed, тобто й
+            провалені курси теж) — перейменовано разом зі зміною лічильника
+            в lib/managerDashboard.js getDashboardStats(): тепер рахує лише
+            РЕАЛЬНО складені (passed===true, кожен модуль ≥ Course.
+            passThreshold), інакше курс без жодного складеного показував би
+            оманливі 100% лише тому, що всі до нього "дійшли". */}
+        <div className="mgr-chart-card mgr-chart-card-wide">
+          <h2>
             <TrendIcon /> % складання по курсу
+            <ChartHint text="Скільки людей РЕАЛЬНО склали курс (набрали його прохідний бал) із тих, кому він призначений. Той, хто дійшов до кінця й не набрав порогу, у зелену частину не рахується." />
           </h2>
           {stats.courseBreakdown.length === 0 ? (
             <p className="admin-hint">Немає даних.</p>
@@ -624,7 +771,13 @@ export function ManagerDashboard() {
             <ul className="mgr-bar-list">
               {stats.courseBreakdown.map((c) => (
                 <li key={c.title} className="mgr-bar-row">
-                  <MarqueeText className="mgr-bar-label">{c.title}</MarqueeText>
+                  {/* Перенос у 2 рядки, а не біжучий рядок: у сітці на 4
+                      колонки картка вдвічі вужча, і MarqueeText починав
+                      прокручувати КОЖНУ назву курсу — список читався як
+                      зламаний. */}
+                  <span className="mgr-bar-label mgr-bar-label-stack">
+                    <span className="mgr-bar-label-main">{c.title}</span>
+                  </span>
                   <div className="mgr-bar-track">
                     <div className="mgr-bar-fill" style={{ width: `${barsAnimated ? c.pct : 0}%` }} />
                   </div>
@@ -636,12 +789,52 @@ export function ManagerDashboard() {
             </ul>
           )}
         </div>
+
+        {/* Деталізація попереднього блоку на рівень нижче: курс → модуль.
+            Єдине місце на дашборді, що доводить погану цифру до конкретної
+            ТЕМИ, а не до людини чи курсу цілком. Подвійної ширини з тієї ж
+            причини, що й "% складання по курсу" — назви модулів довгі. */}
+        <div className="mgr-chart-card mgr-chart-card-wide">
+          <h2>
+            <CourseIcon /> Найскладніші модулі
+            <ChartHint text="Модулі, які команда найчастіше провалює — за кількістю людей, що не набрали прохідний бал модуля. Сортування за кількістю провалів, а не за відсотком: «1 з 1» дало б 100% і витіснило б реально проблемний «3 з 8». Модулі без жодного провалу в список не потрапляють." />
+          </h2>
+          {stats.hardestModules.length === 0 ? (
+            <p className="admin-hint">Жоден модуль не провалено — складних місць поки немає.</p>
+          ) : (
+            <ul className="mgr-bar-list">
+              {stats.hardestModules.map((m) => (
+                <li key={`${m.course}-${m.title}`} className="mgr-bar-row">
+                  {/* Назва модуля + курс ДВОМА рядками, а не одним через
+                      "·" з біжучим рядком, як у курсів вище: "модуль ·
+                      курс" удвічі довше за просту назву курсу й у ту саму
+                      колонку не влазить — MarqueeText там починав
+                      прокручувати кожен рядок, і список читався як
+                      зламаний. */}
+                  <span className="mgr-bar-label mgr-bar-label-stack">
+                    <span className="mgr-bar-label-main">{m.title}</span>
+                    {m.course ? <span className="mgr-bar-label-sub">{m.course}</span> : null}
+                  </span>
+                  <div className="mgr-bar-track">
+                    <div
+                      className="mgr-bar-fill mgr-bar-fill-alert"
+                      style={{ width: `${barsAnimated ? m.pct : 0}%` }}
+                    />
+                  </div>
+                  <span className="mgr-bar-value">
+                    {m.failed}/{m.total} · {m.pct}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </section>
 
       <section className="mgr-section">
         <div className="mgr-team-header">
           <h2>
-            <PeopleIcon /> Моя команда
+            <PeopleIcon /> Детально по команді
           </h2>
           <div className="mgr-team-controls">
             <select className="admin-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>

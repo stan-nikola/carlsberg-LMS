@@ -58,6 +58,63 @@ Key facts worth internalizing (but verify against the live file):
   parallax, animated counters, or page-transitions to login/course/quiz
   screens. `/admin` stays dense and functional, but on the same tokens.
 
+## Card grids (`.card-grid`) — the project's one layout pattern
+
+Beyond tokens, this project has exactly one codified *layout* pattern, and
+it is yours to enforce too: any set of same-kind cards (courses,
+enrollments, catalog entries) uses the shared `.card-grid` class in
+`app/globals.css`, sized via `--card-min`/`--card-gap` on the container —
+never a hand-rolled `grid-template-columns` copy per component. It is
+documented in CLAUDE.md under "Верстка: сітки однотипних карток"; read
+both before auditing a grid.
+
+What to flag:
+
+- A component that re-declares `grid-template-columns: repeat(auto-fit,
+  minmax(...))` for a card list instead of using `.card-grid`. Grep for
+  `auto-fit` outside `globals.css` and check each hit.
+- `minmax(260px, 1fr)` without the `min(100%, …)` wrapper — on a narrow
+  screen the track grows wider than the page and the body scrolls
+  sideways. Always `minmax(min(100%, …), 1fr)`.
+- A card grid without `grid-auto-rows: 1fr` (or with `align-items: start`)
+  — cards then size to their own content and the bottom edge goes ragged.
+  If such a card has a final action (button/link at the bottom), the card
+  must also be a flex column with `margin-top: auto` on that action, or
+  the buttons sit at different heights inside equal-height cards.
+- `MarqueeText` used **inside** a card grid or any narrow fixed column.
+  This is the single most repeated defect in this codebase — four separate
+  occurrences in one session. The component measures overflow and scrolls;
+  in a narrow card it triggers on every row at once, and in the paused
+  phase the label reads as truncated from the *start*
+  (`«…аперечення щодо об'єму закупівлі»`). Replace with a normal wrapping
+  `<span>` plus `overflow-wrap: anywhere`, and set `align-items:
+  flex-start` on the row so any status pill/icon stays level with the
+  first line. MarqueeText stays correct in wide single-row layouts — do
+  not rip it out there.
+
+Two related shared pieces, same rule — use them, don't re-roll them:
+
+- **`@container`, not `@media`, for a component that appears at two
+  widths.** `CourseTile` renders both inside `/hub`'s narrow phone frame
+  (on a wide desktop window) and in `/manager/courses`'s grid; a
+  viewport media query never fires in the first case. Existing containers:
+  `cp-card` (course-player.css), `ct-card` (hub.css). Note
+  `container-type: inline-size` measures the **content box** — a
+  threshold that looks right against the card's outer width will fire
+  early by exactly its padding + border.
+- **`HintDot`** (`components/HintDot.jsx`, `.hint-dot` in globals.css)
+  for any hover explanation. Flag a new hand-rolled `::after` tooltip, and
+  flag a bare `title=` used for a full explanatory sentence (no wrap or
+  delay control). `title=` on a short label is still fine.
+
+One deliberate counter-pattern, do **not** "fix" it into `.card-grid`: a
+grid whose block count is fixed by the markup rather than by data (e.g.
+`.mgr-charts` in `app/styles/manager.css`). There `auto-fit` is harmful —
+it picks a column count on its own and leaves holes in the last row. Those
+grids declare columns explicitly, and only counts the block total divides
+evenly by (8 cards → 1/2/4 columns, never 3). If you see explicit columns
+plus a comment saying why, that is correct.
+
 ## What counts as a real violation vs. a deliberate exception
 
 Not every non-token or non-zero radius is a bug — telling these apart is
@@ -104,13 +161,18 @@ the actual judgment call here:
    `@media (hover: hover)` where the rest of the codebase does) and a
    `:focus-visible` state using `--cb-focus-ring` — missing focus states
    are a real accessibility gap this project has shipped before.
-5. Check any new/changed component against the "not a marketing site"
+5. If the diff touched a list/grid of cards, run the `.card-grid` checks
+   from the section above: `grep -rn "auto-fit" app/styles app/globals.css`
+   (hand-rolled copies of the shared pattern) and
+   `grep -rn "MarqueeText" components/` cross-referenced against which of
+   those live inside a card grid or narrow column.
+6. Check any new/changed component against the "not a marketing site"
    rule: no hero/parallax/scroll-reveal/animated-counter/page-transition
    patterns on `/hub`, `/register`, or the course player; `/admin` stays
    dense/functional.
-6. Fix what's actually broken with `Edit`. Don't rewrite working code
+7. Fix what's actually broken with `Edit`. Don't rewrite working code
    that already matches the system just to "improve" it.
-7. Run `npm run lint` and `npm run test` (prefix
+8. Run `npm run lint` and `npm run test` (prefix
    `export PATH="/c/Program Files/nodejs:$PATH"` on this Windows box if a
    plain `npm` isn't found) and confirm both are clean before reporting
    done. If a `.claude/skills/restart-dev` skill exists and you touched
