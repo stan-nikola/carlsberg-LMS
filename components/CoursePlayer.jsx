@@ -460,7 +460,9 @@ function CompleteScreen({ result, onRetake, course, hasEmail, previewMode }) {
         </p>
       )}
       {submitError && <p className="cp-save-status cp-save-error">Не вдалося зберегти результат: {submitError}</p>}
-      {!submitting && !submitError && <p className="cp-save-status">Результат збережено.</p>}
+      {!submitting && !submitError && (
+        <p className="cp-save-status">{previewMode ? "Прев'ю — результат не збережено." : "Результат збережено."}</p>
+      )}
 
       {showCertificate && (
         <div className="cp-cert-block">
@@ -634,6 +636,10 @@ export function CoursePlayer({
 
   function handleQuizAnswer(componentId, isCorrect) {
     setAnswers((a) => ({ ...a, [componentId]: isCorrect }));
+    // Відповів — показуємо наступний блок так само, як після гейта
+    // (акордеон/чекліст/репліки): фідбек і пояснення лишаються на екрані,
+    // а наступне питання/точка виглядає знизу.
+    scrollToNextComponent(componentId);
     const nextStreak = isCorrect ? streak + 1 : 0;
     setStreak(nextStreak);
     if (isCorrect && (isScheduledStreak(nextStreak) || isPerfectModuleFinish(componentId, isCorrect))) {
@@ -671,15 +677,15 @@ export function CoursePlayer({
   }
 
   function handleGateProgress(componentId, done) {
-    setGateProgress((g) => {
-      // Прогрес гейта тільки зростає: повернувшись на екран назад, людина
-      // не має "втратити" вже відкриті картки.
-      if ((g[componentId] || 0) >= done) return g;
-      const next = { ...g, [componentId]: done };
-      const component = allComponents.find((c) => c.id === componentId);
-      if (component && isGateSatisfied(component, done)) scrollToNextComponent(componentId);
-      return next;
-    });
+    // Прогрес гейта тільки зростає: повернувшись на екран назад, людина
+    // не має "втратити" вже відкриті картки.
+    if ((gateProgress[componentId] || 0) >= done) return;
+    setGateProgress((g) => ((g[componentId] || 0) >= done ? g : { ...g, [componentId]: done }));
+    // Прокрутка — ПОЗА updater'ом setState: у dev React (StrictMode) викликає
+    // updater двічі, і екран їхав на подвійний зсув (перевірено 2026-09-14:
+    // два scrollBy по 141px на один клік).
+    const component = allComponents.find((c) => c.id === componentId);
+    if (component && isGateSatisfied(component, done)) scrollToNextComponent(componentId);
   }
 
   useEffect(() => () => clearTimeout(streakTimerRef.current), []);

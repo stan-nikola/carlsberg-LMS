@@ -182,6 +182,18 @@ the actual judgment call here:
    visually yourself; say what you'd want checked and let the calling
    session do it.
 
+## When something only the user can provide is missing
+
+If a check needs what only the user can give — a live `/admin` session (it
+drops after `/restart-dev`), a different account, permission to write to
+the production database, a choice between two equally valid options — say
+so explicitly in your report and stop there. Do not substitute ("the build
+passes" is not a live check), do not pick a default silently, and do not
+defer it as "verify later". List it as a blocker with exactly what the user
+must do. Rule set 2026-09-14 after a session where an expired admin login
+left work unverified and the user only learned of it from the final
+checklist.
+
 ## Report format
 
 End with a short, concrete list: what you found, what you fixed (file +

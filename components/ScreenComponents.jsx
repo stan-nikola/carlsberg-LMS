@@ -41,13 +41,30 @@ export function CourseImage({ src, alt, onLoaded }) {
   const wrapRef = useRef(null);
 
   useEffect(() => {
-    // Фото з кешу вже complete на першому рендері — подія onLoad для
-    // нього не спрацює, і без цієї перевірки скелетон завис би назавжди.
+    // Слухаємо нативний `load` самого <img>, а не лише onLoad від
+    // next/image: той викликає наш колбек тільки ПІСЛЯ `img.decode()`, а
+    // decode() у Chrome для фото в прев'ю /admin (.adm-shell зі zoom:85%)
+    // просто ніколи не завершується — картинка вже complete, naturalWidth
+    // є, data-loaded-src Next виставив, а скелетон світиться вічно
+    // (перевірено 2026-09-14). Нативна подія від decode() не залежить.
+    // Плюс фото з кешу вже complete на першому рендері — для нього жодна
+    // подія не прийде, тому окрема перевірка одразу.
     const img = wrapRef.current?.querySelector("img");
-    if (img?.complete && img.naturalWidth > 0) {
+    if (!img) return undefined;
+    const mark = () => {
       setLoaded(true);
       onLoaded?.();
+    };
+    if (img.complete && img.naturalWidth > 0) {
+      mark();
+      return undefined;
     }
+    img.addEventListener("load", mark);
+    img.addEventListener("error", mark);
+    return () => {
+      img.removeEventListener("load", mark);
+      img.removeEventListener("error", mark);
+    };
   }, [src, onLoaded]);
 
   return (
@@ -163,8 +180,13 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
     // читає згори вниз, і стрибок назад збивав би. peekScrollTo лишає
     // щойно відкритий текст на екрані — саме тому, що scrollIntoView
     // ховав його під верхній край.
-    const following = listRef.current?.children?.[i + 1];
-    requestAnimationFrame(() => peekScrollTo(following));
+    // keepVisible — сама відкрита картка: на десктопі список у два
+    // стовпці, «наступна» стоїть у тому ж ряду, і без цього розкритий
+    // текст обрізало нижнім краєм в'юпорта.
+    const children = listRef.current?.children;
+    const following = children?.[i + 1];
+    const opened = children?.[i];
+    requestAnimationFrame(() => peekScrollTo(following, { keepVisible: opened }));
   }
 
   return (

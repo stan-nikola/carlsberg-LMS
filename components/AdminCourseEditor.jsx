@@ -8,9 +8,10 @@ import { ComponentScreen, QuizScreen, CoursePlayer } from "@/components/CoursePl
 import { HotspotScreen } from "@/components/ScreenComponents";
 import { ChevronIcon, GripIcon, SpinnerIcon, XIcon } from "@/components/icons";
 import { pluralize } from "@/lib/pluralize";
-import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, RETIRED_COMPONENT_TYPES, defaultContentForType } from "@/lib/componentTypes";
+import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, RETIRED_COMPONENT_TYPES, defaultContentForType, isScored } from "@/lib/componentTypes";
 import { ListRowControls, useListOps } from "@/components/ListEditor";
 import { HintDot } from "@/components/HintDot";
+import { numberComponents } from "@/lib/coursePlayerLogic";
 
 // Десктопний редактор контенту курсу.
 //
@@ -1103,7 +1104,7 @@ function LaptopDeviceIcon() {
  * пропси екрана (components/stepNumber/onBack/...) не залежать від
  * пристрою.
  */
-function DeviceMockup({ device, components, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, inModal }) {
+function DeviceMockup({ device, components, componentNumbers, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, inModal }) {
   const hasScreen = components && components.length > 0;
   // Той самий скрол-контейнер, що й у реальному плеєрі (.cp-viewport) — той
   // самий фікс: без явного скидання наступний екран у прев'ю відкривався
@@ -1159,15 +1160,25 @@ function DeviceMockup({ device, components, stepNumber, totalSteps, onBack, onNe
             <div className="cp-screen">
               {components.map((component) => (
                 <div className="screen-component" key={component.id}>
-                  {component.type === "quiz" ? (
-                    <PreviewQuiz component={component} />
+                  {/* Оцінювані типи (quiz, hotspot) тримають локальну відповідь у
+                      PreviewQuiz; ComponentScreen для hotspot кейса не має і
+                      малював би його як звичайний інфо-екран без зон. */}
+                  {isScored(component) ? (
+                    <PreviewQuiz component={component} screenNumber={componentNumbers?.get(component.id) ?? stepNumber} />
                   ) : (
                     // Той самий диспетчер, що й у плеєрі — інтерактивні екрани в
                     // прев'ю справді клікаються (картки розгортаються, репліки
                     // з'являються), щоб автор одразу перевірив механіку, а не
                     // здогадувався по полях форми. key — щоб при перемиканні
                     // типу внутрішній стан взаємодії починався з нуля.
-                    <ComponentScreen key={`${component.id}-${component.type}`} component={component} screenNumber={stepNumber} />
+                    // Номер у кикері — наскрізний по компонентах (1, 2, 3…), як у
+                    // реальному плеєрі, а не номер екрана: два блоки на одному
+                    // екрані показували б однакову «1».
+                    <ComponentScreen
+                      key={`${component.id}-${component.type}`}
+                      component={component}
+                      screenNumber={componentNumbers?.get(component.id) ?? stepNumber}
+                    />
                   )}
                 </div>
               ))}
@@ -1277,7 +1288,7 @@ function CourseRunPreview({ course, onClose }) {
   );
 }
 
-function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, previewDevice, onRunCourse }) {
+function ComponentPreview({ components, componentNumbers, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, previewDevice, onRunCourse }) {
   const [modalOpen, setModalOpen] = useState(false);
   const isLaptop = previewDevice === "laptop";
 
@@ -1298,7 +1309,7 @@ function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, 
     return () => window.removeEventListener("keydown", handleKey);
   }, [modalOpen]);
 
-  const previewProps = { components, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext };
+  const previewProps = { components, componentNumbers, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext };
 
   return (
     <div className="admin-editor-preview">
@@ -1380,7 +1391,7 @@ function ComponentPreview({ components, stepNumber, totalSteps, onBack, onNext, 
 /** Обгортка над QuizScreen з власним локальним станом відповіді — щоб
  * прев'ю в /admin можна було "клікнути" так само, як побачить співробітник,
  * не чіпаючи реальний Enrollment. */
-function PreviewQuiz({ component }) {
+function PreviewQuiz({ component, screenNumber }) {
   const [answer, setAnswer] = useState(undefined);
   // Скидаємо відповідь у прев'ю щоразу, як екран/його вміст змінюється —
   // ефект, а не похідний стан, бо триґериться і зі стабільним component.id
@@ -1388,7 +1399,7 @@ function PreviewQuiz({ component }) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setAnswer(undefined), [component.id, component.content]);
   const Screen = component.type === "hotspot" ? HotspotScreen : QuizScreen;
-  return <Screen component={component} screenNumber={1} answer={answer} onAnswer={setAnswer} />;
+  return <Screen component={component} screenNumber={screenNumber} answer={answer} onAnswer={setAnswer} />;
 }
 
 /** Список компонентів екрана з перетягуванням (та сама механіка, що й
@@ -1910,6 +1921,8 @@ export function AdminCourseEditor({ courseId }) {
     courseModule.screens.map((screen) => ({ screen, courseModule }))
   );
   const previewScreenIndex = flatScreens.findIndex((f) => f.screen.id === selectedScreen?.id);
+  // Та сама наскрізна нумерація компонентів, що й у CoursePlayer.
+  const componentNumbers = numberComponents(flatScreens.map((f) => f.screen));
 
   // Чи є що зберігати і як це зробити — приходить із самої
   // ComponentEditForm через onRegisterSave. Раніше батько виводив це
@@ -2142,6 +2155,7 @@ export function AdminCourseEditor({ courseId }) {
 
         <ComponentPreview
           components={previewComponents}
+          componentNumbers={componentNumbers}
           stepNumber={previewScreenIndex + 1}
           totalSteps={flatScreens.length}
           onBack={() => goToScreenOffset(-1)}
