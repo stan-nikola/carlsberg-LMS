@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CourseIcon, PeopleIcon, AchievementsIcon, LogoutIcon, ChevronIcon } from "@/components/icons";
+import { CourseIcon, PeopleIcon, AchievementsIcon, LogoutIcon, ChevronIcon, RootIcon, DataIcon } from "@/components/icons";
 
 // Ключ localStorage для згорнутого стану сайдбара — суто персональна
 // зручність адміна (не дані курсу/бази), тому localStorage, а не БД.
@@ -17,7 +17,13 @@ const SIDEBAR_COLLAPSED_KEY = "admin-sidebar-collapsed";
 const NAV_ITEMS = [
   { href: "/admin", label: "Курси", Icon: CourseIcon, match: (p) => p === "/admin" || p.startsWith("/admin/courses") },
   { href: "/admin/employees", label: "Співробітники", Icon: PeopleIcon, match: (p) => p.startsWith("/admin/employees") },
+  // Оргструктура й Дані — колишні вкладки «Дерево» та «Excel (жива книга)»
+  // на /admin/employees. Це не інші вигляди списку людей, а окремі
+  // інструменти (переприв'язка керівників; імпорт/експорт/жива книга) —
+  // тому власні пункти, а не перемикач усередині сторінки.
+  { href: "/admin/org", label: "Оргструктура", Icon: RootIcon, match: (p) => p.startsWith("/admin/org") },
   { href: "/admin/badges", label: "Ачивки", Icon: AchievementsIcon, match: (p) => p.startsWith("/admin/badges") },
+  { href: "/admin/data", label: "Дані", Icon: DataIcon, match: (p) => p.startsWith("/admin/data") },
 ];
 
 /**
