@@ -661,15 +661,37 @@ export function StreakToast({ icon, title, sub }) {
  * aria-hidden: це чисто декоративний шар. Сам факт "курс складено на
  * 100%" озвучений текстом поруч, тож читачеві екрана конфеті не потрібне.
  */
+/* Палітра конфеті фінального екрана — лише фірмові токени (tokens.css), у
+   випадковому порядку на кожну частинку: глибокий і яскравий зелені,
+   золото, жовтий alert, success, синій notification. */
+const TREFOIL_CONFETTI_COLORS = [
+  "var(--cb-primary)",
+  "var(--cb-secondary)",
+  "var(--cb-tertiary)",
+  "var(--cb-alert)",
+  "var(--cb-success)",
+  "var(--cb-notification)",
+];
+
+/* Пропорції public/assets/brand/trefoil-solid-green.png (1532×1417) — та
+ * сама константа, що в components/PlatformBrand.jsx. */
+const TREFOIL_ASPECT = 1532 / 1417;
+
 export function ConfettiBurst({ pieces = 40 }) {
+  // Трилистки замість квадратиків (користувач, 2026-09-15) — саме логотип
+  // платформи (маска з PNG у course-player.css, .cp-confetti-piece), колір
+  // випадковий з фірмової палітри, оберт — випадковий кут 180–540°, повільно
+  // й плавно разом із падінням (одна анімація, той самий easing). База
+  // падіння 4.1s — підібрана користувачем на стенді.
   const [items] = useState(() =>
-    Array.from({ length: pieces }, (_, i) => ({
+    Array.from({ length: pieces }, () => ({
       left: Math.random() * 100,
-      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      color: TREFOIL_CONFETTI_COLORS[Math.floor(Math.random() * TREFOIL_CONFETTI_COLORS.length)],
       delay: Math.random() * 900,
-      duration: 2200 + Math.random() * 1400,
-      drift: Math.random() * 60 - 30,
-      size: 6 + Math.random() * 6,
+      duration: 4100 + Math.random() * 1800,
+      drift: Math.random() * 80 - 40,
+      spin: Math.round((Math.random() < 0.5 ? -1 : 1) * (180 + Math.random() * 360)),
+      size: 10 + Math.random() * 8,
     }))
   );
 
@@ -682,11 +704,12 @@ export function ConfettiBurst({ pieces = 40 }) {
           style={{
             left: `${p.left}%`,
             width: `${p.size}px`,
-            height: `${p.size}px`,
-            background: p.color,
+            height: `${p.size / TREFOIL_ASPECT}px`,
+            color: p.color,
             animationDelay: `${p.delay}ms`,
             animationDuration: `${p.duration}ms`,
             "--drift": `${p.drift}px`,
+            "--spin": `${p.spin}deg`,
           }}
         />
       ))}

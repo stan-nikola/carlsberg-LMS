@@ -241,7 +241,9 @@
     transparent 66%
   );
   background-size: 220% 100%;
-  animation: cpTapSweep 3.2s ease-in-out infinite;
+  /* 9.5s — підібрано користувачем повзунком на стенді (2026-09-15;
+     legacy мав 3.2s). */
+  animation: cpTapSweep 9.5s ease-in-out infinite;
 }
 .quiz-banner-ico {
   width: 42px;
@@ -951,12 +953,13 @@
   font-weight: 700;
   transition: background var(--dur-base) var(--ease-premium), color var(--dur-base) var(--ease-premium);
 }
-/* «Ви тут» — глибокий зелений (primary), не золото: золота плашка під
-   зеленим переливом .tap-next давала брудне накладення кольорів
-   (користувач, 2026-09-15). Пройдений крок — яскравий secondary, тож
-   стани й далі розрізняються. */
+/* «Ви тут» — синій notification (токен Malty), обраний користувачем на
+   стенді 2026-09-15 з усіх фірмових кольорів: золото під зеленим
+   переливом .tap-next давало брудне накладення, зелений зливався з
+   «пройдено» (secondary). Синій — єдиний токен, що і не зелений, і не
+   золотий, тож стан читається одразу. */
 .tl-item.current .tl-num {
-  background: var(--cb-primary);
+  background: var(--cb-notification);
   color: var(--cb-white);
 }
 .tl-item.seen .tl-num {
@@ -1023,9 +1026,14 @@
    додає ані пікселя до розміру (раніше золота плашка виглядала довшою за
    сусідні кроки). Зелений тінт узгоджений із переливом .tap-next. */
 .tl-item.current .tl-body {
-  background: var(--green-tint);
-  box-shadow: inset 0 0 0 1px var(--cb-secondary);
+  background: var(--cb-notification-light);
+  box-shadow: inset 0 0 0 1px var(--cb-notification);
   border-radius: var(--radius-sm);
+  /* Не розтягуватись до висоти рейки зліва (кружечок + сполучна лінія з
+     min-height): у згорнутому стані підсвічена плашка виходила вищою за
+     сусідні кроки (користувач, 2026-09-15) — саме тому, що лише в неї
+     видно тло. Висота — за власним заголовком, як у решти. */
+  align-self: flex-start;
 }
 .tl-title {
   min-width: 0;
@@ -1336,11 +1344,20 @@
   pointer-events: none;
   z-index: 3;
 }
+/* Частинка — ТОЙ САМИЙ трилисток, що логотип платформи і PWA-іконка
+   (public/assets/brand/trefoil-solid-green.png, PLATFORM_HOP_LOGO_PATH),
+   а не намальований наново: файл іде маскою, заливка — currentColor, тож
+   форма ідентична, а колір — будь-який із палітри (інлайн з
+   ConfettiBurst разом із --spin/--drift). Вимога користувача 2026-09-15:
+   «як лого платформи — ІДЕНТИЧНЕ». Оберт іде однією анімацією з
+   падінням, тим самим м'яким easing — «плавне кручення», а не дзиґа. */
 .cp-confetti-piece {
   position: absolute;
-  top: -16px;
-  border-radius: 2px;
+  top: -20px;
   opacity: 0;
+  background-color: currentColor;
+  -webkit-mask: url("/assets/brand/trefoil-solid-green.png") center / contain no-repeat;
+  mask: url("/assets/brand/trefoil-solid-green.png") center / contain no-repeat;
   animation-name: cpConfettiFall;
   animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
   animation-fill-mode: forwards;
@@ -1352,7 +1369,7 @@
   }
   100% {
     opacity: 0;
-    transform: translate3d(var(--drift, 0), 100vh, 0) rotate(540deg);
+    transform: translate3d(var(--drift, 0), 100vh, 0) rotate(var(--spin, 360deg));
   }
 }
 /* Свято не варте того, щоб викликати запаморочення в того, хто вимкнув
@@ -1774,7 +1791,10 @@
     var(--green-tint) 60%
   );
   background-size: 260% 100%;
-  animation: cpSkeletonSweep 1.4s var(--ease-out) infinite;
+  /* 5.8s — підібрано користувачем повзунком на стенді (2026-09-15;
+     стартові 1.4s читались як «очень быстрый»); ease-in-out, щоб хвиля не
+     «вистрілювала» на старті. */
+  animation: cpSkeletonSweep 5.8s ease-in-out infinite;
 }
 @keyframes cpSkeletonSweep {
   from {
@@ -1807,14 +1827,15 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  /* Пік 28% / схили 11% — на +10 п.п. акцентніше за перший варіант
-     (18/7), який на телефоні читався надто блідо (користувач, 2026-09-15). */
+  /* Пік 42% / схили 17% (0.4 від піку) — підібрано користувачем повзунком
+     на стенді (2026-09-15); перший варіант 18/7 читався на телефоні надто
+     блідо. */
   background: linear-gradient(
     100deg,
     transparent 18%,
-    color-mix(in srgb, var(--cb-secondary) 11%, transparent) 36%,
-    color-mix(in srgb, var(--cb-secondary) 28%, transparent) 50%,
-    color-mix(in srgb, var(--cb-secondary) 11%, transparent) 64%,
+    color-mix(in srgb, var(--cb-secondary) 17%, transparent) 36%,
+    color-mix(in srgb, var(--cb-secondary) 42%, transparent) 50%,
+    color-mix(in srgb, var(--cb-secondary) 17%, transparent) 64%,
     transparent 82%
   );
   background-size: 260% 100%;
