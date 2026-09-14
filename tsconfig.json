@@ -1,0 +1,49 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    // allowJs — увесь наявний .js/.jsx код лишається валідним, конвертуємо
+    // поступово (не біг-бенг переписування, за рішенням користувача).
+    "allowJs": true,
+    // checkJs:false — НЕ вмикаємо перевірку типів для існуючих .js-файлів
+    // заднім числом (це дало б одразу сотні помилок у коді, який ще не
+    // готувався бути типізованим); нові .ts/.tsx-файли перевіряються
+    // нормально через strict нижче.
+    "checkJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "app/generated"
+  ]
+}
