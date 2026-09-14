@@ -1454,6 +1454,19 @@
   box-shadow: var(--cb-focus-ring);
 }
 
+/* Розділювач між полями всередині картки екрана. Синій (--cb-notification,
+   той самий фірмовий синій, що вже вживається для нейтральних акцентів) —
+   свідомо НЕ сірий --line: сіра лінія тут зливається з рамками самих
+   інпутів, і поля читались одним суцільним стовпцем. Синя чітко каже
+   "наступне поле — інша сутність".
+   Тільки всередині .admin-lesson-card: у формах курсу свої секції з
+   власними заголовками, там додаткові лінії лише зашумили б. */
+.admin-lesson-card .admin-field + .admin-field {
+  border-top: 1px solid var(--cb-notification);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
 .admin-image-picker {
   display: flex;
   flex-direction: column;
@@ -1463,10 +1476,17 @@
   border: 1px dashed var(--line);
   border-radius: var(--radius-card);
 }
+/* Прев'ю — прямокутник фіксованого розміру, а не смуга на всю ширину
+   конструктора. object-fit:contain замість cover: автор мусить бачити
+   ФОТО ЦІЛКОМ, щоб розуміти, що саме він завантажив — cover обрізав краї
+   й показував лише центр. Поля з боків (letterbox) на власному тлі —
+   це не порожнеча, а межі кадру. */
 .admin-image-preview {
   width: 100%;
-  max-height: 140px;
-  object-fit: cover;
+  max-width: 300px;
+  height: 170px;
+  object-fit: contain;
+  background: var(--surface-2);
   border-radius: var(--radius-card);
   border: 1px solid var(--line);
 }
@@ -1918,11 +1938,31 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 10px 6px 10px 0;
+  /* Padding НЕ тут, а на самій кнопці .adm-tile-hit-full нижче: інакше
+     поля плитки лишаються некликабельними — курсор над ними pointer, а
+     натискання нічого не робить. Виняток — режим перейменування, де
+     прямими дітьми є іконка й поле вводу, а не кнопка (правило з :has
+     нижче). */
+  padding: 0;
   border-radius: 10px;
   border: 1px solid var(--line);
   text-align: center;
   user-select: none;
+  /* Курсор на всьому боксі: плитка реагує на клік/drag/правий клік
+     цілком, і стрілка над її полями читалась як "тут нічого не
+     станеться". */
+  cursor: pointer;
+}
+/* Перейменування — кнопки немає, padding тримає сама плитка. :has
+   замість окремого класу-модифікатора — той самий прийом, що вже діє в
+   проєкті (body:has(.adm-shell) тощо). */
+.adm-tile:has(.adm-tile-rename-input) {
+  padding: 10px 6px 10px 0;
+}
+/* Перейменування — звичайне текстове поле, курсор має бути текстовим
+   попри pointer на самій плитці. */
+.adm-tile .adm-tile-rename-input {
+  cursor: text;
 }
 .adm-tile:hover {
   background: var(--surface-1);
@@ -1936,27 +1976,22 @@
   border-color: var(--green-700);
   border-style: dashed;
 }
-.adm-tile-hit {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-}
-/* Плитка курсу (без перейменування, на відміну від папки) — увесь вміст
-   (іконка+назва+лічильник) в ОДНІЙ кнопці, щоб клікабельною/pointer була
-   вся плитка, а не лише іконка. */
+/* Увесь вміст плитки (іконка+назва+лічильник) в ОДНІЙ кнопці, щоб
+   клікабельною була вся плитка, а не лише іконка. Спільне для курсів і
+   папок; у папки в режимі перейменування замість цієї кнопки — іконка
+   плюс окреме поле вводу. */
 .adm-tile-hit-full {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   width: 100%;
-  padding: 0;
+  /* Кнопка бере на себе padding плитки й тягнеться на всю її висоту —
+     клікабельним стає ВЕСЬ бокс, включно з полями, а не тільки рядок із
+     текстом. */
+  flex: 1;
+  padding: 10px 6px 10px 0;
   border: none;
   background: none;
   cursor: pointer;
@@ -2073,17 +2108,92 @@
   font-size: 13px;
 }
 
-/* Кнопка "Нова папка" біля хлібних крихт каталогу курсів — на 20%
-   більша за базовий .iconbtn (34px→41px, іконка 16px→19px), без зміни
-   самого спільного .iconbtn для решти місць застосунку. */
-.adm-new-folder-btn {
+/* Кнопки накреслень над "Текстом екрану" (components/AdminCourseEditor.jsx
+   RichTextArea). Ж/К/П — звичні підписи з текстових редакторів; сам знак
+   розмітки лишається в title, бо текст можна правити й руками. */
+.admin-richtext-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+.admin-richtext-btn {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+@media (hover: hover) {
+  .admin-richtext-btn:hover {
+    background: var(--surface-2);
+  }
+}
+.admin-richtext-btn:focus-visible {
+  outline: 2px solid var(--cb-focus-ring);
+  outline-offset: 1px;
+}
+.admin-richtext-hint {
+  margin-left: 4px;
+}
+
+/* Смуга навігації каталогу (стрілка/корінь + хлібні крихти). Власний
+   фон --surface-2, а не прозорий: вона затиснута між тулбаром із
+   кнопками зверху й сіткою/списком знизу, і без заливки всі три рівні
+   зливались в одну сіру стрічку. Відступ знизу відділяє її від вмісту —
+   у сітковому виді той відступ давала сама .adm-explorer-grid
+   (margin-top), а в списковому рядки починались упритул. */
+.adm-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 42px;
+  padding: 0 8px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-btn);
+  background: var(--surface-2);
+  margin-bottom: 12px;
+}
+/* У сітковому виді сітка вже несе свій margin-top — інакше між смугою й
+   першим рядом плиток вийшов би подвійний відступ. */
+.adm-breadcrumb-bar:has(+ .adm-explorer-grid) {
+  margin-bottom: 0;
+}
+
+/* Навігація зліва від хлібних крихт каталогу: стрілка "на рівень вище"
+   або, в корені, статичний значок кореня. Розмір той самий, що був у
+   кнопки "Нова папка", яка тут стояла раніше (переїхала в тулбар до
+   "+ Додати курс"), щоб ряд крихт не змінив висоту. */
+.adm-breadcrumb-nav {
   width: 35px;
   height: 35px;
   padding-right: 6px;
 }
-.adm-new-folder-btn svg {
+.adm-breadcrumb-nav svg {
   width: 23px;
   height: 23px;
+}
+/* У корені це не кнопка, а індикатор місця — приглушений і без
+   інтерактивних станів. */
+.adm-breadcrumb-nav.is-root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--ink-soft);
+  cursor: default;
 }
 
 /* ---- Модальне вікно (перший реальний модал у проєкті — досі всюди був
@@ -2112,4 +2222,73 @@
 .adm-modal-title {
   font-size: 16px;
   margin-bottom: 12px;
+}
+
+/* ---- Редактор гарячих точок (components/AdminCourseEditor.jsx
+   HotspotFields): клік по фото ставить зону. Координати рахуються від
+   РЕАЛЬНОЇ геометрії цього <img>, тому ніякого ресайзу тут бути не
+   повинно — лише природний розмір у межах ширини колонки. ---- */
+.adm-hotspot-canvas {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+  cursor: crosshair;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.adm-hotspot-canvas img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.adm-hotspot-zone {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid var(--cb-secondary);
+  background: var(--cb-secondary-tint);
+  color: var(--green-900);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Кнопки під мокапом прев'ю: розгорнути один екран і пройти курс цілком. */
+.admin-preview-actions {
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+/* Повне проходження в прев'ю (components/AdminCourseEditor.jsx
+   CourseRunPreview): усередині мокапа живе справжній CoursePlayer, тож
+   рамка мусить дати йому повну висоту й власний скрол, а не обрізати. */
+.adm-run-preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Постійна плашка «це прев'ю» — щоб автор ніколи не переплутав пробіг із
+   реальним проходженням і не чекав, що бал кудись запишеться. */
+.adm-run-preview-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  padding: 4px 8px;
+  background: var(--cb-tertiary);
+  color: var(--cb-black);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  pointer-events: none;
 }

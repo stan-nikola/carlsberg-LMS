@@ -69,6 +69,8 @@ export async function PATCH(request, { params }) {
   if (body.isMandatory !== undefined) data.isMandatory = body.isMandatory;
   if (body.deadlineDays !== undefined) data.deadlineDays = body.deadlineDays;
   if (body.passThreshold !== undefined) data.passThreshold = body.passThreshold === "" || body.passThreshold == null ? 80 : Number(body.passThreshold);
+  if (body.certificateEnabled !== undefined) data.certificateEnabled = Boolean(body.certificateEnabled);
+  if (body.assignOnFirstLogin !== undefined) data.assignOnFirstLogin = Boolean(body.assignOnFirstLogin);
   // "phone"/"laptop" — перемикач прев'ю над макетом у AdminCourseEditor.jsx,
   // не впливає на реальний застосунок співробітника.
   if (body.previewDevice !== undefined) data.previewDevice = body.previewDevice === "laptop" ? "laptop" : "phone";

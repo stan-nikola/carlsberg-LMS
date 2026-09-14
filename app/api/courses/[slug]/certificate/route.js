@@ -154,6 +154,13 @@ export async function GET(request, { params }) {
   const course = await prisma.course.findUnique({ where: { slug } });
   if (!course) return new Response(JSON.stringify({ error: "Course not found" }), { status: 404 });
 
+  // Вимикач сертифіката per-курс (Course.certificateEnabled, вкладка
+  // "Розклад" в /admin). Перевірка саме тут, а не лише в UI: кнопку в
+  // картці можна обійти прямим переходом за цим URL.
+  if (!course.certificateEnabled) {
+    return new Response(JSON.stringify({ error: "Для цього курсу сертифікат не видається" }), { status: 403 });
+  }
+
   const enrollment = await prisma.enrollment.findUnique({
     where: { employeeId_courseId: { employeeId: employee.id, courseId: course.id } },
   });

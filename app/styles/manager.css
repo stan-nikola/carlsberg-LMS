@@ -76,7 +76,11 @@ body:has(.manager-shell) {
 }
 
 .manager-page {
-  padding: clamp(16px, 4vw, 32px) clamp(14px, 4vw, 40px) 60px;
+  /* Бічні відступи -30% від clamp(14px, 4vw, 40px) — ширина, віддана
+     контенту, потрібніша самим карткам: у сітці їх тепер 4 в ряд, і
+     кожні зекономлені 24px по краях це +6px кожній картці. Верхній і
+     нижній відступи не чіпаємо. */
+  padding: clamp(16px, 4vw, 32px) clamp(10px, 2.8vw, 28px) 60px;
 }
 /* Курси/Досягнення/Профіль — той самий контент-паттерн, що в /hub
    (.hub-h1/.greeting/.badge-grid/.profile-card тощо, hub.css), який був
@@ -86,6 +90,29 @@ body:has(.manager-shell) {
    екран — це "особистий" контент, не таблиця/дашборд. */
 .manager-hub-page {
   max-width: 640px;
+}
+
+/* Курси керівника — спільна сітка карток (.card-grid, app/globals.css).
+   --card-min більший за дефолтні 260px: CourseTile несе іконку, теги,
+   опис, дедлайн, прогрес і кнопку входу — у вужчій колонці все це
+   починає ламатись у стовпчик із одного слова. */
+.mgr-course-grid {
+  --card-min: 300px;
+  margin-top: 4px;
+}
+/* Картка курсу в сітці: вертикальна flex-колонка, щоб кнопка входу
+   притискалась донизу (margin-top:auto нижче). Без цього при вирівняних
+   висотах карток кнопки стоять на різних рівнях — рівно та проблема,
+   заради якої .card-grid і вирівнює висоти. */
+.card-grid .course-tile {
+  display: flex;
+  flex-direction: column;
+  /* margin-bottom у стовпчику /hub задавав відступ між картками; у сітці
+     за це відповідає gap, інакше знизу лишається подвійна щілина. */
+  margin-bottom: 0;
+}
+.card-grid .course-tile .ct-enter-link {
+  margin-top: auto;
 }
 
 .manager-topbar-name {
@@ -314,21 +341,29 @@ body:has(.manager-shell) {
      колонки на вузьких екранах, без ручних breakpoint. */
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 14px;
-  margin-bottom: 32px;
+  /* -30% від попередніх 32px (запит користувача: блоки дашборда стояли
+     задалеко один від одного по вертикалі). Те саме зроблено для
+     .mgr-section нижче — разом вони й дають усю вертикальну ритміку
+     сторінки /manager. */
+  margin-bottom: 22px;
 }
 .mgr-kpi-tile {
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface-1);
-  padding: 16px 18px;
+  /* Висота плитки -30% (запит користувача): урізані і вертикальний
+     padding, і кегль числа — самим лише padding такої різниці не вийшло
+     б, бо більшу частину висоти займає саме число. Горизонтальний
+     padding не чіпаємо — звужувати плитки не просили. */
+  padding: 7px 18px;
 }
 .mgr-kpi-tile b {
   display: block;
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 21px;
   line-height: 1.1;
   color: var(--green-700);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .mgr-kpi-tile span {
   font-size: 12px;
@@ -344,7 +379,8 @@ body:has(.manager-shell) {
 }
 
 .mgr-section {
-  margin-bottom: 36px;
+  /* -30% від попередніх 36px — див. коментар при .mgr-kpi-row. */
+  margin-bottom: 25px;
 }
 .mgr-section h2 {
   display: flex;
@@ -360,14 +396,27 @@ body:has(.manager-shell) {
   flex-shrink: 0;
 }
 
+/* Підказка в заголовку блоку — спільний .hint-dot (app/globals.css),
+   тут лише позиціювання під цей контекст: margin-left:auto відсуває
+   іконку до правого краю заголовка (сам h2 — flex), щоб вона не липла
+   до тексту назви. */
+.mgr-section h2 .hint-dot {
+  margin-left: auto;
+}
+
 /* ---- Списки призначень (свої курси керівника + деталі підлеглого) ---- */
+/* Курси розгорнутого співробітника — гумова сітка, а не колонка рядків
+   на всю ширину: у людини їх 4-8, кожен на повну ширину сторінки давав
+   довгий стовпчик із порожнім місцем праворуч від коротких назв. auto-fit
+   сам додає колонки під ширину (на великому моніторі виходить 4).
+   Сама сітка — спільний паттерн .card-grid (app/globals.css), тут лише
+   скидання списку й свій крок сітки; правила про однакову висоту й
+   перенос замість біжучого рядка описані там. */
 .mgr-enrollment-list {
   list-style: none;
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  --card-gap: 8px;
 }
 .mgr-enrollment-row {
   border: 1px solid var(--line);
@@ -377,9 +426,12 @@ body:has(.manager-shell) {
 }
 .mgr-enrollment-main {
   display: flex;
-  align-items: center;
+  /* flex-start, а не center: назва курсу тепер може зайняти два рядки, і
+     плашка статусу мусить лишатись на рівні ПЕРШОГО з них, а не з'їжджати
+     в середину. */
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 6px;
 }
 .mgr-enrollment-title {
@@ -387,11 +439,17 @@ body:has(.manager-shell) {
   min-width: 0;
   font-weight: 600;
   font-size: 13.5px;
+  line-height: 1.3;
+  /* Розрив довгого слова дозволено: у вузькій картці сітки назва на
+     кшталт "Кросс-категорійні" інакше вилазила б за межу. */
+  overflow-wrap: anywhere;
 }
 .mgr-enrollment-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  /* 14px розходились надто широко, щойно картка стала вужчою — чіпи
+     "20% балів / дата / 7 хв" переставали читатись як одна група. */
+  gap: 6px 12px;
   font-size: 12.5px;
   color: var(--ink-soft);
 }
@@ -425,9 +483,12 @@ body:has(.manager-shell) {
 }
 .mgr-module-row {
   display: flex;
-  align-items: center;
+  /* flex-start, а не center: назва модуля може зайняти два рядки, і
+     галочка статусу мусить лишатись на рівні першого. */
+  align-items: flex-start;
   gap: 7px;
   font-size: 12px;
+  line-height: 1.35;
   color: var(--ink-soft);
 }
 .mgr-module-status-icon {
@@ -457,13 +518,17 @@ body:has(.manager-shell) {
   border-radius: 50%;
   background: currentColor;
 }
-/* overflow/white-space/text-overflow навмисно НЕ тут — MarqueeText сама
-   несе їх через спільний клас .marquee (app/globals.css); дублювання
-   тут лише конфліктувало б із біжучим рядком замість звичайного "...". */
+/* Раніше тут був MarqueeText (і коментар, що overflow-властивості
+   навмисно віддані йому). Відколи курси лежать у гумовій сітці, рядок
+   модуля вужчий за екранну ширину, і біжучий рядок ішов на КОЖНОМУ
+   модулі одночасно — у застиглій фазі назва виглядала обрізаною з
+   початку ("...аперечення щодо об'єму закупівлі"). Звичайний перенос
+   у два рядки чесніший: нічого не ховається й нічого не рухається. */
 .mgr-module-title {
   flex: 1;
   min-width: 0;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 .mgr-module-score {
   font-family: var(--font-mono);
@@ -556,12 +621,41 @@ body:has(.manager-shell) {
 }
 
 /* ---- Графіки (ручний SVG — у проєкті немає чарт-бібліотеки) ---- */
+/* Тут, на відміну від решти сіток сторінки, auto-fit НЕ підходить:
+   карток рівно 8, і їхня кількість фіксована розміткою, а не даними.
+   auto-fit сам вирішує число колонок під ширину й легко дає 3 — а 8 на 3
+   це 3+3+2 з дірою в останньому рядку. Тому колонки задані явно і лише
+   такі, на які 8 ділиться без залишку: 1 → 2 → 4.
+   900px — той самий брейкпойнт, на якому з'являється бічне меню;
+   1280px — ширина, з якої 4 колонки дають картці ще читабельні ~290px
+   (нижче бари й підписи в ній почали б ламатись). */
 .mgr-charts {
   display: grid;
-  /* Так само auto-fit — кільце й бари стають у 2 колонки на широкому
-     екрані й самі складаються в 1 колонку, щойно не влазять поруч. */
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: 1fr;
   gap: 20px;
+}
+@media (min-width: 900px) {
+  .mgr-charts {
+    /* minmax(0, …), а не голий 1fr: у 1fr мінімум — auto, тож картка з
+       широким вмістом (6 стовпчиків тренду з підписом "Цей тиждень")
+       розсувала свою колонку за рахунок сусідніх, і колонки виходили
+       різними — 307px проти 286px. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* Картки, яким потрібна ширина: довгі назви курсів/модулів і кільце з
+     розшифровкою поруч. На 4 колонках вони йдуть по 2 в ряд, на 2 —
+     на всю ширину. Чому саме ЧОТИРИ такі, а не дві: щоб у сітці не
+     лишалось дірок, одинарних карток має бути рівно 4 або 8 (8 карток,
+     подвійна займає 2 колонки → 16 - n₁ мусить ділитись на 4). При двох
+     подвійних останній ряд обривався б на половині. */
+  .mgr-chart-card-wide {
+    grid-column: span 2;
+  }
+}
+@media (min-width: 1280px) {
+  .mgr-charts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 .mgr-chart-card {
   border: 1px solid var(--line);
@@ -649,12 +743,89 @@ body:has(.manager-shell) {
      що й .mgr-ring-fill/.mgr-trend-bar-fill. */
   transition: width calc(var(--dur-slow) * 1.5) var(--ease-premium);
 }
+/* Дворядкова підпис-колонка (назва модуля + курс під нею) — скасовує
+   однорядкові nowrap/ellipsis базового .mgr-bar-label. Основа ширша
+   (200px замість 140px), бо назва модуля довша за назву курсу. */
+.mgr-bar-label-stack {
+  flex: 1 1 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: normal;
+  overflow: visible;
+}
+.mgr-bar-label-main {
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.mgr-bar-label-sub {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+
+/* Бар, що означає проблему, а не досягнення — прострочене/скоро горить у
+   "Дедлайнах на горизонті" й частка провалів у "Найскладніших модулях".
+   Зелений --cb-primary там читався б як успіх: що довший бар, то нібито
+   краще, хоча сенс протилежний. */
+.mgr-bar-fill-alert {
+  background: var(--cb-fail);
+}
 .mgr-bar-value {
   flex: 0 0 auto;
   font-size: 12px;
   color: var(--ink-soft);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* Медіана під розподілом часу — підпис до діаграми, а не окремий блок:
+   тримається впритул до барів, без звичного верхнього відступу .admin-hint. */
+.mgr-duration-median {
+  margin: 10px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- "З першої спроби": кільце + розшифровка абсолютними числами ----
+   Сам відсоток не каже, з якої бази він порахований (50% з двох спроб і
+   50% з сорока — різна впевненість), тому поруч завжди стоять обидва
+   лічильники. */
+.mgr-first-try-card {
+  display: flex;
+  flex-direction: column;
+}
+.mgr-first-try-body {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 24px;
+  padding-top: 4px;
+}
+.mgr-first-try-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mgr-first-try-legend li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.mgr-first-try-legend b {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.mgr-first-try-legend span {
+  font-size: 12px;
+  color: var(--ink-soft);
 }
 
 /* Картка тренду росте разом із сусідньою карткою кілець (репет.

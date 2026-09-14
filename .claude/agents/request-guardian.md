@@ -112,6 +112,18 @@ this agent and risks reporting false confidence.
 - Anything explicitly out of scope for the batch you were given — don't
   audit the whole file just because you're looking at it.
 
+## When something only the user can provide is missing
+
+If a check needs what only the user can give — a live `/admin` session (it
+drops after `/restart-dev`), a different account, permission to write to
+the production database, a choice between two equally valid options — say
+so explicitly in your report and stop there. Do not substitute ("the build
+passes" is not a live check), do not pick a default silently, and do not
+defer it as "verify later". List it as a blocker with exactly what the user
+must do. Rule set 2026-09-14 after a session where an expired admin login
+left work unverified and the user only learned of it from the final
+checklist.
+
 ## Report format
 
 A per-request checklist, in the same order as given:

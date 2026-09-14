@@ -8,7 +8,8 @@ import {
   SpinnerIcon,
   InfoIcon,
   FolderIcon,
-  NewFolderIcon,
+  RootIcon,
+  ArrowBackIcon,
   GridViewIcon,
   ListViewIcon,
   CourseIcon,
@@ -16,6 +17,8 @@ import {
   XIcon,
 } from "@/components/icons";
 import { TerritoryPicker } from "@/components/TerritoryPicker";
+import { pluralize } from "@/lib/pluralize";
+import { HintDot } from "@/components/HintDot";
 import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
 import { STREAK_PRESET_MESSAGES } from "@/lib/streakMessages";
 
@@ -24,6 +27,18 @@ import { STREAK_PRESET_MESSAGES } from "@/lib/streakMessages";
 // AdminCourseEditor.jsx) одразу до цього модуля (?module=ID). Тут же — форми
 // створення нового курсу (назва + всі атрибути, як у CourseSettingsBar
 // редактора) і нового модуля всередині вже наявного курсу.
+
+// Пояснення до двох прапорців курсу — один текст на обидві форми
+// (створення і редагування), щоб вони не розійшлися формулюванням.
+const CERTIFICATE_HINT =
+  "Сертифікат — PDF з ім'ям співробітника, назвою курсу й датою завершення. " +
+  "Видається лише за 100% правильних відповідей: це свідомо вища планка, ніж прохідний бал " +
+  "(той дає лише «залік»). Знята галочка прибирає кнопку завантаження з картки курсу.";
+const FIRST_LOGIN_HINT =
+  "Курс автоматично призначається кожному, хто вперше успішно увійшов на платформу. " +
+  "Саме перший вхід, а не момент появи в базі: співробітники завантажуються пачками з HR-імпорту, " +
+  "і призначення на тому етапі копило б прострочення тим, хто платформу ще не відкривав. " +
+  "Діє разом зі звичайним призначенням за посадою/територією, не замість нього.";
 
 // Кольорова "схема" для іконок папок у сітці Провідника — різні папки
 // різного кольору для швидкої візуальної орієнтації (як кольорові папки в
@@ -221,6 +236,8 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [isMandatory, setIsMandatory] = useState(true);
+  const [certificateEnabled, setCertificateEnabled] = useState(true);
+  const [assignOnFirstLogin, setAssignOnFirstLogin] = useState(false);
   const [deadlineDays, setDeadlineDays] = useState("");
   const [passThreshold, setPassThreshold] = useState(80);
   const [previewDevice, setPreviewDevice] = useState("phone");
@@ -245,6 +262,8 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
           description: description || null,
           category: category || null,
           isMandatory,
+          certificateEnabled,
+          assignOnFirstLogin,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
           passThreshold: passThreshold === "" ? 80 : Number(passThreshold),
           previewDevice,
@@ -345,10 +364,24 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
             <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
             <span>Обов&apos;язковий курс</span>
           </label>
+          <label className="admin-checkbox">
+            <input type="checkbox" checked={certificateEnabled} onChange={(e) => setCertificateEnabled(e.target.checked)} />
+            <span>Видавати сертифікат за проходження</span>
+            <HintDot text={CERTIFICATE_HINT} align="start" />
+          </label>
         </div>
 
         <div className="admin-form-section">
           <span className="admin-form-section-title">Кому призначати</span>
+          <label className="admin-checkbox">
+            <input
+              type="checkbox"
+              checked={assignOnFirstLogin}
+              onChange={(e) => setAssignOnFirstLogin(e.target.checked)}
+            />
+            <span>Новоприбулим на платформу</span>
+            <HintDot text={FIRST_LOGIN_HINT} align="start" />
+          </label>
           <PositionsAccordionField
             positions={positions}
             value={targetPositions}
@@ -392,6 +425,8 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
   const [description, setDescription] = useState(course.description || "");
   const [category, setCategory] = useState(course.category || "");
   const [isMandatory, setIsMandatory] = useState(course.isMandatory);
+  const [certificateEnabled, setCertificateEnabled] = useState(course.certificateEnabled !== false);
+  const [assignOnFirstLogin, setAssignOnFirstLogin] = useState(Boolean(course.assignOnFirstLogin));
   const [deadlineDays, setDeadlineDays] = useState(course.deadlineDays ?? "");
   const [passThreshold, setPassThreshold] = useState(course.passThreshold ?? 80);
   const [previewDevice, setPreviewDevice] = useState(course.previewDevice || "phone");
@@ -520,6 +555,8 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
           description: description || null,
           category: category || null,
           isMandatory,
+          certificateEnabled,
+          assignOnFirstLogin,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
           passThreshold: passThreshold === "" ? 80 : Number(passThreshold),
           previewDevice,
@@ -631,10 +668,24 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
             <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
             <span>Обов&apos;язковий курс</span>
           </label>
+          <label className="admin-checkbox">
+            <input type="checkbox" checked={certificateEnabled} onChange={(e) => setCertificateEnabled(e.target.checked)} />
+            <span>Видавати сертифікат за проходження</span>
+            <HintDot text={CERTIFICATE_HINT} align="start" />
+          </label>
         </div>
 
         <div className="admin-form-section">
           <span className="admin-form-section-title">Кому призначати</span>
+          <label className="admin-checkbox">
+            <input
+              type="checkbox"
+              checked={assignOnFirstLogin}
+              onChange={(e) => setAssignOnFirstLogin(e.target.checked)}
+            />
+            <span>Новоприбулим на платформу</span>
+            <HintDot text={FIRST_LOGIN_HINT} align="start" />
+          </label>
           <PositionsAccordionField
             positions={positions}
             value={targetPositions}
@@ -850,8 +901,13 @@ function CourseRow({
           {course.title}
         </span>
         <span className="admin-hint">
-          /{course.slug} · {course.modules.length} {course.modules.length === 1 ? "модуль" : "модулів"} · Призначено:{" "}
+          /{course.slug} · {pluralize(course.modules.length, "модуль", "модулі", "модулів")} · Призначено:{" "}
           {course._count?.enrollments ?? 0}
+          {/* Дата створення — лише в списковому виді: у плитці на неї
+              просто немає рядка, а тут вона потрібна, щоб сортування "за
+              датою" можна було перевірити очима, а не лише повірити
+              порядку. */}
+          {course.createdAt && ` · Створено ${new Date(course.createdAt).toLocaleDateString("uk-UA")}`}
         </span>
       </button>
 
@@ -944,6 +1000,11 @@ export function AdminDashboard() {
   // Сітка плиток "як провідник файлів" (за погодженням з користувачем) —
   // за замовчуванням, з перемикачем назад на компактний список.
   const [viewMode, setViewMode] = useState("grid");
+  // Порядок каталогу. "title" — дефолт, той самий, у якому курси
+  // приходять з API (orderBy: title asc), тож перший рендер нічого не
+  // переставляє. Сортування клієнтське: увесь каталог і так уже в
+  // пам'яті (одним запитом), ходити на сервер за порядком нема потреби.
+  const [sortBy, setSortBy] = useState("title");
   // У сітці клік по плитці курсу не може розтягувати САМУ плитку
   // (зламало б сітку сусідів) — розгортає єдину спільну панель під усією
   // сіткою, тому стан "яка плитка розгорнута" тут, на рівні дашборда, а
@@ -1119,14 +1180,41 @@ export function AdminDashboard() {
 
   const isSearching = Boolean(courseQuery.trim() || categoryFilter);
 
-  const visibleCourses = (courses || []).filter((c) => {
-    if (categoryFilter && c.category !== categoryFilter) return false;
-    if (courseQuery.trim() && !c.title.toLowerCase().includes(courseQuery.trim().toLowerCase())) return false;
-    if (!isSearching && c.folderId !== currentFolderId) return false;
-    return true;
-  });
+  // Сортування. За назвою — за зростанням (А→Я); за датою й за
+  // призначеннями — за СПАДАННЯМ: там питання завжди "що найновіше" й
+  // "що найпоширеніше", а не навпаки. localeCompare з "uk" — інакше
+  // кирилиця сортується за кодами символів, і "Є"/"І"/"Ї" опиняються не
+  // на своїх місцях.
+  const byTitle = (a, b) => (a.title || a.name || "").localeCompare(b.title || b.name || "", "uk");
+  const sortCourses = (list) => {
+    const sorted = [...list];
+    if (sortBy === "createdAt") {
+      sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (sortBy === "enrollments") {
+      sorted.sort((a, b) => (b._count?.enrollments ?? 0) - (a._count?.enrollments ?? 0) || byTitle(a, b));
+    } else {
+      sorted.sort(byTitle);
+    }
+    return sorted;
+  };
 
-  const visibleFolders = isSearching ? [] : folders.filter((f) => f.parentId === currentFolderId);
+  const visibleCourses = sortCourses(
+    (courses || []).filter((c) => {
+      if (categoryFilter && c.category !== categoryFilter) return false;
+      if (courseQuery.trim() && !c.title.toLowerCase().includes(courseQuery.trim().toLowerCase())) return false;
+      if (!isSearching && c.folderId !== currentFolderId) return false;
+      return true;
+    })
+  );
+
+  // Папки сортуються лише за назвою або датою — "за призначеннями" для
+  // них не існує (це властивість курсу), тож у цьому режимі лишаємо
+  // алфавіт, а не вигадуємо папкам неіснуючий лічильник.
+  const visibleFolders = isSearching
+    ? []
+    : [...folders.filter((f) => f.parentId === currentFolderId)].sort((a, b) =>
+        sortBy === "createdAt" ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : byTitle(a, b)
+      );
 
   // Хлібні крихти поточної папки — від кореня до currentFolderId.
   const breadcrumb = [];
@@ -1172,6 +1260,20 @@ export function AdminDashboard() {
         >
           {showCreate ? "Скасувати" : "+ Додати курс"}
         </button>
+        {/* Створення папки переїхало сюди з іконки біля хлібних крихт:
+            дві дії одного роду ("додати щось у цю папку") тепер стоять
+            поруч і виглядають однаково, а не одна текстовою кнопкою, а
+            друга безпідписною іконкою в іншому ряду. Підпис не
+            перемикається на "Скасувати", як у курсу: там інлайн-форма
+            прямо під кнопкою, а тут модальне вікно з власним "Скасувати". */}
+        <button
+          type="button"
+          className="admin-btn"
+          onClick={() => setShowCreateFolder(true)}
+          title="Створити нову папку в поточній"
+        >
+          + Додати папку
+        </button>
         {courses && courses.length > 0 && (
           <>
             <select
@@ -1186,6 +1288,17 @@ export function AdminDashboard() {
                   {cat}
                 </option>
               ))}
+            </select>
+            <select
+              className="admin-select adm-toolbar-input"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              title="Порядок у каталозі"
+              aria-label="Сортування"
+            >
+              <option value="title">За назвою</option>
+              <option value="createdAt">За датою</option>
+              <option value="enrollments">За призначеннями</option>
             </select>
             <input
               className="admin-input-flex adm-toolbar-input"
@@ -1263,29 +1376,36 @@ export function AdminDashboard() {
         </div>
       )}
 
+      {/* Смуга навігації по каталогу. Стилі переїхали з інлайнового
+          style= в клас .adm-breadcrumb-bar (app/styles/admin.css) — там
+          з'явився власний фон, щоб вона читалась як окремий рівень, а не
+          зливалась із тулбаром зверху й списком знизу. */}
       {!isSearching && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0,
-            height: 42,
-            border: "1px solid var(--line)",
-            borderRadius: "var(--radius-btn)",
-            padding: "0 8px",
-            width: "100%",
-            boxSizing: "border-box",
-          }}
-        >
-          <button
-            type="button"
-            className="iconbtn adm-new-folder-btn"
-            title={showCreateFolder ? "Скасувати" : "Нова папка"}
-            aria-label="Нова папка"
-            onClick={() => setShowCreateFolder((v) => !v)}
-          >
-            <NewFolderIcon />
-          </button>
+        <div className="adm-breadcrumb-bar">
+          {/* Підйом на рівень вище. У корені підійматись нікуди — тоді це
+              не кнопка, а статичний значок кореня: так видно, ДЕ ти, а не
+              лише куди можна піти (той самий прийом, що й неактивна
+              коренева крихта поруч). Кнопка веде до батьківської папки
+              поточної, а не просто "на крок назад" по історії — в
+              каталозі важлива ієрархія, а не порядок кліків. */}
+          {currentFolderId === null ? (
+            <span className="adm-breadcrumb-nav is-root" title="Корінь каталогу" aria-hidden="true">
+              <RootIcon />
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="iconbtn adm-breadcrumb-nav"
+              title="На рівень вище"
+              aria-label="На рівень вище"
+              onClick={() => {
+                const current = folders.find((f) => f.id === currentFolderId);
+                setCurrentFolderId(current ? current.parentId : null);
+              }}
+            >
+              <ArrowBackIcon />
+            </button>
+          )}
           <nav className="adm-breadcrumb">
             <button
               type="button"
@@ -1533,32 +1653,48 @@ function FolderTile({
       }}
       onContextMenu={isDeleting ? undefined : onContextMenu}
     >
-      <button
-        type="button"
-        className="adm-tile-hit"
-        onClick={() => !isRenaming && !isDeleting && onOpen()}
-        disabled={isDeleting}
-        title={`${folder.name} — ${itemCount === 0 ? "порожньо" : itemCount + (itemCount === 1 ? " елемент" : " елементів")}`}
-      >
-        <span className="adm-tile-icon adm-tile-icon-folder" style={isDeleting ? undefined : { color: folderTileColor(folder.id) }}>
-          {isDeleting ? <SpinnerIcon /> : <FolderIcon />}
-        </span>
-      </button>
+      {/* Під час перейменування іконка й поле вводу — окремі елементи
+          (кнопка не має проковтувати кліки в інпут); у звичайному стані
+          іконка, назва й лічильник лежать в ОДНІЙ кнопці на всю плитку,
+          щоб клікабельним був увесь бокс, а не сама лише іконка — так
+          само, як у плитці курсу. */}
       {isRenaming ? (
-        <input
-          className="adm-tile-rename-input"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && name.trim()) onRenameSubmit(name.trim());
-            if (e.key === "Escape") onRenameCancel();
-          }}
-          onBlur={() => (name.trim() && name.trim() !== folder.name ? onRenameSubmit(name.trim()) : onRenameCancel())}
-          autoFocus
-        />
+        <>
+          <span className="adm-tile-icon adm-tile-icon-folder" style={{ color: folderTileColor(folder.id) }}>
+            <FolderIcon />
+          </span>
+          <input
+            className="adm-tile-rename-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && name.trim()) onRenameSubmit(name.trim());
+              if (e.key === "Escape") onRenameCancel();
+            }}
+            onBlur={() => (name.trim() && name.trim() !== folder.name ? onRenameSubmit(name.trim()) : onRenameCancel())}
+            autoFocus
+          />
+        </>
       ) : (
-        <span className="adm-tile-label">{folder.name}</span>
+        <button
+          type="button"
+          className="adm-tile-hit-full"
+          onClick={() => !isDeleting && onOpen()}
+          disabled={isDeleting}
+          title={`${folder.name} — ${itemCount === 0 ? "порожньо" : pluralize(itemCount, "елемент", "елементи", "елементів")}`}
+        >
+          <span className="adm-tile-icon adm-tile-icon-folder" style={isDeleting ? undefined : { color: folderTileColor(folder.id) }}>
+            {isDeleting ? <SpinnerIcon /> : <FolderIcon />}
+          </span>
+          <span className="adm-tile-label">{folder.name}</span>
+          {/* Лічильник вмісту був лише в title-тултипі — на плитці його
+              не було видно без ховера, а сусідня плитка курсу свій
+              підпис показує. Заразом вирівнює висоти в сітці. */}
+          <span className="adm-tile-sub">
+            {itemCount === 0 ? "порожньо" : pluralize(itemCount, "елемент", "елементи", "елементів")}
+          </span>
+        </button>
       )}
     </div>
   );

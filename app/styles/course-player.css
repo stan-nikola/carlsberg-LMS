@@ -162,19 +162,21 @@
   font-family: var(--font-display);
   font-size: calc(18px * var(--fs-scale));
 }
-/* Третя плашка ("~N хв") ділить .stat b з "N екранів"/"N питань", але
-   додатково несе ClockIcon перед числом — inline-flex+justify-content,
-   щоб лишитись відцентрованою всередині плашки, як і сусідні дві. */
-.cp-intro-stats .stat b.cp-stat-time {
+/* Кожна плашка несе іконку перед числом (екрани / питання / хвилини) —
+   inline-flex+justify-content, щоб пара «іконка+число» лишалась
+   відцентрованою всередині плашки. */
+.cp-intro-stats .stat b.cp-stat-val {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   width: 100%;
 }
-.cp-intro-stats .stat b.cp-stat-time svg {
-  width: 15px;
-  height: 15px;
+/* 20px = колишні 15px + 30% (19.5, округлено) — за проханням користувача;
+   всі три іконки одного 24-viewBox/stroke-2 набору, тому один розмір. */
+.cp-intro-stats .stat b.cp-stat-val svg {
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
 }
 .cp-intro-stats .stat span {
@@ -210,6 +212,104 @@
 }
 
 /* quiz options (single/multi) */
+/* Банер блоку питань — портовано з legacy (course-assortment.html
+   .quiz-banner/.quiz-banner-ico/.q-type-tag): золота плашка, кругла
+   іконка з пульсуючим кільцем і повільний білий блік. Єдине місце в
+   плеєрі з градієнтом на тлі — свідомо, це не кнопка, а «печатка»
+   тесту, і саме так вона виглядала в legacy. Кольори — токени, не rgba. */
+.quiz-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(120deg, var(--gold-soft), var(--surface-1) 70%);
+  border: 1.5px solid var(--gold);
+  border-radius: var(--radius-card);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.quiz-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--cb-white) 50%, transparent) 48%,
+    transparent 66%
+  );
+  background-size: 220% 100%;
+  /* 9.5s — підібрано користувачем повзунком на стенді (2026-09-15;
+     legacy мав 3.2s). */
+  animation: cpTapSweep 9.5s ease-in-out infinite;
+}
+.quiz-banner-ico {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: var(--cb-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  animation: quizPulse 1.8s ease-in-out infinite;
+}
+.quiz-banner-ico svg {
+  width: 22px;
+  height: 22px;
+}
+@keyframes quizPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 50%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+.quiz-banner-txt {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.quiz-banner-txt b {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: calc(14px * var(--fs-scale));
+  color: var(--ink);
+}
+.quiz-banner-txt span {
+  font-size: calc(11.5px * var(--fs-scale));
+  color: var(--ink-soft);
+}
+/* Тип питання — моно-тег, як у legacy .q-type-tag. Пігулка — той самий
+   виняток, що й решта бейджів/чипів (design-guardian: badges round). */
+.q-type-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--fs-scale));
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--green-700);
+  background: var(--green-tint);
+  border-radius: var(--radius-pill);
+  padding: 5px 11px;
+  margin-bottom: 10px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .quiz-banner::after,
+  .quiz-banner-ico {
+    animation: none;
+  }
+}
 .opt-group {
   margin-bottom: 12px;
 }
@@ -236,6 +336,69 @@
 .opt:active {
   transform: scale(0.99);
 }
+/* Маркер вибору з legacy-курсу: кружечок для одного варіанта, квадратик
+   із галочкою для кількох. Без нього по варіанту не видно, що він
+   взагалі вибирається, поки не натиснеш. */
+.opt-mark {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  flex-shrink: 0;
+  position: relative;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.opt-mark.chk {
+  border-radius: var(--radius-xs);
+}
+.opt-text {
+  min-width: 0;
+}
+.opt.selected .opt-mark,
+.opt.correct .opt-mark {
+  background: var(--green-700);
+  border-color: var(--green-700);
+}
+.opt.wrong .opt-mark {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+/* Галочка малюється повернутим кутом рамки — той самий прийом, що в
+   legacy, без окремої іконки. */
+.opt.selected .opt-mark.chk::after,
+.opt.correct .opt-mark.chk::after,
+.opt.wrong .opt-mark.chk::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0;
+  width: 5px;
+  height: 9px;
+  border: solid var(--cb-white);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+/* Легка реакція на розкриття відповіді: правильний варіант коротко
+   «дихає», щоб погляд одразу знайшов його серед решти. */
+.opt.correct {
+  animation: optCorrectPulse var(--dur-slow) var(--ease-out) both;
+}
+@keyframes optCorrectPulse {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.015);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .opt.correct {
+    animation: none;
+  }
+}
 .opt:focus-visible {
   outline: none;
   box-shadow: var(--cb-focus-ring);
@@ -255,11 +418,38 @@
 .opt.disabled {
   pointer-events: none;
 }
+/* Блок відповіді. З'являється вже після кліку, тому лагідно «висувається»
+   знизу, а не вистрибує: різка поява під пальцем читалась би як помилка
+   інтерфейсу. Тривалість — спільний токен, не власне число. */
 .q-fb {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   font-size: calc(12.4px * var(--fs-scale));
-  padding: 8px 12px;
+  line-height: 1.45;
+  padding: 10px 12px;
   border-radius: var(--radius-sm);
-  margin-top: 2px;
+  margin-top: 4px;
+  animation: qFbIn var(--dur-base) var(--ease-premium) both;
+}
+@keyframes qFbIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.q-fb-verdict {
+  font-weight: 700;
+}
+/* Пояснення автора — спокійнішим кольором за вердикт: це вже не оцінка
+   «правильно/ні», а текст, який треба прочитати. */
+.q-fb-explain {
+  color: var(--ink);
+  opacity: 0.85;
 }
 .q-fb.ok {
   background: var(--green-tint);
@@ -268,6 +458,11 @@
 .q-fb.bad {
   background: color-mix(in srgb, var(--danger) 14%, var(--surface-1));
   color: var(--danger);
+}
+@media (prefers-reduced-motion: reduce) {
+  .q-fb {
+    animation: none;
+  }
 }
 
 /* completion screen */
@@ -377,6 +572,14 @@
   color: var(--ink);
   border: 1px solid var(--line);
   flex: 0 0 80px;
+}
+/* Фінальний екран при 100%: «Назад» немає, єдина «Перейти на головну» —
+   на всю ширину (за проханням користувача). Перебиває і десктопний
+   @container-варіант нижче (там .navbar .btn — flex:0 0 auto/min-width). */
+.navbar--solo .btn,
+.navbar.navbar--solo .btn {
+  flex: 1 1 auto;
+  width: 100%;
 }
 @media (hover: hover) {
   .btn-ghost:hover:not(:disabled) {
@@ -596,10 +799,25 @@
   background: var(--cb-primary);
   color: var(--cb-white);
 }
+/* Усі співрозмовники — праворуч, навпроти власних реплік співробітника
+   (.bubble.me ліворуч). Відрізняються заливкою, щоб у діалозі на три
+   голоси було видно, хто саме говорить, не вчитуючись у підпис. */
 .bubble.client {
   align-self: flex-end;
   background: var(--surface-1);
   border: 1px solid var(--line);
+  color: var(--ink);
+}
+.bubble.manager {
+  align-self: flex-end;
+  background: var(--cb-notification-light);
+  border: 1px solid var(--cb-notification);
+  color: var(--ink);
+}
+.bubble.colleague {
+  align-self: flex-end;
+  background: var(--cb-support-40);
+  border: 1px solid var(--cb-support-60);
   color: var(--ink);
 }
 .bubble.tip {
@@ -735,8 +953,13 @@
   font-weight: 700;
   transition: background var(--dur-base) var(--ease-premium), color var(--dur-base) var(--ease-premium);
 }
+/* «Ви тут» — синій notification (токен Malty), обраний користувачем на
+   стенді 2026-09-15 з усіх фірмових кольорів: золото під зеленим
+   переливом .tap-next давало брудне накладення, зелений зливався з
+   «пройдено» (secondary). Синій — єдиний токен, що і не зелений, і не
+   золотий, тож стан читається одразу. */
 .tl-item.current .tl-num {
-  background: var(--cb-tertiary);
+  background: var(--cb-notification);
   color: var(--cb-white);
 }
 .tl-item.seen .tl-num {
@@ -798,9 +1021,19 @@
 }
 /* Режим "ви тут": підсвічений крок отримує тепле тло на весь вміст, щоб
    впадав в око навіть серед решти вже пройдених пунктів ланцюга. */
+/* Підсвітка вписана в ті самі габарити, що й звичайний крок: тло на
+   .tl-body без додаткових відступів, обвідка — inset-тінню, яка не
+   додає ані пікселя до розміру (раніше золота плашка виглядала довшою за
+   сусідні кроки). Зелений тінт узгоджений із переливом .tap-next. */
 .tl-item.current .tl-body {
-  background: var(--gold-soft);
+  background: var(--cb-notification-light);
+  box-shadow: inset 0 0 0 1px var(--cb-notification);
   border-radius: var(--radius-sm);
+  /* Не розтягуватись до висоти рейки зліва (кружечок + сполучна лінія з
+     min-height): у згорнутому стані підсвічена плашка виходила вищою за
+     сусідні кроки (користувач, 2026-09-15) — саме тому, що лише в неї
+     видно тло. Висота — за власним заголовком, як у решти. */
+  align-self: flex-start;
 }
 .tl-title {
   min-width: 0;
@@ -862,15 +1095,31 @@
   flex-shrink: 0;
 }
 
+/* Фото всередині будь-якого компонента (components/ScreenComponents.jsx
+   ScreenMedia) — стоїть між вступним рядком і власним вмістом типу.
+   Окремий клас від .cp-info-media: у інфо-блоку своя логіка з
+   @container-перерозкладкою "фото поруч із текстом", а тут фото завжди
+   йде своїм рядом над вмістом. */
+.cp-screen-media {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
 /* ---- Зум фото (lightbox) ---- */
 .photo-frame.zoomable {
   cursor: zoom-in;
   position: relative;
 }
+/* z-index:2 — вище за <img> усередині .cp-img-wrap (той несе z-index:1,
+   щоб стояти над скелетоном); без цього лупа ховалась ПІД фото
+   (знайдено користувачем 2026-09-15: «исчезла лупа»). */
 .zoom-badge {
   position: absolute;
   right: 8px;
   bottom: 8px;
+  z-index: 2;
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -1029,6 +1278,108 @@
   opacity: 0.92;
   line-height: 1.35;
 }
+/* Блок сертифіката на фінальному екрані курсу, пройденого на 100%.
+   Золотий, а не зелений: зелений у плеєрі скрізь означає «правильно/
+   складено», а це інша сутність — нагорода, і вона має читатись окремо
+   від звичайного заліку. */
+.cp-cert-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 18px 0 12px;
+  padding: 18px 16px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-card);
+  background: var(--gold-soft);
+  text-align: center;
+}
+.cp-cert-icon {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  color: color-mix(in srgb, var(--gold) 65%, var(--cb-black));
+}
+.cp-cert-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.cp-cert-title {
+  font-size: calc(14.5px * var(--fs-scale));
+  line-height: 1.35;
+  color: var(--ink);
+}
+.cp-cert-sub {
+  font-size: calc(12.5px * var(--fs-scale));
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.cp-cert-btn {
+  margin-top: 6px;
+}
+.cp-cert-btn svg {
+  width: 20px;
+  height: 20px;
+}
+/* Підказка для тих, хто склав, але не на 100% — пояснює, що сертифікат
+   узагалі існує, і що до нього лишилось небагато. */
+.cp-cert-hint {
+  margin: 14px 0 2px;
+  font-size: calc(12.5px * var(--fs-scale));
+  line-height: 1.4;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+/* Конфеті на весь екран (components/ScreenComponents.jsx ConfettiBurst) —
+   фінальний екран курсу, пройденого на 100%. position:fixed, бо падати
+   має через усе вікно, а не в межах картки курсу. pointer-events:none —
+   шар декоративний і не повинен перехоплювати кліки по кнопці
+   сертифіката під ним. */
+.cp-confetti {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+}
+/* Частинка — ТОЙ САМИЙ трилисток, що логотип платформи і PWA-іконка
+   (public/assets/brand/trefoil-solid-green.png, PLATFORM_HOP_LOGO_PATH),
+   а не намальований наново: файл іде маскою, заливка — currentColor, тож
+   форма ідентична, а колір — будь-який із палітри (інлайн з
+   ConfettiBurst разом із --spin/--drift). Вимога користувача 2026-09-15:
+   «як лого платформи — ІДЕНТИЧНЕ». Оберт іде однією анімацією з
+   падінням, тим самим м'яким easing — «плавне кручення», а не дзиґа. */
+.cp-confetti-piece {
+  position: absolute;
+  top: -20px;
+  opacity: 0;
+  background-color: currentColor;
+  -webkit-mask: url("/assets/brand/trefoil-solid-green.png") center / contain no-repeat;
+  mask: url("/assets/brand/trefoil-solid-green.png") center / contain no-repeat;
+  animation-name: cpConfettiFall;
+  animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
+  animation-fill-mode: forwards;
+}
+@keyframes cpConfettiFall {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift, 0), 100vh, 0) rotate(var(--spin, 360deg));
+  }
+}
+/* Свято не варте того, щоб викликати запаморочення в того, хто вимкнув
+   анімації системно. */
+@media (prefers-reduced-motion: reduce) {
+  .cp-confetti {
+    display: none;
+  }
+}
+
 .streak-toast-confetti {
   position: absolute;
   inset: 0;
@@ -1142,10 +1493,44 @@
   .cp-screen {
     /* 960px, не 720 — за словами користувача, вужчий варіант + сильний
        zoom-shrink (раніше, лише в мокапі) виглядав "по принципу мобілки",
-       не як версія під ноутбук/десктоп. */
+       не як версія під ноутбук/десктоп. Відступи 24/32 (було 44/40/56) —
+       «не така величезна й розмашиста», контент екрана має вміщатись у
+       в'юпорт, а не розтягуватись на два (користувач, 2026-09-14). */
     max-width: 960px;
     margin: 0 auto;
-    padding: 44px 40px 56px;
+    padding: 24px 32px 32px;
+  }
+  /* Вступний екран курсу — вужча колонка по центру: три плашки й банер
+     сертифіката на всі 960px виглядали розтягнутими. */
+  .cp-intro {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  /* Фото не вище половини екрана — інакше один знімок займає весь
+     в'юпорт і текст під ним доводиться шукати скролом. Обгортка тримає
+     реальні пропорції фото (--img-aspect, components/ScreenComponents.jsx
+     CourseImage): ширина = min(колонка, 48vh × пропорція), тобто рівно та,
+     за якої висота стає 48vh; менші фото так само тягнуться на всю
+     колонку, як і на мобільному (width:100%). Центр — margin:auto.
+     Рамка/тло переїжджають з .photo-frame на саму обгортку: рамка лишається
+     на всю колонку (у ній підпис і значок зуму), і без цього обабіч
+     вужчого фото світились би порожні смуги в рамці. */
+  .photo-frame {
+    border: none;
+    background: transparent;
+  }
+  .cp-img-wrap.is-loaded {
+    aspect-ratio: var(--img-aspect, auto);
+    width: 100%;
+    max-width: calc(48vh * var(--img-aspect, 1.6));
+    margin: 0 auto;
+    border: 1px solid var(--line);
+  }
+  /* Гаряча точка — виняток: зони задані у % від рамки, фото має
+     заповнювати рамку по ширині рівно так, як і на мобільному. */
+  .hs-frame .cp-img-wrap.is-loaded {
+    max-width: none;
+    border: none;
   }
   /* Варіанти тесту — 3 колонки: 960px реально вміщує 3 нормальні кнопки-
      варіанти в ряд, ближче до того, як десктопний тест виглядав би
@@ -1162,8 +1547,7 @@
   .navbar {
     max-width: 960px;
     margin: 0 auto;
-    padding-left: 40px;
-    padding-right: 40px;
+    padding: 10px 32px 14px;
     /* Назад ліворуч / Далі праворуч — звичний десктопний патерн, не
        впритул поруч зліва (те, що дало б сам лише flex:0). */
     justify-content: space-between;
@@ -1172,27 +1556,44 @@
     flex: 0 0 auto;
     min-width: 160px;
   }
+  /* Єдина кнопка на фіналі (100%) — на всю ширину картки, не 960px. */
+  .navbar.navbar--solo {
+    max-width: none;
+  }
+  .navbar.navbar--solo .btn {
+    flex: 1 1 auto;
+    width: 100%;
+  }
 
   /* ---- Info: фото й текст поруч, не одне над одним ----
-     .cp-info-media/.cp-info-text — обгортки, додані в CoursePlayer.jsx
-     InfoScreen САМЕ під цей reflow (на мобільному вони нічим не
-     відрізняються від звичайних сусідніх блоків, там нема .course-card
-     з container-type у грі). Якщо фото нема — .cp-info-media відсутня
-     в DOM, .cp-info-text сама займає всю колонку (grid з одним треком
-     працює як звичайний блок). */
+     Сітка вішається на САМ .screen-component (спільна обгортка компонента
+     в плеєрі, методичці й мокапах конструктора), бо .cp-info-media і
+     .cp-info-text — СУСІДИ, не батько/дитина. Попередній варіант
+     (grid на .cp-info-media з :has(+ .cp-info-text) і селектором на
+     «дитину» .cp-info-text, якої там нема) ділив блок фото навпіл, клав
+     знімок у ліву половину й лишав праву порожньою — саме те «фото не по
+     центру», на яке скаржився користувач (2026-09-14). Кикер/заголовок/
+     лід — на всю ширину, фото — ліва колонка, текст — права. Якщо фото
+     нема — .cp-info-media відсутня в DOM, :has() не спрацьовує, і текст
+     займає всю ширину, як звичайний блок. */
   .cp-info-media {
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
-  .cp-info-media:has(+ .cp-info-text) {
+  .screen-component:has(> .cp-info-media + .cp-info-text) {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: 28px;
     align-items: start;
   }
-  .cp-info-media:has(+ .cp-info-text) > .cp-info-text {
-    grid-column: 2;
+  .screen-component:has(> .cp-info-media + .cp-info-text) > :not(.cp-info-media):not(.cp-info-text) {
+    grid-column: 1 / -1;
+  }
+  .cp-info-media .photo-frame {
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   /* ---- Accordion / Checklist: сітка 2 колонки, не вертикальний стек —
@@ -1286,5 +1687,191 @@
      виглядало б як зламана верстка, не як компактне поле вводу. */
   .cp-input-field {
     max-width: 480px;
+  }
+}
+
+/* ---- Гаряча точка на фото (components/ScreenComponents.jsx
+   HotspotScreen) ---- */
+.hs-frame {
+  position: relative;
+  display: block;
+  line-height: 0;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  cursor: crosshair;
+}
+.hs-frame.answered {
+  cursor: default;
+}
+.hs-frame:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+/* Правильна зона — показується ЛИШЕ після відповіді. Тонке коло, а не
+   заливка: під ним має лишатись видно саме фото, інакше пояснення
+   «чому тут» втрачає сенс. */
+.hs-zone {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid var(--cb-secondary);
+  background: var(--cb-secondary-tint);
+  pointer-events: none;
+  animation: hsZoneIn var(--dur-base) var(--ease-premium) both;
+}
+@keyframes hsZoneIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+/* Мітка там, куди людина натиснула — щоб було видно, наскільки
+   промахнулась, а не просто «не туди». */
+.hs-pin {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  border: 2px solid var(--cb-white);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+}
+.hs-pin.ok {
+  background: var(--cb-secondary);
+}
+.hs-pin.bad {
+  background: var(--danger);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hs-zone {
+    animation: none;
+  }
+}
+
+/* ---- Скелетон фото, поки воно вантажиться ----
+   Блок тримає РІВНО ті пропорції, з якими потім намалюється фото
+   (800×500 у next/image), тому поява картинки нічого не зсуває: скелетон
+   не звільняє місце, а підмінюється зображенням на місці.
+   Перелив зліва направо на фірмовому зеленому — те саме відчуття
+   «вантажиться», що й у решті сучасних інтерфейсів, але в кольорі
+   бренду, а не сірий за замовчуванням. */
+.cp-img-wrap {
+  position: relative;
+  display: block;
+  aspect-ratio: 800 / 500;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--green-tint);
+}
+/* Після завантаження висоту диктує саме фото — пропорції реального
+   зображення можуть не збігатися з 800×500, і лишати жорсткий
+   aspect-ratio означало б обрізати або розтягнути його. */
+.cp-img-wrap.is-loaded {
+  aspect-ratio: auto;
+  background: none;
+}
+.cp-img-wrap img {
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+.cp-img-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(
+    100deg,
+    var(--green-tint) 20%,
+    color-mix(in srgb, var(--cb-secondary) 22%, var(--green-tint)) 40%,
+    var(--green-tint) 60%
+  );
+  background-size: 260% 100%;
+  /* 5.8s — підібрано користувачем повзунком на стенді (2026-09-15;
+     стартові 1.4s читались як «очень быстрый»); ease-in-out, щоб хвиля не
+     «вистрілювала» на старті. */
+  animation: cpSkeletonSweep 5.8s ease-in-out infinite;
+}
+@keyframes cpSkeletonSweep {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+
+/* ---- Підсвітка наступної дії ----
+   Перелив зліва направо на тому єдиному елементі, який треба натиснути
+   наступним: наступна невідкрита картка, наступний пункт чек-листа,
+   кнопка наступної репліки. Саме на ОДНОМУ — підсвітити всі, що лишились,
+   означало б не підказати, а просто зашуміти екран.
+   ::after поверх вмісту, а не background самого елемента: у нього вже є
+   свої стани (обрано/пройдено), і перебивати їх не можна. */
+.tap-next {
+  position: relative;
+  overflow: hidden;
+}
+/* Перелив — повільна м'яка хвиля, «як вода», а не різкий блік: широка
+   смуга з плавним наростанням і спадом (п'ять зупинок градієнта замість
+   трьох), 5.2s замість 2.4s, симетричний ease-in-out замість ease-out
+   (той розганяв смугу на старті й різко гальмував). Пік 18% — трохи
+   тьмяніший за колишні 20%, бо ширша смуга і так помітніша. За проханням
+   користувача 2026-09-14 («не резко, медленно, завораживающе»). */
+.tap-next::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Пік 42% / схили 17% (0.4 від піку) — підібрано користувачем повзунком
+     на стенді (2026-09-15); перший варіант 18/7 читався на телефоні надто
+     блідо. */
+  background: linear-gradient(
+    100deg,
+    transparent 18%,
+    color-mix(in srgb, var(--cb-secondary) 17%, transparent) 36%,
+    color-mix(in srgb, var(--cb-secondary) 42%, transparent) 50%,
+    color-mix(in srgb, var(--cb-secondary) 17%, transparent) 64%,
+    transparent 82%
+  );
+  background-size: 260% 100%;
+  animation: cpTapSweep 5.2s ease-in-out infinite;
+}
+@keyframes cpTapSweep {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+
+/* Поки фото гарячої точки вантажиться — натискати нікуди. */
+.hs-frame.loading {
+  cursor: progress;
+}
+
+/* Методичка (CourseReview, readOnly): ті самі картки/пункти/кроки, але
+   без інтерактивності — курсор звичайний, ховер не «запрошує» натиснути. */
+.acc-head--static,
+.check-item--static,
+.tl-head--static {
+  cursor: default;
+}
+@media (hover: hover) {
+  .acc-head--static:hover,
+  .tl-head--static:hover {
+    background: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-img-skeleton,
+  .tap-next::after {
+    animation: none;
   }
 }

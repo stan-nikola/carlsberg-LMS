@@ -465,7 +465,8 @@ html:has(.adm-shell) {
    atoms/Button узагалі немає border-radius — фірмова мова прямокутна),
    висота 56px = комфортний touch-таргет на телефоні, головному пристрої
    співробітника. Hover — brightness, як у самому Malty-компоненті. */
-.btn-primary-full {
+.btn-primary-full,
+.btn-secondary-full {
   width: 100%;
   min-height: 56px;
   border: none;
@@ -485,6 +486,26 @@ html:has(.adm-shell) {
   box-shadow: var(--shadow-sm);
   transition: transform var(--dur-base) var(--ease-premium), box-shadow var(--dur-base) var(--ease-premium),
     background var(--dur-base) var(--ease-premium);
+}
+/* Другорядна дія тієї ж ширини й висоти — коли на екрані дві кнопки і
+   головна вже зайнята (фінальний екран курсу зі 100%: головна дія —
+   сертифікат, «Пройти ще раз» стає другорядним). Геометрію бере зі
+   спільного правила вище, тут лише заливка — тому блок мусить стояти
+   ПІСЛЯ нього, інакше спільне правило перебило б ці кольори. */
+.btn-secondary-full {
+  background: transparent;
+  color: var(--cb-primary);
+  border: 1px solid var(--cb-primary);
+  box-shadow: none;
+}
+@media (hover: hover) {
+  .btn-secondary-full:hover:not(:disabled) {
+    background: var(--cb-primary-tint);
+  }
+}
+.btn-secondary-full:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
 }
 @media (hover: hover) {
   .btn-primary-full:hover:not(:disabled) {
@@ -530,6 +551,113 @@ html:has(.adm-shell) {
 }
 .btn-primary-full.is-busy .btn-spinner {
   display: inline-block;
+}
+
+/* ---- Підказка по ховеру (components/HintDot.jsx) — спільний паттерн
+   для пояснень, які потрібні лише тому, хто спитав: що саме рахує
+   діаграма, що робить неочевидна кнопка. Текст приходить у data-hint і
+   малюється через ::after; ширина блоку обмежена, переноситься нормально.
+   Відкривається і по :focus-visible, не лише по ховеру — інакше з
+   клавіатури підказка недосяжна. */
+.hint-dot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--ink-soft);
+  cursor: help;
+}
+.hint-dot svg {
+  width: 15px;
+  height: 15px;
+}
+.hint-dot::after {
+  content: attr(data-hint);
+  position: absolute;
+  top: calc(100% + 8px);
+  z-index: 5;
+  width: max-content;
+  max-width: min(300px, 70vw);
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--cb-black);
+  color: var(--cb-white);
+  box-shadow: var(--shadow-lg);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: normal;
+  text-align: left;
+  letter-spacing: normal;
+  text-transform: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    visibility var(--dur-fast) var(--ease-out);
+  pointer-events: none;
+}
+/* Блок притискається до того краю, біля якого стоїть сама іконка —
+   інакше він вилазить за межі картки з протилежного боку. */
+.hint-dot-end::after {
+  right: 0;
+}
+.hint-dot-start::after {
+  left: 0;
+}
+.hint-dot:hover::after,
+.hint-dot:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.hint-dot:focus-visible {
+  outline: 2px solid var(--cb-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hint-dot::after {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* ---- Сітка карток (.card-grid) — СПІЛЬНИЙ паттерн для будь-якого
+   набору однотипних карток: курси співробітника, призначення в кабінеті
+   керівника, каталог тощо.
+
+   Три правила, які тут закріплені (кожне з'явилось після реального
+   дефекту, не з естетики):
+
+   1. auto-fit + minmax(min(100%, …), 1fr) — кількість колонок рахує
+      браузер під реальну ширину, без ручних @media. min(100%, …)
+      обов'язковий: без нього на вузькому екрані колонка стає ширшою за
+      сторінку й з'являється горизонтальний скрол.
+   2. grid-auto-rows: 1fr + align-items: stretch — усі картки однакової
+      висоти, ПО НАЙБІЛЬШІЙ, і рядки рівні між собою теж. Картки, кожна
+      по своєму вмісту, дають рваний нижній край, який читається як збій
+      сітки.
+   3. Усередині вузької картки текст ПЕРЕНОСИТЬСЯ, а не їде біжучим
+      рядком. MarqueeText розрахований на широкий одиночний ряд; у сітці
+      він запускається на кожній картці одночасно, і в застиглій фазі
+      назва виглядає обрізаною з початку. Використовуй звичайний перенос
+      + overflow-wrap: anywhere.
+
+   Ширину картки задає --card-min на самому контейнері (дефолт 260px) —
+   не переоголошуй grid-template-columns у кожному місці.
+
+   Якщо в картці є фінальна дія (кнопка/посилання внизу) — зроби саму
+   картку flex-колонкою і притисни дію через margin-top:auto, інакше при
+   вирівняних висотах кнопки стоять на різних рівнях. */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--card-min, 260px)), 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  gap: var(--card-gap, 12px);
 }
 
 /* ---- Біжучий рядок (components/MarqueeText.jsx) — заміна text-overflow:
@@ -594,7 +722,8 @@ html:has(.adm-shell) {
      .reg-viewport, overflow-y:auto). Але :root/body мають min-height:100vh
      (звичайний vh) — а на iOS Safari unprefixed vh історично дорівнює
      НАЙБІЛЬШІЙ можливій висоті (адресний рядок згорнутий), тоді як
-     .course-card тепер на 100svh (найменша висота, рядок розгорнутий).
+     .course-card тепер на 100dvh, який у момент старту скролу (рядок
+     розгорнутий) дорівнює найменшій висоті — так само, як svh раніше.
      Різниця у висоту самого рядка (лишок під body) робить сам body/html
      на пару десятків px скролюваним — і жест скролу iOS перехоплює саме
      ЦЕЙ зовнішній скрол замість внутрішнього .hub-viewport, тому
@@ -615,20 +744,19 @@ html:has(.adm-shell) {
     gap: 0;
   }
   .course-card {
-    /* 100svh (small viewport height — найменша можлива висота, коли
-       адресний рядок Safari розгорнутий), НЕ 100dvh. dvh перераховується
-       "наживо" щоразу, коли той рядок ховається/з'являється під час
-       скролу — а .course-card тут display:flex;flex-direction:column з
-       .appbar/.tabbar як flex-shrink:0 сусідами й лише .hub-viewport/
-       .cp-viewport всередині як overflow-y:auto. Сама по собі ця
-       flex-структура коректна (overflow:auto вже дає flex-item
-       автоматичний min-height:0 за специфікацією) — та коли ВИСОТА
-       контейнера змінюється просто в процесі скролу (dvh), це викликає
-       relayout саме в момент, коли палець користувача ще на екрані, і
-       header/footer на мить "стрибають"/зʼїжджаються з контентом. svh
-       фіксована, не перераховується під час скролу — цей стрибок зникає
-       ціною трохи меншої видимої висоти, поки рядок розгорнутий. */
-    height: 100svh;
+    /* 100dvh — уся доступна висота, а не 100svh. Історія: svh (найменша
+       висота, адресний рядок Safari розгорнутий) стояла тут навмисно, бо
+       dvh перераховується щоразу, як той рядок ховається під час скролу, і
+       header/tabbar на мить «стрибали». Ціна svh — коли рядок згорнувся,
+       під картою (під «Далі» плеєра, під таббаром хаба) лишалась порожня
+       смуга висотою в той рядок, а контент тиснувся. Користувач перевірив
+       обидва варіанти на реальному iPhone (2026-09-14) і обрав dvh для
+       ВСІХ екранів — спершу плеєр, потім, побачивши, що на хабі смуга
+       лишилась, і хаб. Можливий короткий relayout у момент згортання
+       рядка — свідомо прийнятий компроміс. У PWA dvh = svh, різниці нема.
+       Нижні кнопки/таббар тримає над home-індикатором
+       env(safe-area-inset-bottom) у .navbar/.tabbar. */
+    height: 100dvh;
     border-radius: 0;
     box-shadow: none;
   }
@@ -684,14 +812,19 @@ html:has(.adm-shell) {
   .stage--course-player .course-card {
     width: min(1400px, 96vw);
   }
-  /* Висота теж лишалась мобільною стелею (min(812px,88vh)) — на
-     десктопному моніторі це залишало помітний відступ згори/знизу (та
-     сама скарга користувача, тепер явно про вертикаль). 95vh/1200px —
-     той самий принцип "майже весь вьюпорт", що вже узгоджено для
-     ноутбук-мокапу в /admin (calc(100vh - 20px) там; тут простіше 95vh,
-     бо тут нема окремого модального оверлея з padding, який слід було б
-     віднімати). */
+  /* Висота — весь в'юпорт, без відступів згори/знизу: body:has() знімає
+     свій padding (той самий прийом, що для /admin вище), картка стає
+     100vh, верхня/нижня рамки зникають (їх однаково не видно на краю
+     екрана). Раніше було 95vh + 24px padding body — користувач двічі
+     просив прибрати цей зазор («вьюпорт сверху и снизу без отступов»,
+     2026-09-14). Бокові поля лишаються (min(1400px,96vw) вище) — картка
+     навмисно не full-bleed по ширині. */
+  body:has(.stage--course-player) {
+    padding: 0;
+  }
   .stage--course-player .course-card {
-    height: min(1200px, 95vh);
+    height: 100vh;
+    border-top: none;
+    border-bottom: none;
   }
 }

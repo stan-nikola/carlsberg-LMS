@@ -59,11 +59,24 @@ export default async function CoursePage({ params }) {
   // користувача: "кнопка знову відкриває пройдений модуль").
   const playableModules = getPlayableModules(course, completionsByModuleId);
 
+  // Курс складено на 100% і кожен модуль має запис про складання —
+  // перепроходити нічого (фінальний екран при 100% і кнопки «Пройти ще
+  // раз» не має), тож завжди методичка. Без цієї гілки співробітники, у
+  // чиїх курсах немає паузи перепроходження (retakeCooldownDays), після
+  // 100% знову потрапляли в плеєр з гейтами замість довідника (скарга
+  // користувача 2026-09-14: «у ТП/мерчендайзерів методичка з гейтами»).
+  // Умова «кожен модуль складено» — щоб курс, до якого ДОДАЛИ модуль після
+  // проходження, не лишився назавжди в методичці зі старими 100%.
+  const perfectAndComplete =
+    enrollment.status === "completed" &&
+    enrollment.scorePercent === 100 &&
+    course.modules.every((m) => completionsByModuleId.has(m.id));
+
   // Немає жодного модуля, який зараз варто (пере)проходити, але щось уже
   // реально складено — курс повністю пройдено, і всі паузи перепроходження
   // ще діють. Замість плеєра — курс-методичка (тільки контент, без
   // тестів/гейтів): швидко підглянути/повторити матеріал.
-  if (playableModules.length === 0 && completions.length > 0) {
+  if (perfectAndComplete || (playableModules.length === 0 && completions.length > 0)) {
     return (
       <CourseReview
         course={course}
@@ -134,9 +147,14 @@ export default async function CoursePage({ params }) {
         title: course.title,
         description: course.description,
         streakMessages: course.streakMessages,
+        certificateEnabled: course.certificateEnabled,
       }}
       screens={screens}
       enrollmentId={enrollment.id}
+      // Для співробітників без email Employee.name — заглушка з посади;
+      // справжнє ім'я лежить лише в localStorage пристрою й передається
+      // разово в запит на сертифікат (lib/downloadCertificate.js).
+      hasEmail={Boolean(employee.email)}
       lockedNotice={lockedNotice}
       skippedModuleScores={skippedModuleScores}
     />

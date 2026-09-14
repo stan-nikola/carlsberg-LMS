@@ -261,6 +261,37 @@ export function InfoIcon() {
   );
 }
 
+/** Корінь каталогу курсів (/admin) — вершина ієрархії: один вузол
+ * угорі, від якого гілки вниз. Навмисно НЕ будиночок (той означає
+ * "головна сторінка", а не "верх дерева папок") і не звичайна папка —
+ * звичайна вже стоїть поруч у самій крихті "📁 /", і два однакові знаки
+ * підряд нічого не розрізняли б. */
+export function RootIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="3" width="6" height="5" rx="1" />
+      <path d="M12 8v3" />
+      <path d="M6 14v-3h12v3" />
+      <rect x="3" y="14" width="6" height="5" rx="1" />
+      <rect x="15" y="14" width="6" height="5" rx="1" />
+    </svg>
+  );
+}
+
+/** Стрілка "назад" — підйом на рівень вище в каталозі курсів /admin
+ * (components/AdminDashboard.jsx). Саме стрілка вліво, а не шеврон:
+ * шеврон у цьому проєкті всюди означає "розгорнути/згорнути"
+ * (.admin-course-row-caret), і плутати два різні жести одним знаком не
+ * варто. */
+export function ArrowBackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 12H5" />
+      <path d="M12 19l-7-7 7-7" />
+    </svg>
+  );
+}
+
 /** Годинник — для "час проходження" (EnrollmentAttempt.durationSeconds) у
  * кабінеті керівника (components/ManagerDashboard.jsx). */
 export function ClockIcon() {
@@ -268,6 +299,29 @@ export function ClockIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3.5 2" />
+    </svg>
+  );
+}
+
+/** Стос екранів — плашка «N екранів» на вступному екрані курсу
+ * (components/CoursePlayer.jsx). Той самий stroke/viewBox, що й ClockIcon
+ * поруч, щоб три плашки читались одним набором. */
+export function ScreensIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="7" width="14" height="14" rx="1.5" />
+      <path d="M7 7V4.5A1.5 1.5 0 0 1 8.5 3H19.5A1.5 1.5 0 0 1 21 4.5V15.5A1.5 1.5 0 0 1 19.5 17H17" />
+    </svg>
+  );
+}
+
+/** Знак питання в колі — плашка «N питань» на вступному екрані курсу. */
+export function QuestionIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.25c-.7.35-1.1.9-1.1 1.65V14" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" />
     </svg>
   );
 }

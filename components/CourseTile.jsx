@@ -6,6 +6,7 @@ import { CourseIcon, ChevronIcon, CheckIcon, XIcon, LockIcon, MedalIcon, Certifi
 import { courseTileStatus, isRecentlyAssigned, isOverdue, medalTier } from "@/lib/progress";
 import { pluralize } from "@/lib/pluralize";
 import { MarqueeText } from "@/components/MarqueeText";
+import { HintDot } from "@/components/HintDot";
 import { getLocalDisplayName } from "@/lib/localName";
 import { downloadCertificate } from "@/lib/downloadCertificate";
 
@@ -138,45 +139,80 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
   const trulyNotStarted = enrollment?.status === "not_started" && !anyModuleStarted;
 
   const enterLabel = isActuallyDone ? "Переглянути курс" : trulyNotStarted ? "Почати курс" : "Продовжити курс";
-  const hasCertificate = enrollment?.scorePercent === 100;
+  // Сертифікат — лише за 100% І лише якщо він узагалі увімкнений для
+  // цього курсу (Course.certificateEnabled, вкладка "Розклад" в /admin).
+  // !== false, а не === true: курси, завантажені без цього поля
+  // (старий кеш, урізана вибірка), поводяться як раніше — з сертифікатом.
+  const certificateAllowed = course.certificateEnabled !== false;
+  const hasCertificate = certificateAllowed && enrollment?.scorePercent === 100;
 
   return (
     <div className="course-tile">
-      <button
-        type="button"
-        className="ct-toggle"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-        disabled={!hasModules}
-        title={hasModules ? (expanded ? "Згорнути список модулів" : "Розгорнути список модулів") : undefined}
-      >
-        {hasModules && (
-          <span className={`admin-course-row-caret ct-caret${expanded ? " open" : ""}`}>
-            <ChevronIcon />
+      {/* Шапка картки — вертикальний стос: теги верхнім рівнем, під ними
+          назва курсу, кількість модулів і опис на всю ширину картки, і
+          нижче — підсумок пройденого курсу разом із сертифікатом.
+          Теги й підсумок винесені з .ct-toggle не з міркувань розкладки,
+          а технічно й безальтернативно: .ct-toggle — це <button>, кнопка
+          завантаження сертифіката теж <button>, а вкладати кнопку в
+          кнопку не можна (невалідна розмітка + помилка гідратації React).
+          Тому шапка — звичайний <div>, а не сам заголовок-акордеон. */}
+      <div className="ct-head">
+        <div className="ct-head-aside">
+          <span className="ct-tags">
+            {isNew && <span className="ct-tag ct-tag-new">Нове</span>}
+            {course.category && <span className="ct-tag">{course.category}</span>}
+            {enrollment?.isMandatory && <span className="ct-tag ct-tag-mandatory">Обов&apos;язково</span>}
           </span>
-        )}
-        <div className="ct-icon">
-          <CourseIcon />
         </div>
-        <div className="ct-body">
-          <div className="ct-top">
-            <span className="ct-title">{course.title}</span>
-            <span className="ct-tags">
-              {isNew && <span className="ct-tag ct-tag-new">Нове</span>}
-              {course.category && <span className="ct-tag">{course.category}</span>}
-              {enrollment?.isMandatory && <span className="ct-tag ct-tag-mandatory">Обов&apos;язково</span>}
+
+        <button
+          type="button"
+          className="ct-toggle"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          disabled={!hasModules}
+          title={hasModules ? (expanded ? "Згорнути список модулів" : "Розгорнути список модулів") : undefined}
+        >
+          {hasModules && (
+            <span className={`admin-course-row-caret ct-caret${expanded ? " open" : ""}`}>
+              <ChevronIcon />
             </span>
-          </div>
-          {hasModules && <div className="ct-modules-count">{pluralize(modules.length, "модуль", "модулі", "модулів")}</div>}
-          <div className="ct-desc">{desc}</div>
-          {enrollment?.dueDate && cs.status !== "completed" && (
-            <div className={`ct-due${overdue ? " is-overdue" : ""}`}>
-              {overdue ? "Термін минув · " : "Термін до "}
-              {new Date(enrollment.dueDate).toLocaleDateString("uk-UA")}
-            </div>
           )}
-          {cs.status === "completed" ? (
-            <>
+          <div className="ct-icon">
+            <CourseIcon />
+          </div>
+          <div className="ct-body">
+            <div className="ct-top">
+              <span className="ct-title">{course.title}</span>
+            </div>
+            {hasModules && <div className="ct-modules-count">{pluralize(modules.length, "модуль", "модулі", "модулів")}</div>}
+            <div className="ct-desc">{desc}</div>
+            {enrollment?.dueDate && cs.status !== "completed" && (
+              <div className={`ct-due${overdue ? " is-overdue" : ""}`}>
+                {overdue ? "Термін минув · " : "Термін до "}
+                {new Date(enrollment.dueDate).toLocaleDateString("uk-UA")}
+              </div>
+            )}
+            {cs.status !== "completed" && (
+              <div className="ct-progress-row">
+                <div className="ct-progress-track">
+                  <div className="ct-progress-fill" style={{ width: `${cs.pct}%` }} />
+                </div>
+                <span className="ct-progress-pct">{cs.pct}%</span>
+              </div>
+            )}
+          </div>
+        </button>
+
+        {/* Підсумок пройденого курсу і сертифікат — ОДИН контейнер, в один
+            рівень: результат ("Залік · 100%"), дата завершення й кнопка
+            завантаження стосуються одного й того самого факту, і розводити
+            їх по різних кутах картки не було сенсу.
+            Живе поза .ct-toggle, бо .ct-toggle — <button>, а сертифікат
+            теж <button> (вкладати не можна, див. коментар вище). */}
+        {cs.status === "completed" && (
+          <div className="ct-done-row">
+            <div className="ct-done-main">
               <div className={`ct-status-done ${cs.passed ? "is-pass" : "is-fail"}`}>
                 {cs.passed ? <CheckIcon /> : <XIcon />}
                 <span>{(cs.passed ? "Залік · " : "Незалік · ") + cs.pct + "%"}</span>
@@ -186,17 +222,47 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
                   Завершено {new Date(enrollment.completedAt).toLocaleDateString("uk-UA")}
                 </div>
               )}
-            </>
-          ) : (
-            <div className="ct-progress-row">
-              <div className="ct-progress-track">
-                <div className="ct-progress-fill" style={{ width: `${cs.pct}%` }} />
-              </div>
-              <span className="ct-progress-pct">{cs.pct}%</span>
             </div>
-          )}
-        </div>
-      </button>
+            {/* Сертифікат — лише за 100% (не 80%, той поріг лише "залік"):
+                вища планка, щоб заохотити вчити матеріал, а не просто
+                перейти поріг. */}
+            {/* Коли сертифікат для курсу вимкнений — ряд не рендериться
+                взагалі. Показувати неактивний квадрат із підписом
+                "доступний при 100%" було б прямою неправдою: тут він не
+                з'явиться за жодного балу. */}
+            {isActuallyDone && certificateAllowed && (
+              <div className="ct-cert-row">
+                {hasCertificate ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleDownloadCertificate}
+                      disabled={certDownloading}
+                      className="ct-cert-square"
+                      aria-label="Завантажити сертифікат"
+                    >
+                      {certDownloading ? <SpinnerIcon /> : <CertificateIcon />}
+                    </button>
+                    {/* Раніше це був постійний рядок-підпис під карткою
+                        ("Натисніть на іконку сертифіката праворуч…") — він
+                        з'їдав висоту в кожній картці заради пояснення, яке
+                        потрібне один раз. */}
+                    <HintDot text="Натисніть на іконку сертифіката, щоб завантажити PDF із вашим ім'ям та результатом курсу." />
+                  </>
+                ) : (
+                  <span
+                    className="ct-cert-square ct-cert-square-disabled"
+                    aria-label="Сертифікат доступний при 100% проходженні курсу"
+                    title="Сертифікат доступний при 100% проходженні курсу"
+                  >
+                    <CertificateIcon />
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {expanded && hasModules && (
         <div className="ct-modules-list">
@@ -206,59 +272,20 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
         </div>
       )}
 
-      {/* Коли курс повністю пройдено — два прямокутники в ряд: основний
-          "Переглянути курс" (веде в методичку) і квадратна кнопка
-          сертифіката праворуч (за проханням користувача). Сертифікат —
-          лише за 100% (не 80%, той поріг лише "залік"): окрема, вища
-          планка, щоб заохотити вчити матеріал по-справжньому, а не просто
-          "пройти поріг". Поки курс ще не пройдено повністю — звичайна
-          одна кнопка "Почати"/"Продовжити", сертифікату ще нема що
-          показувати. */}
-      {isActuallyDone ? (
-        <div className="ct-cta-row">
-          <Link href={`/courses/${course.slug}`} className="ct-enter-link ct-enter-link--flex">
-            <span>{enterLabel}</span>
-            <span className="ct-enter-chevron">
-              <ChevronIcon />
-            </span>
-          </Link>
-          {hasCertificate ? (
-            <button
-              type="button"
-              onClick={handleDownloadCertificate}
-              disabled={certDownloading}
-              className="ct-cert-square"
-              aria-label="Завантажити сертифікат"
-              title="Завантажити сертифікат"
-            >
-              {certDownloading ? <SpinnerIcon /> : <CertificateIcon />}
-            </button>
-          ) : (
-            <span
-              className="ct-cert-square ct-cert-square-disabled"
-              aria-label="Сертифікат доступний при 100% проходженні курсу"
-              title="Сертифікат доступний при 100% проходженні курсу"
-            >
-              <CertificateIcon />
-            </span>
-          )}
-        </div>
-      ) : null}
-      {/* На мобільному немає ховеру для title-тултипа на кнопці — без
-          явного підпису людина могла й не здогадатись, що по іконці
-          сертифіката взагалі можна натиснути. */}
-      {isActuallyDone && hasCertificate && (
-        <p className="ct-certificate-caption">Натисніть на іконку сертифіката праворуч, щоб завантажити</p>
-      )}
       {certDownloadError && <p className="ct-certificate-caption ct-certificate-error">{certDownloadError}</p>}
-      {!isActuallyDone && (
-        <Link href={`/courses/${course.slug}`} className="ct-enter-link">
-          <span>{enterLabel}</span>
-          <span className="ct-enter-chevron">
-            <ChevronIcon />
-          </span>
-        </Link>
-      )}
+      {/* ОДНА кнопка на всю ширину в будь-якому стані курсу
+          ("Почати"/"Продовжити"/"Переглянути"). Раніше для пройденого
+          курсу тут був ряд із двох елементів — кнопка входу плюс квадрат
+          сертифіката, — через що "Переглянути курс" виходила помітно
+          коротшою за "Продовжити курс" у сусідніх картках сітки, а
+          підпис-пояснення під рядом ще й зсував її по висоті. Сертифікат
+          переїхав під теги у шапці, підпис став підказкою по ховеру. */}
+      <Link href={`/courses/${course.slug}`} className="ct-enter-link">
+        <span>{enterLabel}</span>
+        <span className="ct-enter-chevron">
+          <ChevronIcon />
+        </span>
+      </Link>
     </div>
   );
 }
