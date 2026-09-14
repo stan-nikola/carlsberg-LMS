@@ -60,3 +60,8 @@ next-env.d.ts
 # сгенерированный Prisma Client — пересоздаётся `prisma generate`
 # (запускается автоматически через postinstall), в git не нужен
 /app/generated/prisma
+
+# graphify (/graphify skill) — одноразовий аналітичний вивід
+# (граф-звіт по кодовій базі), перегенерується самим скілом за потреби,
+# у git не потрібен
+/graphify-out
