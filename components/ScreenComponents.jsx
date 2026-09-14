@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ChevronIcon, CheckIcon } from "@/components/icons";
 import { isHotspotHit } from "@/lib/componentTypes";
 import { peekScrollTo } from "@/lib/scrollHints";
+import { nextTimelineTarget } from "@/lib/coursePlayerLogic";
 
 /**
  * Інтерактивні компоненти екрана, портовані з попередньої vanilla-JS
@@ -397,7 +398,14 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
     else onGateProgress?.(everOpened.size);
   }, [everOpened, highlightIdx, onGateProgress]);
 
+  const listRef = useRef(null);
+  // Крок для переливу «тапни сюди»: без highlight — перший невідкритий,
+  // з highlight — лише підсвічений (див. nextTimelineTarget, чому не
+  // «перший невідкритий» в обох режимах).
+  const nextIdx = nextTimelineTarget(steps.length, everOpened, highlightIdx);
+
   function toggle(i) {
+    const opening = !openSet.has(i);
     setOpenSet((prev) => {
       const next = new Set(prev);
       if (next.has(i)) next.delete(i);
@@ -405,6 +413,11 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
       return next;
     });
     setEverOpened((prev) => (prev.has(i) ? prev : new Set(prev).add(i)));
+    // Розкрили — підводимо наступний крок, а сам розкритий текст лишаємо на
+    // екрані (keepVisible), як в акордеоні. Згортання екран не смикає.
+    if (!opening) return;
+    const children = listRef.current?.children;
+    requestAnimationFrame(() => peekScrollTo(children?.[i + 1], { keepVisible: children?.[i] }));
   }
 
   return (
@@ -413,7 +426,7 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
       {component.title && <h2 className="cp-h2">{component.title}</h2>}
       {lead && <p className="cp-lead">{lead}</p>}
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
-      <div className="timeline">
+      <div className="timeline" ref={listRef}>
         {steps.map((step, i) => (
           <div
             key={i}
@@ -431,7 +444,12 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
               {i < steps.length - 1 && <span className="tl-line" />}
             </div>
             <div className="tl-body">
-              <button type="button" className="tl-head" onClick={() => toggle(i)} aria-expanded={openSet.has(i)}>
+              <button
+                type="button"
+                className={`tl-head${i === nextIdx ? " tap-next" : ""}`}
+                onClick={() => toggle(i)}
+                aria-expanded={openSet.has(i)}
+              >
                 <span className="tl-title">{step.title || `Крок ${i + 1}`}</span>
               </button>
               {openSet.has(i) && step.detail && <div className="tl-detail">{step.detail}</div>}
