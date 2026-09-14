@@ -14,6 +14,7 @@ import {
   InputScreen,
   ImageLightbox,
   ScreenMedia,
+  CourseImage,
   ConfettiBurst,
   HotspotScreen,
   StreakToast,
@@ -22,6 +23,7 @@ import { isGateSatisfied, gateTotal, gateHint, isScored } from "@/lib/componentT
 import { courseStreakMessages, pickStreakMessage, resolveStreakSub, isScheduledStreak } from "@/lib/streakMessages";
 import { estimateMinutesFromComponentCount } from "@/lib/estimateTime";
 import { numberComponents, shuffleArray } from "@/lib/coursePlayerLogic";
+import { peekScrollTo } from "@/lib/scrollHints";
 import { downloadCertificate } from "@/lib/downloadCertificate";
 import { getLocalDisplayName } from "@/lib/localName";
 
@@ -132,7 +134,7 @@ export function InfoScreen({ component, screenNumber, onZoomImage }) {
                 : undefined
             }
           >
-            <Image src={img.url} alt={alt} width={800} height={500} style={{ width: "100%", height: "auto" }} />
+            <CourseImage src={img.url} alt={alt} />
             {zoomable && (
               <span className="zoom-badge" aria-hidden="true">
                 <ZoomIcon />
@@ -661,13 +663,11 @@ export function CoursePlayer({
     if (!nextId) return;
     const nextEl = blockRefs.current.get(Number(nextId));
     if (!nextEl) return;
-    requestAnimationFrame(() => {
-      try {
-        nextEl.scrollIntoView({ behavior: "smooth", block: "start" });
-      } catch {
-        // Старі браузери без smooth — не критично, просто без анімації.
-      }
-    });
+    // НЕ scrollIntoView({block:"start"}): той ставить наступний компонент
+    // під верхній край і прибирає з екрана те, що людина щойно відкрила
+    // (реальна скарга: розкрив картку акордеона — і її текст одразу поїхав
+    // угору). peekScrollTo лише «показує» наступний блок знизу.
+    requestAnimationFrame(() => peekScrollTo(nextEl));
   }
 
   function handleGateProgress(componentId, done) {

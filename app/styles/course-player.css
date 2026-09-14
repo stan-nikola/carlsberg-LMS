@@ -1566,3 +1566,98 @@
     animation: none;
   }
 }
+
+/* ---- Скелетон фото, поки воно вантажиться ----
+   Блок тримає РІВНО ті пропорції, з якими потім намалюється фото
+   (800×500 у next/image), тому поява картинки нічого не зсуває: скелетон
+   не звільняє місце, а підмінюється зображенням на місці.
+   Перелив зліва направо на фірмовому зеленому — те саме відчуття
+   «вантажиться», що й у решті сучасних інтерфейсів, але в кольорі
+   бренду, а не сірий за замовчуванням. */
+.cp-img-wrap {
+  position: relative;
+  display: block;
+  aspect-ratio: 800 / 500;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--green-tint);
+}
+/* Після завантаження висоту диктує саме фото — пропорції реального
+   зображення можуть не збігатися з 800×500, і лишати жорсткий
+   aspect-ratio означало б обрізати або розтягнути його. */
+.cp-img-wrap.is-loaded {
+  aspect-ratio: auto;
+  background: none;
+}
+.cp-img-wrap img {
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+.cp-img-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(
+    100deg,
+    var(--green-tint) 20%,
+    color-mix(in srgb, var(--cb-secondary) 22%, var(--green-tint)) 40%,
+    var(--green-tint) 60%
+  );
+  background-size: 260% 100%;
+  animation: cpSkeletonSweep 1.4s var(--ease-out) infinite;
+}
+@keyframes cpSkeletonSweep {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+
+/* ---- Підсвітка наступної дії ----
+   Перелив зліва направо на тому єдиному елементі, який треба натиснути
+   наступним: наступна невідкрита картка, наступний пункт чек-листа,
+   кнопка наступної репліки. Саме на ОДНОМУ — підсвітити всі, що лишились,
+   означало б не підказати, а просто зашуміти екран.
+   ::after поверх вмісту, а не background самого елемента: у нього вже є
+   свої стани (обрано/пройдено), і перебивати їх не можна. */
+.tap-next {
+  position: relative;
+  overflow: hidden;
+}
+.tap-next::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--cb-secondary) 20%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 240% 100%;
+  animation: cpTapSweep 2.4s var(--ease-out) infinite;
+}
+@keyframes cpTapSweep {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -40% 0;
+  }
+}
+
+/* Поки фото гарячої точки вантажиться — натискати нікуди. */
+.hs-frame.loading {
+  cursor: progress;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-img-skeleton,
+  .tap-next::after {
+    animation: none;
+  }
+}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronIcon, CheckIcon } from "@/components/icons";
 import { isHotspotHit } from "@/lib/componentTypes";
+import { peekScrollTo } from "@/lib/scrollHints";
 
 /**
  * Інтерактивні компоненти екрана, портовані з попередньої vanilla-JS
@@ -21,6 +22,64 @@ import { isHotspotHit } from "@/lib/componentTypes";
  * ефемерний, у БД не пишеться — при поверненні на екран людина бачить
  * уже відкриті картки, поки не перезавантажить курс.
  */
+
+/**
+ * Фото курсу зі скелетоном, поки воно вантажиться.
+ *
+ * Блок займає РІВНО той самий розмір, що й майбутнє фото (aspect-ratio
+ * 800/500 — ті самі пропорції, з якими рендериться next/image), тому при
+ * появі картинки нічого не стрибає: скелетон не «зникає, звільняючи
+ * місце», а просто підмінюється зображенням на місці.
+ *
+ * onLoad спрацьовує і для фото з кешу, але там воно вже complete на
+ * першому рендері — тому перевіряємо це в ефекті окремо, інакше на
+ * повторному відкритті екрана скелетон завис би назавжди (подія вже
+ * відбулась до того, як ми підписались).
+ */
+export function CourseImage({ src, alt, onLoaded }) {
+  const [loaded, setLoaded] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    // Фото з кешу вже complete на першому рендері — подія onLoad для
+    // нього не спрацює, і без цієї перевірки скелетон завис би назавжди.
+    const img = wrapRef.current?.querySelector("img");
+    if (img?.complete && img.naturalWidth > 0) {
+      setLoaded(true);
+      onLoaded?.();
+    }
+  }, [src, onLoaded]);
+
+  return (
+    <div ref={wrapRef} className={`cp-img-wrap${loaded ? " is-loaded" : ""}`}>
+      {!loaded && <span className="cp-img-skeleton" aria-hidden="true" />}
+      <Image
+        src={src}
+        alt={alt}
+        width={800}
+        height={500}
+        style={{ width: "100%", height: "auto" }}
+        // eager, а не типовий lazy. Фото завжди на ПОТОЧНОМУ екрані (їх
+        // щонайбільше три) і призначене, щоб його роздивлялись одразу —
+        // відкладати нічого. Плюс ліниве завантаження тут просто не
+        // спрацьовувало в прев'ю /admin: .adm-shell несе zoom:85%, і
+        // браузер не вважав картинку видимою — img лишався з порожнім
+        // currentSrc назавжди, а скелетон світився вічно (перевірено:
+        // окремий new Image() з тим самим src вантажився за 7мс).
+        loading="eager"
+        onLoad={() => {
+          setLoaded(true);
+          onLoaded?.();
+        }}
+        // Не показувати скелетон вічно, якщо файл узагалі не відкрився.
+        onError={() => {
+          setLoaded(true);
+          onLoaded?.();
+        }}
+      />
+    </div>
+  );
+}
 
 function Kicker({ screenNumber, text }) {
   if (!text) return null;
@@ -69,7 +128,7 @@ export function ScreenMedia({ images, title, onZoomImage }) {
                 : undefined
             }
           >
-            <Image src={img.url} alt={alt} width={800} height={500} style={{ width: "100%", height: "auto" }} />
+            <CourseImage src={img.url} alt={alt} />
             {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
           </div>
         );
@@ -93,8 +152,19 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
     onGateProgress?.(everOpened.size);
   }, [everOpened, onGateProgress]);
 
+  const listRef = useRef(null);
+  // Наступна ще не відкрита картка — саме її підсвічуємо переливом.
+  const nextIdx = items.findIndex((_, i) => !everOpened.has(i));
+
   function toggle(i) {
-    setEverOpened((prev) => (prev.has(i) ? prev : new Set(prev).add(i)));
+    if (everOpened.has(i)) return;
+    setEverOpened((prev) => new Set(prev).add(i));
+    // Підводимо картку, що йде ЗА цією, а не «першу невідкриту»: людина
+    // читає згори вниз, і стрибок назад збивав би. peekScrollTo лишає
+    // щойно відкритий текст на екрані — саме тому, що scrollIntoView
+    // ховав його під верхній край.
+    const following = listRef.current?.children?.[i + 1];
+    requestAnimationFrame(() => peekScrollTo(following));
   }
 
   return (
@@ -103,10 +173,15 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
       {component.title && <h2 className="cp-h2">{component.title}</h2>}
       {lead && <p className="cp-lead">{lead}</p>}
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
-      <div className="acc-list">
+      <div className="acc-list" ref={listRef}>
         {items.map((item, i) => (
           <div key={i} className={`acc-item${everOpened.has(i) ? " open seen" : ""}`}>
-            <button type="button" className="acc-head" onClick={() => toggle(i)} aria-expanded={everOpened.has(i)}>
+            <button
+              type="button"
+              className={`acc-head${i === nextIdx ? " tap-next" : ""}`}
+              onClick={() => toggle(i)}
+              aria-expanded={everOpened.has(i)}
+            >
               <span className="acc-title">{item.title || `Картка ${i + 1}`}</span>
               <span className="acc-chevron">
                 <ChevronIcon />
@@ -125,6 +200,7 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
 export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoomImage }) {
   const { kicker, lead, images = [], items = [] } = component.content || {};
   const [checked, setChecked] = useState(() => new Set());
+  const nextIdx = items.findIndex((_, i) => !checked.has(i));
 
   useEffect(() => {
     onGateProgress?.(checked.size);
@@ -150,7 +226,7 @@ export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoo
           <button
             key={i}
             type="button"
-            className={`check-item${checked.has(i) ? " done" : ""}`}
+            className={`check-item${checked.has(i) ? " done" : ""}${i === nextIdx ? " tap-next" : ""}`}
             onClick={() => toggle(i)}
             aria-pressed={checked.has(i)}
           >
@@ -260,7 +336,13 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
         )}
 
         {!done && (
-          <button type="button" className="script-advance" onClick={revealNext} ref={advanceRef} disabled={typing}>
+          <button
+            type="button"
+            className={`script-advance${typing ? "" : " tap-next"}`}
+            onClick={revealNext}
+            ref={advanceRef}
+            disabled={typing}
+          >
             Наступна репліка
             <span className="script-advance-ico">
               <ChevronIcon />
@@ -369,7 +451,7 @@ export function PhotoScreen({ component, screenNumber, onZoomImage }) {
                   : undefined
               }
             >
-              <Image src={img.url} alt={alt} width={800} height={500} style={{ width: "100%", height: "auto" }} />
+              <CourseImage src={img.url} alt={alt} />
               {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
             </div>
           );
@@ -525,11 +607,15 @@ export function ConfettiBurst({ pieces = 40 }) {
 export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
   const { kicker, lead, images = [], zones = [], explanation } = component.content || {};
   const [click, setClick] = useState(null);
+  // Поки фото не завантажилось, натискати нікуди: людина ще не бачить, що
+  // саме шукає, а координати рахувались би по порожньому скелетону — і
+  // відповідь записалась би за картинку, якої вона не бачила.
+  const [imgReady, setImgReady] = useState(false);
   const isAnswered = answer !== undefined;
   const image = images.find((img) => img.url);
 
   function handleClick(e) {
-    if (isAnswered || !image) return;
+    if (isAnswered || !image || !imgReady) return;
     const rect = e.currentTarget.getBoundingClientRect();
     // Фото ще не завантажилось (або блок прихований) — кадр нульового
     // розміру. Без цієї перевірки ділення дає NaN, влучання не
@@ -563,13 +649,13 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
       {lead && <p className="cp-lead">{lead}</p>}
 
       <div
-        className={`hs-frame${isAnswered ? " answered" : ""}`}
+        className={`hs-frame${isAnswered ? " answered" : ""}${imgReady ? "" : " loading"}`}
         onClick={handleClick}
         role={isAnswered ? undefined : "button"}
         tabIndex={isAnswered ? undefined : 0}
         aria-label={isAnswered ? undefined : "Натисніть потрібне місце на фото"}
       >
-        <Image src={image.url} alt={image.caption || component.title || ""} width={800} height={500} style={{ width: "100%", height: "auto" }} />
+        <CourseImage src={image.url} alt={image.caption || component.title || ""} onLoaded={() => setImgReady(true)} />
 
         {/* Правильні зони показуємо ЛИШЕ після відповіді — інакше питання
             не мало б сенсу. */}
