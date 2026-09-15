@@ -828,3 +828,18 @@ html:has(.adm-shell) {
     border-bottom: none;
   }
 }
+
+/* Екран входу на десктопі — на всю висоту в’юпорту, як і плеєр вище
+   (скарга 2026-09-15: «окно входа не на всю высоту вьюпорта»); ширина
+   лишається телефонною (.course-col 400px), на мобільному картка й так
+   100dvh. */
+@media (min-width: 900px) {
+  body:has(.stage--register) {
+    padding: 0;
+  }
+  .stage--register .course-card {
+    height: 100vh;
+    border-top: none;
+    border-bottom: none;
+  }
+}
