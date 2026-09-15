@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { computeXp } from "@/lib/progress";
-import { getEmployeeEnrollments } from "@/lib/employeeProgress";
+import { getEmployeeRating } from "@/lib/rating";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ProfileDetailPanel } from "@/components/ProfileDetailPanel";
 import { NotificationSettings } from "@/components/NotificationSettings";
@@ -17,8 +16,8 @@ export default async function HubProfilePage() {
     where: { id: sessionUser.id },
     include: { manager: true },
   });
-  const enrollments = await getEmployeeEnrollments(employee.id);
-  const { levelLabel } = computeXp(enrollments);
+  const { level } = await getEmployeeRating(employee);
+  const levelLabel = level.label;
 
   return (
     <section className="hub-screen">

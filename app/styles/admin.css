@@ -2543,3 +2543,34 @@
   outline: none;
   box-shadow: var(--cb-focus-ring);
 }
+
+/* /admin/audit — журнал дій (components/AdminAudit.jsx) */
+.admin-audit-table .admin-employee-row {
+  grid-template-columns: 150px 1.2fr 0.9fr 2fr;
+  cursor: pointer;
+}
+.admin-audit-details {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-audit-details.open {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.admin-audit-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.admin-audit-toolbar .admin-input-flex {
+  max-width: 320px;
+}
+.admin-audit-table .admin-employee-row:focus-visible {
+  outline: 2px solid var(--cb-focus-ring);
+  outline-offset: -2px;
+}

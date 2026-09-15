@@ -1,0 +1,136 @@
+/* ===================== Рейтинг (components/RatingBlocks.jsx,
+   AchievementsPanel.jsx, CertificateList.jsx). Лише токени tokens.css. */
+
+.rt-card {
+  display: block;
+  padding: 13px 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  color: inherit;
+  text-decoration: none;
+}
+a.rt-card:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+@media (hover: hover) {
+  a.rt-card:hover {
+    background: var(--cb-overlay-10);
+  }
+}
+.rt-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.rt-points {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: calc(22px * var(--fs-scale));
+  color: var(--green-700);
+  line-height: 1.1;
+}
+.rt-points span {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: calc(12px * var(--fs-scale));
+  color: var(--ink-soft);
+}
+.rt-level {
+  font-size: calc(11.8px * var(--fs-scale));
+  color: var(--ink-soft);
+  margin-top: 3px;
+}
+.rt-level .lv-star {
+  color: var(--gold);
+}
+.rt-overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+.rt-rank {
+  text-align: right;
+  flex-shrink: 0;
+}
+.rt-rank b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: calc(18px * var(--fs-scale));
+  color: var(--green-700);
+}
+.rt-rank span {
+  font-size: calc(10.5px * var(--fs-scale));
+  color: var(--ink-soft);
+}
+.rt-next {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--fs-scale));
+  color: var(--ink-soft);
+}
+
+/* «За що» — три плашки на екрані досягнень (той самий .stats-row). */
+.rt-breakdown .stat-pill span {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.badge-points {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--fs-scale));
+  color: var(--green-700);
+}
+.badge-item.locked .badge-points {
+  color: var(--ink-soft);
+}
+
+.cert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cert-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-card);
+  background: var(--gold-soft);
+}
+.cert-ico {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+.cert-ico svg {
+  width: 22px;
+  height: 22px;
+}
+.cert-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: calc(11.5px * var(--fs-scale));
+  color: var(--ink-soft);
+}
+.cert-body b {
+  font-size: calc(13.2px * var(--fs-scale));
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.lb-pos {
+  font-size: calc(10.5px * var(--fs-scale));
+  color: var(--ink-soft);
+}

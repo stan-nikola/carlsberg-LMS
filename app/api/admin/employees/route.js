@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 
@@ -96,6 +97,7 @@ export async function POST(request) {
         territory: { select: { name: true } },
       },
     });
+    await audit("employee.create", "employee", created.id, { externalCode: created.externalCode, name: created.name });
     return NextResponse.json(created, { status: 201 });
   } catch (err) {
     if (err.code === "P2002") {

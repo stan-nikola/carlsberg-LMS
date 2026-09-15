@@ -16,6 +16,11 @@ export async function PATCH(request, { params }) {
   if ("title" in body) data.title = String(body.title || "").trim();
   if ("description" in body) data.description = body.description || null;
   if ("icon" in body) data.icon = body.icon || null;
+  if ("points" in body) {
+    const points = Number(body.points);
+    if (!Number.isInteger(points) || points < 0) return NextResponse.json({ error: "points must be a non-negative integer" }, { status: 400 });
+    data.points = points;
+  }
   if (data.title === "") return NextResponse.json({ error: "title must not be empty" }, { status: 400 });
 
   const updated = await prisma.badge.update({

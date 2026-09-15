@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 import { slugify, uniqueSlug } from "@/lib/slug";
@@ -69,6 +70,7 @@ export async function PATCH(request, { params }) {
   if (body.isMandatory !== undefined) data.isMandatory = body.isMandatory;
   if (body.deadlineDays !== undefined) data.deadlineDays = body.deadlineDays;
   if (body.passThreshold !== undefined) data.passThreshold = body.passThreshold === "" || body.passThreshold == null ? 80 : Number(body.passThreshold);
+  if (body.points !== undefined) data.points = body.points === "" || body.points == null ? null : Number(body.points);
   if (body.certificateEnabled !== undefined) data.certificateEnabled = Boolean(body.certificateEnabled);
   if (body.assignOnFirstLogin !== undefined) data.assignOnFirstLogin = Boolean(body.assignOnFirstLogin);
   // "phone"/"laptop" — перемикач прев'ю над макетом у AdminCourseEditor.jsx,
@@ -115,5 +117,6 @@ export async function DELETE(request, { params }) {
   }
 
   await prisma.course.delete({ where: { id } });
+  await audit("course.delete", "course", id);
   return NextResponse.json({ ok: true });
 }

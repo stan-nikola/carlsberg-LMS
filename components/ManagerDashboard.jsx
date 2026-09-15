@@ -263,7 +263,8 @@ function EnrollmentRow({ enrollment }) {
   );
 }
 
-function TeamNode({ node, summaryByEmployeeId }) {
+function TeamNode({ node, summaryByEmployeeId, ratingByEmployeeId }) {
+  const rating = ratingByEmployeeId?.[node.id];
   const [showChildren, setShowChildren] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -376,6 +377,13 @@ function TeamNode({ node, summaryByEmployeeId }) {
                   )}
                 </>
               )}
+              {/* Рейтинг: % від найкращого у СВОЇЙ посаді (ТП з ТП) і бали
+                  журналу — lib/rating.js getTeamRating. */}
+              {rating && rating.points > 0 && (
+                <span className="mgr-badge mgr-badge-rating" title="Рейтинг: % від найкращого у своїй посаді · бали">
+                  {rating.normalized}% · {rating.points} б.
+                </span>
+              )}
               {summary.overdue > 0 && <span className="mgr-badge mgr-badge-overdue">{summary.overdue} прострочено</span>}
             </div>
           </div>
@@ -405,7 +413,7 @@ function TeamNode({ node, summaryByEmployeeId }) {
       {hasChildren && showChildren && (
         <ul className="mgr-team-children">
           {node.children.map((child) => (
-            <TeamNode key={child.id} node={child} summaryByEmployeeId={summaryByEmployeeId} />
+            <TeamNode key={child.id} node={child} summaryByEmployeeId={summaryByEmployeeId} ratingByEmployeeId={ratingByEmployeeId} />
           ))}
         </ul>
       )}
@@ -436,10 +444,17 @@ function matchesStatusFilter(summary, filter) {
   return true;
 }
 
-function sortByOverdueFirst(nodes, summaryByEmployeeId) {
-  return nodes
-    .slice()
-    .sort((a, b) => (summaryByEmployeeId[b.id]?.overdue || 0) - (summaryByEmployeeId[a.id]?.overdue || 0));
+const SORT_OPTIONS = [
+  { value: "overdue", label: "Прострочені спочатку" },
+  { value: "rating", label: "За рейтингом" },
+];
+
+function sortNodes(nodes, sortBy, summaryByEmployeeId, ratingByEmployeeId) {
+  const key =
+    sortBy === "rating"
+      ? (n) => ratingByEmployeeId?.[n.id]?.normalized || 0
+      : (n) => summaryByEmployeeId[n.id]?.overdue || 0;
+  return nodes.slice().sort((a, b) => key(b) - key(a));
 }
 
 function flattenTree(nodes, out = []) {
@@ -461,6 +476,7 @@ export function ManagerDashboard() {
   const [state, setState] = useState({ loading: true, data: null, error: false });
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("overdue");
   // Той самий "стартуємо з 0, після монтування переходимо на реальне
   // значення" прийом, що CompletionRing — для горизонтальних барів
   // (% виконання по курсу) і стовпчиків тренду по тижнях, щоб їхнє
@@ -522,9 +538,9 @@ export function ManagerDashboard() {
   }
 
   const { me, team } = state.data;
-  const { stats, summaryByEmployeeId, tree, weeklyTrend } = team;
+  const { stats, summaryByEmployeeId, tree, weeklyTrend, rating } = team;
   const trendMax = Math.max(1, ...weeklyTrend.map((w) => w.count));
-  const visibleNodes = filteredFlat ?? sortByOverdueFirst(tree, summaryByEmployeeId);
+  const visibleNodes = sortNodes(filteredFlat ?? tree, sortBy, summaryByEmployeeId, rating.byEmployeeId);
   // Для rateColor нижче — 4 показники "Показники команди" ранжуються один
   // відносно одного, не за фіксованим per-метрика кольором.
   const ringValues = [stats.completionRate, stats.passRate, stats.onTimeRate, stats.engagementRate];
@@ -561,6 +577,12 @@ export function ManagerDashboard() {
         <div className="mgr-kpi-tile">
           <b>{stats.avgScore != null ? `${stats.avgScore}%` : "—"}</b>
           <span>середній бал</span>
+        </div>
+        {/* Середній % команди від найкращих у своїх посадах + місце серед
+            команд керівників тієї ж посади (ASM серед ASM). */}
+        <div className="mgr-kpi-tile" title="Середній рейтинг підлеглих: % від найкращого у своїй посаді">
+          <b>{rating.avg}%</b>
+          <span>рейтинг команди{rating.rank ? ` · №${rating.rank} з ${rating.teams}` : ""}</span>
         </div>
         <div className={`mgr-kpi-tile${stats.overdueCount > 0 ? " mgr-kpi-tile-alert" : ""}`}>
           <b>{stats.overdueCount}</b>
@@ -837,6 +859,13 @@ export function ManagerDashboard() {
             <PeopleIcon /> Детально по команді
           </h2>
           <div className="mgr-team-controls">
+            <select className="admin-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
             <select className="admin-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               {STATUS_FILTER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -860,7 +889,7 @@ export function ManagerDashboard() {
         ) : (
           <ul className="mgr-team-tree">
             {visibleNodes.map((node) => (
-              <TeamNode key={node.id} node={node} summaryByEmployeeId={summaryByEmployeeId} />
+              <TeamNode key={node.id} node={node} summaryByEmployeeId={summaryByEmployeeId} ratingByEmployeeId={rating.byEmployeeId} />
             ))}
           </ul>
         )}

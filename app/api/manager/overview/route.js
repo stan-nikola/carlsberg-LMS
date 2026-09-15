@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/session";
 import { isManagerTier, getAllSubordinates } from "@/lib/permissions";
 import { getTeamTree, getTeamSummary, getDashboardStats, getWeeklyTrend } from "@/lib/managerDashboard";
 import { getEmployeeEnrollments } from "@/lib/employeeProgress";
-import { computeXp } from "@/lib/progress";
+import { getEmployeeRating, getTeamRating } from "@/lib/rating";
 
 // GET /api/manager/overview — початкове завантаження /manager одним
 // round-trip: дерево команди, легкий підсумок по кожній людині (без
@@ -26,7 +26,8 @@ export async function GET() {
     getDashboardStats(subordinateIds),
     getWeeklyTrend(subordinateIds),
   ]);
-  const { levelLabel } = computeXp(myEnrollments);
+  const [{ level }, rating] = await Promise.all([getEmployeeRating(employee), getTeamRating(employee)]);
+  const levelLabel = level.label;
 
   return NextResponse.json({
     me: {
@@ -45,6 +46,9 @@ export async function GET() {
       summaryByEmployeeId: Object.fromEntries(summaryMap),
       stats,
       weeklyTrend,
+      // Рейтинг: бали/% кожного підлеглого + середнє команди і місце серед
+      // команд тієї ж посади (lib/rating.js getTeamRating).
+      rating,
     },
   });
 }

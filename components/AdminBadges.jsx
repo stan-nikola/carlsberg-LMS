@@ -81,6 +81,7 @@ function BadgeCreateForm({ onCreated, onCancel }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState("⭐");
+  const [points, setPoints] = useState(50);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -92,7 +93,7 @@ function BadgeCreateForm({ onCreated, onCancel }) {
       const res = await fetch("/api/admin/badges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), description: description.trim() || null, icon: icon.trim() || "⭐" }),
+        body: JSON.stringify({ title: title.trim(), description: description.trim() || null, icon: icon.trim() || "⭐", points: Number(points) || 0 }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -118,6 +119,12 @@ function BadgeCreateForm({ onCreated, onCancel }) {
             Іконка (emoji)
           </label>
           <input id="badgeIcon" className="admin-input-flex" value={icon} onChange={(e) => setIcon(e.target.value)} style={{ maxWidth: 80 }} />
+        </div>
+        <div className="admin-field">
+          <label className="admin-label" htmlFor="badgePoints">
+            Бали рейтингу
+          </label>
+          <input id="badgePoints" type="number" min="0" className="admin-input-flex" value={points} onChange={(e) => setPoints(e.target.value)} style={{ maxWidth: 100 }} />
         </div>
       </div>
       <div className="admin-field">
@@ -145,6 +152,7 @@ function BadgeRow({ badge, onUpdated }) {
   const [title, setTitle] = useState(badge.title);
   const [description, setDescription] = useState(badge.description || "");
   const [icon, setIcon] = useState(badge.icon || "");
+  const [points, setPoints] = useState(badge.points ?? 0);
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -153,7 +161,7 @@ function BadgeRow({ badge, onUpdated }) {
       const res = await fetch(`/api/admin/badges/${badge.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), description: description.trim() || null, icon: icon.trim() || null }),
+        body: JSON.stringify({ title: title.trim(), description: description.trim() || null, icon: icon.trim() || null, points: Number(points) || 0 }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -174,6 +182,7 @@ function BadgeRow({ badge, onUpdated }) {
         <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <input className="admin-input-flex" value={title} onChange={(e) => setTitle(e.target.value)} />
           <input className="admin-input-flex" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Опис" />
+          <input type="number" min="0" className="admin-input-flex" value={points} onChange={(e) => setPoints(e.target.value)} placeholder="Бали рейтингу" style={{ maxWidth: 140 }} />
         </span>
         <span>{KIND_LABELS[badge.kind]}</span>
         <span style={{ display: "flex", gap: 6 }}>
@@ -195,6 +204,7 @@ function BadgeRow({ badge, onUpdated }) {
       <span>
         {badge.title}
         {badge.description && <div className="admin-hint">{badge.description}</div>}
+        <div className="admin-hint">{badge.points ? `${badge.points} балів рейтингу` : "без балів"}</div>
       </span>
       <span>{KIND_LABELS[badge.kind]}</span>
       <span>

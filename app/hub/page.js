@@ -1,11 +1,14 @@
 import { getCurrentUser } from "@/lib/session";
 import { getEmployeeEnrollments } from "@/lib/employeeProgress";
-import { computeXp, pickContinueEnrollments } from "@/lib/progress";
+import { pickContinueEnrollments } from "@/lib/progress";
+import { mandatoryProgress } from "@/lib/ratingLogic";
+import { getEmployeeRating } from "@/lib/rating";
 import { getTimeBasedGreeting } from "@/lib/greeting";
 import { CourseTile } from "@/components/CourseTile";
 import { ProfileCard } from "@/components/ProfileCard";
 import { GreetingHeading } from "@/components/GreetingHeading";
 import { NotificationSettings } from "@/components/NotificationSettings";
+import { RatingCard, MandatoryCard } from "@/components/RatingBlocks";
 
 // Портовано з .hub-screen[data-tab="home"] в legacy index.html +
 // js/cabinet.js. Дані — з БД (Enrollment) замість localStorage.
@@ -14,8 +17,11 @@ export default async function HubHomePage() {
   const employee = await getCurrentUser();
   const enrollments = await getEmployeeEnrollments(employee.id);
 
-  const { xp, xpMax, levelLabel, completedCount } = computeXp(enrollments);
-  const passedCount = enrollments.filter((e) => e.status === "completed" && e.passed).length;
+  // Рейтинг (бали за реальні заслуги, lib/rating.js) замість колишнього
+  // «Прогрес адаптації 200/200 XP», який упирався в стелю після двох курсів.
+  const rating = await getEmployeeRating(employee);
+  const mandatory = mandatoryProgress(enrollments);
+  const completedCount = enrollments.filter((e) => e.status === "completed").length;
   const lastCompleted = [...enrollments].reverse().find((e) => e.status === "completed");
   // До 3 незавершених призначень — раніше показувалось лише одне
   // ("найстаріше з непройдених"), тепер видно все, чим варто зайнятись.
@@ -35,22 +41,13 @@ export default async function HubHomePage() {
         dbName={employee.name}
         hasEmail={Boolean(employee.email)}
         externalCode={employee.externalCode}
-        levelLabel={levelLabel}
+        levelLabel={rating.level.label}
       />
 
       <NotificationSettings variant="card" />
 
-      <div className="xp-wrap">
-        <div className="xp-top">
-          <span className="xp-label">Прогрес адаптації</span>
-          <span className="xp-num">
-            {xp} / {xpMax} XP
-          </span>
-        </div>
-        <div className="xp-track">
-          <div className="xp-fill" style={{ width: `${Math.round((xp / xpMax) * 100)}%` }} />
-        </div>
-      </div>
+      <RatingCard rating={rating} cohortLabel={employee.position?.name ? `на посаді ${employee.position.code}` : "колег"} />
+      <MandatoryCard progress={mandatory} />
 
       <div className="stats-row">
         <div className="stat-pill">
@@ -64,8 +61,8 @@ export default async function HubHomePage() {
           <span>Останній бал</span>
         </div>
         <div className="stat-pill">
-          <b>{1 + (passedCount > 0 ? 1 : 0)}</b>
-          <span>Досягнень</span>
+          <b>{rating.badgesCount}</b>
+          <span>Відзнак</span>
         </div>
       </div>
 

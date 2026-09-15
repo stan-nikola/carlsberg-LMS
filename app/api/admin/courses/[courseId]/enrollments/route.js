@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 
@@ -16,5 +17,6 @@ export async function DELETE(request, { params }) {
 
   const { courseId } = await params;
   const { count } = await prisma.enrollment.deleteMany({ where: { courseId: Number(courseId) } });
+  await audit("course.unassign_all", "course", courseId, { removedCount: count });
   return NextResponse.json({ removedCount: count });
 }

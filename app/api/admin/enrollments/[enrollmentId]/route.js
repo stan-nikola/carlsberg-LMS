@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
@@ -47,6 +48,7 @@ export async function PATCH(request, { params }) {
       course: { select: { title: true } },
     },
   });
+  await audit("enrollment.update", "enrollment", enrollmentId, { course: updated.course.title, ...data });
   return NextResponse.json(updated);
 }
 
@@ -59,5 +61,6 @@ export async function DELETE(request, { params }) {
 
   const { enrollmentId } = await params;
   await prisma.enrollment.delete({ where: { id: Number(enrollmentId) } });
+  await audit("enrollment.delete", "enrollment", enrollmentId);
   return NextResponse.json({ ok: true });
 }

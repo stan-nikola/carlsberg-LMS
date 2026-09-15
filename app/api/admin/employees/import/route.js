@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 // "xlsx" (SheetJS) не має default export у ESM-збірці (лише іменовані —
 // readFile/read/utils тощо) — на відміну від CommonJS require() у
 // prisma/import-employees.js, де це просто працює через CJS-інтероп.
@@ -121,5 +122,6 @@ export async function POST(request) {
     }
   }
 
+  await audit("employee.import", "employee", null, { createdCount, skipped: skippedRows.length });
   return NextResponse.json({ createdCount, skippedRows });
 }
