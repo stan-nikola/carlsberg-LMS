@@ -6,7 +6,7 @@ import Link from "next/link";
  *  - RatingCard — бали, рівень, місце в когорті (та сама посада);
  *  - MandatoryCard — обов'язкові курси: пройдено / прострочено / дедлайн.
  * Серверні компоненти без стану — дані приходять готовими з
- * lib/rating.js getEmployeeRating і lib/ratingLogic.js mandatoryProgress.
+ * lib/rating.ts getEmployeeRating і lib/ratingLogic.ts mandatoryProgress.
  */
 export function RatingCard({ rating, cohortLabel, href = "/hub/achievements" }) {
   const { total, level, rank, size } = rating;

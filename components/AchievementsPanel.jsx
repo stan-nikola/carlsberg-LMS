@@ -7,7 +7,7 @@ import { CertificateList } from "@/components/CertificateList";
  *  1. рейтинг (бали, рівень, місце в когорті) і «за що» — курси / бонуси / відзнаки;
  *  2. відзнаки (усі типи, зароблені підсвічені, з балами);
  *  3. сертифікати — кожен курс на 100% із прямим завантаженням PDF;
- *  4. лідери когорти — реальний топ по балах журналу (lib/rating.js).
+ *  4. лідери когорти — реальний топ по балах журналу (lib/rating.ts).
  * Раніше тут був лідерборд по середньому балу території поверх XP-стелі.
  */
 export function AchievementsPanel({ rating, badges, certificates, leaderboard, leaderboardTitle, currentEmployeeId, hasEmail, cohortLabel }) {

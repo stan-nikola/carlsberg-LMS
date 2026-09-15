@@ -47,7 +47,7 @@ export async function GET() {
       stats,
       weeklyTrend,
       // Рейтинг: бали/% кожного підлеглого + середнє команди і місце серед
-      // команд тієї ж посади (lib/rating.js getTeamRating).
+      // команд тієї ж посади (lib/rating.ts getTeamRating).
       rating,
     },
   });

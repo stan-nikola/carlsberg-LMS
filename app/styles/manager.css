@@ -1026,7 +1026,7 @@ body:has(.manager-shell) {
   border-left: 2px solid var(--line);
 }
 /* Рейтинг підлеглого: % від найкращого у своїй посаді · бали
-   (lib/rating.js getTeamRating). Синій — той самий акцент, що «ви тут»
+   (lib/rating.ts getTeamRating). Синій — той самий акцент, що «ви тут»
    у таймлайні плеєра, не плутається із зеленим балом і червоним провалом. */
 .mgr-badge-rating {
   background: var(--cb-notification-light);

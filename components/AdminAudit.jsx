@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { SpinnerIcon } from "@/components/icons";
 
-// Підписи дій журналу (lib/audit.js). Невідома дія показується як є.
+// Підписи дій журналу (lib/audit.ts). Невідома дія показується як є.
 const ACTION_LABELS = {
   "enrollment.update": "Корекція проходження",
   "enrollment.delete": "Знято призначення",
