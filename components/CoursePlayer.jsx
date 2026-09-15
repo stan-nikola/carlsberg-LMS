@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { enqueue } from "@/lib/offlineOutbox";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { renderRichText } from "@/lib/richText";
@@ -443,7 +444,7 @@ function CompleteScreen({ result, onRetake, course, hasEmail, previewMode }) {
   }
 
   if (!result) return null;
-  const { scorePercent, scoreRaw, scoreMax, passed, submitting, submitError } = result;
+  const { scorePercent, scoreRaw, scoreMax, passed, submitting, submitError, queued } = result;
 
   // Сертифікат — лише за РІВНО 100% і лише якщо він увімкнений для цього
   // курсу (Course.certificateEnabled). Прохідний бал тут ні до чого: він
@@ -454,7 +455,7 @@ function CompleteScreen({ result, onRetake, course, hasEmail, previewMode }) {
   // Кнопку тримаємо неактивною, поки результат не долетів до сервера:
   // роут сертифіката перевіряє саме збережений Enrollment і до того
   // моменту відповів би 403.
-  const certificateReady = !submitting && !submitError;
+  const certificateReady = !submitting && !submitError && !queued;
 
   return (
     <div className="cp-screen cp-complete">
@@ -487,7 +488,12 @@ function CompleteScreen({ result, onRetake, course, hasEmail, previewMode }) {
         </p>
       )}
       {submitError && <p className="cp-save-status cp-save-error">Не вдалося зберегти результат: {submitError}</p>}
-      {!submitting && !submitError && (
+      {queued && (
+        <p className="cp-save-status cp-save-queued">
+          Немає мережі — результат збережено на пристрої й відправиться автоматично, щойно з&apos;явиться зв&apos;язок.
+        </p>
+      )}
+      {!submitting && !submitError && !queued && (
         <p className="cp-save-status">{previewMode ? "Прев'ю — результат не збережено." : "Результат збережено."}</p>
       )}
 
@@ -718,6 +724,15 @@ export function CoursePlayer({
   useEffect(() => () => clearTimeout(streakTimerRef.current), []);
 
   const startedAtRef = useRef(new Date().toISOString());
+
+  // Офлайн: просимо SW (public/sw.js) закешувати сторінку курсу і фото всіх
+  // екранів наперед — щоб курс, відкритий онлайн, можна було пройти в полі
+  // без зв'язку. Усі http(s)-посилання в контенті екранів — це фото.
+  useEffect(() => {
+    if (previewMode || !("serviceWorker" in navigator)) return;
+    const urls = [location.pathname, ...new Set(JSON.stringify(screens).match(/https?:\/\/[^"\\]+/g) || [])];
+    navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage({ type: "precache", urls })).catch(() => {});
+  }, [screens, previewMode]);
   const activeSecondsRef = useRef(0);
   const lastTickRef = useRef(Date.now());
 
@@ -875,22 +890,23 @@ export function CoursePlayer({
   }
 
   async function postModuleCompletion(moduleId, score) {
+    const url = `/api/courses/${course.slug}/module-complete`;
+    const body = {
+      enrollmentId,
+      moduleId,
+      scorePercent: score.scorePercent,
+      passed: score.passed,
+      longestCorrectStreak: score.longestCorrectStreak,
+      scoreRaw: score.scoreRaw,
+      scoreMax: score.scoreMax,
+    };
     try {
-      await fetch(`/api/courses/${course.slug}/module-complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          enrollmentId,
-          moduleId,
-          scorePercent: score.scorePercent,
-          passed: score.passed,
-          longestCorrectStreak: score.longestCorrectStreak,
-          scoreRaw: score.scoreRaw,
-          scoreMax: score.scoreMax,
-        }),
-      });
+      await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       return null;
     } catch (err) {
+      // Немає мережі — у чергу (lib/offlineOutbox.js), досилається
+      // автоматично; порядок «модуль → курс» черга зберігає.
+      enqueue(url, body);
       return err.message;
     }
   }
@@ -970,11 +986,8 @@ export function CoursePlayer({
       return;
     }
 
-    try {
-      const res = await fetch(`/api/courses/${course.slug}/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+    const submitUrl = `/api/courses/${course.slug}/submit`;
+    const payload = {
           enrollmentId,
           startedAt: startedAtRef.current,
           completedAt,
@@ -994,11 +1007,19 @@ export function CoursePlayer({
                 scoreMax: lastModuleScore.scoreMax,
               }
             : null,
-        }),
-      });
+    };
+    try {
+      const res = await fetch(submitUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setResult((r) => ({ ...r, submitting: false }));
     } catch (err) {
+      // fetch кинув (не HTTP-помилка) = мережі нема: результат у чергу,
+      // OfflineSync.jsx дошле, щойно з'явиться зв'язок.
+      if (err instanceof TypeError) {
+        enqueue(submitUrl, payload);
+        setResult((r) => ({ ...r, submitting: false, queued: true }));
+        return;
+      }
       setResult((r) => ({ ...r, submitting: false, submitError: err.message }));
     }
   }
