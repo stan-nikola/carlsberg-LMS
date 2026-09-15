@@ -78,8 +78,11 @@ export function EmployeeBadgesSection({ employeeId }) {
   }
 
   return (
-    <div className="admin-form-section">
-      <h2 style={{ fontSize: 15 }}>Відзнаки та винагороди</h2>
+    <section className="adm-card">
+      <div className="adm-card-head">
+        <h2>Відзнаки та винагороди</h2>
+        <span className="admin-hint">{awards.length ? `${awards.length} отримано` : "поки нічого"}</span>
+      </div>
 
       {awards.length === 0 ? (
         <p className="admin-subtitle">Ще немає жодної відзнаки чи винагороди.</p>
@@ -104,7 +107,7 @@ export function EmployeeBadgesSection({ employeeId }) {
         </ul>
       )}
 
-      <div className="admin-form-columns" style={{ marginTop: 16 }}>
+      <div className="adm-field-grid">
         <div className="admin-field">
           <label className="admin-label" htmlFor="awardBadge">
             Видати винагороду
@@ -134,11 +137,13 @@ export function EmployeeBadgesSection({ employeeId }) {
           .
         </p>
       )}
-      {error && <p className="admin-error">{error}</p>}
-      <button className="admin-btn" disabled={!selectedBadgeId || awarding} onClick={handleAward}>
-        {awarding && <SpinnerIcon />}
-        Видати
-      </button>
-    </div>
+      <div className="adm-card-foot">
+        {error && <p className="admin-error">{error}</p>}
+        <button className="admin-btn" disabled={!selectedBadgeId || awarding} onClick={handleAward}>
+          {awarding && <SpinnerIcon />}
+          Видати
+        </button>
+      </div>
+    </section>
   );
 }

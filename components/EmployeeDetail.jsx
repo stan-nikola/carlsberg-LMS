@@ -220,14 +220,29 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
           ← До списку співробітників
         </Link>
       )}
-      <h1 style={{ marginTop: compact ? 0 : 12 }}>
-        {employee.name}
-        {!employee.isActive && <span className="admin-hint"> · деактивовано</span>}
-      </h1>
-      <p className="admin-subtitle mono">{employee.externalCode}</p>
+      <div className="adm-detail-head">
+        <h1 style={{ marginTop: compact ? 0 : 8 }}>{employee.name}</h1>
+        <div className="adm-chip-row">
+          <span className="mono">{employee.externalCode}</span>
+          <span className={`adm-chip${employee.isActive ? " adm-chip-accent" : " adm-chip-off"}`}>{employee.isActive ? "активний" : "деактивовано"}</span>
+          {employee.position && <span className="adm-chip">{employee.position.name}</span>}
+          {employee.manager && (
+            <span className="admin-hint">
+              керівник:{" "}
+              <Link href={`/admin/employees/${employee.manager.id}`} className="admin-btn-link">
+                {employee.manager.name}
+              </Link>
+            </span>
+          )}
+        </div>
+      </div>
 
-      <div className="admin-form-section">
-        <div className="admin-form-columns">
+      <section className="adm-card">
+        <div className="adm-card-head">
+          <h2>Основне</h2>
+          <span className="admin-hint">Ім’я з email, код — ключ входу</span>
+        </div>
+        <div className="adm-field-grid">
           <div className="admin-field">
             <label className="admin-label" htmlFor="empName">
               Ім&apos;я
@@ -251,9 +266,6 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
             />
           </div>
-        </div>
-
-        <div className="admin-form-columns">
           <div className="admin-field">
             <label className="admin-label" htmlFor="empDepartment">
               Департамент
@@ -308,59 +320,68 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
               ))}
             </select>
           </div>
+          <div className="admin-field">
+            <label className="admin-label" htmlFor="empRole">
+              Роль
+            </label>
+            <select
+              id="empRole"
+              className="admin-select"
+              value={form.role}
+              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+            >
+              {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="admin-field">
-          <label className="admin-label" htmlFor="empRole">
-            Роль
-          </label>
-          <select
-            id="empRole"
-            className="admin-select"
-            value={form.role}
-            onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-          >
-            {Object.entries(ROLE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {saveError && <p className="admin-error">{saveError}</p>}
-        <div className="admin-btn-group">
+        <div className="adm-card-foot">
+          {saveError && <p className="admin-error">{saveError}</p>}
+          <button className="admin-btn-link admin-link-danger" disabled={saving} onClick={handleToggleActive}>
+            {employee.isActive ? "Деактивувати" : "Активувати"}
+          </button>
           <button className="admin-btn" disabled={saving} onClick={handleSave}>
             {saving && <SpinnerIcon />}
             {saved ? "Збережено ✓" : "Зберегти"}
           </button>
-          <button className="admin-btn-danger" disabled={saving} onClick={handleToggleActive}>
-            {employee.isActive ? "Деактивувати" : "Активувати"}
-          </button>
         </div>
-      </div>
+      </section>
 
-      <div className="admin-form-section">
-        <h2 style={{ fontSize: 15 }}>Керівник</h2>
-        <p className="admin-subtitle">
+      {/* Дві короткі картки поруч на широкому екрані, стовпчиком у шухляді. */}
+      <div className="adm-card-row">
+      <section className="adm-card">
+        <div className="adm-card-head">
+          <h2>Керівник</h2>
+          <span className="admin-hint">Пряме підпорядкування; перетягнути в дереві — /admin/org</span>
+        </div>
+        <div className="adm-manager-row">
           {employee.manager ? (
-            <>
-              {employee.manager.name} (
+            <span>
+              <b>{employee.manager.name}</b>
+              {employee.manager.position?.name ? <span className="admin-hint"> · {employee.manager.position.name}</span> : null}{" "}
               <Link href={`/admin/employees/${employee.manager.id}`} className="admin-btn-link">
-                картка
+                картка →
               </Link>
-              )
-            </>
+            </span>
           ) : (
-            "— верхній рівень ієрархії, керівника немає"
+            <span className="admin-hint">Верхній рівень ієрархії — керівника немає</span>
           )}
-        </p>
+          {employee.manager && (
+            <button type="button" className="admin-btn-link" onClick={() => handleReassignManager(null)}>
+              Прибрати керівника
+            </button>
+          )}
+        </div>
         <input
           className="admin-input-flex"
-          placeholder="Пошук нового керівника за ім'ям або кодом…"
+          placeholder="Змінити керівника: пошук за ім’ям або кодом…"
           value={managerQuery}
           onChange={(e) => setManagerQuery(e.target.value)}
-          style={{ maxWidth: 360 }}
+          style={{ maxWidth: 420 }}
         />
         {managerSearching && <SpinnerIcon />}
         {managerResults.length > 0 && (
@@ -380,27 +401,22 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
             ))}
           </ul>
         )}
-        {employee.manager && (
-          <button
-            type="button"
-            className="admin-btn-link"
-            style={{ marginTop: 8 }}
-            onClick={() => handleReassignManager(null)}
-          >
-            Зробити керівником верхнього рівня (прибрати керівника)
-          </button>
-        )}
+      </section>
+
+      <section className="adm-card">
+        <div className="adm-card-head">
+          <h2>Підпорядкування</h2>
+          <Link href={`/admin/org?focus=${employeeId}`} className="admin-btn-link">
+            Показати в дереві організації →
+          </Link>
+        </div>
+        <p className="admin-hint" style={{ margin: 0 }}>
+          Прямих підлеглих: <b>{employee._count.subordinates}</b>
+        </p>
+      </section>
       </div>
 
       <EmployeeBadgesSection employeeId={employeeId} />
-
-      <div className="admin-form-section">
-        <h2 style={{ fontSize: 15 }}>Підпорядкування</h2>
-        <p className="admin-subtitle">Прямих підлеглих: {employee._count.subordinates}</p>
-        <Link href={`/admin/org?focus=${employeeId}`} className="admin-btn-link">
-          Переглянути в дереві організації →
-        </Link>
-      </div>
 
       <EmployeeCoursesSection employeeId={employeeId} />
     </div>

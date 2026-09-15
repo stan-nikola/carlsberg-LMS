@@ -116,18 +116,23 @@ export function AdminBroadcast() {
         Ручна розсилка в центр сповіщень і push на пристрої. Нові курси, дедлайни та відзнаки розсилаються автоматично.
       </p>
 
-      <form className="admin-form-section" onSubmit={send}>
-        <label className="admin-field">
-          <span>Заголовок</span>
-          <input className="admin-input-flex" maxLength={80} required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-        </label>
-        <label className="admin-field">
-          <span>Текст</span>
-          <textarea className="admin-textarea" maxLength={500} required rows={4} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
-        </label>
-        <label className="admin-field">
-          <span>Посилання (необов&apos;язково, відносне: /hub/learn)</span>
-          <div className="admin-btn-group">
+      <form className="adm-card adm-bc-form" onSubmit={send}>
+        <div className="adm-card-head">
+          <h2>Нова розсилка</h2>
+          <span className="admin-hint">Заголовок до 80 символів, текст до 500 — довше системні сповіщення обрізають</span>
+        </div>
+        <div className="adm-field-grid">
+        <div className="admin-field admin-field-wide">
+          <label className="admin-label" htmlFor="bcTitle">Заголовок</label>
+          <input id="bcTitle" className="admin-input-flex" maxLength={80} required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        </div>
+        <div className="admin-field admin-field-wide">
+          <label className="admin-label" htmlFor="bcMessage">Текст</label>
+          <textarea id="bcMessage" className="admin-textarea" maxLength={500} required rows={4} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+        </div>
+        <div className="admin-field admin-field-wide">
+          <span className="admin-label">Посилання при кліку (необов’язково)</span>
+          <div className="adm-link-row">
             <select
               className="admin-select"
               value={courses.some((c) => form.url === `/courses/${c.slug}`) ? form.url : ""}
@@ -144,20 +149,21 @@ export function AdminBroadcast() {
                 </optgroup>
               ))}
             </select>
-            <input className="admin-input-flex" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="/hub/learn" />
+            <input className="admin-input-flex" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="або свій шлях: /hub/learn" />
           </div>
-        </label>
-        <label className="admin-field">
-          <span>Кому</span>
-          <select className="admin-input-flex" value={form.all ? "all" : "positions"} onChange={(e) => setForm({ ...form, all: e.target.value === "all" })}>
+        </div>
+        <div className="admin-field">
+          <label className="admin-label" htmlFor="bcTarget">Кому</label>
+          <select id="bcTarget" className="admin-select" value={form.all ? "all" : "positions"} onChange={(e) => setForm({ ...form, all: e.target.value === "all" })}>
             <option value="all">Усім активним співробітникам</option>
             <option value="positions">За посадами</option>
           </select>
-        </label>
+        </div>
+        </div>
         {!form.all && (
-          <div className="admin-row ntf-positions">
+          <div className="admin-checkbox-grid">
             {positions.map((p) => (
-              <label key={p.code}>
+              <label key={p.code} className="admin-checkbox">
                 <input
                   type="checkbox"
                   checked={form.positionCodes.includes(p.code)}
@@ -173,16 +179,17 @@ export function AdminBroadcast() {
             ))}
           </div>
         )}
-        <div className="admin-row">
+        <div className="adm-card-foot">
+          {result && <p className="admin-hint">{result}</p>}
           <button type="submit" className="admin-btn admin-btn-primary" disabled={sending || (!form.all && form.positionCodes.length === 0)}>
             {sending ? <SpinnerIcon /> : "Надіслати"}
           </button>
-          {result && <span className="admin-hint">{result}</span>}
         </div>
       </form>
 
-      <div className="adm-page-head" style={{ marginTop: 24 }}>
-        <h2 style={{ margin: 0 }}>Історія</h2>
+      <section className="adm-card" style={{ marginTop: 16 }}>
+      <div className="adm-card-head">
+        <h2>Історія</h2>
         {selected.size > 0 && (
           <button type="button" className="admin-btn admin-btn-danger" onClick={() => removeBroadcasts([...selected])} disabled={deleting}>
             {deleting && <SpinnerIcon />}
@@ -197,12 +204,14 @@ export function AdminBroadcast() {
           <thead>
             <tr>
               <th>
-                <input
-                  type="checkbox"
-                  aria-label="Обрати все"
-                  checked={allSelected}
-                  onChange={(e) => setSelected(e.target.checked ? new Set(history.map((b) => b.id)) : new Set())}
-                />
+                <label className="adm-bc-selectall">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={(e) => setSelected(e.target.checked ? new Set(history.map((b) => b.id)) : new Set())}
+                  />
+                  Виділити все
+                </label>
               </th>
               <th>Коли</th>
               <th>Заголовок</th>
@@ -246,6 +255,7 @@ export function AdminBroadcast() {
           </tbody>
         </table>
       )}
+      </section>
     </div>
   );
 }

@@ -210,7 +210,9 @@ body:has(.manager-shell) {
   padding: 10px 12px;
   /* Прозора рамка тієї ж товщини, що в активного — пункти не «стрибають». */
   border: 1.5px solid transparent;
-  border-radius: var(--radius-sm);
+  /* Квадратні, без заокруглення — той самий токен, що .adm-nav-link і
+     .mgr-badge (користувач, 2026-09-15). */
+  border-radius: var(--radius-btn);
   color: var(--ink-soft);
   text-decoration: none;
   font-weight: 600;
@@ -1105,4 +1107,9 @@ body:has(.manager-shell) {
    розкладає її у дві колонки. */
 .manager-achievements-page {
   max-width: 1180px;
+}
+
+/* Дзвіночок і «Вийти» в сайдбарі — теж квадратні. */
+.mgr-sidebar .iconbtn {
+  border-radius: var(--radius-btn);
 }
