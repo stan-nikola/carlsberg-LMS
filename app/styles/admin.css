@@ -2546,14 +2546,17 @@
   padding: 0;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: var(--surface);
+  /* Гола іконка без круглого обідка (користувач, 2026-09-15): той самий
+     принцип, що .adm-sidebar-collapse-btn — контейнера в спокої нема,
+     легкий фон лише на ховері. */
+  border: none;
+  border-radius: var(--radius-btn);
+  background: transparent;
   color: var(--ink);
   cursor: pointer;
   transition:
     background var(--dur-fast) var(--ease-premium),
-    border-color var(--dur-fast) var(--ease-premium);
+    color var(--dur-fast) var(--ease-premium);
 }
 .emp-tree-row .admin-accordion-caret svg {
   width: 18px;
@@ -2562,7 +2565,6 @@
 @media (hover: hover) {
   .emp-tree-row .admin-accordion-caret:hover {
     background: var(--green-tint);
-    border-color: var(--green-700);
     color: var(--green-700);
   }
 }

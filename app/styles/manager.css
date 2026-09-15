@@ -1054,13 +1054,6 @@ body:has(.manager-shell) {
   padding: 10px 0 2px 14px;
   border-left: 2px solid var(--line);
 }
-/* Рейтинг підлеглого: % від найкращого у своїй посаді · бали
-   (lib/rating.ts getTeamRating). Синій — той самий акцент, що «ви тут»
-   у таймлайні плеєра, не плутається із зеленим балом і червоним провалом. */
-.mgr-badge-rating {
-  background: var(--cb-notification-light);
-  color: color-mix(in srgb, var(--cb-notification) 60%, var(--cb-black));
-}
 
 /* Згорнутий сайдбар кабінету керівника — той самий патерн і та сама
    кнопка-шеврон на лінії border-right, що в адмін-панелі
@@ -1112,4 +1105,54 @@ body:has(.manager-shell) {
 /* Дзвіночок і «Вийти» в сайдбарі — теж квадратні. */
 .mgr-sidebar .iconbtn {
   border-radius: var(--radius-btn);
+}
+
+/* ===== /manager/profile і /manager/notifications: mobile-first → десктоп =====
+   На телефоні — той самий стовпчик, що в /hub; від 900px профіль стає в
+   дві колонки, а стрічка сповіщень отримує ширшу колонку і просторіші
+   картки. Заголовки секцій — .hub-sec-title, як у хабі. */
+.manager-profile-page {
+  max-width: 1100px;
+}
+.mgr-profile {
+  display: grid;
+  gap: 8px 32px;
+}
+.mgr-profile-side .settings-block {
+  margin-top: 0;
+}
+@media (min-width: 900px) {
+  .mgr-profile {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  /* Блок налаштувань сповіщень — картка, як сусідні блоки зліва. */
+  .mgr-profile-side .settings-block {
+    padding: 4px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    background: var(--surface-1);
+  }
+}
+.manager-notifications-page {
+  max-width: 820px;
+}
+@media (min-width: 900px) {
+  .manager-notifications-page .ntf-item {
+    padding: 14px 18px;
+    gap: 14px;
+  }
+  .manager-notifications-page .ntf-ico {
+    font-size: 24px;
+  }
+  .manager-notifications-page .ntf-title {
+    font-size: 14.5px;
+  }
+  .manager-notifications-page .ntf-msg {
+    font-size: 13.5px;
+  }
+  .manager-notifications-page .btn-secondary-full {
+    max-width: 320px;
+    margin: 4px auto 0;
+  }
 }

@@ -18,24 +18,36 @@ export default async function ManagerProfilePage() {
   const levelLabel = level.label;
 
   return (
-    <div className="manager-page manager-hub-page">
+    // Mobile-first: один стовпчик; від 900px — дві колонки (картка + дані
+    // зліва, сповіщення справа), див. .mgr-profile у manager.css.
+    <div className="manager-page manager-profile-page">
       <div className="greeting">ОСОБИСТИЙ КАБІНЕТ</div>
       <h1 className="hub-h1">Профіль</h1>
 
-      <ProfileCard
-        dbName={employee.name}
-        hasEmail={Boolean(employee.email)}
-        externalCode={employee.externalCode}
-        levelLabel={levelLabel}
-      />
-
-      <ProfileDetailPanel
-        externalCode={employee.externalCode}
-        managerEmail={employee.manager?.email}
-        firstLoginAt={employee.firstLoginAt}
-      />
-
-      <NotificationSettings />
+      <div className="mgr-profile">
+        <div className="mgr-profile-main">
+          <ProfileCard
+            dbName={employee.name}
+            hasEmail={Boolean(employee.email)}
+            externalCode={employee.externalCode}
+            levelLabel={levelLabel}
+          />
+          <div className="hub-sec-title">
+            <h3>Дані</h3>
+          </div>
+          <ProfileDetailPanel
+            externalCode={employee.externalCode}
+            managerEmail={employee.manager?.email}
+            firstLoginAt={employee.firstLoginAt}
+          />
+        </div>
+        <div className="mgr-profile-side">
+          <div className="hub-sec-title">
+            <h3>Сповіщення</h3>
+          </div>
+          <NotificationSettings />
+        </div>
+      </div>
     </div>
   );
 }
