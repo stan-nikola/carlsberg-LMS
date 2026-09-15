@@ -110,12 +110,13 @@ a.ntf-item:focus-visible {
 .ntf-settings {
   margin-top: 14px;
 }
-.ntf-pref {
-  cursor: pointer;
-}
-/* Рядок-перемикач списку категорій — той самий .settings-row, але кнопка. */
-.ntf-prefs-toggle {
-  width: 100%;
+/* Увесь рядок «Push на цьому пристрої» (крім кнопки праворуч) — кнопка,
+   що розгортає категорії; шеврон дивиться праворуч, у відкритому стані —
+   вниз. .settings-label дає ту саму розкладку, що й у сусідніх рядків. */
+.ntf-row-toggle {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
   border: none;
   background: none;
   font: inherit;
@@ -123,21 +124,68 @@ a.ntf-item:focus-visible {
   text-align: left;
   cursor: pointer;
 }
-.ntf-prefs-toggle:focus-visible {
+.ntf-row-toggle:disabled {
+  cursor: default;
+}
+.ntf-row-toggle:focus-visible {
   outline: none;
   box-shadow: var(--cb-focus-ring);
 }
-.ntf-chevron {
-  display: inline-flex;
-  color: var(--ink-soft);
-  transition: transform var(--dur-fast) var(--ease-premium);
+.ntf-row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
-.ntf-chevron svg {
+.ntf-expand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 2px;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+.ntf-expand svg {
   width: 16px;
   height: 16px;
+  transition: transform var(--dur-fast) var(--ease-premium);
 }
-.ntf-chevron.open {
+.ntf-row-toggle.open .ntf-expand svg {
   transform: rotate(90deg);
+}
+/* Розгорнутий список: підпис одним дрібним рядком + компактні рядки
+   «чекбокс · іконка · назва», без підказок — це другорядне налаштування. */
+.ntf-prefs {
+  padding: 4px 0 8px 26px;
+}
+.ntf-prefs-caption {
+  font-size: calc(11px * var(--fs-scale));
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ntf-pref {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: calc(13px * var(--fs-scale));
+  color: var(--ink);
+}
+.ntf-pref-ico {
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.ntf-pref-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .ntf-pref input {
   width: 20px;
