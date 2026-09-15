@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { ensureAutoBadgesExist } from "@/lib/badgeRules";
@@ -53,5 +54,6 @@ export async function POST(request) {
     },
     select: { id: true, code: true, title: true, description: true, icon: true, kind: true },
   });
+  await audit("badge.create", "badge", created.id, { title: created.title, kind: created.kind, points: created.points });
   return NextResponse.json(created, { status: 201 });
 }

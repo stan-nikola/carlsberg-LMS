@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 import { slugify, uniqueSlug } from "@/lib/slug";
@@ -66,5 +67,6 @@ export async function POST(request) {
     },
     include: { modules: true, _count: { select: { enrollments: true } } },
   });
+  await audit("course.create", "course", course.id, { title: course.title });
   return NextResponse.json(course, { status: 201 });
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 
@@ -25,6 +26,7 @@ export async function DELETE(request, { params }) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { moduleId } = await params;
-  await prisma.module.delete({ where: { id: Number(moduleId) } });
+  const removed = await prisma.module.delete({ where: { id: Number(moduleId) } });
+  await audit("module.delete", "course", removed.courseId, { moduleId: removed.id, title: removed.title });
   return NextResponse.json({ ok: true });
 }

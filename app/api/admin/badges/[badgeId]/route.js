@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
@@ -28,5 +29,6 @@ export async function PATCH(request, { params }) {
     data,
     select: { id: true, code: true, title: true, description: true, icon: true, kind: true },
   });
+  await audit("badge.update", "badge", updated.id, data);
   return NextResponse.json(updated);
 }

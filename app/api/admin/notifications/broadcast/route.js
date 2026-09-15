@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { sendBroadcast } from "@/lib/notifications";
@@ -34,6 +35,7 @@ export async function POST(request) {
 
   try {
     const result = await sendBroadcast({ title, message, url, target });
+    await audit("broadcast.send", "broadcast", result.broadcastId, { title, target, recipients: result.recipients, pushed: result.pushed });
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 400 });

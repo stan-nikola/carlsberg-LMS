@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 
@@ -96,5 +97,6 @@ export async function DELETE(request, { params }) {
   }
 
   await prisma.courseFolder.delete({ where: { id } });
+  await audit("folder.delete", "folder", id);
   return NextResponse.json({ ok: true });
 }
