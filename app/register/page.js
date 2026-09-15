@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { SettingsSheet } from "@/components/SettingsSheet";
-import { GearIcon, LockIcon } from "@/components/icons";
+import { GearIcon, LockIcon, ProfileIcon, PeopleIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
+import { HintDot } from "@/components/HintDot";
 
 // Портовано з legacy index.html (regCard) + js/registration.js. Два кроки
 // одного екрана (код -> PIN), як і раніше, тільки замість Apps Script —
@@ -50,6 +51,39 @@ export default function RegisterPage() {
   const [codeHintOpen, setCodeHintOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // «Тестовий вхід» (lib/demoLogin.ts): кнопка зверху зліва з'являється
+  // лише коли сервер каже, що демо увімкнено. У режимі демо звичайні поля
+  // лишаються, додаються вибір кабінету/персони і пошта, куди прийде PIN.
+  const [demo, setDemo] = useState(null);
+  const [demoOn, setDemoOn] = useState(false);
+  const [demoCabinet, setDemoCabinet] = useState("employee");
+  const [demoEmail, setDemoEmail] = useState("");
+  useEffect(() => {
+    fetch("/api/auth/demo")
+      .then((r) => r.json())
+      .then((d) => setDemo(d?.enabled ? d : null))
+      .catch(() => {});
+  }, []);
+  const demoPeople = demo ? demo.options.filter((o) => o.cabinet === demoCabinet) : [];
+  function chooseDemoCabinet(cabinet) {
+    setDemoCabinet(cabinet);
+    const first = demo?.options.find((o) => o.cabinet === cabinet);
+    if (first) setExternalCode(first.code);
+  }
+  function toggleDemo() {
+    const next = !demoOn;
+    setDemoOn(next);
+    setCodeError("");
+    if (next) chooseDemoCabinet(demoCabinet);
+    else setExternalCode("");
+  }
+  const demoEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(demoEmail.trim());
+  const identityPayload = () => ({
+    externalCode: externalCode.trim(),
+    name: name.trim(),
+    ...(demoOn ? { demoEmail: demoEmail.trim() } : {}),
+  });
+
   const pinInputRef = useRef(null);
 
   async function callAuth(path, body) {
@@ -68,10 +102,14 @@ export default function RegisterPage() {
     if (!name.trim() || !externalCode.trim()) {
       return;
     }
+    if (demoOn && !demoEmailValid) {
+      setCodeError("Вкажіть свою пошту — на неї прийде PIN-код.");
+      return;
+    }
 
     setSubmitBusy(true);
     try {
-      const resp = await callAuth("/api/auth/register", { externalCode: externalCode.trim(), name: name.trim() });
+      const resp = await callAuth("/api/auth/register", identityPayload());
       if (resp.ok) {
         setPin("");
         setPinError("");
@@ -99,6 +137,10 @@ export default function RegisterPage() {
         setCodeError("Цей обліковий запис деактивовано. Зверніться до адміністратора.");
       } else if (resp.error === "not_found") {
         setCodeError("Код не знайдено. Перевірте правильність і спробуйте ще раз.");
+      } else if (resp.error === "demo_not_allowed") {
+        setCodeError("Тестовий вхід доступний лише для демо-персон зі списку.");
+      } else if (resp.error === "invalid_email") {
+        setCodeError("Перевірте адресу пошти.");
       } else {
         setCodeError("Помилка сервера: " + (resp.error || "unknown"));
       }
@@ -155,7 +197,7 @@ export default function RegisterPage() {
     setResendBusy(true);
     setPinError("");
     try {
-      const resp = await callAuth("/api/auth/register", { externalCode: externalCode.trim(), name: name.trim() });
+      const resp = await callAuth("/api/auth/register", identityPayload());
       if (resp.ok) {
         setPinRecipientIsSelf(resp.isSelf);
         setResendLabel("Надіслано ✓");
@@ -182,7 +224,24 @@ export default function RegisterPage() {
       <div className="course-col">
         <div className="course-card">
           <div className="appbar">
-            <div style={{ flex: 1 }} />
+            {demo ? (
+              <div className="reg-demo-toggle">
+                <button
+                  type="button"
+                  className={`reg-demo-btn${demoOn ? " is-on" : ""}`}
+                  onClick={toggleDemo}
+                  aria-pressed={demoOn}
+                >
+                  {demoOn ? "Тестовий вхід · увімкнено" : "Тестовий вхід"}
+                </button>
+                <HintDot
+                  align="start"
+                  text="Для показу платформи колегам: оберіть кабінет і персону з демо-команди, вкажіть свою пошту — PIN-код прийде на неї. У базі нічого не змінюється, ви просто дивитесь платформу очима цієї людини."
+                />
+              </div>
+            ) : (
+              <div style={{ flex: 1 }} />
+            )}
             {/* Той самий LockIcon-лінк на /admin, що вже є в HubShell.jsx
                 (там — лише для isAdmin співробітників, тут — до входу
                 взагалі немає сесії, тому без умови: сама сторінка
@@ -206,7 +265,7 @@ export default function RegisterPage() {
             <div className={`reg-step${step === "identity" ? " active" : ""}`}>
               <form className="reg-form" id="regForm" onSubmit={handleSubmitIdentity}>
                 <div className="field">
-                  <label htmlFor="fName">Ваше ім&apos;я</label>
+                  <label htmlFor="fName">{demoOn ? "Ваше ім’я та прізвище" : "Ваше ім’я"}</label>
                   <input
                     type="text"
                     id="fName"
@@ -216,7 +275,57 @@ export default function RegisterPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
+                  {demoOn && <div className="reg-field-hint">Так вас назве платформа в кабінеті. Ім’я лишається лише на цьому пристрої.</div>}
                 </div>
+
+                {demoOn && (
+                  <>
+                    <div className="field">
+                      <span className="reg-step-label">Який кабінет показати?</span>
+                      {/* Перемикач «одне з двох» з іконками, не дві картки-чекбокси
+                          (користувач, 2026-09-15); опис під ним міняється. */}
+                      <div className="reg-seg" role="radiogroup" aria-label="Кабінет">
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={demoCabinet === "employee"}
+                          className={`reg-seg-btn${demoCabinet === "employee" ? " is-on" : ""}`}
+                          onClick={() => chooseDemoCabinet("employee")}
+                        >
+                          <ProfileIcon filled={demoCabinet === "employee"} />
+                          Співробітник
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={demoCabinet === "manager"}
+                          className={`reg-seg-btn${demoCabinet === "manager" ? " is-on" : ""}`}
+                          onClick={() => chooseDemoCabinet("manager")}
+                        >
+                          <PeopleIcon />
+                          Керівник
+                        </button>
+                      </div>
+                      <div className="reg-field-hint">
+                        {demoCabinet === "manager"
+                          ? "Команда, прострочення, звіти — очима супервайзера."
+                          : "Курси, рейтинг, відзнаки — очима ТП, мерчендайзера або техніка."}
+                      </div>
+                    </div>
+                    <div className="field">
+                      <label htmlFor="fDemoPerson">{demoCabinet === "manager" ? "Керівник" : "Хто з команди"}</label>
+                      <select id="fDemoPerson" className="reg-select" value={externalCode} onChange={(e) => setExternalCode(e.target.value)}>
+                        {demoPeople.map((o) => (
+                          <option key={o.code} value={o.code}>
+                            {o.position ? `${o.position} · ` : ""}
+                            {o.code}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="reg-field-hint">Код нижче підставиться сам — його можна лишити як є.</div>
+                    </div>
+                  </>
+                )}
 
                 <div className={`field${codeError ? " has-error" : ""}`}>
                   <label htmlFor="fUserId">
@@ -243,6 +352,23 @@ export default function RegisterPage() {
                   />
                   {codeError && <div className="field-error">{codeError}</div>}
                 </div>
+
+                {demoOn && (
+                  <div className="field">
+                    <label htmlFor="fDemoEmail">Ваша пошта для PIN-коду</label>
+                    <input
+                      type="email"
+                      id="fDemoEmail"
+                      required
+                      placeholder="name@company.com"
+                      autoComplete="email"
+                      inputMode="email"
+                      value={demoEmail}
+                      onChange={(e) => setDemoEmail(e.target.value)}
+                    />
+                    <div className="reg-field-hint">Лист із 4-значним PIN прийде сюди протягом хвилини; код діє 12 годин.</div>
+                  </div>
+                )}
               </form>
 
               <div className="reg-note">
@@ -278,7 +404,9 @@ export default function RegisterPage() {
                   (email_send_failed) — пропускаємо: pinWarning вище вже
                   все пояснює. */}
               {pinRecipientIsSelf === true && (
-                <div className="reg-note">PIN-код надіслано на вашу пошту і діє 12 годин.</div>
+                <div className="reg-note">
+                  {demoOn ? `PIN-код надіслано на ${demoEmail.trim()} і діє 12 годин.` : "PIN-код надіслано на вашу пошту і діє 12 годин."}
+                </div>
               )}
               {pinRecipientIsSelf === false && (
                 <div className="reg-note">
