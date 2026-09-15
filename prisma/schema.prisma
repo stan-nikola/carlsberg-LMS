@@ -111,12 +111,14 @@ model Employee {
   /// Прямые подчинённые (следующая ступень вниз по иерархии).
   subordinates Employee[] @relation("EmployeeHierarchy")
 
-  enrollments         Enrollment[]    @relation("EnrollmentEmployee")
-  assignedEnrollments Enrollment[]    @relation("EnrollmentAssignedBy")
-  notifications       Notification[]
-  apiTokens           AdminApiToken[]
-  badgesReceived      EmployeeBadge[] @relation("BadgeRecipient")
-  badgesAwarded       EmployeeBadge[] @relation("BadgeAwardedBy")
+  enrollments            Enrollment[]            @relation("EnrollmentEmployee")
+  assignedEnrollments    Enrollment[]            @relation("EnrollmentAssignedBy")
+  notifications          Notification[]
+  apiTokens              AdminApiToken[]
+  badgesReceived         EmployeeBadge[]         @relation("BadgeRecipient")
+  badgesAwarded          EmployeeBadge[]         @relation("BadgeAwardedBy")
+  pushSubscriptions      PushSubscription[]
+  notificationPreference NotificationPreference?
 
   /// Soft-delete/деактивація для адмінського CRUD співробітників.
   /// Навмисно НЕ hard delete — Employee має self-relation (managerId/
@@ -307,9 +309,9 @@ model ModuleCompletion {
   moduleId     Int
   module       Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
-  scorePercent Int
-  passed       Boolean
-  completedAt  DateTime @default(now())
+  scorePercent         Int
+  passed               Boolean
+  completedAt          DateTime @default(now())
   /// Найдовша серія поспіль правильних відповідей У МЕЖАХ ЦЬОГО МОДУЛЯ —
   /// той самий показник, що вже є на Enrollment (для курсу в цілому), але
   /// одиницею на модуль: раніше керівник бачив 🎯-стрик лише по курсу
@@ -325,8 +327,8 @@ model ModuleCompletion {
   /// поточній сесії плеєра (lib/courseContent.js getPlayableModules —
   /// уже пройдені й не готові до перепроходження модулі не потрапляють у
   /// поточну сесію взагалі). null для завершень, записаних до цих полів.
-  scoreRaw Int?
-  scoreMax Int?
+  scoreRaw             Int?
+  scoreMax             Int?
 
   @@unique([enrollmentId, moduleId])
 }
@@ -495,17 +497,89 @@ model EnrollmentAttempt {
   @@index([enrollmentId])
 }
 
+/// Сповіщення в застосунку («центр сповіщень» — дзвіночок у /hub і
+/// /manager). Один рядок = одна подія для однієї людини; push-повідомлення
+/// на пристрій — лише ДОСТАВКА того самого рядка (lib/notifications.js
+/// notifyEmployees пише сюди й одразу шле Web Push на всі підписки
+/// адресата). Так той, хто не дав дозволу на push (або на iOS не
+/// встановив PWA), однаково побачить подію в центрі.
 model Notification {
   id Int @id @default(autoincrement())
 
   employeeId Int
   employee   Employee @relation(fields: [employeeId], references: [id])
 
-  type    String
-  message String
-  isRead  Boolean @default(false)
+  /// Технічний тип події (enrollment_assigned, deadline_soon, badge_awarded,
+  /// team_digest, broadcast …) — для аналітики/фільтрів.
+  type      String
+  /// Категорія для налаштувань «які сповіщення отримувати» —
+  /// lib/notificationTypes.js NOTIFICATION_CATEGORIES (courses, deadlines,
+  /// badges, team, news). Одна з них, не довільний рядок.
+  category  String    @default("system")
+  title     String?
+  message   String
+  /// Куди веде клік по сповіщенню (в застосунку і в push) — відносний шлях.
+  url       String?
+  /// Захист від дублів для подій, які cron може згенерувати повторно
+  /// (нагадування «3 дні до дедлайну» на той самий Enrollment, денний
+  /// дайджест керівнику за ту саму дату): createMany(skipDuplicates) по
+  /// цьому ключу. null — подія одноразова за своєю природою.
+  dedupeKey String?   @unique
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
 
   createdAt DateTime @default(now())
+
+  @@index([employeeId, isRead])
+  @@index([employeeId, createdAt])
+}
+
+/// Підписка пристрою на Web Push (W3C Push API, VAPID) — одна людина може
+/// мати кілька (телефон + ноутбук). endpoint унікальний глобально —
+/// його видає push-сервіс браузера. Підписка видаляється, коли сервіс
+/// відповідає 404/410 (людина відкликала дозвіл або перевстановила PWA)
+/// — див. lib/webPush.js.
+model PushSubscription {
+  id         Int       @id @default(autoincrement())
+  employeeId Int
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@index([employeeId])
+}
+
+/// Які категорії сповіщень людина хоче отримувати (і в центрі, і push).
+/// Рядка може не бути — тоді все увімкнено (дефолти нижче); створюється
+/// при першій зміні з налаштувань. Окрема модель, а не поля на Employee:
+/// Employee — імпортована HR-сутність, а це — уподобання пристрою/людини.
+model NotificationPreference {
+  employeeId Int      @id
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  courses    Boolean  @default(true)
+  deadlines  Boolean  @default(true)
+  badges     Boolean  @default(true)
+  team       Boolean  @default(true)
+  news       Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+}
+
+/// Ручна розсилка з /admin («новини платформи»): що надіслано, кому й
+/// скільки людей отримало — історія для адміна. Самі сповіщення адресатам
+/// — звичайні рядки Notification (type "broadcast").
+model Broadcast {
+  id            Int      @id @default(autoincrement())
+  title         String
+  message       String
+  url           String?
+  /// Людський опис адресатів («Усі», «Посади: SV, ASM», «Територія: …»).
+  targetSummary String
+  sentCount     Int
+  createdAt     DateTime @default(now())
 }
 
 /// Токен для "живого" Excel-підключення (Фаза B3 адмінки) — Power Query

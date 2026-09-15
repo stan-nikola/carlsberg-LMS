@@ -5,6 +5,7 @@ import { getTimeBasedGreeting } from "@/lib/greeting";
 import { CourseTile } from "@/components/CourseTile";
 import { ProfileCard } from "@/components/ProfileCard";
 import { GreetingHeading } from "@/components/GreetingHeading";
+import { NotificationSettings } from "@/components/NotificationSettings";
 
 // Портовано з .hub-screen[data-tab="home"] в legacy index.html +
 // js/cabinet.js. Дані — з БД (Enrollment) замість localStorage.
@@ -36,6 +37,8 @@ export default async function HubHomePage() {
         externalCode={employee.externalCode}
         levelLabel={levelLabel}
       />
+
+      <NotificationSettings variant="card" />
 
       <div className="xp-wrap">
         <div className="xp-top">

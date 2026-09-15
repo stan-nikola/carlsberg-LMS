@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, LogoutIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const NAV_ITEMS = [
   { href: "/manager", label: "Команда", Icon: HomeIcon },
@@ -78,6 +79,7 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
       <aside className="mgr-sidebar">
         <div className="mgr-sidebar-brand">
           <PlatformBrand size="lg" />
+          <NotificationBell href="/manager/notifications" />
         </div>
         {navLinks()}
         <div className="mgr-sidebar-footer">
@@ -94,6 +96,7 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
       {/* ---- Мобільний (<900px): верхній appbar + бургер + шторка ---- */}
       <header className="mgr-appbar">
         <PlatformBrand size="sm" />
+        <NotificationBell href="/manager/notifications" />
         <button
           type="button"
           className="mgr-burger-btn"

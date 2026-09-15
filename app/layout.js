@@ -9,6 +9,7 @@ import "@/app/styles/hub.css";
 import "@/app/styles/course-player.css";
 import "@/app/styles/admin.css";
 import "@/app/styles/manager.css";
+import "@/app/styles/notifications.css";
 
 // Carlsberg Sans — справжній фірмовий шрифт (не заміна на щось схоже під
 // тим самим іменем). Файли — з ліцензійного пакету "Carlsberg Sans v3100"

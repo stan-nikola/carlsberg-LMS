@@ -158,6 +158,34 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
   `app/api/admin/tokens/*`), НЕ `admin_session` cookie (Power Query не
   вміє нести cookie з браузерної сесії).
 
+## Сповіщення (центр + Web Push)
+
+- **Одна точка входу** — `lib/notifications.js notifyEmployees(ids, event)`:
+  фільтр за вподобаннями (`NotificationPreference`, дефолт — усе
+  увімкнено) → рядки `Notification` (центр сповіщень; `dedupeKey @unique`
+  + `createManyAndReturn(skipDuplicates)` роблять будь-який cron
+  ідемпотентним) → Web Push на всі `PushSubscription` адресата
+  (`lib/webPush.js`, бібліотека `web-push`, VAPID). Push — лише доставка;
+  джерело правди — рядок у БД, тож людина без дозволу на push (або на iOS
+  без встановленої PWA) усе одно бачить подію в центрі.
+- **Події** (тип → категорія у `lib/notificationTypes.js`): призначення
+  курсу (`lib/courseAssignment.js enrollEmployees`), нагадування за 3/1
+  день і прострочення (cron), ачивки авто/ручні, денний дайджест
+  керівнику по прямих підлеглих (cron), ручна розсилка з
+  `/admin/notifications` (`Broadcast`). Усе — best-effort у `try/catch`:
+  збій доставки ніколи не відкочує бізнес-дію.
+- **Секрети:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+  (`mailto:…`) — генерує й вписує в .env/Vercel користувач:
+  `npx web-push generate-vapid-keys`. Без них `isPushConfigured()` → false,
+  push мовчки вимкнено, центр працює.
+- **Клієнт:** `public/sw.js` (push/notificationclick/pushsubscriptionchange,
+  без кешу), `lib/pushClient.js` (стан: unsupported / ios-not-installed /
+  denied / subscribed / not-subscribed; дозвіл питати ЛИШЕ з кліку),
+  `NotificationBell` (polling 60с), `NotificationCenter` (перегляд =
+  прочитано), `NotificationSettings` (картка на /hub + перемикачі в
+  профілі). iOS 16.4+: push лише зі встановленої PWA — компонент це
+  пояснює, а не просить дозвіл даремно.
+
 ## Логін співробітника
 
 - PIN генерується заново при КОЖНОМУ запиті (не статичний), живе 12

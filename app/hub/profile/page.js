@@ -4,6 +4,7 @@ import { computeXp } from "@/lib/progress";
 import { getEmployeeEnrollments } from "@/lib/employeeProgress";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ProfileDetailPanel } from "@/components/ProfileDetailPanel";
+import { NotificationSettings } from "@/components/NotificationSettings";
 
 // Портовано з .hub-screen[data-tab="profile"] в legacy index.html.
 // pdSvEmail ("Керівник (email)") тепер employee.manager.email замість
@@ -36,6 +37,8 @@ export default async function HubProfilePage() {
         managerEmail={employee.manager?.email}
         firstLoginAt={employee.firstLoginAt}
       />
+
+      <NotificationSettings />
     </section>
   );
 }

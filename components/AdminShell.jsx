@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { CourseIcon, PeopleIcon, AchievementsIcon, LogoutIcon, ChevronIcon, RootIcon, DataIcon } from "@/components/icons";
+import { CourseIcon, PeopleIcon, AchievementsIcon, LogoutIcon, ChevronIcon, RootIcon, DataIcon, BellIcon } from "@/components/icons";
 
 // Ключ localStorage для згорнутого стану сайдбара — суто персональна
 // зручність адміна (не дані курсу/бази), тому localStorage, а не БД.
@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { href: "/admin/org", label: "Оргструктура", Icon: RootIcon, match: (p) => p.startsWith("/admin/org") },
   { href: "/admin/badges", label: "Ачивки", Icon: AchievementsIcon, match: (p) => p.startsWith("/admin/badges") },
   { href: "/admin/data", label: "Дані", Icon: DataIcon, match: (p) => p.startsWith("/admin/data") },
+  { href: "/admin/notifications", label: "Сповіщення", Icon: BellIcon, match: (p) => p.startsWith("/admin/notifications") },
 ];
 
 /**

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, SYSTEM_ADMIN_EXTERNAL_CODE } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
+import { notifyBadgeAwarded } from "@/lib/notifications";
 
 // GET /api/admin/employees/:employeeId/badges — ачивки конкретної людини
 // (для вкладки "Ачивки" на детальній картці, Фаза A + C разом).
@@ -58,6 +59,12 @@ export async function POST(request, { params }) {
         badge: { select: { id: true, title: true, icon: true, description: true, kind: true } },
       },
     });
+    // Ручна заслуга — повідомляємо людину (центр + push). Best-effort.
+    try {
+      await notifyBadgeAwarded([{ employeeId: Number(employeeId), badge: created.badge }]);
+    } catch (err) {
+      console.warn("[notifications] manual badge:", err?.message);
+    }
     return NextResponse.json(created, { status: 201 });
   } catch (err) {
     if (err.code === "P2002") {

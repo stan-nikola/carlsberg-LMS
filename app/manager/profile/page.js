@@ -4,6 +4,7 @@ import { computeXp } from "@/lib/progress";
 import { getEmployeeEnrollments } from "@/lib/employeeProgress";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ProfileDetailPanel } from "@/components/ProfileDetailPanel";
+import { NotificationSettings } from "@/components/NotificationSettings";
 
 // "Профіль" керівника — той самий ProfileCard + ProfileDetailPanel, що й
 // app/hub/profile/page.js. Керівник теж має managerId вгору по ієрархії
@@ -34,6 +35,8 @@ export default async function ManagerProfilePage() {
         managerEmail={employee.manager?.email}
         firstLoginAt={employee.firstLoginAt}
       />
+
+      <NotificationSettings />
     </div>
   );
 }
