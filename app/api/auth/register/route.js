@@ -11,12 +11,18 @@ import { requestLoginPin } from "@/lib/auth";
 export async function POST(request) {
   const body = await request.json();
   const externalCode = (body.externalCode || "").trim();
+  // Те саме, що вже введено у "Ваше ім'я" на екрані — на сервер лише для
+  // ОДНОРАЗОВОГО показу в PIN-листі (хто саме заявив, що це він), у
+  // Employee.name НЕ пишеться (лишається як було — з email, lib/auth.js).
+  // Довільний текст від будь-кого до логіну — untrusted, тому cap 100
+  // символів, той самий ліміт, що вже діє для localName (lib/localName.js).
+  const name = (body.name || "").trim().slice(0, 100);
 
   if (!externalCode) {
     return NextResponse.json({ ok: false, error: "missing_external_code" }, { status: 400 });
   }
 
-  const result = await requestLoginPin(externalCode);
+  const result = await requestLoginPin(externalCode, name);
   const status = result.ok
     ? 200
     : result.error === "not_found"
