@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 
@@ -44,5 +45,6 @@ export async function POST(request) {
     data: { name, parentId },
     select: { id: true, name: true, parentId: true },
   });
+  await audit("folder.create", "folder", created.id, { name: created.name });
   return NextResponse.json(created, { status: 201 });
 }

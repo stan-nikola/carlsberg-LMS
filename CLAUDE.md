@@ -165,10 +165,15 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
   вміє нести cookie з браузерної сесії).
 
 - Журнал дій (`AuditLog`, `lib/audit.ts audit(action, targetType, targetId,
-  details)`) — кожен write-роут `/admin` пише рядок best-effort (помилка
-  журналу не ламає дію); дивитись у `/admin/audit` (`components/AdminAudit.jsx`).
+  details)`) — write-роути `/admin` пишуть рядок best-effort (помилка
+  журналу не ламає дію). Свідомо НЕ журналюються поекранні PATCH
+  конструктора (screens/components, автозбереження і drag-and-drop —
+  десятки запитів на хвилину) і upload фото; журналюються створення/
+  видалення курсів, модулів, папок, типів відзнак і ручна розсилка; дивитись у `/admin/audit` (`components/AdminAudit.jsx`).
   Actor — завжди "admin" (сесія адміна не прив’язана до Employee). Новий
   write-роут в `/admin` = новий виклик `audit()` і підпис в `ACTION_LABELS`.
+
+## Кабінет керівника та хаб
 
 - Кабінет керівника: рейтинг команди (`lib/rating.ts getTeamRating` →
   `computeTeamRating`) — один зріз по всій компанії (усі активні + groupBy
@@ -176,6 +181,7 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
   середнє команди, місце серед команд керівників тієї ж посади.
 - `/hub/learn` — не плаский список, а `lib/progress.js groupLearning`:
   обов’язкові (прострочені → дедлайн) → рекомендовані → пройдені.
+
 ## Сповіщення (центр + Web Push)
 
 - **Одна точка входу** — `lib/notifications.js notifyEmployees(ids, event)`:

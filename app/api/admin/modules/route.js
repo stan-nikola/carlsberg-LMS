@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 
@@ -12,5 +13,6 @@ export async function POST(request) {
     data: { courseId: Number(courseId), title, order: order ?? 0 },
     include: { screens: { include: { components: true } } },
   });
+  await audit("module.create", "course", courseModule.courseId, { moduleId: courseModule.id, title: courseModule.title });
   return NextResponse.json(courseModule, { status: 201 });
 }

@@ -90,6 +90,7 @@ export async function PATCH(request, { params }) {
   }
 
   const course = await prisma.course.update({ where: { id: Number(courseId) }, data });
+  await audit("course.update", "course", courseId, data);
   return NextResponse.json(course);
 }
 

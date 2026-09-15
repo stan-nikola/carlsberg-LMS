@@ -20,8 +20,17 @@ const ACTION_LABELS = {
   "rating.recalculate": "Перерахунок рейтингу",
   "token.create": "Створено Excel-токен",
   "token.revoke": "Відкликано Excel-токен",
+  "badge.create": "Створено тип відзнаки",
+  "badge.update": "Змінено тип відзнаки",
+  "course.create": "Створено курс",
+  "course.update": "Змінено налаштування курсу",
+  "module.create": "Додано модуль",
+  "module.delete": "Видалено модуль",
+  "folder.create": "Створено папку курсів",
+  "folder.delete": "Видалено папку курсів",
+  "broadcast.send": "Ручна розсилка",
 };
-const TYPE_LABELS = { enrollment: "призначення", employee: "співробітник", course: "курс", rating: "рейтинг", token: "токен" };
+const TYPE_LABELS = { enrollment: "призначення", employee: "співробітник", course: "курс", badge: "відзнака", folder: "папка", broadcast: "розсилка", rating: "рейтинг", token: "токен" };
 
 /** /admin/audit — журнал дій адміна: коли, що, над чим, з якими даними. */
 export function AdminAudit() {
