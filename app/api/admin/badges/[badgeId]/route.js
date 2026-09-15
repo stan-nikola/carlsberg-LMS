@@ -22,13 +22,40 @@ export async function PATCH(request, { params }) {
     if (!Number.isInteger(points) || points < 0) return NextResponse.json({ error: "points must be a non-negative integer" }, { status: 400 });
     data.points = points;
   }
+  if ("hiddenUntilEarned" in body) data.hiddenUntilEarned = body.hiddenUntilEarned === true;
   if (data.title === "") return NextResponse.json({ error: "title must not be empty" }, { status: 400 });
 
   const updated = await prisma.badge.update({
     where: { id: Number(badgeId) },
     data,
-    select: { id: true, code: true, title: true, description: true, icon: true, kind: true },
+    select: { id: true, code: true, title: true, description: true, icon: true, kind: true, points: true, hiddenUntilEarned: true },
   });
   await audit("badge.update", "badge", updated.id, data);
   return NextResponse.json(updated);
+}
+
+// DELETE /api/admin/badges/:badgeId — лише manual-типи (auto пересоздасть
+// ensureAutoBadgesExist). Якщо відзнаку вже комусь видано — 409 з
+// кількістю; ?force=1 видаляє разом із видачами та їхніми балами рейтингу.
+export async function DELETE(request, { params }) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { badgeId } = await params;
+  const id = Number(badgeId);
+  const badge = await prisma.badge.findUnique({ where: { id }, select: { id: true, title: true, kind: true, _count: { select: { awards: true } } } });
+  if (!badge) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (badge.kind !== "manual") return NextResponse.json({ error: "Автоматичні відзнаки видалити не можна" }, { status: 400 });
+
+  const force = new URL(request.url).searchParams.get("force") === "1";
+  if (badge._count.awards > 0 && !force) {
+    return NextResponse.json({ error: `Відзнаку вже видано ${badge._count.awards} співробітник(ам).`, awardsCount: badge._count.awards }, { status: 409 });
+  }
+  await prisma.$transaction([
+    prisma.ratingEvent.deleteMany({ where: { refType: "badge", refId: id } }),
+    prisma.employeeBadge.deleteMany({ where: { badgeId: id } }),
+    prisma.badge.delete({ where: { id } }),
+  ]);
+  await audit("badge.delete", "badge", id, { title: badge.title, awardsRemoved: badge._count.awards });
+  return NextResponse.json({ ok: true, awardsRemoved: badge._count.awards });
 }

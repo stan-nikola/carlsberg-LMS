@@ -41,3 +41,24 @@ export async function POST(request) {
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }
+
+/**
+ * DELETE — { ids: number[] }: відкликати розсилки. Разом із Broadcast
+ * прибираються і рядки Notification, створені нею (dedupeKey
+ * "broadcast:<id>:<employeeId>"), тобто повідомлення зникає і з центрів
+ * сповіщень адресатів; вже доставлений системний push відкликати не можна.
+ */
+export async function DELETE(request) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const body = await request.json().catch(() => ({}));
+  const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter(Number.isInteger) : [];
+  if (ids.length === 0) return NextResponse.json({ error: "ids is required" }, { status: 400 });
+
+  const notifications = await prisma.notification.deleteMany({
+    where: { OR: ids.map((id) => ({ dedupeKey: { startsWith: `broadcast:${id}:` } })) },
+  });
+  const broadcasts = await prisma.broadcast.deleteMany({ where: { id: { in: ids } } });
+  await audit("broadcast.delete", "broadcast", ids.length === 1 ? ids[0] : null, { ids, notificationsRemoved: notifications.count });
+  return NextResponse.json({ removed: broadcasts.count, notificationsRemoved: notifications.count });
+}

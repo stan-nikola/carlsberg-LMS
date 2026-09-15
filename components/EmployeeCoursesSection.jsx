@@ -90,8 +90,11 @@ export function EmployeeCoursesSection({ employeeId }) {
   }
 
   return (
-    <div className="admin-form-section">
-      <h2 style={{ fontSize: 15 }}>Курси</h2>
+    <section className="adm-card">
+      <div className="adm-card-head">
+        <h2>Курси</h2>
+        <span className="admin-hint">{enrollments.length ? `призначено: ${enrollments.length}` : "нічого не призначено"}</span>
+      </div>
 
       {enrollments.length === 0 ? (
         <p className="admin-subtitle">Ще жодного курсу не призначено.</p>
@@ -122,7 +125,8 @@ export function EmployeeCoursesSection({ employeeId }) {
         </div>
       )}
 
-      <div className="admin-form-row" style={{ marginTop: 16 }}>
+      <div className="adm-card-foot">
+        {error && <p className="admin-error">{error}</p>}
         <select className="admin-select" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} style={{ maxWidth: 320 }}>
           <option value="">Обрати курс…</option>
           {assignableCourses.map((c) => (
@@ -136,8 +140,7 @@ export function EmployeeCoursesSection({ employeeId }) {
           Призначити
         </button>
       </div>
-      {error && <p className="admin-error">{error}</p>}
-    </div>
+    </section>
   );
 }
 

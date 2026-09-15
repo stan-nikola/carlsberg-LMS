@@ -63,7 +63,7 @@ export function EmployeeBadgesSection({ employeeId }) {
   }
 
   async function handleRevoke(employeeBadgeId) {
-    if (!window.confirm("Відкликати цю ачивку?")) return;
+    if (!window.confirm("Відкликати цю винагороду?")) return;
     await fetch(`/api/admin/employees/${employeeId}/badges/${employeeBadgeId}`, { method: "DELETE" });
     await load();
   }
@@ -78,11 +78,14 @@ export function EmployeeBadgesSection({ employeeId }) {
   }
 
   return (
-    <div className="admin-form-section">
-      <h2 style={{ fontSize: 15 }}>Ачивки й заслуги</h2>
+    <section className="adm-card">
+      <div className="adm-card-head">
+        <h2>Відзнаки та винагороди</h2>
+        <span className="admin-hint">{awards.length ? `${awards.length} отримано` : "поки нічого"}</span>
+      </div>
 
       {awards.length === 0 ? (
-        <p className="admin-subtitle">Ще немає жодної ачивки.</p>
+        <p className="admin-subtitle">Ще немає жодної відзнаки чи винагороди.</p>
       ) : (
         <ul className="admin-badge-list" style={{ marginTop: 8 }}>
           {awards.map((a) => (
@@ -104,10 +107,10 @@ export function EmployeeBadgesSection({ employeeId }) {
         </ul>
       )}
 
-      <div className="admin-form-columns" style={{ marginTop: 16 }}>
+      <div className="adm-field-grid">
         <div className="admin-field">
           <label className="admin-label" htmlFor="awardBadge">
-            Видати заслугу
+            Видати винагороду
           </label>
           <select id="awardBadge" className="admin-select" value={selectedBadgeId} onChange={(e) => setSelectedBadgeId(e.target.value)}>
             <option value="">—</option>
@@ -127,18 +130,20 @@ export function EmployeeBadgesSection({ employeeId }) {
       </div>
       {manualBadges.length === 0 && (
         <p className="admin-hint">
-          Немає жодного ручного типу заслуги — створіть на сторінці{" "}
+          Немає жодного типу винагороди — створіть на сторінці{" "}
           <Link className="admin-btn-link" href="/admin/badges">
-            Ачивки
+            Відзнаки та винагороди
           </Link>
           .
         </p>
       )}
-      {error && <p className="admin-error">{error}</p>}
-      <button className="admin-btn" disabled={!selectedBadgeId || awarding} onClick={handleAward}>
-        {awarding && <SpinnerIcon />}
-        Видати
-      </button>
-    </div>
+      <div className="adm-card-foot">
+        {error && <p className="admin-error">{error}</p>}
+        <button className="admin-btn" disabled={!selectedBadgeId || awarding} onClick={handleAward}>
+          {awarding && <SpinnerIcon />}
+          Видати
+        </button>
+      </div>
+    </section>
   );
 }

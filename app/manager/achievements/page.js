@@ -16,7 +16,7 @@ export default async function ManagerAchievementsPage() {
   ]);
 
   return (
-    <div className="manager-page manager-hub-page">
+    <div className="manager-page manager-achievements-page">
       <div className="greeting">ВАШ ПРОГРЕС</div>
       <h1 className="hub-h1">Досягнення</h1>
       <AchievementsPanel

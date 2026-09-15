@@ -22,7 +22,7 @@ const NAV_ITEMS = [
   // інструменти (переприв'язка керівників; імпорт/експорт/жива книга) —
   // тому власні пункти, а не перемикач усередині сторінки.
   { href: "/admin/org", label: "Оргструктура", Icon: RootIcon, match: (p) => p.startsWith("/admin/org") },
-  { href: "/admin/badges", label: "Ачивки", Icon: AchievementsIcon, match: (p) => p.startsWith("/admin/badges") },
+  { href: "/admin/badges", label: "Відзнаки", Icon: AchievementsIcon, match: (p) => p.startsWith("/admin/badges") },
   { href: "/admin/data", label: "Дані", Icon: DataIcon, match: (p) => p.startsWith("/admin/data") },
   { href: "/admin/notifications", label: "Сповіщення", Icon: BellIcon, match: (p) => p.startsWith("/admin/notifications") },
   { href: "/admin/rating", label: "Рейтинг", Icon: TrendIcon, match: (p) => p.startsWith("/admin/rating") },

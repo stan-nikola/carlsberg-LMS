@@ -829,15 +829,17 @@ html:has(.adm-shell) {
   }
 }
 
-/* Екран входу на десктопі — на всю висоту в’юпорту, як і плеєр вище
-   (скарга 2026-09-15: «окно входа не на всю высоту вьюпорта»); ширина
-   лишається телефонною (.course-col 400px), на мобільному картка й так
-   100dvh. */
+/* Екран входу і хаб на десктопі — на всю висоту в’юпорту, як і плеєр
+   вище (скарги 2026-09-15: «окно входа не на всю высоту вьюпорта», потім
+   те саме про /hub/achievements); ширина лишається телефонною
+   (.course-col 400px), на мобільному картка й так 100dvh. */
 @media (min-width: 900px) {
-  body:has(.stage--register) {
+  body:has(.stage--register),
+  body:has(.stage--hub) {
     padding: 0;
   }
-  .stage--register .course-card {
+  .stage--register .course-card,
+  .stage--hub .course-card {
     height: 100vh;
     border-top: none;
     border-bottom: none;

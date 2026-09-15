@@ -375,17 +375,22 @@ function ScreenComponentBlock({
  * модуль, не весь курс — не плутати з CompleteScreen (той для всього курсу).
  */
 function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
-  const { moduleTitle, scorePercent, scoreRaw, scoreMax, passed, saving, saveError } = checkpoint;
+  const { moduleTitle, scorePercent, scoreRaw, scoreMax, passed, saving, saveError, note, sessionEnd } = checkpoint;
 
   return (
     <div className="cp-screen cp-complete">
+      {/* Складений модуль — теж свято, як і фінал курсу (користувач, 2026-09-15). */}
+      {passed && <ConfettiBurst />}
       <div className={`trophy ${passed ? "win" : ""}`}>{passed ? <CheckIcon /> : <XIcon />}</div>
       <h2 className="result-title">{passed ? `Модуль «${moduleTitle}» складено!` : `Модуль «${moduleTitle}» не складено`}</h2>
       <p className="lead">
         {passed
-          ? "Можна переходити до наступного модуля."
+          ? sessionEnd
+            ? "Результат збережено. Наступний модуль відкриється після паузи — ми нагадаємо."
+            : "Можна переходити до наступного модуля."
           : "Перегляньте матеріал модуля ще раз і спробуйте пройти тести знову."}
       </p>
+      {passed && note && <p className="cp-note">{note}</p>}
       {scoreMax > 0 && (
         <div className="score-num">
           <b>
@@ -404,7 +409,7 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
       {saveError && <p className="cp-save-status cp-save-error">Не вдалося зберегти результат: {saveError}</p>}
 
       <button type="button" className="btn-primary-full" onClick={passed ? onContinue : onRetry}>
-        <span className="btn-label">{passed ? "Продовжити" : "Спробувати модуль ще раз"}</span>
+        <span className="btn-label">{passed ? (sessionEnd ? "На головну" : "Продовжити") : "Спробувати модуль ще раз"}</span>
       </button>
     </div>
   );
@@ -575,6 +580,13 @@ export function CoursePlayer({
   screens,
   enrollmentId,
   lockedNotice,
+  // { moreModules, notice } — сесія закінчується раніше за курс (далі
+  // модуль під паузою): після останнього модуля сесії — чекпоінт з
+  // «На головну», без /submit. Див. app/courses/[slug]/page.js.
+  afterSession = null,
+  // Прев'ю (конструктор): усі модулі йдуть підряд, а на межах, де в
+  // реальному проходженні є пауза, чекпоінт це пояснює. { [moduleId]: days }
+  moduleCooldowns = null,
   skippedModuleScores = [],
   hasEmail = true,
   // Режим прев'ю в /admin: той самий плеєр від початку до кінця, але
@@ -1037,20 +1049,35 @@ export function CoursePlayer({
     const isLastScreenOfSegment = segment && screenIdx === segment.endIdx;
     const isLastSegmentOfCourse = segment && moduleSegments[moduleSegments.length - 1] === segment;
 
-    // Дійшли до кінця модуля, і це НЕ останній модуль курсу — показуємо
-    // чекпоінт "Пауза між модулями" замість звичайного переходу вперед.
-    if (isLastScreenOfSegment && !isLastSegmentOfCourse) {
+    // Кінець модуля: чекпоінт (складено/не складено) — між модулями, а
+    // також після ОСТАННЬОГО модуля сесії, якщо курс на цьому не
+    // закінчується (далі модуль під паузою, afterSession.moreModules):
+    // тоді результат модуля зберігається, курс не submit-иться, кнопка —
+    // «На головну».
+    const sessionEnd = isLastSegmentOfCourse && Boolean(afterSession?.moreModules);
+    if (isLastScreenOfSegment && (!isLastSegmentOfCourse || sessionEnd)) {
       const score = scoreForSegment(segment);
+      const nextSegment = moduleSegments[moduleSegments.indexOf(segment) + 1];
+      const pauseDays = nextSegment && moduleCooldowns ? moduleCooldowns[nextSegment.moduleId] : 0;
+      const note = sessionEnd
+        ? afterSession.notice
+        : pauseDays > 0
+          ? `У реальному проходженні тут пауза: модуль «${nextSegment.moduleTitle}» відкриється через ${pauseDays} дн. після складання цього. У прев’ю можна йти далі одразу.`
+          : null;
       setModuleCheckpoint({
         ...score,
         moduleId: segment.moduleId,
         moduleTitle: segment.moduleTitle,
-        saving: true,
+        saving: !previewMode,
         saveError: null,
         nextIdx: idx + 1,
+        note,
+        sessionEnd,
       });
-      const saveError = await postModuleCompletion(segment.moduleId, score);
-      setModuleCheckpoint((c) => (c ? { ...c, saving: false, saveError } : c));
+      if (!previewMode) {
+        const saveError = await postModuleCompletion(segment.moduleId, score);
+        setModuleCheckpoint((c) => (c ? { ...c, saving: false, saveError } : c));
+      }
       return;
     }
 
@@ -1066,6 +1093,11 @@ export function CoursePlayer({
 
   function handleModuleContinue() {
     if (!moduleCheckpoint) return;
+    if (moduleCheckpoint.sessionEnd) {
+      if (!previewMode) clearProgress(course.slug);
+      router.push("/hub");
+      return;
+    }
     setIdx(moduleCheckpoint.nextIdx);
     setModuleCheckpoint(null);
   }

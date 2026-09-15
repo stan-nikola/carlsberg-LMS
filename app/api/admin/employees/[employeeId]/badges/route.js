@@ -76,7 +76,7 @@ export async function POST(request, { params }) {
     return NextResponse.json(created, { status: 201 });
   } catch (err) {
     if (err.code === "P2002") {
-      return NextResponse.json({ error: "ця ачивка вже видана цій людині" }, { status: 409 });
+      return NextResponse.json({ error: "цю винагороду вже видано цій людині" }, { status: 409 });
     }
     throw err;
   }

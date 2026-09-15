@@ -12,6 +12,7 @@ const STATE_TEXT = {
   "ios-not-installed":
     "На iPhone сповіщення працюють лише зі встановленого застосунку: Поділитись → «На Початковий екран», далі відкрийте CarLS з іконки.",
   unsupported: "Цей браузер не підтримує push-сповіщення.",
+  insecure: "Push працює лише за захищеною адресою (https). Відкрийте застосунок за https-посиланням і встановіть його звідти.",
   denied: "Сповіщення заблоковано в налаштуваннях браузера/системи — увімкніть їх там, щоб отримувати push.",
   unavailable: "Push ще не налаштовано на сервері (немає VAPID-ключів). Сповіщення видно в центрі — дзвіночок угорі.",
 };
@@ -111,15 +112,27 @@ export function NotificationSettings({ variant = "full" }) {
   return (
     <div className="settings-block ntf-settings">
       <div className="settings-row">
-        <div className="settings-label">
+        {/* Увесь рядок (крім кнопки праворуч) розгортає категорії; рядок
+            «N з 5 увімкнено» прибрано — користувач (2026-09-15): один блок,
+            коротко, без лічильника. */}
+        <button
+          type="button"
+          className={`settings-label ntf-row-toggle${prefsOpen ? " open" : ""}`}
+          onClick={() => setPrefsOpen((v) => !v)}
+          aria-expanded={prefsOpen}
+          disabled={!prefs}
+        >
+          <span className="ntf-expand" aria-hidden="true">
+            <ChevronIcon />
+          </span>
           <span className="settings-ico">
             <BellIcon />
           </span>
-          <div>
-            <div className="settings-t">Push на цьому пристрої</div>
-            <div className="settings-d">{STATE_TEXT[state] || (state === "subscribed" ? "Увімкнено" : "Вимкнено")}</div>
-          </div>
-        </div>
+          <span className="ntf-row-text">
+            <span className="settings-t">Push на цьому пристрої</span>
+            <span className="settings-d">{STATE_TEXT[state] || (state === "subscribed" ? "Увімкнено" : "Вимкнено")}</span>
+          </span>
+        </button>
         {state === "subscribed" && (
           <button type="button" className="admin-btn" onClick={disable} disabled={busy}>
             Вимкнути
@@ -131,37 +144,20 @@ export function NotificationSettings({ variant = "full" }) {
           </button>
         )}
       </div>
-      {prefs && (
-        <button type="button" className="settings-row ntf-prefs-toggle" onClick={() => setPrefsOpen((v) => !v)} aria-expanded={prefsOpen}>
-          <div className="settings-label">
-            <div>
-              <div className="settings-t">Які сповіщення отримувати</div>
-              <div className="settings-d">
-                {NOTIFICATION_CATEGORIES.filter((c) => prefs[c.key] !== false).length} з {NOTIFICATION_CATEGORIES.length} категорій увімкнено
-              </div>
-            </div>
-          </div>
-          <span className={`ntf-chevron${prefsOpen ? " open" : ""}`} aria-hidden="true">
-            <ChevronIcon />
-          </span>
-        </button>
-      )}
-      {prefs &&
-        prefsOpen &&
-        NOTIFICATION_CATEGORIES.map((c) => (
-          <label key={c.key} className="settings-row ntf-pref">
-            <div className="settings-label">
-              <span className="settings-ico" aria-hidden="true">
+      {prefs && prefsOpen && (
+        <div className="ntf-prefs">
+          <div className="ntf-prefs-caption">Які сповіщення отримувати</div>
+          {NOTIFICATION_CATEGORIES.map((c) => (
+            <label key={c.key} className="ntf-pref">
+              <input type="checkbox" checked={prefs[c.key] !== false} onChange={(e) => toggle(c.key, e.target.checked)} />
+              <span className="ntf-pref-ico" aria-hidden="true">
                 {c.icon}
               </span>
-              <div>
-                <div className="settings-t">{c.label}</div>
-                <div className="settings-d">{c.hint}</div>
-              </div>
-            </div>
-            <input type="checkbox" checked={prefs[c.key] !== false} onChange={(e) => toggle(c.key, e.target.checked)} />
-          </label>
-        ))}
+              <span className="ntf-pref-label">{c.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

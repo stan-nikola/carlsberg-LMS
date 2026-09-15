@@ -528,6 +528,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
+  /* Прозора рамка тієї ж товщини, що в активного — без стрибків. */
+  border: 1.5px solid transparent;
   border-radius: var(--radius-btn);
   color: var(--ink-soft);
   text-decoration: none;
@@ -553,9 +555,16 @@
   outline: none;
   box-shadow: var(--cb-focus-ring);
 }
+/* Активний — «контур», як у /manager (вибір користувача, 2026-09-15):
+   біла плитка з рамкою акцентного зеленого і зеленою іконкою; зелена
+   тінь 12% зливалась із сірим фоном панелі. */
 .adm-nav-link.active {
-  background: var(--green-tint);
+  background: var(--surface);
+  border-color: var(--green-500);
   color: var(--green-700);
+}
+.adm-nav-link.active svg {
+  color: var(--green-500);
 }
 /* Згорнутий стан — лише .adm-nav-icon лишається видимим (другий <span>
    з лейблом ховаємо), сама кнопка центрується під вузьку 56px колонку;
@@ -1133,7 +1142,7 @@
      телефон-мокап, хай і в модалці, має лишатись мобільним, не раптово
      "перемкнутись" на десктопний reflow лише тому, що дозволили йому
      вирости завеликим. */
-  max-width: min(600px, calc((100vh - 20px) * 9 / 19.5));
+  max-width: min(600px, calc((100vh - 60px) * 9 / 19.5));
 }
 .iphone-mockup .course-card {
   position: absolute;
@@ -1243,7 +1252,7 @@
      приблизну) доступну висоту без жодного зайвого множника; "більше"
      тепер забезпечує сама точність (менше "запасу про всяк випадок"), не
      штучний коефіцієнт. */
-  max-width: min(1600px, calc((100vh - 20px) * 1060 / 608));
+  max-width: min(1600px, calc((100vh - 60px) * 1060 / 608));
   aspect-ratio: 1060 / 608;
   margin: 0 auto;
 }
@@ -2271,18 +2280,38 @@
    рамка мусить дати йому повну висоту й власний скрол, а не обрізати. */
 .adm-run-preview {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  margin-top: 34px;
+}
+/* CoursePlayer приносить свою обгортку .stage > .course-col > .course-card;
+   у мокапі позиціонується лише картка (правила .iphone-mockup/.laptop-mockup
+   .course-card вище), обгортки — прозорі. Десктопні правила
+   .stage--course-player (100vh, min(1400px,96vw), без рамок) тут ні до
+   чого — картка живе всередині рамки телефона/ноутбука. */
+.adm-run-preview .stage,
+.adm-run-preview .course-col {
+  display: contents;
+}
+.adm-run-preview.iphone-mockup .course-card,
+.adm-run-preview.laptop-mockup .course-card {
+  width: auto;
+  height: auto;
+  border: none;
+}
+.adm-run-preview.iphone-mockup .course-card {
+  border-radius: 8%/3.7%;
 }
 /* Постійна плашка «це прев'ю» — щоб автор ніколи не переплутав пробіг із
    реальним проходженням і не чекав, що бал кудись запишеться. */
 .adm-run-preview-badge {
   position: absolute;
-  top: 0;
+  /* НАД рамкою пристрою, не на екрані (там вона перекривала кнопку
+     «Назад» і виріз — скарги 2026-09-15). Місце під неї — margin-top
+     .adm-run-preview і «- 60px» у формулах висоти мокапів у модалці. */
+  top: -30px;
   left: 0;
   right: 0;
   z-index: 4;
+  border-radius: var(--radius-pill);
   padding: 4px 8px;
   background: var(--cb-tertiary);
   color: var(--cb-black);
@@ -2500,9 +2529,7 @@
    Курси) йдуть упритул — на повній сторінці їх розносив зовнішній відступ
    .admin-page, у компактному режимі його немає. Лінія + відступ між
    сусідніми секціями, щоб «Зберегти» не впирався в заголовок «Керівник». */
-.adm-detail-compact > .admin-form-section + .admin-form-section,
-.adm-detail-compact > .admin-form-section + div,
-.adm-detail-compact > div + .admin-form-section {
+.adm-detail-compact > .adm-card + .adm-card {
   margin-top: 22px;
   padding-top: 18px;
   border-top: 1px solid var(--line);
@@ -2519,14 +2546,17 @@
   padding: 0;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  background: var(--surface);
+  /* Гола іконка без круглого обідка (користувач, 2026-09-15): той самий
+     принцип, що .adm-sidebar-collapse-btn — контейнера в спокої нема,
+     легкий фон лише на ховері. */
+  border: none;
+  border-radius: var(--radius-btn);
+  background: transparent;
   color: var(--ink);
   cursor: pointer;
   transition:
     background var(--dur-fast) var(--ease-premium),
-    border-color var(--dur-fast) var(--ease-premium);
+    color var(--dur-fast) var(--ease-premium);
 }
 .emp-tree-row .admin-accordion-caret svg {
   width: 18px;
@@ -2535,7 +2565,6 @@
 @media (hover: hover) {
   .emp-tree-row .admin-accordion-caret:hover {
     background: var(--green-tint);
-    border-color: var(--green-700);
     color: var(--green-700);
   }
 }
@@ -2573,4 +2602,406 @@
 .admin-audit-table .admin-employee-row:focus-visible {
   outline: 2px solid var(--cb-focus-ring);
   outline-offset: -2px;
+}
+/* /admin/org?focus=<id> — вузол, з картки якого прийшли */
+.emp-tree-row-focus {
+  background: var(--green-tint);
+  box-shadow: inset 3px 0 0 var(--green-700);
+}
+
+/* /admin/badges: дії в рядку та панель масової видачі під рядком */
+.admin-badge-actions {
+  display: grid;
+  grid-template-columns: 32px repeat(3, 34px);
+  align-items: center;
+  justify-items: end;
+  gap: 6px;
+  white-space: nowrap;
+}
+.admin-badge-count {
+  justify-self: start;
+  font-weight: 600;
+}
+.iconbtn.is-active {
+  background: var(--surface);
+  border-color: var(--green-500);
+  color: var(--green-500);
+}
+.iconbtn-danger {
+  color: var(--danger);
+}
+@media (hover: hover) {
+  .iconbtn-danger:hover:not(:disabled) {
+    border-color: var(--danger);
+  }
+}
+.admin-link-danger {
+  color: var(--danger);
+}
+.admin-badge-award {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 16px 66px;
+  background: var(--surface-1);
+  border-top: 1px solid var(--line);
+}
+
+/* ===================== /admin/rating (components/AdminRating.jsx) =====================
+   Правила — картками з перемикачем і полем балів, рівні — драбинкою,
+   перерахунок — окремою «небезпечною» секцією. */
+.rt-admin-section {
+  margin-top: 22px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.rt-admin-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+  margin-bottom: 12px;
+}
+.rt-admin-section-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.rt-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.rt-rule-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  transition: opacity var(--dur-fast) var(--ease-premium);
+}
+.rt-rule-card.is-off {
+  opacity: 0.55;
+}
+.rt-rule-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.rt-rule-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+  flex: 1;
+}
+.rt-rule-points {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+.rt-rule-points .admin-input-flex {
+  max-width: 110px;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  text-align: right;
+}
+.rt-rule-points span {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+/* Перемикач — той самий чекбокс, лише вигляд тумблера. */
+.rt-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.rt-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.rt-switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+  transition: background var(--dur-fast) var(--ease-premium);
+}
+.rt-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--cb-white);
+  transition: transform var(--dur-fast) var(--ease-premium);
+}
+.rt-switch input:checked + .rt-switch-track {
+  background: var(--green-700);
+}
+.rt-switch input:checked + .rt-switch-track::after {
+  transform: translateX(16px);
+}
+.rt-switch input:focus-visible + .rt-switch-track {
+  box-shadow: var(--cb-focus-ring);
+}
+.rt-level-ladder {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rt-level-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+}
+.rt-level-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--green-700);
+  color: var(--cb-white);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.rt-level-from {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.rt-level-from .admin-input-flex {
+  max-width: 96px;
+  font-family: var(--font-mono);
+  text-align: right;
+}
+.rt-level-name {
+  flex: 1 1 180px;
+  max-width: 320px;
+}
+.rt-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.rt-admin-danger {
+  border-color: color-mix(in srgb, var(--cb-fail) 40%, var(--line));
+}
+.rt-admin-danger p {
+  margin: 0 0 12px;
+}
+
+/* /admin/notifications — історія з чекбоксами і кнопкою видалення */
+.adm-bc-table th:first-child,
+.adm-bc-table td:first-child {
+  width: 28px;
+}
+.adm-bc-table td:last-child {
+  width: 40px;
+}
+.adm-bc-table tr.is-selected td {
+  background: var(--green-tint);
+}
+.adm-bc-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cb-secondary);
+}
+
+/* ===================== Картки розділів (адмінка) =====================
+   Один патерн для картки співробітника, розсилки тощо (2026-09-15, «усе
+   врозкид»): секція = картка з шапкою (назва + короткий підсумок/дія),
+   полями в auto-fit сітці і футером з діями праворуч. */
+.adm-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.adm-card + .adm-card {
+  margin-top: 16px;
+}
+.adm-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.adm-card-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.adm-card-head .admin-hint {
+  margin: 0;
+}
+.adm-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.adm-card-foot .admin-error,
+.adm-card-foot .admin-hint {
+  margin: 0 auto 0 0;
+}
+/* Поля — рівні колонки по ширині, без ручних @media (min(100%, …) —
+   щоб у вузькій панелі-шухляді колонка не виходила за край). */
+.adm-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px 20px;
+}
+.adm-field-grid .admin-field {
+  margin-bottom: 0;
+}
+.adm-field-grid .admin-select,
+.adm-field-grid .admin-input-flex {
+  width: 100%;
+}
+.adm-field-grid .admin-field-wide {
+  grid-column: 1 / -1;
+}
+/* Шапка картки співробітника: ім'я, код, статус і керівник одним рядком
+   чипів під заголовком. */
+.adm-detail-head {
+  margin-bottom: 18px;
+}
+.adm-detail-head h1 {
+  margin: 8px 0 6px;
+}
+.adm-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.adm-chip-row .mono {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+/* Поточний керівник — рядок-картка з посиланням і дією праворуч. */
+.adm-manager-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+}
+.adm-manager-row b {
+  font-weight: 600;
+}
+/* Форма розсилки: підсумок «кому» і лічильник символів у підказках. */
+.adm-bc-form .admin-textarea {
+  width: 100%;
+  min-height: 96px;
+}
+.adm-link-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1.4fr);
+  gap: 8px;
+}
+
+/* Таблиці адмінки (.admin-table): рівні рядки, шапка як у списків. */
+.admin-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  font-size: 13.5px;
+}
+.admin-table th,
+.admin-table td {
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+}
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.admin-table thead th {
+  background: var(--surface-1);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.admin-table tbody tr:hover td {
+  background: var(--surface-1);
+}
+.adm-bc-table th:first-child,
+.adm-bc-table td:first-child {
+  width: auto;
+}
+.adm-bc-selectall {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Ряд коротких карток: поруч, коли є місце; в шухляді — стовпчиком. */
+.adm-card-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.adm-card-row .adm-card {
+  margin-top: 0;
+}
+.adm-card-row + .adm-card {
+  margin-top: 16px;
 }

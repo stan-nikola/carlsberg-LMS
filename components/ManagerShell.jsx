@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, LogoutIcon } from "@/components/icons";
+import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, LogoutIcon, ChevronIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
 import { NotificationBell } from "@/components/NotificationBell";
+
+// Згорнутий сайдбар — особиста зручність, localStorage (як в AdminShell).
+const SIDEBAR_COLLAPSED_KEY = "manager-sidebar-collapsed";
 
 const NAV_ITEMS = [
   { href: "/manager", label: "Команда", Icon: HomeIcon },
@@ -33,6 +36,26 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1") setCollapsed(true);
+    } catch {
+      // localStorage недоступний — лишаємось розгорнутими.
+    }
+  }, []);
+  function toggleCollapsed() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+      } catch {
+        // не критично
+      }
+      return next;
+    });
+  }
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -58,12 +81,13 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
             className={`mgr-nav-link${isActive ? " active" : ""}`}
             onClick={onNavigate}
             aria-current={isActive ? "page" : undefined}
+            title={label}
           >
             <span className="mgr-nav-icon">
               <Icon filled={isActive} />
               {navBadges[href] && <span className="mgr-nav-dot" aria-hidden="true" />}
             </span>
-            <span>
+            <span className="mgr-nav-label">
               {label}
               {navBadges[href] && <span className="admin-hint"> · нове</span>}
             </span>
@@ -76,21 +100,32 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
   return (
     <div className="manager-shell">
       {/* ---- Десктоп/планшет (≥900px): постійний сайдбар зліва ---- */}
-      <aside className="mgr-sidebar">
+      {/* Згортається до іконок, як адмін-панель (користувач, 2026-09-15);
+          блок «ім’я · посада» знизу прибрано — він і так у профілі. */}
+      <aside className={`mgr-sidebar${collapsed ? " is-collapsed" : ""}`}>
         <div className="mgr-sidebar-brand">
           <PlatformBrand size="lg" />
+        </div>
+        {/* Дзвіночок — у тому ж стовпчику, що й іконки розділів, нижче лого. */}
+        <div className="mgr-nav-bell">
           <NotificationBell href="/manager/notifications" />
         </div>
         {navLinks()}
         <div className="mgr-sidebar-footer">
-          <div className="mgr-sidebar-user">
-            <span className="manager-topbar-name">{employee.name}</span>
-            <span className="admin-hint">{employee.position?.name || "Керівник"}</span>
-          </div>
-          <button type="button" className="admin-btn-link" onClick={handleLogout}>
-            Вийти
+          <button type="button" className="iconbtn" title="Вийти" aria-label="Вийти" onClick={handleLogout}>
+            <LogoutIcon />
           </button>
         </div>
+        <button
+          type="button"
+          className="adm-sidebar-collapse-btn"
+          title={collapsed ? "Розгорнути панель" : "Згорнути панель"}
+          aria-label={collapsed ? "Розгорнути панель" : "Згорнути панель"}
+          aria-expanded={!collapsed}
+          onClick={toggleCollapsed}
+        >
+          <ChevronIcon />
+        </button>
       </aside>
 
       {/* ---- Мобільний (<900px): верхній appbar + бургер + шторка ---- */}

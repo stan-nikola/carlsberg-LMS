@@ -23,10 +23,37 @@ export function EmployeeTree() {
   const [dragId, setDragId] = useState(null);
   const [overId, setOverId] = useState(null); // "root" — спецзначення для кореня
   const [saving, setSaving] = useState(false);
+  // /admin/org?focus=<employeeId> — з картки співробітника: розгорнути
+  // ланцюжок до нього, підсвітити й прокрутити (раніше лінк вів на
+  // згорнуте дерево всієї компанії — скарга 2026-09-15).
+  const [focusId] = useState(() =>
+    typeof window === "undefined" ? null : Number(new URLSearchParams(window.location.search).get("focus")) || null
+  );
 
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (!tree || !focusId) return;
+    const path = [];
+    const find = (nodes, trail) => {
+      for (const n of nodes) {
+        if (n.id === focusId) {
+          path.push(...trail, n.id);
+          return true;
+        }
+        if (find(n.children, [...trail, n.id])) return true;
+      }
+      return false;
+    };
+    find(tree, []);
+    if (path.length === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExpanded((prev) => new Set([...prev, ...path]));
+    const t = setTimeout(() => document.getElementById(`emp-node-${focusId}`)?.scrollIntoView({ block: "center" }), 50);
+    return () => clearTimeout(t);
+  }, [tree, focusId]);
 
   async function load() {
     setLoading(true);
@@ -140,7 +167,8 @@ export function EmployeeTree() {
     return (
       <li key={node.id} className="emp-tree-node">
         <div
-          className={`emp-tree-row${overId === node.id ? " admin-drag-over" : ""}${node.isActive === false ? " emp-tree-row-inactive" : ""}`}
+          id={`emp-node-${node.id}`}
+          className={`emp-tree-row${overId === node.id ? " admin-drag-over" : ""}${node.isActive === false ? " emp-tree-row-inactive" : ""}${node.id === focusId ? " emp-tree-row-focus" : ""}`}
           style={{ paddingLeft: depth * 20 }}
           onDragOver={(e) => {
             e.preventDefault();

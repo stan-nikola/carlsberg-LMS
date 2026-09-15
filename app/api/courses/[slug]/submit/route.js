@@ -65,6 +65,19 @@ export async function POST(request, { params }) {
     }
   }
 
+  // Захист від «курс completed після одного модуля»: усі модулі курсу
+  // мають мати результат (з урахуванням lastModule, що пишеться нижче).
+  const [moduleIds, doneIds] = await Promise.all([
+    prisma.module.findMany({ where: { courseId: course.id }, select: { id: true } }),
+    prisma.moduleCompletion.findMany({ where: { enrollmentId: enrollment.id }, select: { moduleId: true } }),
+  ]);
+  const covered = new Set(doneIds.map((d) => d.moduleId));
+  if (lastModule) covered.add(Number(lastModule.moduleId));
+  const missing = moduleIds.filter((m) => !covered.has(m.id));
+  if (missing.length > 0) {
+    return NextResponse.json({ error: `Курс ще не пройдено повністю: ${missing.length} модул(ів) без результату` }, { status: 409 });
+  }
+
   await prisma.$transaction([
     prisma.enrollment.update({
       where: { id: enrollment.id },

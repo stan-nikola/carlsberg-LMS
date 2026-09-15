@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
 import { getEmployeeEnrollments } from "@/lib/employeeProgress";
+import { sortByUrgency } from "@/lib/progress";
 import { CourseTile } from "@/components/CourseTile";
 
 // "Курси" керівника — його ВЛАСНІ призначені курси (керівник теж Employee
@@ -14,7 +15,8 @@ import { CourseTile } from "@/components/CourseTile";
 // для Досягнень/Профілю, які справді сверстані під вузьку картку).
 export default async function ManagerCoursesPage() {
   const employee = await getCurrentUser();
-  const enrollments = await getEmployeeEnrollments(employee.id);
+  // Прострочені → нові/не складені → пройдені (lib/progress.js sortByUrgency).
+  const enrollments = sortByUrgency(await getEmployeeEnrollments(employee.id));
 
   return (
     <div className="manager-page">

@@ -31,8 +31,9 @@ function ModuleStatusIcon({ status }) {
  * (components/CoursePlayer.jsx), у нього немає "почати саме з цього
  * модуля".
  */
-function ModuleRow({ courseModule }) {
+function ModuleRow({ courseModule, columns }) {
   const meta = MODULE_STATUS_META[courseModule.status];
+  const tier = medalTier(courseModule.scorePercent);
   return (
     <div className={`ct-module-row ${meta.className}`}>
       <span className="ct-module-status-icon">
@@ -52,14 +53,18 @@ function ModuleRow({ courseModule }) {
           {courseModule.estimatedMinutes} хв
         </span>
       )}
-      {courseModule.longestCorrectStreak > 0 && (
-        <span className="ct-module-streak" title="Найдовша серія поспіль правильних відповідей у цьому модулі">
-          🎯 {courseModule.longestCorrectStreak}
+      {/* Колонки серії та медалі є в КОЖНОМУ рядку, якщо вони є хоч в
+          одному модулі списку (порожні — теж), інакше відсотки, серії й
+          медалі різних рядків з'їжджали в різні позиції. Немає ні в кого —
+          колонки нема, відсоток стоїть біля правого краю. */}
+      {columns.streak && (
+        <span className="ct-module-streak" title={courseModule.longestCorrectStreak > 0 ? "Найдовша серія поспіль правильних відповідей у цьому модулі" : undefined}>
+          {courseModule.longestCorrectStreak > 0 ? `🎯 ${courseModule.longestCorrectStreak}` : ""}
         </span>
       )}
-      {medalTier(courseModule.scorePercent) && (
-        <span className="ct-module-medal" title={`${courseModule.scorePercent}% — медаль за модуль`}>
-          <MedalIcon tier={medalTier(courseModule.scorePercent)} />
+      {columns.medal && (
+        <span className="ct-module-medal" title={tier ? `${courseModule.scorePercent}% — медаль за модуль` : undefined}>
+          {tier && <MedalIcon tier={tier} />}
         </span>
       )}
     </div>
@@ -119,6 +124,10 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
   const overdue = isOverdue(enrollment);
   const modules = course.modules || [];
   const hasModules = modules.length > 0;
+  const moduleColumns = {
+    streak: modules.some((m) => m.longestCorrectStreak > 0),
+    medal: modules.some((m) => medalTier(m.scorePercent)),
+  };
   // Enrollment.status="completed" МАЄ означати, що кожен модуль курсу вже
   // має власний результат (completed/failed) — але це два окремі записи
   // в БД (Enrollment і ModuleCompletion), і якщо колись один запис
@@ -138,7 +147,17 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
   // не cs.status.
   const trulyNotStarted = enrollment?.status === "not_started" && !anyModuleStarted;
 
-  const enterLabel = isActuallyDone ? "Переглянути курс" : trulyNotStarted ? "Почати курс" : "Продовжити курс";
+  // Пройдений курс: 100% відкриває методичку; залік нижче 100% — можна
+  // покращити; незалік — пройти знову (користувач, 2026-09-15).
+  const enterLabel = isActuallyDone
+    ? cs.passed
+      ? cs.pct === 100
+        ? "Відкрити методичку"
+        : "Покращити результат"
+      : "Пройти курс знову"
+    : trulyNotStarted
+      ? "Почати курс"
+      : "Продовжити курс";
   // Сертифікат — лише за 100% І лише якщо він узагалі увімкнений для
   // цього курсу (Course.certificateEnabled, вкладка "Розклад" в /admin).
   // !== false, а не === true: курси, завантажені без цього поля
@@ -215,7 +234,9 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
             <div className="ct-done-main">
               <div className={`ct-status-done ${cs.passed ? "is-pass" : "is-fail"}`}>
                 {cs.passed ? <CheckIcon /> : <XIcon />}
-                <span>{(cs.passed ? "Залік · " : "Незалік · ") + cs.pct + "%"}</span>
+                {/* Відсоток лише при заліку — при незаліку він не має сенсу
+                    (курс складається помодульно). */}
+                <span>{cs.passed ? `Залік · ${cs.pct}%` : "Незалік"}</span>
               </div>
               {enrollment?.completedAt && (
                 <div className="ct-completed-date">
@@ -267,7 +288,7 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
       {expanded && hasModules && (
         <div className="ct-modules-list">
           {modules.map((courseModule) => (
-            <ModuleRow key={courseModule.id} courseModule={courseModule} />
+            <ModuleRow key={courseModule.id} courseModule={courseModule} columns={moduleColumns} />
           ))}
         </div>
       )}
