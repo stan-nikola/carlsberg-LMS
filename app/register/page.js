@@ -13,12 +13,14 @@ import { PlatformBrand } from "@/components/PlatformBrand";
 // власні API routes (/api/auth/register, /api/auth/confirm), а замість
 // localStorage-профілю — cookie-сесія (див. lib/session.js).
 //
-// Поле "Ваше ім'я" на сервер НЕ відправляється — Employee.name в базі
+// Поле "Ваше ім'я" в Employee.name НЕ записується — те поле в базі
 // правиться лише з email (керівний шар, lib/auth.js). Введене тут ім'я
-// зберігається лише в localStorage цього пристрою (LOCAL_NAME_KEY) -
-// для співробітників без email у базі лишається заглушка з посади/
-// території, а особисте ім'я так і залишається приватним для пристрою,
-// як і в legacy (telesale_profile_v1).
+// й далі зберігається лише в localStorage цього пристрою (LOCAL_NAME_KEY,
+// заглушка з посади/території лишається в базі для співробітників без
+// email, як і в legacy telesale_profile_v1) — але тепер РАЗОМ ІЗ КОДОМ
+// одноразово йде й на сервер у тілі /api/auth/register, щоб лист із
+// PIN (lib/auth.js requestLoginPin) міг показати, хто саме й під яким
+// іменем намагається увійти — самого запису в БД це не змінює.
 
 const RESEND_COOLDOWN_MS = 20000;
 const LOCAL_NAME_KEY = "employee_display_name_v1";
@@ -69,7 +71,7 @@ export default function RegisterPage() {
 
     setSubmitBusy(true);
     try {
-      const resp = await callAuth("/api/auth/register", { externalCode: externalCode.trim() });
+      const resp = await callAuth("/api/auth/register", { externalCode: externalCode.trim(), name: name.trim() });
       if (resp.ok) {
         setPin("");
         setPinError("");
@@ -153,7 +155,7 @@ export default function RegisterPage() {
     setResendBusy(true);
     setPinError("");
     try {
-      const resp = await callAuth("/api/auth/register", { externalCode: externalCode.trim() });
+      const resp = await callAuth("/api/auth/register", { externalCode: externalCode.trim(), name: name.trim() });
       if (resp.ok) {
         setPinRecipientIsSelf(resp.isSelf);
         setResendLabel("Надіслано ✓");
