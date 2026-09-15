@@ -2271,17 +2271,34 @@
    рамка мусить дати йому повну висоту й власний скрол, а не обрізати. */
 .adm-run-preview {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+}
+/* CoursePlayer приносить свою обгортку .stage > .course-col > .course-card;
+   у мокапі позиціонується лише картка (правила .iphone-mockup/.laptop-mockup
+   .course-card вище), обгортки — прозорі. Десктопні правила
+   .stage--course-player (100vh, min(1400px,96vw), без рамок) тут ні до
+   чого — картка живе всередині рамки телефона/ноутбука. */
+.adm-run-preview .stage,
+.adm-run-preview .course-col {
+  display: contents;
+}
+.adm-run-preview.iphone-mockup .course-card,
+.adm-run-preview.laptop-mockup .course-card {
+  width: auto;
+  height: auto;
+  border: none;
+}
+.adm-run-preview.iphone-mockup .course-card {
+  border-radius: 8%/3.7%;
 }
 /* Постійна плашка «це прев'ю» — щоб автор ніколи не переплутав пробіг із
    реальним проходженням і не чекав, що бал кудись запишеться. */
 .adm-run-preview-badge {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  /* Усередині екрана телефона (ті самі inset, що в .iphone-mockup
+     .course-card), а не поверх верхньої рамки. */
+  top: 1.08%;
+  left: 2.33%;
+  right: 2.33%;
   z-index: 4;
   padding: 4px 8px;
   background: var(--cb-tertiary);

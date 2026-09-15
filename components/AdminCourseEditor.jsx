@@ -1281,6 +1281,9 @@ function CourseRunPreview({ course, onClose }) {
                 moduleCooldowns={Object.fromEntries((course.modules || []).map((m) => [m.id, m.cooldownDays || 0]))}
               />
             )}
+            {/* Та сама рамка пристрою, що й у докнутому мокапі (DeviceMockup) —
+                без неї прев’ю виглядало голою білою карткою (2026-09-15). */}
+            {course.previewDevice === "laptop" ? <LaptopFrame /> : <IPhoneFrame />}
           </div>
         </div>
       </div>
