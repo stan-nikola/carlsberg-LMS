@@ -379,6 +379,8 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
 
   return (
     <div className="cp-screen cp-complete">
+      {/* Складений модуль — теж свято, як і фінал курсу (користувач, 2026-09-15). */}
+      {passed && <ConfettiBurst />}
       <div className={`trophy ${passed ? "win" : ""}`}>{passed ? <CheckIcon /> : <XIcon />}</div>
       <h2 className="result-title">{passed ? `Модуль «${moduleTitle}» складено!` : `Модуль «${moduleTitle}» не складено`}</h2>
       <p className="lead">

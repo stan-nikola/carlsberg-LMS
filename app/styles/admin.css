@@ -528,6 +528,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
+  /* Прозора рамка тієї ж товщини, що в активного — без стрибків. */
+  border: 1.5px solid transparent;
   border-radius: var(--radius-btn);
   color: var(--ink-soft);
   text-decoration: none;
@@ -553,9 +555,16 @@
   outline: none;
   box-shadow: var(--cb-focus-ring);
 }
+/* Активний — «контур», як у /manager (вибір користувача, 2026-09-15):
+   біла плитка з рамкою акцентного зеленого і зеленою іконкою; зелена
+   тінь 12% зливалась із сірим фоном панелі. */
 .adm-nav-link.active {
-  background: var(--green-tint);
+  background: var(--surface);
+  border-color: var(--green-500);
   color: var(--green-700);
+}
+.adm-nav-link.active svg {
+  color: var(--green-500);
 }
 /* Згорнутий стан — лише .adm-nav-icon лишається видимим (другий <span>
    з лейблом ховаємо), сама кнопка центрується під вузьку 56px колонку;
@@ -1133,7 +1142,7 @@
      телефон-мокап, хай і в модалці, має лишатись мобільним, не раптово
      "перемкнутись" на десктопний reflow лише тому, що дозволили йому
      вирости завеликим. */
-  max-width: min(600px, calc((100vh - 20px) * 9 / 19.5));
+  max-width: min(600px, calc((100vh - 60px) * 9 / 19.5));
 }
 .iphone-mockup .course-card {
   position: absolute;
@@ -1243,7 +1252,7 @@
      приблизну) доступну висоту без жодного зайвого множника; "більше"
      тепер забезпечує сама точність (менше "запасу про всяк випадок"), не
      штучний коефіцієнт. */
-  max-width: min(1600px, calc((100vh - 20px) * 1060 / 608));
+  max-width: min(1600px, calc((100vh - 60px) * 1060 / 608));
   aspect-ratio: 1060 / 608;
   margin: 0 auto;
 }
@@ -2271,6 +2280,7 @@
    рамка мусить дати йому повну висоту й власний скрол, а не обрізати. */
 .adm-run-preview {
   position: relative;
+  margin-top: 34px;
 }
 /* CoursePlayer приносить свою обгортку .stage > .course-col > .course-card;
    у мокапі позиціонується лише картка (правила .iphone-mockup/.laptop-mockup
@@ -2294,12 +2304,14 @@
    реальним проходженням і не чекав, що бал кудись запишеться. */
 .adm-run-preview-badge {
   position: absolute;
-  /* Усередині екрана телефона (ті самі inset, що в .iphone-mockup
-     .course-card), а не поверх верхньої рамки. */
-  top: 1.08%;
-  left: 2.33%;
-  right: 2.33%;
+  /* НАД рамкою пристрою, не на екрані (там вона перекривала кнопку
+     «Назад» і виріз — скарги 2026-09-15). Місце під неї — margin-top
+     .adm-run-preview і «- 60px» у формулах висоти мокапів у модалці. */
+  top: -30px;
+  left: 0;
+  right: 0;
   z-index: 4;
+  border-radius: var(--radius-pill);
   padding: 4px 8px;
   background: var(--cb-tertiary);
   color: var(--cb-black);

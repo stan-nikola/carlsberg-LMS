@@ -80,7 +80,8 @@ body:has(.manager-shell) {
      контенту, потрібніша самим карткам: у сітці їх тепер 4 в ряд, і
      кожні зекономлені 24px по краях це +6px кожній картці. Верхній і
      нижній відступи не чіпаємо. */
-  padding: clamp(16px, 4vw, 32px) clamp(10px, 2.8vw, 28px) 60px;
+  /* Верхній відступ -30%, лівий -10% (користувач, 2026-09-15). */
+  padding: clamp(11px, 2.8vw, 22px) clamp(10px, 2.8vw, 28px) 60px clamp(9px, 2.5vw, 25px);
 }
 /* Курси/Досягнення/Профіль — той самий контент-паттерн, що в /hub
    (.hub-h1/.greeting/.badge-grid/.profile-card тощо, hub.css), який був
@@ -164,10 +165,18 @@ body:has(.manager-shell) {
 .mgr-sidebar {
   display: none;
   flex-direction: column;
-  width: 240px;
+  /* Ширина — по найширшому блоку (лого з розшифровкою або пункт меню)
+     плюс 5px полів з боків, не фіксовані 240px. interpolate-size дає
+     плавну анімацію між fit-content і 64px у Chrome/Edge; де його нема —
+     миттєве перемикання. */
+  width: fit-content;
+  interpolate-size: allow-keywords;
+  transition:
+    width var(--dur-base) var(--ease-premium),
+    padding var(--dur-base) var(--ease-premium);
   flex-shrink: 0;
   box-sizing: border-box;
-  padding: 22px 16px;
+  padding: 22px 5px;
   border-right: 1px solid var(--line);
   background: var(--surface-1);
   position: sticky;
@@ -178,7 +187,14 @@ body:has(.manager-shell) {
    app/globals.css .platform-brand*); тут лише відступ під нього в
    контексті сайдбара. */
 .mgr-sidebar-brand {
-  margin-bottom: 26px;
+  margin-bottom: 10px;
+}
+/* Дзвіночок під лого, вирівняний з іконками розділів: центр іконки
+   .iconbtn (36px) на тій самій вертикалі, що центр 19px-іконки пункту
+   меню з padding 12px. */
+.mgr-nav-bell {
+  display: flex;
+  padding: 4px 12px 10px 4px;
 }
 .mgr-nav {
   display: flex;
@@ -190,7 +206,10 @@ body:has(.manager-shell) {
   display: flex;
   align-items: center;
   gap: 10px;
+  white-space: nowrap;
   padding: 10px 12px;
+  /* Прозора рамка тієї ж товщини, що в активного — пункти не «стрибають». */
+  border: 1.5px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--ink-soft);
   text-decoration: none;
@@ -230,9 +249,17 @@ body:has(.manager-shell) {
   outline: none;
   box-shadow: var(--cb-focus-ring);
 }
+/* Активний — «контур» (вибір користувача зі стенду, 2026-09-15): біла
+   плитка з рамкою акцентного зеленого і зеленою іконкою — читається і
+   на сірому фоні панелі, і в згорнутому стані. Колишня зелена тінь 12%
+   зливалась із фоном. */
 .mgr-nav-link.active {
-  background: var(--green-tint);
+  background: var(--surface);
+  border-color: var(--green-500);
   color: var(--green-700);
+}
+.mgr-nav-link.active svg {
+  color: var(--green-500);
 }
 .mgr-sidebar-footer {
   border-top: 1px solid var(--line);
@@ -1031,4 +1058,44 @@ body:has(.manager-shell) {
 .mgr-badge-rating {
   background: var(--cb-notification-light);
   color: color-mix(in srgb, var(--cb-notification) 60%, var(--cb-black));
+}
+
+/* Згорнутий сайдбар кабінету керівника — той самий патерн і та сама
+   кнопка-шеврон на лінії border-right, що в адмін-панелі
+   (.adm-sidebar-collapse-btn, admin.css). Лишаються лого, дзвіночок,
+   іконки розділів і «Вийти».
+   Без стрибків: підписи й розшифровка лого не display:none, а
+   opacity+width з transition; відступи пунктів однакові в обох станах,
+   тож іконки стоять на тій самій вертикалі й під час анімації. */
+.mgr-sidebar.is-collapsed {
+  width: 54px;
+}
+.mgr-nav-label {
+  display: block;
+}
+.mgr-nav-label,
+.mgr-sidebar .platform-brand-text {
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    opacity var(--dur-fast) var(--ease-premium),
+    max-width var(--dur-base) var(--ease-premium);
+  max-width: 240px;
+}
+.mgr-sidebar.is-collapsed .mgr-nav-label,
+.mgr-sidebar.is-collapsed .platform-brand-text {
+  opacity: 0;
+  max-width: 0;
+}
+/* Лого: центр 41px-логотипа (lg) на тій самій вертикалі, що центр
+   19px-іконки пункту (5px поле + 12px padding + 9.5px = 26.5px). */
+.mgr-sidebar-brand {
+  padding: 0 1px;
+}
+.mgr-sidebar-footer {
+  justify-content: flex-start;
+  padding-left: 4px;
+}
+.mgr-sidebar.is-collapsed .adm-sidebar-collapse-btn svg {
+  transform: rotate(0deg);
 }
