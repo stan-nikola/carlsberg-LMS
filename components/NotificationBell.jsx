@@ -25,10 +25,15 @@ export function NotificationBell({ href }) {
     const t = setInterval(load, 60000);
     const onVis = () => document.visibilityState === "visible" && load();
     document.addEventListener("visibilitychange", onVis);
+    // Push прийшов, поки застосунок відкритий — service worker шле message
+    // (public/sw.js), лічильник оновлюється миттєво.
+    const onSwMessage = (e) => e.data?.type === "push" && load();
+    navigator.serviceWorker?.addEventListener("message", onSwMessage);
     return () => {
       alive = false;
       clearInterval(t);
       document.removeEventListener("visibilitychange", onVis);
+      navigator.serviceWorker?.removeEventListener("message", onSwMessage);
     };
   }, []);
 

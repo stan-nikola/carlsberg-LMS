@@ -23,6 +23,11 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { body: event.data ? event.data.text() : "" };
   }
+  // Відкриті вкладки/PWA дізнаються про подію одразу (дзвіночок оновлює
+  // лічильник без очікування наступного опитування).
+  const ping = self.clients
+    .matchAll({ type: "window", includeUncontrolled: true })
+    .then((clients) => clients.forEach((c) => c.postMessage({ type: "push", title: data.title })));
   event.waitUntil(
     self.registration.showNotification(data.title || "CarLS", {
       body: data.body || "",
@@ -32,7 +37,7 @@ self.addEventListener("push", (event) => {
       tag: data.tag || "carls",
       renotify: true,
       data: { url: data.url || DEFAULT_URL },
-    })
+    }).then(() => ping)
   );
 });
 
