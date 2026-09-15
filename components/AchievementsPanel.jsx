@@ -1,6 +1,7 @@
 import { LockIcon } from "@/components/icons";
 import { RatingCard } from "@/components/RatingBlocks";
 import { CertificateList } from "@/components/CertificateList";
+import { LocalName } from "@/components/LocalName";
 
 /**
  * Екран «Досягнення» — спільний для /hub і /manager:
@@ -61,7 +62,9 @@ export function AchievementsPanel({ rating, badges, certificates, leaderboard, l
               <div className={`lb-row${row.id === currentEmployeeId ? " lb-row-self" : ""}`} key={row.id}>
                 <span className="lb-rank">{i + 1}</span>
                 <span className="lb-name">
-                  {row.name}
+                  {/* Свій рядок: у польових ролей у базі лише посада — беремо ім’я
+                      з localStorage цього пристрою (components/LocalName.tsx). */}
+                  {row.id === currentEmployeeId ? <LocalName dbName={row.name} hasEmail={hasEmail} /> : row.name}
                   {/* У польових ролей без email ім'я в базі — заглушка з
                       посади, тоді посада поруч лише дублює текст. */}
                   {row.position && row.position !== row.name && <span className="lb-pos"> · {row.position}</span>}

@@ -61,7 +61,11 @@ export const metadata = {
   // адресним рядком замість повноекранного застосунку.
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    // "default", не "black-translucent": з прозорим рядком статусу iOS 26
+    // малює над контентом смугу з блюром (скарга 2026-09-15, скрін з
+    // iPhone). Непрозорий системний рядок стоїть НАД веб-в’ю, блюру нема.
+    // Мета читається при встановленні — після зміни PWA треба перевстановити.
+    statusBarStyle: "default",
     title: PLATFORM_SHORT_NAME,
   },
   icons: {
