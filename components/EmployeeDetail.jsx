@@ -19,7 +19,13 @@ const ROLE_LABELS = {
  * ачивки (components/EmployeeBadgesSection.jsx, Фаза C) і курси з ручною
  * корекцією проходження (components/EmployeeCoursesSection.jsx, Фаза D).
  */
-export function EmployeeDetail({ employeeId }) {
+/**
+ * `compact` — рендер усередині бічної панелі (components/EmployeeDrawer.tsx):
+ * без обгортки .admin-page і без лінка «← До списку» (список і так видно
+ * позаду). `onChanged(updated)` — після успішного збереження/деактивації/
+ * переприв'язки, щоб список за панеллю оновив рядок без перезапиту.
+ */
+export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
   const [employee, setEmployee] = useState(null);
   const [positions, setPositions] = useState([]);
   const [territories, setTerritories] = useState([]);
@@ -130,6 +136,7 @@ export function EmployeeDetail({ employeeId }) {
       }
       const updated = await res.json();
       setEmployee(updated);
+      onChanged?.(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -154,6 +161,7 @@ export function EmployeeDetail({ employeeId }) {
       }
       const updated = await res.json();
       setEmployee(updated);
+      onChanged?.(updated);
       setManagerQuery("");
       setManagerResults([]);
     } catch (err) {
@@ -185,6 +193,7 @@ export function EmployeeDetail({ employeeId }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const updated = await res.json();
       setEmployee(updated);
+      onChanged?.(updated);
       setForm((f) => ({ ...f, isActive: updated.isActive }));
     } catch (err) {
       setSaveError(err.message);
@@ -205,11 +214,13 @@ export function EmployeeDetail({ employeeId }) {
   if (!employee || !form) return null;
 
   return (
-    <div className="admin-page">
-      <Link href="/admin/employees" className="admin-btn-link">
-        ← До списку співробітників
-      </Link>
-      <h1 style={{ marginTop: 12 }}>
+    <div className={compact ? "adm-detail-compact" : "admin-page"}>
+      {!compact && (
+        <Link href="/admin/employees" className="admin-btn-link">
+          ← До списку співробітників
+        </Link>
+      )}
+      <h1 style={{ marginTop: compact ? 0 : 12 }}>
         {employee.name}
         {!employee.isActive && <span className="admin-hint"> · деактивовано</span>}
       </h1>
@@ -386,7 +397,7 @@ export function EmployeeDetail({ employeeId }) {
       <div className="admin-form-section">
         <h2 style={{ fontSize: 15 }}>Підпорядкування</h2>
         <p className="admin-subtitle">Прямих підлеглих: {employee._count.subordinates}</p>
-        <Link href="/admin/employees?view=tree" className="admin-btn-link">
+        <Link href="/admin/org" className="admin-btn-link">
           Переглянути в дереві організації →
         </Link>
       </div>

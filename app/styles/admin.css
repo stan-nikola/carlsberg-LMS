@@ -2292,3 +2292,254 @@
   text-align: center;
   pointer-events: none;
 }
+
+/* ===================== /admin/employees, /admin/org, /admin/data =====================
+   Переосмислення сторінки співробітників (2026-09-15): заголовок з дією
+   праворуч, фільтри одним рядом, рядки — кнопки без форм усередині,
+   картка — бічною панеллю (components/EmployeeDrawer.tsx). Дерево й
+   робота з базою — окремі сторінки (/admin/org, /admin/data). */
+
+/* Заголовок сторінки: h1 + підзаголовок ліворуч, головна дія праворуч. */
+.adm-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+.adm-page-head h1 {
+  margin: 0;
+}
+.adm-page-head .admin-subtitle {
+  margin-top: 4px;
+}
+
+/* Фільтри одним рядом: пошук тягнеться, але не на весь екран; select —
+   по вмісту (раніше .admin-select розтягувався на всю ширину сторінки —
+   виглядало як зламана форма). */
+.adm-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.adm-filters .admin-input-flex {
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+.adm-filters .admin-select {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+/* Форма створення — на всю ширину, три поля в ряд (не 1:1:2, як у форми
+   курсу — тут поля рівноцінні). */
+.adm-create-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.adm-create-columns {
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+}
+.adm-create-columns > .admin-field + .admin-field {
+  padding-left: 0;
+  border-left: none;
+}
+
+/* Колонки списку без ролі-select і кнопки PIN: ім'я / код / департамент /
+   посада / роль-чип / шеврон. Перекриває базову сітку .admin-employee-row
+   вище (та сама специфічність, це правило нижче у файлі). */
+.admin-employee-row {
+  grid-template-columns: 1.6fr 0.8fr 0.9fr 1.4fr auto 20px;
+}
+/* Рядок — <button>: скидаємо кнопочний вигляд, лишаємо сітку. */
+.adm-emp-row {
+  width: 100%;
+  text-align: left;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.adm-emp-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--cb-secondary);
+}
+.adm-emp-row.is-selected {
+  background: var(--green-tint);
+}
+.adm-emp-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  min-width: 0;
+}
+.adm-emp-chevron {
+  display: flex;
+  width: 16px;
+  height: 16px;
+  color: var(--ink-soft);
+}
+.adm-emp-chevron svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Чипи ролі/статусу — той самий pill-патерн, що .territory-chip (бейдж —
+   окремий від Card/Button атом Malty, круглий тут доречний). */
+.adm-chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  background: var(--surface-1);
+  color: var(--ink-soft);
+}
+.adm-chip-accent {
+  background: var(--green-tint);
+  color: var(--green-700);
+}
+.adm-chip-off {
+  background: color-mix(in srgb, var(--cb-fail) 12%, var(--cb-white));
+  color: var(--danger);
+}
+
+/* ---- Бічна панель з карткою ---- */
+.adm-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--cb-overlay-50);
+}
+.adm-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(780px, 100%);
+  padding: 12px 28px 40px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+  animation: adm-drawer-in var(--dur-base) var(--ease-out) both;
+}
+@keyframes adm-drawer-in {
+  from {
+    transform: translateX(32px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .adm-drawer {
+    animation: none;
+  }
+}
+/* Рядок «відкрити сторінкою / закрити» — прилипає зверху при скролі
+   довгої картки, щоб «Закрити» завжди був під рукою. */
+.adm-drawer-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0 10px;
+  margin: 0 0 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.adm-detail-compact h1 {
+  font-size: 22px;
+}
+/* У панелі 2/3-колонкові форми картки не мають місця — по одній. */
+.adm-detail-compact .admin-form-columns {
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.adm-detail-compact .admin-form-columns > .admin-form-section + .admin-form-section {
+  padding-left: 0;
+  border-left: none;
+}
+
+/* ---- /admin/data: картки розділів на спільній сітці .card-grid ---- */
+.adm-data-grid {
+  --card-min: 320px;
+  --card-gap: 16px;
+}
+.adm-data-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.adm-data-card h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.adm-data-card-wide {
+  margin-top: 16px;
+}
+/* У панелі секції картки (Основне / Керівник / Ачивки / Підпорядкування /
+   Курси) йдуть упритул — на повній сторінці їх розносив зовнішній відступ
+   .admin-page, у компактному режимі його немає. Лінія + відступ між
+   сусідніми секціями, щоб «Зберегти» не впирався в заголовок «Керівник». */
+.adm-detail-compact > .admin-form-section + .admin-form-section,
+.adm-detail-compact > .admin-form-section + div,
+.adm-detail-compact > div + .admin-form-section {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---- /admin/org: кнопка розгортання вузла дерева ----
+   Той самий .admin-accordion-caret, що й <span> в акордеонах конструктора
+   курсу, але тут це <button> — без скидання він показувався дрібним сірим
+   квадратиком із ледь помітним шевроном. Кругла кнопка 28px із помітною
+   іконкою; scoped на .emp-tree-row, конструктор не чіпаємо. */
+.emp-tree-row .admin-accordion-caret {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-premium),
+    border-color var(--dur-fast) var(--ease-premium);
+}
+.emp-tree-row .admin-accordion-caret svg {
+  width: 18px;
+  height: 18px;
+}
+@media (hover: hover) {
+  .emp-tree-row .admin-accordion-caret:hover {
+    background: var(--green-tint);
+    border-color: var(--green-700);
+    color: var(--green-700);
+  }
+}
+.emp-tree-row .admin-accordion-caret:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}

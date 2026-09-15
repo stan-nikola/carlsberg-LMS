@@ -138,7 +138,7 @@ export function ExcelLivePanel() {
           </div>
           {adminCandidates.length === 0 && (
             <p className="admin-hint">
-              Немає жодного співробітника з роллю admin/hr_manager — призначте роль на вкладці «Список», перш ніж
+              Немає жодного співробітника з роллю admin/hr_manager — призначте роль у картці людини (Співробітники → картка → Роль), перш ніж
               створювати токен.
             </p>
           )}
