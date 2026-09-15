@@ -121,7 +121,7 @@ export async function POST(request, { params }) {
   ]);
 
   // Бали рейтингу — best-effort ПІСЛЯ транзакції: результат уже в базі,
-  // збій нарахування не має його відкотити (lib/rating.js).
+  // збій нарахування не має його відкотити (lib/rating.ts).
   try {
     await recordCourseCompletion(enrollment.id);
   } catch (err) {

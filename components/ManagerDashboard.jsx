@@ -378,7 +378,7 @@ function TeamNode({ node, summaryByEmployeeId, ratingByEmployeeId }) {
                 </>
               )}
               {/* Рейтинг: % від найкращого у СВОЇЙ посаді (ТП з ТП) і бали
-                  журналу — lib/rating.js getTeamRating. */}
+                  журналу — lib/rating.ts getTeamRating. */}
               {rating && rating.points > 0 && (
                 <span className="mgr-badge mgr-badge-rating" title="Рейтинг: % від найкращого у своїй посаді · бали">
                   {rating.normalized}% · {rating.points} б.

@@ -10,6 +10,7 @@ import {
   computeTeamRating,
   DEFAULT_RULES,
   DEFAULT_LEVELS,
+  type RatingEventInput,
 } from "@/lib/ratingLogic";
 
 const enr = (over = {}) => ({
@@ -21,7 +22,7 @@ const enr = (over = {}) => ({
   dueDate: new Date("2026-09-20"),
   ...over,
 });
-const kinds = (evs) => evs.map((e) => e.kind);
+const kinds = (evs: RatingEventInput[]) => evs.map((e) => e.kind);
 
 describe("computeCourseEvents", () => {
   it("складено вчасно з першої спроби на 90% — база + перша спроба + вчасно, без 100%", () => {

@@ -17,7 +17,7 @@ export default async function HubHomePage() {
   const employee = await getCurrentUser();
   const enrollments = await getEmployeeEnrollments(employee.id);
 
-  // Рейтинг (бали за реальні заслуги, lib/rating.js) замість колишнього
+  // Рейтинг (бали за реальні заслуги, lib/rating.ts) замість колишнього
   // «Прогрес адаптації 200/200 XP», який упирався в стелю після двох курсів.
   const rating = await getEmployeeRating(employee);
   const mandatory = mandatoryProgress(enrollments);

@@ -670,11 +670,11 @@ model EmployeeBadge {
 }
 
 // ---------------------------------------------------------------------
-// Рейтинг співробітника (lib/rating.js, lib/ratingLogic.js)
+// Рейтинг співробітника (lib/rating.ts, lib/ratingLogic.ts)
 // ---------------------------------------------------------------------
 
 /// Вага події рейтингу — дані, не код: адмін править у /admin/rating.
-/// Ключі — lib/ratingLogic.js DEFAULT_RULES (course_completed,
+/// Ключі — lib/ratingLogic.ts DEFAULT_RULES (course_completed,
 /// course_perfect, first_attempt, on_time, manual_badge_default).
 model RatingRule {
   key     String  @id
@@ -711,11 +711,11 @@ model RatingEvent {
 
 /// Журнал дій з /admin: що зробили й над чим. Сесія адміна не прив'язана
 /// до Employee (спільний ADMIN_PASSWORD), тому actor — рядок ("admin"),
-/// а не зв'язок. Лише додається, ніколи не редагується (lib/audit.js).
+/// а не зв'язок. Лише додається, ніколи не редагується (lib/audit.ts).
 model AuditLog {
   id         Int      @id @default(autoincrement())
   actor      String   @default("admin")
-  /// "enrollment.update", "badge.award", "course.assign" … — див. lib/audit.js
+  /// "enrollment.update", "badge.award", "course.assign" … — див. lib/audit.ts
   action     String
   targetType String
   targetId   Int?
