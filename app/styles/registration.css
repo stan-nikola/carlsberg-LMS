@@ -340,12 +340,21 @@
   outline: none;
   box-shadow: var(--cb-focus-ring);
 }
-/* Підказка біля «Тестовий вхід»: іконка стоїть за кнопкою, тож блок
-   зсуваємо вліво і обмежуємо шириною картки — інакше обрізався правим
-   краєм .course-card (overflow:hidden). */
+/* Підказка біля «Тестовий вхід»: блок позиціонується від САМОГО рядка
+   .reg-demo-toggle (іконка — position:static), а не від іконки — тоді
+   він завжди починається з лівого краю рядка і обмежений шириною картки,
+   незалежно від довжини кнопки (обрізався і зліва, і справа при
+   overflow:hidden у .course-card). */
+.reg-demo-toggle {
+  position: relative;
+}
+.reg-demo-toggle .hint-dot {
+  position: static;
+}
 .reg-demo-toggle .hint-dot::after {
-  left: -150px;
-  max-width: min(320px, calc(100cqw - 40px));
+  left: 0;
+  right: auto;
+  max-width: min(340px, 100%);
 }
 .reg-form .reg-select,
 .reg-form input[type="email"] {

@@ -6,6 +6,9 @@
 vanilla JS + Google Sheets (архів — [`/legacy`](./legacy)) на **Next.js
 (App Router) + Prisma + Postgres**.
 
+**Деплой на прод** — чек-лист у [`DEPLOY.md`](./DEPLOY.md): змінні Vercel,
+міграції через `vercel-build`, перевірка `/api/health`.
+
 ## Що є в застосунку
 
 **Кабінет співробітника** (`/hub`, `/courses/[slug]`) — мобільний
