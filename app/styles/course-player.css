@@ -1875,3 +1875,8 @@
     animation: none;
   }
 }
+
+/* Результат у черзі офлайн (lib/offlineOutbox.js) — не помилка, а очікування мережі. */
+.cp-save-status.cp-save-queued {
+  color: color-mix(in srgb, var(--cb-notification) 70%, var(--cb-black));
+}

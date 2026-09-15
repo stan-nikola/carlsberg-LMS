@@ -1,6 +1,7 @@
 import localFont from "next/font/local";
 import { Montserrat, IBM_Plex_Mono } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { OfflineSync } from "@/components/OfflineSync";
 import { PLATFORM_NAME, PLATFORM_SHORT_NAME, PLATFORM_TAGLINE } from "@/lib/branding";
 import "@/app/styles/tokens.css";
 import "./globals.css";
@@ -95,6 +96,7 @@ export default function RootLayout({ children }) {
       <body suppressHydrationWarning>
         {children}
         <ServiceWorkerRegister />
+        <OfflineSync />
       </body>
     </html>
   );

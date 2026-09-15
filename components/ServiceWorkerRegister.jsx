@@ -3,9 +3,8 @@
 import { useEffect } from "react";
 
 /**
- * Реєструє public/sw.js (мінімальний, без кешування — див. коментар там)
- * лише щоб Chrome вважав застосунок "installable" для повноцінного PWA
- * при "Додати на головний екран". Нічого не рендерить.
+ * Реєструє public/sw.js: installability для PWA, Web Push і офлайн-кеш
+ * (network-first, див. коментар там). Нічого не рендерить.
  */
 export function ServiceWorkerRegister() {
   useEffect(() => {

@@ -1,10 +1,14 @@
-// Service worker платформи. Навмисно НЕ кешує нічого (жодного
-// fetch-обробника): на dev-сервері з Turbopack HMR офлайн-кеш заважав би
-// бачити свіжі правки. Дві ролі:
+// Service worker платформи. Три ролі:
 //  1. критерій installability для Chrome (маніфест + HTTPS + SW = справжній
 //     WebAPK при «Додати на головний екран», а не ярлик);
 //  2. Web Push: приймає повідомлення від push-сервісу й показує системне
-//     сповіщення; клік відкриває/фокусує застосунок на потрібному екрані.
+//     сповіщення; клік відкриває/фокусує застосунок на потрібному екрані;
+//  3. офлайн: network-first кеш усіх same-origin GET (сторінки, RSC,
+//     чанки, next/image) — онлайн поведінка не змінюється (завжди свіже,
+//     HMR на dev не страждає), без мережі віддається останнє бачене.
+//     Відкритий курс плеєр досилає повідомленням {type:"precache", urls}
+//     (сторінка + фото всіх екранів), щоб ТП у полі без зв'язку міг
+//     пройти курс до кінця; відповіді копить lib/offlineOutbox.js.
 //
 // Payload — JSON із lib/webPush.js: { title, body, url, tag, category }.
 // iOS (16.4+, лише встановлена PWA) вимагає, щоб КОЖЕН push показував
@@ -14,7 +18,67 @@ const ICON = "/icons/icon-192.png";
 const DEFAULT_URL = "/hub/notifications";
 
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+const CACHE = "carls-offline-v1";
+const IMAGE_WIDTH = 828; // ширина next/image для precache; офлайн підходить будь-яка закешована
+
+self.addEventListener("activate", (event) =>
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  )
+);
+
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  const url = new URL(req.url);
+  if (req.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+  event.respondWith(networkFirst(req, url));
+});
+
+async function networkFirst(req, url) {
+  const cache = await caches.open(CACHE);
+  try {
+    const res = await fetch(req);
+    if (res.ok) cache.put(req, res.clone());
+    return res;
+  } catch (err) {
+    const hit = await cache.match(req, { ignoreVary: true });
+    if (hit) return hit;
+    // next/image: те саме фото, але інша ширина/якість — офлайн годиться
+    // будь-який закешований варіант того ж url=.
+    if (url.pathname === "/_next/image") {
+      const want = url.searchParams.get("url");
+      for (const key of await cache.keys()) {
+        const k = new URL(key.url);
+        if (k.pathname === "/_next/image" && k.searchParams.get("url") === want) return cache.match(key, { ignoreVary: true });
+      }
+    }
+    if (req.mode === "navigate") {
+      return new Response(
+        '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Немає мережі</title><body style="font-family:system-ui;padding:32px;text-align:center"><h2>Немає з’єднання</h2><p>Ця сторінка ще не відкривалась на цьому пристрої. Відкриті раніше курси доступні офлайн.</p><p><a href="/hub">На головну</a></p></body>',
+        { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } }
+      );
+    }
+    throw err;
+  }
+}
+
+// Плеєр просить закешувати курс наперед: сторінку і фото всіх екранів.
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "precache" || !Array.isArray(event.data.urls)) return;
+  event.waitUntil(
+    caches.open(CACHE).then((cache) =>
+      Promise.all(
+        event.data.urls.map((u) => {
+          const target = /^https?:/.test(u) ? `/_next/image?url=${encodeURIComponent(u)}&w=${IMAGE_WIDTH}&q=75` : u;
+          return cache.match(target, { ignoreVary: true }).then((hit) => hit || cache.add(target).catch(() => {}));
+        })
+      )
+    )
+  );
+});
 
 self.addEventListener("push", (event) => {
   let data = {};
