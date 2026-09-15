@@ -397,7 +397,7 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
       <div className="admin-form-section">
         <h2 style={{ fontSize: 15 }}>Підпорядкування</h2>
         <p className="admin-subtitle">Прямих підлеглих: {employee._count.subordinates}</p>
-        <Link href="/admin/org" className="admin-btn-link">
+        <Link href={`/admin/org?focus=${employeeId}`} className="admin-btn-link">
           Переглянути в дереві організації →
         </Link>
       </div>

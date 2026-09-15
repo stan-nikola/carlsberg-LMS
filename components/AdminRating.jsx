@@ -3,6 +3,16 @@
 import { useEffect, useState } from "react";
 import { SpinnerIcon } from "@/components/icons";
 
+// Пояснення до кожного правила — адмін бачить, ЗА ЩО саме бали, а не
+// лише технічний ключ.
+const RULE_HINTS = {
+  course_completed: "Базові бали за складений курс. Якщо в курсі задано власні бали — беруться вони.",
+  course_perfect: "Бонус, коли курс складено рівно на 100%.",
+  first_attempt: "Бонус, коли курс складено з першої спроби.",
+  on_time: "Бонус, коли курс складено до дедлайну призначення.",
+  manual_badge_default: "Бали за ручну відзнаку, якщо в самій відзнаці бали не задано.",
+};
+
 /**
  * /admin/rating — ваги подій рейтингу та пороги рівнів. Зміна ваги діє
  * на НОВІ нарахування; «Перерахувати все» стирає журнал і будує його
@@ -16,6 +26,7 @@ export function AdminRating() {
   const [saving, setSaving] = useState(false);
   const [recalc, setRecalc] = useState(false);
   const [msg, setMsg] = useState("");
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/rating")
@@ -35,7 +46,8 @@ export function AdminRating() {
     if (res.ok) {
       setRules(d.rules);
       setLevels(d.levels);
-      setMsg("Збережено. Нові нарахування йдуть за цими вагами; для минулого — «Перерахувати все».");
+      setDirty(false);
+      setMsg("Збережено. Нові нарахування йдуть за цими вагами; щоб перерахувати минуле — «Перерахувати все» нижче.");
     } else setMsg(d.error || "Помилка");
     setSaving(false);
   }
@@ -49,59 +61,127 @@ export function AdminRating() {
     setRecalc(false);
   }
 
-  const updRule = (key, patch) => setRules((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  const updLevel = (i, patch) => setLevels((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  const updRule = (key, patch) => {
+    setDirty(true);
+    setRules((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  };
+  const updLevel = (i, patch) => {
+    setDirty(true);
+    setLevels((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  };
+  const removeLevel = (i) => {
+    setDirty(true);
+    setLevels((ls) => ls.filter((_, j) => j !== i));
+  };
+  const addLevel = () => {
+    setDirty(true);
+    setLevels((ls) => [...ls, { threshold: (Number(ls[ls.length - 1]?.threshold) || 0) + 500, label: "Новий рівень" }]);
+  };
 
-  if (loading) return <div className="admin-page"><SpinnerIcon /></div>;
+  if (loading)
+    return (
+      <div className="admin-page">
+        <p className="admin-subtitle">
+          <SpinnerIcon /> Завантаження…
+        </p>
+      </div>
+    );
+
+  // Приклад для адміна: скільки дасть один курс за поточними вагами.
+  const pts = (key) => {
+    const r = rules.find((x) => x.key === key);
+    return r && r.enabled !== false ? Number(r.points) || 0 : 0;
+  };
+  const maxPerCourse = pts("course_completed") + pts("course_perfect") + pts("first_attempt") + pts("on_time");
 
   return (
-    <div className="admin-page">
-      <h1>Рейтинг</h1>
-      <p className="admin-subtitle">
-        Бали нараховуються лише за перевірений результат: складений курс, 100%, перша спроба, вчасно, відзнаки. Штрафів немає — прострочення просто не дає бонусу «вчасно». Період — весь час.
-      </p>
-
-      <h2>Ваги подій</h2>
-      <table className="admin-table">
-        <thead>
-          <tr><th>Подія</th><th>Бали</th><th>Увімкнено</th></tr>
-        </thead>
-        <tbody>
-          {rules.map((r) => (
-            <tr key={r.key}>
-              <td>{r.label}<div className="admin-hint">{r.key}</div></td>
-              <td><input type="number" min="0" className="admin-input-flex" style={{ maxWidth: 110 }} value={r.points} onChange={(e) => updRule(r.key, { points: e.target.value })} /></td>
-              <td><input type="checkbox" checked={r.enabled !== false} onChange={(e) => updRule(r.key, { enabled: e.target.checked })} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="admin-hint">Бали за конкретну відзнаку — у розділі «Ачивки», за конкретний курс — у формі курсу (поле «Бали рейтингу»).</p>
-
-      <h2>Рівні</h2>
-      <table className="admin-table">
-        <thead>
-          <tr><th>Від балів</th><th>Назва</th><th></th></tr>
-        </thead>
-        <tbody>
-          {levels.map((l, i) => (
-            <tr key={i}>
-              <td><input type="number" min="0" className="admin-input-flex" style={{ maxWidth: 110 }} value={l.threshold} disabled={i === 0} onChange={(e) => updLevel(i, { threshold: e.target.value })} /></td>
-              <td><input className="admin-input-flex" value={l.label} onChange={(e) => updLevel(i, { label: e.target.value })} /></td>
-              <td>{i > 0 && <button type="button" className="admin-btn-link" onClick={() => setLevels((ls) => ls.filter((_, j) => j !== i))}>Прибрати</button>}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="admin-row">
-        <button type="button" className="admin-btn-link" onClick={() => setLevels((ls) => [...ls, { threshold: (Number(ls[ls.length - 1]?.threshold) || 0) + 500, label: "Новий рівень" }])}>+ Додати рівень</button>
+    <div className="admin-page rt-admin">
+      <div className="adm-page-head">
+        <div>
+          <h1>Рейтинг</h1>
+          <p className="admin-subtitle">
+            Бали лише за перевірений результат: складений курс, 100%, перша спроба, вчасно, відзнаки. Штрафів немає — прострочення просто не дає бонусу «вчасно». Період — весь час.
+          </p>
+        </div>
       </div>
 
-      <div className="admin-row" style={{ marginTop: 18 }}>
-        <button type="button" className="admin-btn admin-btn-primary" onClick={save} disabled={saving}>{saving ? <SpinnerIcon /> : "Зберегти"}</button>
-        <button type="button" className="admin-btn admin-btn-danger" onClick={recalculate} disabled={recalc}>{recalc ? <SpinnerIcon /> : "Перерахувати все"}</button>
+      <section className="rt-admin-section">
+        <div className="rt-admin-section-head">
+          <h2>Ваги подій</h2>
+          <span className="admin-hint">Максимум за один курс зараз: <b>{maxPerCourse}</b> балів</span>
+        </div>
+        <div className="rt-rule-grid">
+          {rules.map((r) => (
+            <div key={r.key} className={`rt-rule-card${r.enabled === false ? " is-off" : ""}`}>
+              <div className="rt-rule-top">
+                <b>{r.label}</b>
+                <label className="rt-switch" title={r.enabled === false ? "Вимкнено — бали не нараховуються" : "Увімкнено"}>
+                  <input type="checkbox" checked={r.enabled !== false} onChange={(e) => updRule(r.key, { enabled: e.target.checked })} />
+                  <span className="rt-switch-track" aria-hidden="true" />
+                </label>
+              </div>
+              <p className="rt-rule-hint">{RULE_HINTS[r.key] || r.key}</p>
+              <div className="rt-rule-points">
+                <input type="number" min="0" className="admin-input-flex" value={r.points} disabled={r.enabled === false} onChange={(e) => updRule(r.key, { points: e.target.value })} aria-label={`Бали: ${r.label}`} />
+                <span>балів</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="admin-hint">Бали за конкретну відзнаку — у розділі «Ачивки», за конкретний курс — у формі курсу (поле «Бали рейтингу»).</p>
+      </section>
+
+      <section className="rt-admin-section">
+        <div className="rt-admin-section-head">
+          <h2>Рівні</h2>
+          <span className="admin-hint">Рівень визначається сумою балів; перший завжди від 0.</span>
+        </div>
+        <ol className="rt-level-ladder">
+          {levels.map((l, i) => (
+            <li key={i} className="rt-level-row">
+              <span className="rt-level-step" aria-hidden="true">
+                {i + 1}
+              </span>
+              <span className="rt-level-from">
+                від
+                <input type="number" min="0" className="admin-input-flex" value={l.threshold} disabled={i === 0} onChange={(e) => updLevel(i, { threshold: e.target.value })} aria-label="Поріг балів" />
+                балів
+              </span>
+              <input className="admin-input-flex rt-level-name" value={l.label} onChange={(e) => updLevel(i, { label: e.target.value })} aria-label="Назва рівня" />
+              {i > 0 ? (
+                <button type="button" className="admin-btn-link admin-link-danger" onClick={() => removeLevel(i)}>
+                  Прибрати
+                </button>
+              ) : (
+                <span className="admin-hint">стартовий</span>
+              )}
+            </li>
+          ))}
+        </ol>
+        <button type="button" className="admin-btn-link" onClick={addLevel}>
+          + Додати рівень
+        </button>
+      </section>
+
+      <div className="rt-admin-actions">
+        <button type="button" className="admin-btn admin-btn-primary" onClick={save} disabled={saving || !dirty}>
+          {saving ? <SpinnerIcon /> : "Зберегти зміни"}
+        </button>
+        {!dirty && !msg && <span className="admin-hint">Змін немає</span>}
         {msg && <span className="admin-hint">{msg}</span>}
       </div>
+
+      <section className="rt-admin-section rt-admin-danger">
+        <div className="rt-admin-section-head">
+          <h2>Перерахунок</h2>
+        </div>
+        <p className="admin-hint">
+          Ваги діють на нові нарахування. Щоб застосувати їх до всього, що вже пройдено, журнал стирається і будується заново за поточними правилами по всіх складених курсах і виданих відзнаках. Місця в рейтингу зміняться у всіх.
+        </p>
+        <button type="button" className="admin-btn admin-btn-danger" onClick={recalculate} disabled={recalc || dirty} title={dirty ? "Спершу збережіть зміни" : undefined}>
+          {recalc ? <SpinnerIcon /> : "Перерахувати все"}
+        </button>
+      </section>
     </div>
   );
 }

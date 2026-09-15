@@ -15,7 +15,7 @@ export async function GET() {
   await ensureAutoBadgesExist();
   const badges = await prisma.badge.findMany({
     orderBy: [{ kind: "asc" }, { title: "asc" }],
-    select: { id: true, code: true, title: true, description: true, icon: true, kind: true, _count: { select: { awards: true } } },
+    select: { id: true, code: true, title: true, description: true, icon: true, kind: true, points: true, _count: { select: { awards: true } } },
   });
   return NextResponse.json({ badges });
 }
@@ -52,7 +52,7 @@ export async function POST(request) {
       kind: "manual",
       ruleKey: null,
     },
-    select: { id: true, code: true, title: true, description: true, icon: true, kind: true },
+    select: { id: true, code: true, title: true, description: true, icon: true, kind: true, points: true },
   });
   await audit("badge.create", "badge", created.id, { title: created.title, kind: created.kind, points: created.points });
   return NextResponse.json(created, { status: 201 });

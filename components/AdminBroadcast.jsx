@@ -13,6 +13,15 @@ export function AdminBroadcast() {
   const [positions, setPositions] = useState([]);
   const [history, setHistory] = useState([]);
   const [form, setForm] = useState({ title: "", message: "", url: "", all: true, positionCodes: [] });
+  // Список курсів для поля «Посилання»: обрав курс — адреса /courses/<slug>
+  // підставилась сама, руками slug не вгадувати (користувач, 2026-09-15).
+  const [courses, setCourses] = useState([]);
+  useEffect(() => {
+    fetch("/api/admin/courses")
+      .then((r) => r.json())
+      .then((list) => setCourses(Array.isArray(list) ? list.map((c) => ({ slug: c.slug, title: c.title })) : []))
+      .catch(() => {});
+  }, []);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -73,7 +82,21 @@ export function AdminBroadcast() {
         </label>
         <label className="admin-field">
           <span>Посилання (необов&apos;язково, відносне: /hub/learn)</span>
-          <input className="admin-input-flex" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
+          <div className="admin-btn-group">
+            <select
+              className="admin-select"
+              value={courses.some((c) => form.url === `/courses/${c.slug}`) ? form.url : ""}
+              onChange={(e) => setForm({ ...form, url: e.target.value })}
+            >
+              <option value="">Курс…</option>
+              {courses.map((c) => (
+                <option key={c.slug} value={`/courses/${c.slug}`}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+            <input className="admin-input-flex" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="/hub/learn" />
+          </div>
         </label>
         <label className="admin-field">
           <span>Кому</span>
