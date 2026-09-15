@@ -1,0 +1,125 @@
+/* ===================== Сповіщення (центр, дзвіночок, налаштування) =====
+   components/NotificationBell.jsx, NotificationCenter.jsx,
+   NotificationSettings.jsx, AdminBroadcast.jsx. Лише токени tokens.css. */
+
+.ntf-bell {
+  position: relative;
+}
+.ntf-bell-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--cb-fail);
+  color: var(--cb-white);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.ntf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ntf-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+}
+.ntf-item.unread {
+  border-color: var(--cb-secondary);
+  background: var(--green-tint);
+}
+@media (hover: hover) {
+  a.ntf-item:hover {
+    background: var(--cb-overlay-10);
+  }
+}
+a.ntf-item:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.ntf-ico {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.ntf-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ntf-title {
+  font-size: calc(13.4px * var(--fs-scale));
+}
+.ntf-msg {
+  font-size: calc(12.6px * var(--fs-scale));
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.ntf-time {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--fs-scale));
+  color: var(--ink-soft);
+}
+
+/* М'яка картка «Увімкнути сповіщення» на головній хаба. */
+.ntf-card {
+  display: flex;
+  gap: 12px;
+  padding: 13px;
+  margin-bottom: 14px;
+  border: 1px solid var(--cb-secondary);
+  border-radius: var(--radius-card);
+  background: var(--green-tint);
+}
+.ntf-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: calc(12.6px * var(--fs-scale));
+}
+.ntf-card-body b {
+  font-size: calc(13.4px * var(--fs-scale));
+}
+.ntf-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.ntf-card-actions .btn-primary-full,
+.ntf-card-actions .btn-secondary-full {
+  flex: 1;
+  margin: 0;
+}
+
+.ntf-settings {
+  margin-top: 14px;
+}
+.ntf-pref {
+  cursor: pointer;
+}
+.ntf-pref input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--cb-secondary);
+  flex-shrink: 0;
+}
+.ntf-positions {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}

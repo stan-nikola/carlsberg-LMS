@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { SettingsSheet } from "@/components/SettingsSheet";
 import { GearIcon, LockIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const TABS = [
   { href: "/hub", label: "Головна", Icon: HomeIcon },
@@ -53,6 +54,7 @@ export function HubShell({ children, isAdmin = false }) {
                 <LockIcon />
               </Link>
             )}
+            <NotificationBell href="/hub/notifications" />
             <button className="iconbtn" aria-label="Налаштування" onClick={() => setSettingsOpen(true)}>
               <GearIcon />
             </button>
