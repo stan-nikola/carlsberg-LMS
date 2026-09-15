@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requestLoginPin } from "@/lib/auth";
+import { isDemoLoginEnabled, isDemoCode } from "@/lib/demoLogin";
 
 /**
  * POST /api/auth/register
@@ -22,7 +23,22 @@ export async function POST(request) {
     return NextResponse.json({ ok: false, error: "missing_external_code" }, { status: 400 });
   }
 
-  const result = await requestLoginPin(externalCode, name);
+  // «Тестовий вхід»: PIN на пошту колеги. Дозволено лише коли задано
+  // DEMO_LOGIN_CODES і код — з того списку (lib/demoLogin.ts); інакше
+  // будь-хто міг би зайти під будь-ким, вказавши свою пошту.
+  let recipientOverride = null;
+  const demoEmail = String(body.demoEmail || "").trim().slice(0, 254);
+  if (demoEmail) {
+    if (!isDemoLoginEnabled() || !isDemoCode(externalCode)) {
+      return NextResponse.json({ ok: false, error: "demo_not_allowed" }, { status: 403 });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(demoEmail)) {
+      return NextResponse.json({ ok: false, error: "invalid_email" }, { status: 400 });
+    }
+    recipientOverride = demoEmail;
+  }
+
+  const result = await requestLoginPin(externalCode, name, { recipientOverride });
   const status = result.ok
     ? 200
     : result.error === "not_found"
