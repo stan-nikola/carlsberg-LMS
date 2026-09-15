@@ -31,6 +31,8 @@ export default async function ManagerProfilePage() {
             hasEmail={Boolean(employee.email)}
             externalCode={employee.externalCode}
             levelLabel={levelLabel}
+            avatarUrl={employee.avatarUrl}
+            editable
           />
           <div className="hub-sec-title">
             <h3>Дані</h3>
