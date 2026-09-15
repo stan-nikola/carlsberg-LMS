@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
@@ -14,5 +15,6 @@ export async function DELETE(request, { params }) {
     where: { id: Number(tokenId) },
     data: { revokedAt: new Date() },
   });
+  await audit("token.revoke", "token", tokenId);
   return NextResponse.json({ ok: true });
 }

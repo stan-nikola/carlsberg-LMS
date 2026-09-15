@@ -178,7 +178,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="stage">
+    <div className="stage stage--register">
       <div className="course-col">
         <div className="course-card">
           <div className="appbar">

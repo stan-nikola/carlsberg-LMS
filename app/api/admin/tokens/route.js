@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { createApiToken } from "@/lib/adminApiToken";
@@ -42,5 +43,6 @@ export async function POST(request) {
   }
 
   const { id, rawToken } = await createApiToken(employeeId, body.label);
+  await audit("token.create", "token", id, { employeeId, label: body.label || null });
   return NextResponse.json({ id, token: rawToken }, { status: 201 });
 }

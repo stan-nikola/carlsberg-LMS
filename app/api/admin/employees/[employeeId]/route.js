@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 import { getAllSubordinates } from "@/lib/permissions";
@@ -106,6 +107,7 @@ export async function PATCH(request, { params }) {
       data,
       select: EMPLOYEE_SELECT,
     });
+    await audit("employee.update", "employee", id, data);
     return NextResponse.json(updated);
   } catch (err) {
     // P2002 — унікальний email вже зайнятий іншим співробітником.

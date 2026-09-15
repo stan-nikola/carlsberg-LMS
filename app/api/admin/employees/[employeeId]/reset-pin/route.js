@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 import { requestLoginPin } from "@/lib/auth";
@@ -25,5 +26,6 @@ export async function POST(request, { params }) {
   if (!result.ok) {
     return NextResponse.json(result, { status: 422 });
   }
+  await audit("pin.reset", "employee", employeeId);
   return NextResponse.json(result);
 }

@@ -240,6 +240,7 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
   const [assignOnFirstLogin, setAssignOnFirstLogin] = useState(false);
   const [deadlineDays, setDeadlineDays] = useState("");
   const [passThreshold, setPassThreshold] = useState(80);
+  const [points, setPoints] = useState("");
   const [previewDevice, setPreviewDevice] = useState("phone");
   const [streakMessages, setStreakMessages] = useState(STREAK_PRESET_MESSAGES);
   const [targetPositions, setTargetPositions] = useState([]);
@@ -266,6 +267,7 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
           assignOnFirstLogin,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
           passThreshold: passThreshold === "" ? 80 : Number(passThreshold),
+          points: points === "" ? null : Number(points),
           previewDevice,
           streakMessages,
           targetPositions,
@@ -359,6 +361,10 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
                 className="admin-input-flex"
               />
             </div>
+            <div className="admin-field">
+              <label className="admin-label">Бали рейтингу (порожньо = за правилом)</label>
+              <input type="number" min="0" value={points} onChange={(e) => setPoints(e.target.value)} className="admin-input-flex" placeholder="100" />
+            </div>
           </div>
           <label className="admin-checkbox">
             <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
@@ -429,6 +435,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
   const [assignOnFirstLogin, setAssignOnFirstLogin] = useState(Boolean(course.assignOnFirstLogin));
   const [deadlineDays, setDeadlineDays] = useState(course.deadlineDays ?? "");
   const [passThreshold, setPassThreshold] = useState(course.passThreshold ?? 80);
+  const [points, setPoints] = useState(course.points ?? "");
   const [previewDevice, setPreviewDevice] = useState(course.previewDevice || "phone");
   const [streakMessages, setStreakMessages] = useState(course.streakMessages || null);
   const [targetPositions, setTargetPositions] = useState(course.targetPositions);
@@ -559,6 +566,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
           assignOnFirstLogin,
           deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
           passThreshold: passThreshold === "" ? 80 : Number(passThreshold),
+          points: points === "" ? null : Number(points),
           previewDevice,
           streakMessages,
           targetPositions,
@@ -661,6 +669,10 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
                 onChange={(e) => setPassThreshold(e.target.value)}
                 className="admin-input-flex"
               />
+            </div>
+            <div className="admin-field">
+              <label className="admin-label">Бали рейтингу (порожньо = за правилом)</label>
+              <input type="number" min="0" value={points} onChange={(e) => setPoints(e.target.value)} className="admin-input-flex" placeholder="100" />
             </div>
           </div>
           <p className="admin-hint" style={{ fontSize: "0.8em" }}>{statusText}</p>

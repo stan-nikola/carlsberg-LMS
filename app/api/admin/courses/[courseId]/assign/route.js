@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { audit } from "@/lib/audit";
 import { requireAdmin, SYSTEM_ADMIN_EXTERNAL_CODE } from "@/lib/adminAuth";
 import { assignCourseToPositionsAndTerritories } from "@/lib/courseAssignment";
 import { prisma } from "@/lib/prisma";
@@ -46,6 +47,7 @@ export async function POST(request, { params }) {
     employeeIds,
     assignedByUserId: systemAdmin.id,
   });
+  await audit("course.assign", "course", courseId, { positionCodes, territoryIds, employeeIds, result });
 
   return NextResponse.json(result);
 }

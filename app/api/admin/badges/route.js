@@ -47,6 +47,7 @@ export async function POST(request) {
       title,
       description: body.description || null,
       icon: body.icon || "⭐",
+      points: Number.isInteger(Number(body.points)) && Number(body.points) >= 0 ? Number(body.points) : 0,
       kind: "manual",
       ruleKey: null,
     },

@@ -129,8 +129,9 @@ model Employee {
   /// бейджі) лишається цілою й оборотною.
   isActive Boolean @default(true)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  ratingEvents RatingEvent[]
 }
 
 // ---------------------------------------------------------------------
@@ -172,6 +173,11 @@ model Course {
   /// призначення на цьому етапі копило б прострочення тим, хто
   /// платформу ще жодного разу не відкривав.
   assignOnFirstLogin Boolean @default(false)
+
+  /// Бали рейтингу за складання САМЕ цього курсу (перекриває правило
+  /// RatingRule course_completed). null — беруться з правила. Важкий курс
+  /// може коштувати більше — рішення адміна в /admin, форма курсу.
+  points Int?
 
   /// Під який екран НАСАМПЕРЕД узгоджували контент курсу — "phone" чи
   /// "laptop". Редагується РАЗ у "Загальна інформація"
@@ -634,6 +640,9 @@ model Badge {
   icon        String?
   kind        BadgeKind
   ruleKey     String?
+  /// Бали рейтингу за цю відзнаку (RatingEvent kind "badge"). 0 — відзнака
+  /// декоративна, у рейтинг не йде. Редагується в /admin/badges.
+  points      Int             @default(0)
   createdAt   DateTime        @default(now())
   awards      EmployeeBadge[]
 }
@@ -658,4 +667,61 @@ model EmployeeBadge {
   note        String?
 
   @@unique([employeeId, badgeId])
+}
+
+// ---------------------------------------------------------------------
+// Рейтинг співробітника (lib/rating.js, lib/ratingLogic.js)
+// ---------------------------------------------------------------------
+
+/// Вага події рейтингу — дані, не код: адмін править у /admin/rating.
+/// Ключі — lib/ratingLogic.js DEFAULT_RULES (course_completed,
+/// course_perfect, first_attempt, on_time, manual_badge_default).
+model RatingRule {
+  key     String  @id
+  label   String
+  points  Int
+  enabled Boolean @default(true)
+}
+
+/// Рівні: поріг у балах → назва. Відсортовані за threshold; перший — 0.
+model RatingLevel {
+  id        Int    @id @default(autoincrement())
+  threshold Int    @unique
+  label     String
+}
+
+/// Журнал нарахувань — append-only, кожен бал має причину і посилання
+/// (refType/refId: enrollment або badge). Рейтинг = SUM(points). Події
+/// зберігають бали НА МОМЕНТ нарахування: правка ваги в адмінці минуле не
+/// переписує (є явне «Перерахувати все»). @@unique — один курс/відзнака
+/// дає кожен вид балів рівно раз (пересдача не подвоює).
+model RatingEvent {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  kind       String
+  points     Int
+  refType    String
+  refId      Int
+  createdAt  DateTime @default(now())
+
+  @@unique([employeeId, kind, refType, refId])
+  @@index([employeeId])
+}
+
+/// Журнал дій з /admin: що зробили й над чим. Сесія адміна не прив'язана
+/// до Employee (спільний ADMIN_PASSWORD), тому actor — рядок ("admin"),
+/// а не зв'язок. Лише додається, ніколи не редагується (lib/audit.js).
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  actor      String   @default("admin")
+  /// "enrollment.update", "badge.award", "course.assign" … — див. lib/audit.js
+  action     String
+  targetType String
+  targetId   Int?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
 }
