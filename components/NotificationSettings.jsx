@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { NOTIFICATION_CATEGORIES } from "@/lib/notificationTypes";
 import { getPushState, subscribeToPush, unsubscribeFromPush } from "@/lib/pushClient";
-import { BellIcon } from "@/components/icons";
+import { BellIcon, ChevronIcon } from "@/components/icons";
 
 const DISMISS_KEY = "carls_push_prompt_dismissed_until";
 const DISMISS_DAYS = 14;
@@ -27,6 +27,9 @@ export function NotificationSettings({ variant = "full" }) {
   const [busy, setBusy] = useState(false);
   const [prefs, setPrefs] = useState(null);
   const [hidden, setHidden] = useState(variant === "card");
+  // Категорії — під шевроном, згорнуті: у профілі це другорядне налаштування,
+  // п'ять рядків одразу перевантажували екран (користувач, 2026-09-15).
+  const [prefsOpen, setPrefsOpen] = useState(false);
 
   useEffect(() => {
     getPushState().then(setState);
@@ -128,7 +131,23 @@ export function NotificationSettings({ variant = "full" }) {
           </button>
         )}
       </div>
+      {prefs && (
+        <button type="button" className="settings-row ntf-prefs-toggle" onClick={() => setPrefsOpen((v) => !v)} aria-expanded={prefsOpen}>
+          <div className="settings-label">
+            <div>
+              <div className="settings-t">Які сповіщення отримувати</div>
+              <div className="settings-d">
+                {NOTIFICATION_CATEGORIES.filter((c) => prefs[c.key] !== false).length} з {NOTIFICATION_CATEGORIES.length} категорій увімкнено
+              </div>
+            </div>
+          </div>
+          <span className={`ntf-chevron${prefsOpen ? " open" : ""}`} aria-hidden="true">
+            <ChevronIcon />
+          </span>
+        </button>
+      )}
       {prefs &&
+        prefsOpen &&
         NOTIFICATION_CATEGORIES.map((c) => (
           <label key={c.key} className="settings-row ntf-pref">
             <div className="settings-label">
