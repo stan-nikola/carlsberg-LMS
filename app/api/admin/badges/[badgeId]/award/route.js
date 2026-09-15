@@ -20,7 +20,7 @@ export async function POST(request, { params }) {
   const { badgeId } = await params;
   const badge = await prisma.badge.findUnique({ where: { id: Number(badgeId) }, select: { id: true, title: true, kind: true, points: true, icon: true, description: true } });
   if (!badge) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  if (badge.kind !== "manual") return NextResponse.json({ error: "Автоматичні ачивки нараховує cron, вручну їх не видають" }, { status: 400 });
+  if (badge.kind !== "manual") return NextResponse.json({ error: "Автоматичні відзнаки нараховує cron, вручну їх не видають" }, { status: 400 });
 
   const body = await request.json();
   let ids;

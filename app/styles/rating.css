@@ -134,3 +134,35 @@ a.rt-card:focus-visible {
   font-size: calc(10.5px * var(--fs-scale));
   color: var(--ink-soft);
 }
+
+/* ===== Досягнення: mobile-first, адаптація @container (components/AchievementsPanel.jsx) =====
+   Базова розкладка — один стовпчик (телефонна рамка /hub). Від 640px
+   ширини КОНТЕЙНЕРА (кабінет керівника) — дві колонки: рейтинг і
+   відзнаки зліва, сертифікати і лідери справа; сітка відзнак росте по
+   auto-fit. inline-size міряє content-box (CLAUDE.md). */
+.ach-panel {
+  container-type: inline-size;
+  container-name: ach;
+}
+.ach-col {
+  min-width: 0;
+}
+@container ach (min-width: 640px) {
+  /* Дві незалежні колонки (рейтинг + відзнаки | сертифікати + лідери):
+     кожна тече своєю висотою, без порожнеч від вирівнювання рядків. */
+  .ach-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 28px;
+    align-items: start;
+  }
+  .ach-badges .badge-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 104px), 1fr));
+    gap: 14px 10px;
+  }
+}
+@container ach (min-width: 960px) {
+  .ach-grid {
+    gap: 0 40px;
+  }
+}

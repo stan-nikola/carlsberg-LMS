@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SpinnerIcon } from "@/components/icons";
+import { SpinnerIcon, XIcon } from "@/components/icons";
 
 /**
  * /admin/notifications — ручна розсилка («новини платформи») усім або за
@@ -12,16 +12,61 @@ import { SpinnerIcon } from "@/components/icons";
 export function AdminBroadcast() {
   const [positions, setPositions] = useState([]);
   const [history, setHistory] = useState([]);
+  // Видалення з історії: по одному (кнопка в рядку) або масово (чекбокси +
+  // «обрати все»). Разом із розсилкою зникають і її сповіщення в адресатів.
+  const [selected, setSelected] = useState(() => new Set());
+  const [deleting, setDeleting] = useState(false);
+  async function removeBroadcasts(ids) {
+    const n = ids.length;
+    if (!window.confirm(`Видалити ${n === 1 ? "розсилку" : n + " розсилок"}? Повідомлення зникне і з центру сповіщень адресатів.`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/admin/notifications/broadcast", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+      setHistory((h) => h.filter((b) => !ids.includes(b.id)));
+      setSelected(new Set());
+    } catch (err) {
+      window.alert("Не вдалося видалити: " + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+  const allSelected = history.length > 0 && selected.size === history.length;
   const [form, setForm] = useState({ title: "", message: "", url: "", all: true, positionCodes: [] });
   // Список курсів для поля «Посилання»: обрав курс — адреса /courses/<slug>
   // підставилась сама, руками slug не вгадувати (користувач, 2026-09-15).
-  const [courses, setCourses] = useState([]);
+  // Групи <optgroup> «папка / підпапка» → курси; курси поза папками — в
+  // кінці, під «Без папки».
+  const [courseGroups, setCourseGroups] = useState([]);
   useEffect(() => {
-    fetch("/api/admin/courses")
-      .then((r) => r.json())
-      .then((list) => setCourses(Array.isArray(list) ? list.map((c) => ({ slug: c.slug, title: c.title })) : []))
+    Promise.all([fetch("/api/admin/courses").then((r) => r.json()), fetch("/api/admin/course-folders").then((r) => r.json())])
+      .then(([list, fd]) => {
+        const folders = fd.folders || [];
+        const byId = new Map(folders.map((f) => [f.id, f]));
+        const pathOf = (id) => {
+          const parts = [];
+          for (let f = byId.get(id); f; f = f.parentId != null ? byId.get(f.parentId) : null) parts.unshift(f.name);
+          return parts.join(" / ");
+        };
+        const groups = new Map();
+        for (const c of Array.isArray(list) ? list : []) {
+          const key = c.folderId != null && byId.has(c.folderId) ? pathOf(c.folderId) : "";
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push({ slug: c.slug, title: c.title });
+        }
+        setCourseGroups(
+          [...groups.entries()]
+            .sort(([a], [b]) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, "uk")))
+            .map(([label, items]) => ({ label: label || "Без папки", items }))
+        );
+      })
       .catch(() => {});
   }, []);
+  const courses = courseGroups.flatMap((g) => g.items);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -68,7 +113,7 @@ export function AdminBroadcast() {
     <div className="admin-page">
       <h1>Сповіщення</h1>
       <p className="admin-subtitle">
-        Ручна розсилка в центр сповіщень і push на пристрої. Нові курси, дедлайни та ачивки розсилаються автоматично.
+        Ручна розсилка в центр сповіщень і push на пристрої. Нові курси, дедлайни та відзнаки розсилаються автоматично.
       </p>
 
       <form className="admin-form-section" onSubmit={send}>
@@ -89,10 +134,14 @@ export function AdminBroadcast() {
               onChange={(e) => setForm({ ...form, url: e.target.value })}
             >
               <option value="">Курс…</option>
-              {courses.map((c) => (
-                <option key={c.slug} value={`/courses/${c.slug}`}>
-                  {c.title}
-                </option>
+              {courseGroups.map((g) => (
+                <optgroup key={g.label} label={g.label}>
+                  {g.items.map((c) => (
+                    <option key={c.slug} value={`/courses/${c.slug}`}>
+                      {c.title}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             <input className="admin-input-flex" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="/hub/learn" />
@@ -132,22 +181,54 @@ export function AdminBroadcast() {
         </div>
       </form>
 
-      <h2>Історія</h2>
+      <div className="adm-page-head" style={{ marginTop: 24 }}>
+        <h2 style={{ margin: 0 }}>Історія</h2>
+        {selected.size > 0 && (
+          <button type="button" className="admin-btn admin-btn-danger" onClick={() => removeBroadcasts([...selected])} disabled={deleting}>
+            {deleting && <SpinnerIcon />}
+            Видалити обрані ({selected.size})
+          </button>
+        )}
+      </div>
       {history.length === 0 ? (
         <p className="admin-hint">Ще нічого не надсилали.</p>
       ) : (
-        <table className="admin-table">
+        <table className="admin-table adm-bc-table">
           <thead>
             <tr>
+              <th>
+                <input
+                  type="checkbox"
+                  aria-label="Обрати все"
+                  checked={allSelected}
+                  onChange={(e) => setSelected(e.target.checked ? new Set(history.map((b) => b.id)) : new Set())}
+                />
+              </th>
               <th>Коли</th>
               <th>Заголовок</th>
               <th>Кому</th>
               <th>Отримали</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {history.map((b) => (
-              <tr key={b.id}>
+              <tr key={b.id} className={selected.has(b.id) ? "is-selected" : undefined}>
+                <td>
+                  <input
+                    type="checkbox"
+                    aria-label={`Обрати «${b.title}»`}
+                    checked={selected.has(b.id)}
+                    onChange={(e) =>
+                      setSelected((s) => {
+                        const next = new Set(s);
+                        if (e.target.checked) next.add(b.id);
+                        else next.delete(b.id);
+                        return next;
+                      })
+                    }
+                  />
+                </td>
                 <td>{new Date(b.createdAt).toLocaleString("uk-UA")}</td>
                 <td>
                   <b>{b.title}</b>
@@ -155,6 +236,11 @@ export function AdminBroadcast() {
                 </td>
                 <td>{b.targetSummary}</td>
                 <td>{b.sentCount}</td>
+                <td>
+                  <button type="button" className="iconbtn iconbtn-danger" title="Видалити" aria-label="Видалити" onClick={() => removeBroadcasts([b.id])} disabled={deleting}>
+                    <XIcon />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

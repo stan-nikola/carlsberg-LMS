@@ -10,8 +10,8 @@ const ACTION_LABELS = {
   "employee.update": "Зміна картки співробітника",
   "employee.create": "Створено співробітника",
   "employee.import": "Імпорт співробітників",
-  "badge.award": "Видано відзнаку",
-  "badge.revoke": "Відкликано відзнаку",
+  "badge.award": "Видано винагороду",
+  "badge.revoke": "Відкликано винагороду",
   "pin.reset": "Скинуто PIN",
   "course.assign": "Призначено курс",
   "course.delete": "Видалено курс",
@@ -29,6 +29,7 @@ const ACTION_LABELS = {
   "folder.create": "Створено папку курсів",
   "folder.delete": "Видалено папку курсів",
   "broadcast.send": "Ручна розсилка",
+  "broadcast.delete": "Видалено розсилку",
 };
 const TYPE_LABELS = { enrollment: "призначення", employee: "співробітник", course: "курс", badge: "відзнака", folder: "папка", broadcast: "розсилка", rating: "рейтинг", token: "токен" };
 

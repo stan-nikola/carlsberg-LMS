@@ -2611,10 +2611,29 @@
 
 /* /admin/badges: дії в рядку та панель масової видачі під рядком */
 .admin-badge-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 32px repeat(3, 34px);
   align-items: center;
-  gap: 10px;
+  justify-items: end;
+  gap: 6px;
   white-space: nowrap;
+}
+.admin-badge-count {
+  justify-self: start;
+  font-weight: 600;
+}
+.iconbtn.is-active {
+  background: var(--surface);
+  border-color: var(--green-500);
+  color: var(--green-500);
+}
+.iconbtn-danger {
+  color: var(--danger);
+}
+@media (hover: hover) {
+  .iconbtn-danger:hover:not(:disabled) {
+    border-color: var(--danger);
+  }
 }
 .admin-link-danger {
   color: var(--danger);
@@ -2802,4 +2821,21 @@
 }
 .rt-admin-danger p {
   margin: 0 0 12px;
+}
+
+/* /admin/notifications — історія з чекбоксами і кнопкою видалення */
+.adm-bc-table th:first-child,
+.adm-bc-table td:first-child {
+  width: 28px;
+}
+.adm-bc-table td:last-child {
+  width: 40px;
+}
+.adm-bc-table tr.is-selected td {
+  background: var(--green-tint);
+}
+.adm-bc-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cb-secondary);
 }

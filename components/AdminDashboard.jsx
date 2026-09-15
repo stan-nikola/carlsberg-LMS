@@ -17,6 +17,7 @@ import {
   XIcon,
 } from "@/components/icons";
 import { TerritoryPicker } from "@/components/TerritoryPicker";
+import { AccordionField } from "@/components/AccordionField";
 import { pluralize } from "@/lib/pluralize";
 import { HintDot } from "@/components/HintDot";
 import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
@@ -72,32 +73,6 @@ function toDatetimeLocalValue(iso) {
  * співробітники) — та сама caret+summary поведінка, щоб обидва блоки
  * виглядали однаково: згорнуто за замовчуванням (другорядні, необов'язкові
  * поля), згорнутий заголовок все одно показує, що вже обрано. */
-function AccordionField({ title, summary, children, footer }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`admin-field admin-target-card${open ? " admin-target-card-open" : ""}`}>
-      <div className="admin-accordion-header admin-territory-accordion-header" onClick={() => setOpen((v) => !v)}>
-        <span className={`territory-caret${open ? " territory-caret-open" : ""}`}>
-          <ChevronIcon />
-        </span>
-        <span className="admin-label" style={{ marginBottom: 0 }}>
-          {title}
-        </span>
-        {!open && summary && <span className="admin-hint admin-accordion-summary">{summary}</span>}
-      </div>
-      {open && (
-        <div className="admin-accordion-body" style={{ paddingLeft: 0, paddingTop: 10 }}>
-          {children}
-          {footer && (
-            <p className="admin-hint" style={{ marginTop: 6 }}>
-              {footer}
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /** Іконка "ⓘ" з підказкою-бульбашкою по ховеру/фокусу — для короткого
  * пояснення, яке не варто тримати завжди розгорнутим текстом під полем

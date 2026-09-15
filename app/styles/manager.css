@@ -1099,3 +1099,10 @@ body:has(.manager-shell) {
 .mgr-sidebar.is-collapsed .adm-sidebar-collapse-btn svg {
   transform: rotate(0deg);
 }
+
+/* /manager/achievements — панель досягнень на ширині кабінету (не 640px
+   телефонної колонки): від 640px контейнер @container ach у rating.css
+   розкладає її у дві колонки. */
+.manager-achievements-page {
+  max-width: 1180px;
+}

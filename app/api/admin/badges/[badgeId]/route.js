@@ -22,12 +22,13 @@ export async function PATCH(request, { params }) {
     if (!Number.isInteger(points) || points < 0) return NextResponse.json({ error: "points must be a non-negative integer" }, { status: 400 });
     data.points = points;
   }
+  if ("hiddenUntilEarned" in body) data.hiddenUntilEarned = body.hiddenUntilEarned === true;
   if (data.title === "") return NextResponse.json({ error: "title must not be empty" }, { status: 400 });
 
   const updated = await prisma.badge.update({
     where: { id: Number(badgeId) },
     data,
-    select: { id: true, code: true, title: true, description: true, icon: true, kind: true, points: true },
+    select: { id: true, code: true, title: true, description: true, icon: true, kind: true, points: true, hiddenUntilEarned: true },
   });
   await audit("badge.update", "badge", updated.id, data);
   return NextResponse.json(updated);
@@ -44,7 +45,7 @@ export async function DELETE(request, { params }) {
   const id = Number(badgeId);
   const badge = await prisma.badge.findUnique({ where: { id }, select: { id: true, title: true, kind: true, _count: { select: { awards: true } } } });
   if (!badge) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  if (badge.kind !== "manual") return NextResponse.json({ error: "Автоматичні ачивки видалити не можна" }, { status: 400 });
+  if (badge.kind !== "manual") return NextResponse.json({ error: "Автоматичні відзнаки видалити не можна" }, { status: 400 });
 
   const force = new URL(request.url).searchParams.get("force") === "1";
   if (badge._count.awards > 0 && !force) {

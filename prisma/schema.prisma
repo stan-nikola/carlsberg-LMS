@@ -643,6 +643,10 @@ model Badge {
   /// Бали рейтингу за цю відзнаку (RatingEvent kind "badge"). 0 — відзнака
   /// декоративна, у рейтинг не йде. Редагується в /admin/badges.
   points      Int             @default(0)
+  /// Показувати відзнаку лише тим, кому її видано: у списку «Відзнаки»
+  /// співробітника вона не з’являється як «заблокована» для решти
+  /// (іменні заслуги, які не треба анонсувати всім). /admin/badges.
+  hiddenUntilEarned Boolean     @default(false)
   createdAt   DateTime        @default(now())
   awards      EmployeeBadge[]
 }
