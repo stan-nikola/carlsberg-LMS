@@ -71,7 +71,8 @@ let cachedLogo: LoginPinEmail["logo"] | undefined;
 function loadLogo(): LoginPinEmail["logo"] {
   if (cachedLogo !== undefined) return cachedLogo;
   try {
-    const filePath = path.join(process.cwd(), "public", PLATFORM_HOP_LOGO_PATH);
+    // turbopackIgnore — те саме, що в certificate/route.js: не трасувати весь проект.
+    const filePath = path.join(/* turbopackIgnore: true */ process.cwd(), "public", PLATFORM_HOP_LOGO_PATH);
     cachedLogo = { filename: path.basename(filePath), content: fs.readFileSync(filePath), cid: LOGO_CID };
   } catch {
     cachedLogo = null;

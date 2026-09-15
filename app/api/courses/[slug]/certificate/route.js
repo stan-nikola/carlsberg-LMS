@@ -9,7 +9,9 @@ import { PLATFORM_NAME, PLATFORM_TAGLINE, PLATFORM_LOGO_PATH } from "@/lib/brand
 // прямий hex того самого відтінку.
 const BRAND_GREEN = "#0b4a34";
 const BRAND_GOLD = "#b49132";
-const LOGO_ABSOLUTE_PATH = path.join(process.cwd(), PLATFORM_LOGO_PATH);
+// turbopackIgnore: шлях зі змінної — без підказки Turbopack трасує в
+// серверний бандл увесь проект разом із public/ (попередження при білді).
+const LOGO_ABSOLUTE_PATH = path.join(/* turbopackIgnore: true */ process.cwd(), PLATFORM_LOGO_PATH);
 // Водяний знак справа на фоні — той самий "crafted hops leaf" (лінійна
 // графіка, brandbook-правило "subtle, tone-in-tone", public/assets/brand/README.md),
 // що вже стоїть декоративним акцентом на .profile-card (hub.css). Great-
