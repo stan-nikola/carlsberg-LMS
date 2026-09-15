@@ -72,6 +72,10 @@ model Employee {
   /// менеджерського шару (SV/ASM/LKAM/RM HoReCa) — див. import-employees.js.
   email String? @unique
   role  Role    @default(employee)
+  /// Фото профілю — Vercel Blob (avatars/<id>-<ts>.webp, 256×256), завантажує
+  /// сам співробітник у /hub|/manager/profile (app/api/profile/avatar). Без
+  /// нього — ініціали (components/Avatar.tsx).
+  avatarUrl String?
 
   /// Департамент компанії — незалежний від Position/Territory (та збутова
   /// ієрархія лишається окремим виміром, лише для продажів). Той самий

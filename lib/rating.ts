@@ -185,12 +185,13 @@ export async function getLeaderboard(employee: RatedEmployee, scope: Leaderboard
   const top = rows.slice(0, limit);
   const names = await prisma.employee.findMany({
     where: { id: { in: top.map((t) => t.employeeId) } },
-    select: { id: true, name: true, position: { select: { name: true } } },
+    select: { id: true, name: true, avatarUrl: true, position: { select: { name: true } } },
   });
   const byId = new Map(names.map((n) => [n.id, n]));
   return top.map((t) => ({
     id: t.employeeId,
     name: byId.get(t.employeeId)?.name || "—",
+    avatarUrl: byId.get(t.employeeId)?.avatarUrl ?? null,
     position: byId.get(t.employeeId)?.position?.name || "",
     points: t.points,
     normalized: t.normalized ?? null,
