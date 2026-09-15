@@ -246,3 +246,122 @@
   box-shadow: var(--cb-focus-ring);
   border-radius: var(--radius-sm);
 }
+
+/* ===== «Тестовий вхід» (lib/demoLogin.ts) ===== */
+.reg-demo-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.reg-demo-btn {
+  padding: 6px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-btn);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--fs-scale));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color var(--dur-fast) var(--ease-premium),
+    color var(--dur-fast) var(--ease-premium),
+    background var(--dur-fast) var(--ease-premium);
+}
+.reg-demo-btn.is-on {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 14%, var(--surface));
+  color: color-mix(in srgb, var(--gold) 70%, var(--cb-black));
+}
+.reg-demo-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.reg-step-label {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--fs-scale));
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 600;
+  padding-left: 2px;
+}
+.reg-field-hint {
+  font-size: calc(11.5px * var(--fs-scale));
+  color: var(--ink-soft);
+  line-height: 1.4;
+  padding-left: 2px;
+}
+/* Перемикач «Співробітник | Керівник» — одне з двох, з іконками;
+   активна половина — фірмовий темно-зелений, як кнопка «Далі». */
+.reg-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 3px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-btn);
+  background: var(--surface-1);
+}
+.reg-seg-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 6px;
+  border: none;
+  border-radius: var(--radius-btn);
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: calc(13.5px * var(--fs-scale));
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-premium),
+    color var(--dur-fast) var(--ease-premium);
+}
+.reg-seg-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.reg-seg-btn.is-on {
+  background: var(--green-700);
+  color: var(--cb-white);
+}
+.reg-seg-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+/* Підказка біля «Тестовий вхід»: іконка стоїть за кнопкою, тож блок
+   зсуваємо вліво і обмежуємо шириною картки — інакше обрізався правим
+   краєм .course-card (overflow:hidden). */
+.reg-demo-toggle .hint-dot::after {
+  left: -150px;
+  max-width: min(320px, calc(100cqw - 40px));
+}
+.reg-form .reg-select,
+.reg-form input[type="email"] {
+  width: 100%;
+  min-height: 52px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-input);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: max(16px, calc(15px * var(--fs-scale)));
+  padding: 0 14px;
+}
+.reg-form .reg-select:focus,
+.reg-form input[type="email"]:focus {
+  outline: none;
+  border-color: var(--green-500);
+  box-shadow: var(--cb-focus-ring);
+}
