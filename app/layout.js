@@ -68,9 +68,9 @@ export const metadata = {
     statusBarStyle: "default",
     title: PLATFORM_SHORT_NAME,
   },
-  icons: {
-    apple: "/icons/icon-192.png",
-  },
+  // Іконки — файлові конвенції Next: app/favicon.ico, app/icon.png,
+  // app/apple-icon.png (трилисник у digital-black, 2026-09-15); окремий
+  // блок icons тут не потрібен, інакше <link> дублюються.
 };
 
 export const viewport = {
