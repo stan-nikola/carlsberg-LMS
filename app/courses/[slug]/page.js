@@ -5,8 +5,7 @@ import {
   getCourseForPlayer,
   getEnrollmentForCourse,
   flattenScreens,
-  computeModuleAvailability,
-  getPlayableModules,
+  getSessionModules,
 } from "@/lib/courseContent";
 import { CoursePlayer } from "@/components/CoursePlayer";
 import { CourseReview } from "@/components/CourseReview";
@@ -50,14 +49,13 @@ export default async function CoursePage({ params }) {
   // доступного модуля така пауза зайва.
   const completions = await prisma.moduleCompletion.findMany({ where: { enrollmentId: enrollment.id } });
   const completionsByModuleId = new Map(completions.map((c) => [c.moduleId, c]));
-  const moduleAvailability = computeModuleAvailability(course, completionsByModuleId);
 
   // "Пауза перед повторним проходженням" (Module.retakeCooldownDays):
   // модулі, які вже складено (passed) і пауза перепроходження ще не
   // минула, сюди НЕ потрапляють — плеєр більше не змушує переграти вже
   // складене з нуля щоразу, як людина заходить у курс (реальна скарга
   // користувача: "кнопка знову відкриває пройдений модуль").
-  const playableModules = getPlayableModules(course, completionsByModuleId);
+  const { playable: playableModules, nextLocked } = getSessionModules(course, completionsByModuleId);
 
   // Курс складено на 100% і кожен модуль має запис про складання —
   // перепроходити нічого (фінальний екран при 100% і кнопки «Пройти ще
@@ -131,13 +129,19 @@ export default async function CoursePage({ params }) {
   // попередній) — модулі, пропущені через паузу ПЕРЕПРОХОДЖЕННЯ, просто
   // тихо пропускаються (вони вже складені, пояснювати нічого не треба).
   let lockedNotice = null;
-  const nextLockedModule = course.modules.find((m) => !moduleAvailability.get(m.id).available);
-  if (nextLockedModule) {
-    const info = moduleAvailability.get(nextLockedModule.id);
-    lockedNotice = info.waitingForPrevious
-      ? `Модуль «${nextLockedModule.title}» відкриється після того, як ви складете попередній модуль.`
-      : `Модуль «${nextLockedModule.title}» відкриється ${info.unlocksAt.toLocaleDateString("uk-UA")}.`;
+  if (nextLocked) {
+    const { module: nl, reason, unlocksAt } = nextLocked;
+    lockedNotice =
+      reason === "cooldown"
+        ? `Модуль «${nl.title}» відкриється ${unlocksAt.toLocaleDateString("uk-UA")}.`
+        : reason === "pause"
+          ? `Модуль «${nl.title}» відкриється через ${nl.cooldownDays} дн. після складання попереднього.`
+          : `Модуль «${nl.title}» відкриється після того, як ви складете попередній модуль.`;
   }
+  // Сесія не доходить до кінця курсу (попереду модуль під паузою) —
+  // плеєр після останнього модуля сесії показує чекпоінт і НЕ відправляє
+  // /submit (курс ще не пройдено).
+  const afterSession = nextLocked ? { moreModules: true, notice: lockedNotice } : null;
 
   return (
     <CoursePlayer
@@ -156,6 +160,7 @@ export default async function CoursePage({ params }) {
       // разово в запит на сертифікат (lib/downloadCertificate.js).
       hasEmail={Boolean(employee.email)}
       lockedNotice={lockedNotice}
+      afterSession={afterSession}
       skippedModuleScores={skippedModuleScores}
     />
   );

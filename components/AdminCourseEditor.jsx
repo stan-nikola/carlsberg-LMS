@@ -1278,6 +1278,7 @@ function CourseRunPreview({ course, onClose }) {
                 }}
                 screens={screens}
                 enrollmentId={null}
+                moduleCooldowns={Object.fromEntries((course.modules || []).map((m) => [m.id, m.cooldownDays || 0]))}
               />
             )}
           </div>
