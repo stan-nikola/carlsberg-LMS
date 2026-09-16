@@ -1,5 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Файли з public/, які серверний код читає з диска (fs), а не віддає
+  // як статику: логотип на PDF-сертифікаті (app/api/courses/[slug]/
+  // certificate) і трилисник у PIN-листі (lib/emailTemplates.ts). Шлях там
+  // приходить зі змінної (lib/branding.js), тож трасування збірки їх не
+  // бачить — а на Vercel у функції нема public/ узагалі (тільки в CDN).
+  // Після turbopackIgnore (2026-09-15) сертифікат на проді впав з ENOENT,
+  // лист мовчки йшов без логотипа. Явний include — на всі маршрути.
+  outputFileTracingIncludes: {
+    "/*": ["public/icons/icon-192.png", "public/assets/brand/trefoil-solid-green.png"],
+  },
   // Дозволяє відкривати dev-сервер із телефону в тій самій Wi-Fi мережі
   // (http://192.168.0.231:3000). Без цього Next у dev-режимі блокує
   // cross-origin запити до /_next/* (403) для будь-якого хоста, крім
