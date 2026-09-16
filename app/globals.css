@@ -35,9 +35,6 @@
   --danger: var(--cb-fail);
 
   --shadow: var(--shadow-lg);
-  --radius-lg: 22px;
-  --radius-md: 16px;
-  --radius-sm: 10px;
 
   /* Carlsberg Sans — лише для великого display-тексту (h1/h2/h3), саме
      так, як його й застосовує офіційний брендбук; для щільного UI/
@@ -148,7 +145,7 @@ html:has(.adm-shell) {
   width: 100%;
   height: min(812px, 88vh);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   /* Без заокруглення — за проханням користувача (той самий принцип, що
      .mgr-pill/.mgr-badge/.admin-btn: квадратні атоми Malty, не заокруглені).
      Раніше тут були сирі 30px, потім var(--radius-xl) (28px) за іншим
@@ -242,10 +239,10 @@ html:has(.adm-shell) {
   font-size: 13px;
 }
 .iconbtn {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
+  width: var(--iconbtn-md);
+  height: var(--iconbtn-md);
+  border-radius: var(--radius-btn);
+  border: var(--border-w) solid var(--line);
   background: var(--surface-1);
   display: flex;
   align-items: center;
@@ -285,7 +282,7 @@ html:has(.adm-shell) {
   border-radius: var(--radius-card);
   overflow: hidden;
   margin-bottom: 13px;
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   background: var(--surface-1);
   position: relative;
 }
@@ -337,7 +334,7 @@ html:has(.adm-shell) {
   padding: 8px 20px 26px;
   transform: translateY(30px);
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-bottom: none;
 }
 .sheet-overlay.open .sheet {
@@ -367,7 +364,7 @@ html:has(.adm-shell) {
   justify-content: space-between;
   gap: 12px;
   padding: 13px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--border-w) solid var(--line);
 }
 .settings-row:last-child {
   border-bottom: none;
@@ -468,10 +465,10 @@ html:has(.adm-shell) {
 .btn-primary-full,
 .btn-secondary-full {
   width: 100%;
-  min-height: 56px;
+  min-height: var(--btn-h-lg);
   border: none;
   border-radius: var(--radius-btn);
-  padding: 16px 24px;
+  padding: 12px var(--btn-px-lg);
   font-weight: 700;
   font-size: calc(15px * var(--fs-scale));
   cursor: pointer;
@@ -495,7 +492,7 @@ html:has(.adm-shell) {
 .btn-secondary-full {
   background: transparent;
   color: var(--cb-primary);
-  border: 1px solid var(--cb-primary);
+  border: var(--border-w) solid var(--cb-primary);
   box-shadow: none;
 }
 @media (hover: hover) {
@@ -614,7 +611,8 @@ html:has(.adm-shell) {
   transform: translateY(0);
 }
 .hint-dot:focus-visible {
-  outline: 2px solid var(--cb-focus-ring);
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
   outline-offset: 2px;
   border-radius: var(--radius-xs);
 }
@@ -846,6 +844,41 @@ html:has(.adm-shell) {
   }
 }
 
+/* ---- Статус-пілюлі (components/StatusBadge.tsx): «Складено / Не складено»
+   і стани призначення (не розпочато / в процесі / прострочено) — один
+   вигляд для хаба, кабінету керівника й адмінки. Форма — --radius-badge. ---- */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: var(--radius-badge);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+.status-pill svg {
+  width: 12px;
+  height: 12px;
+}
+.status-pill-success {
+  background: var(--cb-success-light);
+  color: color-mix(in srgb, var(--cb-success) 45%, var(--cb-black));
+}
+.status-pill-fail {
+  background: var(--cb-fail-light);
+  color: color-mix(in srgb, var(--cb-fail) 45%, var(--cb-black));
+}
+.status-pill-alert {
+  background: var(--cb-alert-light);
+  color: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
+}
+
 /* ---- Скелетон завантаження (components/Skeleton.tsx) ----
    Сірі плашки, по яких іде та сама повільна зелена хвиля, що на кнопках
    акордеону в курсі (.tap-next, 5.8s) — «вантажиться», а не «зламалось». */
@@ -885,10 +918,11 @@ html:has(.adm-shell) {
   flex-direction: column;
   gap: 10px;
   min-height: 150px;
-  padding: 14px;
+  padding: var(--card-pad);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
 }
 .sk-card .sk-btn {
   margin-top: auto;

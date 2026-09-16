@@ -16,13 +16,14 @@ import { HintDot } from "@/components/HintDot";
 import { medalTier } from "@/lib/progress";
 import { PageSkeleton, LinesSkeleton } from "@/components/Skeleton";
 import { Avatar } from "@/components/Avatar";
+import { StatusBadge } from "@/components/StatusBadge";
 import { ProfileCard } from "@/components/ProfileCard";
 import { MarqueeText } from "@/components/MarqueeText";
 
 const STATUS_META = {
-  not_started: { label: "Не розпочато", cls: "mgr-pill-neutral" },
-  in_progress: { label: "В процесі", cls: "mgr-pill-alert" },
-  overdue: { label: "Прострочено", cls: "mgr-pill-fail" },
+  not_started: { label: "Не розпочато", cls: "status-pill-neutral" },
+  in_progress: { label: "В процесі", cls: "status-pill-alert" },
+  overdue: { label: "Прострочено", cls: "status-pill-fail" },
 };
 
 // status="completed" саме по собі означає лише "пройшов до кінця" —
@@ -33,14 +34,10 @@ const STATUS_META = {
 // провалений курс візуально виглядає як успіх.
 function StatusPill({ status, passed }) {
   if (status === "completed") {
-    return passed ? (
-      <span className="mgr-pill mgr-pill-success">Складено</span>
-    ) : (
-      <span className="mgr-pill mgr-pill-fail">Не складено</span>
-    );
+    return <StatusBadge passed={Boolean(passed)} />;
   }
   const meta = STATUS_META[status] || STATUS_META.not_started;
-  return <span className={`mgr-pill ${meta.cls}`}>{meta.label}</span>;
+  return <span className={`status-pill ${meta.cls}`}>{meta.label}</span>;
 }
 
 function formatDate(value) {
@@ -76,7 +73,7 @@ function formatDuration(seconds) {
  * Ранжуємо 4 значення одне відносно одного: найгірше з чотирьох —
  * --cb-fail, найкраще — --cb-success, проміжні — плавний перехід через
  * --cb-alert (світлофор), той самий color-mix-прийом, що вже є в
- * .mgr-pill-success/.mgr-pill-fail (app/styles/manager.css).
+ * StatusBadge (components/StatusBadge.tsx, .status-pill у globals.css).
  */
 function rateColor(pct, allValues) {
   const min = Math.min(...allValues);
@@ -262,7 +259,7 @@ function EnrollmentRow({ enrollment }) {
                   <span>{formatDate(a.completedAt)}</span>
                   <span>{a.scorePercent}% балів</span>
                   <span>{formatDuration(a.durationSeconds)}</span>
-                  <span className={a.passed ? "mgr-attempt-pass" : "mgr-attempt-fail"}>{a.passed ? "Складено" : "Не складено"}</span>
+                  <StatusBadge passed={Boolean(a.passed)} />
                 </li>
               ))}
             </ul>

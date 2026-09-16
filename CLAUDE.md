@@ -135,7 +135,9 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
 
 - Повністю ОКРЕМИЙ вхід від employee PIN-логіну — один спільний
   `ADMIN_PASSWORD`, сесія `admin_session` (`lib/adminSession.js`), жодного
-  зв'язку з конкретним Employee.
+  зв'язку з конкретним Employee. Другий пароль `SUPER_ADMIN_PASSWORD` на
+  тому ж екрані дає рівень "super" (у підписаному payload cookie) — поки
+  лише для дизайн-системи `/admin/design`; перевірка `isSuperAdmin()`.
 - Через це дії з /admin (напр. `Enrollment.assignedById`,
   `EmployeeBadge.awardedById` при ручній видачі) пишуться від фіктивного
   системного Employee (`externalCode: "SYSTEM-ADMIN"`, заводиться в
@@ -247,6 +249,37 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
   переадресовує PIN на неї (`requestLoginPin(..., { recipientOverride })`).
   Сервер відкидає `demoEmail` для кодів поза списком (403). У базі нічого
   не змінюється; на проді — увімкнути змінну у Vercel лише на час демо.
+
+## Дизайн-система: токени UI-шкали і стенд
+
+Розміри й форми атомів — ЛИШЕ через токени в `app/styles/tokens.css`
+(2026-09-16, уніфікація після інвентаризації: 12 висот кнопок, 7 розмірів
+іконкових, 3 реалізації таблиць, 24 пари паддингів карток):
+`--radius-btn/-card/-input/-badge`, `--btn-h-sm/-md/-lg` + `--btn-px-*`,
+`--iconbtn-sm/-md`, `--border-w`, `--card-pad(-compact/-roomy)`,
+`--card-shadow`, `--table-cell-pad`. Правила:
+
+- Кнопка = один із трьох розмірів (`min-height: var(--btn-h-*)`, горизонтальний
+  паддинг `--btn-px-*`), іконкова — `--iconbtn-sm`/`-md` і `--radius-btn`;
+  жодних власних 26/30/35/46px. Фокус — лише `box-shadow: var(--cb-focus-ring)`.
+- Рамка — `var(--border-w) solid …`, не `1px`/`1.5px`. Картка — один із трьох
+  паддингів-токенів; тінь карток — `--card-shadow`.
+- Таблиця — лише справжня `<table class="admin-table">` (рядок-кнопка:
+  `<tr class="adm-emp-row" role="button" tabIndex={0}>`); grid-«таблиці»
+  з `<span>` більше не робити.
+- Бейдж/тег/чип — `border-radius: var(--radius-badge)`; статус
+  «Складено / Не складено» і стани призначення — `components/StatusBadge.tsx`
+  (`.status-pill*` у globals.css), не власні класи по файлах.
+- Стенд `/admin/design` (`components/DesignStand.tsx`, `lib/designTokens.ts`)
+  — лише для **супер-адміна** (`SUPER_ADMIN_PASSWORD`, рівень "super" у
+  admin_session, `lib/adminSession.js getAdminLevel`). Крутить токени
+  наживо як прев’ю (localStorage, `DesignTokensOverride`) і «Зберегти для
+  всіх» пише їх в `AppSetting(design-tokens)` — кореневий layout вставляє
+  `<style>:root{…}</style>` поверх tokens.css (`lib/designSettings.ts`,
+  whitelist по DESIGN_TOKENS, кеш 60с; layout через це force-dynamic).
+  Рішення користувача 2026-09-16: зміни дизайну без git. Новий регульований
+  токен = рядок у `DESIGN_TOKENS` + дефолт у tokens.css. Кольори стенд не
+  чіпає (рішення користувача).
 
 ## Верстка: сітки однотипних карток
 

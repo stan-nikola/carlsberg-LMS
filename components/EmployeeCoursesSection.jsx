@@ -99,30 +99,46 @@ export function EmployeeCoursesSection({ employeeId }) {
       {enrollments.length === 0 ? (
         <p className="admin-subtitle">Ще жодного курсу не призначено.</p>
       ) : (
-        <div className="admin-badge-table" style={{ marginTop: 8 }}>
-          {enrollments.map((e) =>
-            editingId === e.id ? (
-              <EnrollmentEditRow key={e.id} enrollment={e} onSaved={() => { setEditingId(null); load(); }} onCancel={() => setEditingId(null)} />
-            ) : (
-              <div className="admin-enrollment-row" key={e.id}>
-                <span>
-                  {e.course.title}
-                  {e.adminNote && <div className="admin-hint">Ручна корекція: {e.adminNote}</div>}
-                </span>
-                <span>{STATUS_LABELS[e.status] || e.status}</span>
-                <span>{e.scorePercent != null ? `${e.scorePercent}%` : "—"}</span>
-                <span style={{ display: "flex", gap: 6 }}>
-                  <button className="admin-btn-link" onClick={() => setEditingId(e.id)}>
-                    Скорегувати
-                  </button>
-                  <button className="admin-btn-link" onClick={() => handleUnassign(e.id, e.course.title)}>
-                    Зняти
-                  </button>
-                </span>
-              </div>
-            )
-          )}
-        </div>
+        <table className="admin-table" style={{ marginTop: 8 }}>
+          <thead>
+            <tr>
+              <th>Курс</th>
+              <th>Статус</th>
+              <th>Бал</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {enrollments.map((e) =>
+              editingId === e.id ? (
+                <tr key={e.id}>
+                  <td colSpan={4}>
+                    <EnrollmentEditRow enrollment={e} onSaved={() => { setEditingId(null); load(); }} onCancel={() => setEditingId(null)} />
+                  </td>
+                </tr>
+              ) : (
+                <tr key={e.id}>
+                  <td>
+                    {e.course.title}
+                    {e.adminNote && <div className="admin-hint">Ручна корекція: {e.adminNote}</div>}
+                  </td>
+                  <td>{STATUS_LABELS[e.status] || e.status}</td>
+                  <td>{e.scorePercent != null ? `${e.scorePercent}%` : "—"}</td>
+                  <td>
+                    <span style={{ display: "flex", gap: 6 }}>
+                      <button className="admin-btn-link" onClick={() => setEditingId(e.id)}>
+                        Скорегувати
+                      </button>
+                      <button className="admin-btn-link" onClick={() => handleUnassign(e.id, e.course.title)}>
+                        Зняти
+                      </button>
+                    </span>
+                  </td>
+                </tr>
+              )
+            )}
+          </tbody>
+        </table>
       )}
 
       <div className="adm-card-foot">

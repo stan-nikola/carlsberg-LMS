@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { isAdminAuthenticated } from "@/lib/adminSession";
+import { getAdminLevel } from "@/lib/adminSession";
 import { AdminShell } from "@/components/AdminShell";
 
 // Гейт всего /admin, кроме /admin/login (тот вне этой route group —
@@ -7,10 +7,10 @@ import { AdminShell } from "@/components/AdminShell";
 // /admin-сессию по паролю (lib/adminSession.js) — никак не связано с
 // employee PIN-логином/сессией.
 export default async function AdminProtectedLayout({ children }) {
-  const authed = await isAdminAuthenticated();
-  if (!authed) {
+  const level = await getAdminLevel();
+  if (!level) {
     redirect("/admin/login");
   }
 
-  return <AdminShell>{children}</AdminShell>;
+  return <AdminShell superAdmin={level === "super"}>{children}</AdminShell>;
 }

@@ -733,3 +733,12 @@ model AuditLog {
   @@index([createdAt])
   @@index([targetType, targetId])
 }
+
+/// Налаштування застосунку «ключ → JSON» (поки один ключ: design-tokens —
+/// дизайн-токени, збережені супер-адміном зі стенду /admin/design,
+/// lib/designSettings.ts). Не для даних людей/курсів — лише конфіг.
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

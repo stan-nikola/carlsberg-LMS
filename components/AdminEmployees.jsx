@@ -216,47 +216,58 @@ export function AdminEmployees() {
       ) : employees.length === 0 ? (
         <p className="admin-subtitle">Нікого не знайдено.</p>
       ) : (
-        <div className="admin-employee-table">
-          <div className="admin-employee-row admin-employee-row-head">
-            <span>Ім&apos;я</span>
-            <span>Код</span>
-            <span>Департамент</span>
-            <span>Посада / територія</span>
-            <span>Роль</span>
-            <span />
-          </div>
-          {employees.map((emp) => (
-            <button
-              type="button"
-              key={emp.id}
-              className={`admin-employee-row adm-emp-row${emp.isActive === false ? " emp-tree-row-inactive" : ""}${
-                selectedId === emp.id ? " is-selected" : ""
-              }`}
-              onClick={() => openEmployee(emp.id)}
-            >
-              <span className="adm-emp-name">
-                {emp.name}
-                {emp.isActive === false && <span className="adm-chip adm-chip-off">деактивовано</span>}
-              </span>
-              <span className="mono">{emp.externalCode}</span>
-              <span className="admin-employee-meta">{emp.department || "—"}</span>
-              <span className="admin-employee-meta">
-                {emp.position?.name || "—"}
-                {emp.territory ? ` · ${emp.territory.name}` : ""}
-              </span>
-              <span>
-                {/* Звичайна роль — приглушено (це 99% рядків), підвищені —
-                    акцентом, щоб адміни/HR читались з першого погляду. */}
-                <span className={`adm-chip${emp.role !== "employee" ? " adm-chip-accent" : ""}`}>
-                  {ROLE_LABELS[emp.role] || emp.role}
-                </span>
-              </span>
-              <span className="adm-emp-chevron" aria-hidden="true">
-                <ChevronIcon />
-              </span>
-            </button>
-          ))}
-        </div>
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Ім&apos;я</th>
+              <th>Код</th>
+              <th>Департамент</th>
+              <th>Посада / територія</th>
+              <th>Роль</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {employees.map((emp) => (
+              <tr
+                key={emp.id}
+                className={`adm-emp-row${emp.isActive === false ? " emp-tree-row-inactive" : ""}${selectedId === emp.id ? " is-selected" : ""}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => openEmployee(emp.id)}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter" || ev.key === " ") {
+                    ev.preventDefault();
+                    openEmployee(emp.id);
+                  }
+                }}
+              >
+                <td>
+                  <span className="adm-emp-name">
+                    {emp.name}
+                    {emp.isActive === false && <span className="adm-chip adm-chip-off">деактивовано</span>}
+                  </span>
+                </td>
+                <td className="mono">{emp.externalCode}</td>
+                <td className="admin-employee-meta">{emp.department || "—"}</td>
+                <td className="admin-employee-meta">
+                  {emp.position?.name || "—"}
+                  {emp.territory ? ` · ${emp.territory.name}` : ""}
+                </td>
+                <td>
+                  {/* Звичайна роль — приглушено (це 99% рядків), підвищені —
+                      акцентом, щоб адміни/HR читались з першого погляду. */}
+                  <span className={`adm-chip${emp.role !== "employee" ? " adm-chip-accent" : ""}`}>{ROLE_LABELS[emp.role] || emp.role}</span>
+                </td>
+                <td>
+                  <span className="adm-emp-chevron" aria-hidden="true">
+                    <ChevronIcon />
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
       {!q && limit && employees.length === limit && (
         <p className="admin-hint" style={{ marginTop: 12 }}>

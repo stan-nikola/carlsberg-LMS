@@ -101,7 +101,7 @@
   width: 100%;
   min-height: 52px;
   background: var(--surface-1);
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-input);
   color: var(--ink);
   font-family: inherit;
@@ -143,7 +143,7 @@
   /* Ті самі -30% бокових полів, що й .reg-viewport вище — щоб кнопка
      лишалась вирівняна з полями форми над нею. */
   padding: 14px 15px calc(20px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
+  border-top: var(--border-w) solid var(--line);
   background: var(--surface);
 }
 .reg-footer .btn-primary-full {
@@ -256,8 +256,8 @@
   min-width: 0;
 }
 .reg-demo-btn {
-  padding: 6px 10px;
-  border: 1.5px solid var(--line);
+  padding: 0 10px;
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-btn);
   background: var(--surface);
   color: var(--ink-soft);
@@ -272,6 +272,7 @@
     border-color var(--dur-fast) var(--ease-premium),
     color var(--dur-fast) var(--ease-premium),
     background var(--dur-fast) var(--ease-premium);
+  min-height: var(--btn-h-sm);
 }
 .reg-demo-btn.is-on {
   border-color: var(--gold);
@@ -304,7 +305,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 3px;
   padding: 3px;
-  border: 1.5px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-btn);
   background: var(--surface-1);
 }
@@ -313,7 +314,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: var(--btn-h-md);
   padding: 8px 6px;
   border: none;
   border-radius: var(--radius-btn);
@@ -361,7 +362,7 @@
   width: 100%;
   min-height: 52px;
   background: var(--surface-1);
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-input);
   color: var(--ink);
   font-family: inherit;

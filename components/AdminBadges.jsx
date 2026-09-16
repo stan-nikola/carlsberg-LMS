@@ -70,13 +70,16 @@ export function AdminBadges() {
           Завантаження…
         </p>
       ) : (
-        <div className="admin-badge-table">
-          <div className="admin-badge-row admin-badge-row-head">
-            <span>Іконка</span>
-            <span>Назва</span>
-            <span>Тип</span>
-            <span>Видано разів</span>
-          </div>
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Іконка</th>
+              <th>Назва</th>
+              <th>Тип</th>
+              <th>Видано разів</th>
+            </tr>
+          </thead>
+          <tbody>
           {badges.map((b) => (
             <BadgeRow
               key={b.id}
@@ -86,7 +89,8 @@ export function AdminBadges() {
               onDeleted={(id) => setBadges((prev) => prev.filter((x) => x.id !== id))}
             />
           ))}
-        </div>
+          </tbody>
+        </table>
       )}
     </div>
   );
@@ -221,11 +225,11 @@ function BadgeRow({ badge, targets, onUpdated, onDeleted }) {
 
   if (editing) {
     return (
-      <div className="admin-badge-row">
-        <span>
+      <tr>
+        <td>
           <input className="admin-input-flex" value={icon} onChange={(e) => setIcon(e.target.value)} style={{ maxWidth: 60 }} />
-        </span>
-        <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        </td>
+        <td style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <input className="admin-input-flex" value={title} onChange={(e) => setTitle(e.target.value)} />
           <input className="admin-input-flex" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Опис" />
           <input type="number" min="0" className="admin-input-flex" value={points} onChange={(e) => setPoints(e.target.value)} placeholder="Бали рейтингу" style={{ maxWidth: 140 }} />
@@ -233,34 +237,37 @@ function BadgeRow({ badge, targets, onUpdated, onDeleted }) {
             <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} />
             Лише тим, кому видано
           </label>
-        </span>
-        <span>{KIND_LABELS[badge.kind]}</span>
-        <span style={{ display: "flex", gap: 6 }}>
-          <button className="admin-btn" disabled={saving} onClick={handleSave}>
-            {saving && <SpinnerIcon />}
-            Зберегти
-          </button>
-          <button className="admin-btn-link" onClick={() => setEditing(false)} disabled={saving}>
-            Скасувати
-          </button>
-        </span>
-      </div>
+        </td>
+        <td>{KIND_LABELS[badge.kind]}</td>
+        <td>
+          <span style={{ display: "flex", gap: 6 }}>
+            <button className="admin-btn" disabled={saving} onClick={handleSave}>
+              {saving && <SpinnerIcon />}
+              Зберегти
+            </button>
+            <button className="admin-btn-link" onClick={() => setEditing(false)} disabled={saving}>
+              Скасувати
+            </button>
+          </span>
+        </td>
+      </tr>
     );
   }
 
   return (
     <>
-      <div className="admin-badge-row">
-        <span style={{ fontSize: 20 }}>{badge.icon}</span>
-        <span>
+      <tr>
+        <td style={{ fontSize: 20 }}>{badge.icon}</td>
+        <td>
           {badge.title}
           {badge.description && <div className="admin-hint">{badge.description}</div>}
           <div className="admin-hint">
             {badge.points ? `${badge.points} балів рейтингу` : "без балів"}
             {badge.hiddenUntilEarned && " · лише власникам"}
           </div>
-        </span>
-        <span>{KIND_LABELS[badge.kind]}</span>
+        </td>
+        <td>{KIND_LABELS[badge.kind]}</td>
+        <td>
         {/* Дії — однакові квадратні кнопки в фіксованих колонках, щоб у
             всіх рядках вони стояли одна під одною (auto-типи мають лише
             «Редагувати», решта клітинок порожні). */}
@@ -292,15 +299,20 @@ function BadgeRow({ badge, targets, onUpdated, onDeleted }) {
             </>
           )}
         </span>
-      </div>
+        </td>
+      </tr>
       {awarding && (
-        <BadgeAwardPanel
-          badge={badge}
-          targets={targets}
-          onDone={(count) => {
-            onUpdated({ id: badge.id, _count: { awards: (badge._count?.awards ?? 0) + count } });
-          }}
-        />
+        <tr>
+          <td colSpan={4}>
+            <BadgeAwardPanel
+              badge={badge}
+              targets={targets}
+              onDone={(count) => {
+                onUpdated({ id: badge.id, _count: { awards: (badge._count?.awards ?? 0) + count } });
+              }}
+            />
+          </td>
+        </tr>
       )}
     </>
   );
