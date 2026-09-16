@@ -15,6 +15,7 @@ import {
 } from "@/components/icons";
 import { HintDot } from "@/components/HintDot";
 import { medalTier } from "@/lib/progress";
+import { Avatar } from "@/components/Avatar";
 import { ProfileCard } from "@/components/ProfileCard";
 import { MarqueeText } from "@/components/MarqueeText";
 
@@ -334,6 +335,7 @@ function TeamNode({ node, summaryByEmployeeId, ratingByEmployeeId }) {
             </button>
           )}
 
+          <Avatar name={node.name} src={node.avatarUrl} size="sm" />
           <button type="button" className="mgr-team-name-btn" onClick={toggleDetail}>
             <MarqueeText className="mgr-team-name">{node.name}</MarqueeText>
             <MarqueeText className="mgr-team-meta">
@@ -559,7 +561,7 @@ export function ManagerDashboard() {
         </a>
       </div>
 
-      <ProfileCard dbName={me.name} hasEmail={me.hasEmail} externalCode={me.externalCode} levelLabel={me.levelLabel} />
+      <ProfileCard dbName={me.name} hasEmail={me.hasEmail} externalCode={me.externalCode} levelLabel={me.levelLabel} avatarUrl={me.avatarUrl} />
 
       <div className="mgr-kpi-row">
         <div className="mgr-kpi-tile">

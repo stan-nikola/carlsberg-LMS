@@ -42,6 +42,7 @@ export default async function HubHomePage() {
         hasEmail={Boolean(employee.email)}
         externalCode={employee.externalCode}
         levelLabel={rating.level.label}
+        avatarUrl={employee.avatarUrl}
       />
 
       <NotificationSettings variant="card" />
