@@ -13,7 +13,8 @@ export async function GET() {
 }
 
 /**
- * POST — { title, message, url?, target: { all?|positionCodes?|territoryIds?|employeeIds? } }
+ * POST — { title, message, url?, target: { all?|positionCodes?|territoryIds?|employeeIds? },
+ *          channels?: { push?: bool, telegram?: bool } (за замовчуванням обидва) }
  * Пише Broadcast + Notification кожному адресату + push. Заголовок ≤ 80,
  * текст ≤ 500 символів: системні сповіщення на телефоні обрізають довше.
  */
@@ -32,10 +33,12 @@ export async function POST(request) {
     employeeIds: Array.isArray(body.target?.employeeIds) ? body.target.employeeIds.map(Number).filter(Number.isInteger) : [],
   };
   if (!title || !message) return NextResponse.json({ error: "Потрібні заголовок і текст" }, { status: 400 });
+  const channels = { push: body.channels?.push !== false, telegram: body.channels?.telegram !== false };
+  if (!channels.push && !channels.telegram) return NextResponse.json({ error: "Оберіть хоча б один канал" }, { status: 400 });
 
   try {
-    const result = await sendBroadcast({ title, message, url, target });
-    await audit("broadcast.send", "broadcast", result.broadcastId, { title, target, recipients: result.recipients, pushed: result.pushed });
+    const result = await sendBroadcast({ title, message, url, target, channels });
+    await audit("broadcast.send", "broadcast", result.broadcastId, { title, target, channels, recipients: result.recipients, pushed: result.pushed, telegram: result.telegram });
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 400 });
