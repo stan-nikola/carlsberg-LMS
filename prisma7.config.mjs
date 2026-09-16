@@ -13,6 +13,13 @@ export default defineConfig({
     seed: "node prisma/seed.js",
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    // Міграції — ЛИШЕ прямим з'єднанням, не через Neon pooler (PgBouncer):
+    // migrate deploy бере session-level pg_advisory_lock, а pooler у
+    // transaction-режимі може віддати lock/unlock різним бекендам — і
+    // наступний деплой падає з P1002 «timed out trying to acquire a
+    // postgres advisory lock» (2026-09-16, прод). Runtime (lib/prisma.js)
+    // і далі йде через pooler по DATABASE_URL — тут лише CLI.
+    // Neon: pooled host = <endpoint>-pooler.<region>…, direct = без -pooler.
+    url: process.env.DIRECT_DATABASE_URL || (process.env.DATABASE_URL || "").replace("-pooler.", "."),
   },
 });
