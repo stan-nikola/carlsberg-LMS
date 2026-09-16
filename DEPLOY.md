@@ -58,6 +58,8 @@ integration). Цей файл — чек-лист того, що НЕ робит
 Якщо збірка впала: **Deployments → останній → Build Logs**. Найчастіше —
 помилка в `DATABASE_URL` (рядок скопійовано не повністю) або відсутня
 змінна. Виправити в **Settings → Environment Variables** і **Redeploy**.
+`P1002 … advisory lock` на кроці `prisma migrate deploy` — база була
+зайнята іншою міграцією (паралельна збірка); просто **Redeploy**.
 
 ### Крок 3. Сховище фото (Blob)
 
@@ -116,11 +118,18 @@ Push у `main` (merge PR) = автоматичний деплой. Preview-ад�
 
 ## 3. Що робить сам білд
 
-`vercel-build` = `prisma migrate deploy && next build`: усі нові
-міграції з `prisma/migrations` застосовуються до `DATABASE_URL` перед
-збіркою. Упала міграція = упав деплой, прод лишається на попередній
-версії. Preview-деплої використовують ті ж змінні, тож міграції
-застосовуються і з них — саме тому вони мають бути аддитивними.
+`vercel-build`: на **Production** — `prisma migrate deploy`, потім
+`next build`; на Preview — лише `next build`. Усі нові міграції з
+`prisma/migrations` застосовуються до бази перед збіркою. Упала міграція
+= упав деплой, прод лишається на попередній версії.
+
+Міграції йдуть **прямим** з'єднанням (без `-pooler` у хості —
+`prisma7.config.mjs` сам прибирає його з `DATABASE_URL`, або задай
+`DIRECT_DATABASE_URL`): через pooler `migrate deploy` падав з
+`P1002 … advisory lock`. Preview-збірки міграцій не запускають — раніше
+preview гілки і production-збірка `main` після мержу стартували
+одночасно, обидві брали advisory lock на одній базі, і production
+падала з тим самим P1002.
 
 ## 4. Після деплою
 
