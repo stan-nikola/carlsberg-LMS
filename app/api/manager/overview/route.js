@@ -35,6 +35,7 @@ export async function GET() {
       name: employee.name,
       externalCode: employee.externalCode,
       hasEmail: Boolean(employee.email),
+      avatarUrl: employee.avatarUrl,
       levelLabel,
       position: employee.position,
       enrollments: myEnrollments,
