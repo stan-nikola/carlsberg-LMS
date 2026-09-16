@@ -10,11 +10,11 @@ import {
   MedalIcon,
   CheckIcon,
   XIcon,
-  SpinnerIcon,
   CourseIcon,
 } from "@/components/icons";
 import { HintDot } from "@/components/HintDot";
 import { medalTier } from "@/lib/progress";
+import { PageSkeleton, LinesSkeleton } from "@/components/Skeleton";
 import { Avatar } from "@/components/Avatar";
 import { ProfileCard } from "@/components/ProfileCard";
 import { MarqueeText } from "@/components/MarqueeText";
@@ -218,23 +218,32 @@ function EnrollmentRow({ enrollment }) {
           відповідей у межах саме цього модуля (не всього курсу); для
           завершень, записаних до появи цього поля, лишається null — не
           показуємо чіп, а не вигадуємо число. */}
+      {/* Колонки бал / серія / медаль — у КОЖНОМУ рядку списку, якщо є
+          хоч в одному (порожні теж), інакше значення різних рядків
+          з'їжджали: «80% 🎯 4» без медалі ставав під «🎯 5 🏅» сусіда
+          (те саме рішення, що в CourseTile). */}
       {enrollment.modules && enrollment.modules.length > 0 && (
         <ul className="mgr-module-list">
-          {enrollment.modules.map((m) => (
+          {enrollment.modules.map((m, _i, all) => (
             <li key={m.id} className={`mgr-module-row${m.passed === true ? " is-pass" : m.passed === false ? " is-fail" : " is-pending"}`}>
               <span className="mgr-module-status-icon">
                 {m.passed === true ? <CheckIcon /> : m.passed === false ? <XIcon /> : <span className="mgr-module-dot" aria-hidden="true" />}
               </span>
               <span className="mgr-module-title">{m.title}</span>
-              {m.scorePercent != null && <span className="mgr-module-score">{m.scorePercent}%</span>}
-              {isNotableStreak(m.longestCorrectStreak, m.scoreMax, m.passed) && (
-                <span className="mgr-module-streak" title="Найдовша серія поспіль правильних відповідей у цьому модулі">
-                  🎯 {m.longestCorrectStreak}
+              {all.some((x) => x.scorePercent != null) && (
+                <span className="mgr-module-score">{m.scorePercent != null ? `${m.scorePercent}%` : ""}</span>
+              )}
+              {all.some((x) => isNotableStreak(x.longestCorrectStreak, x.scoreMax, x.passed)) && (
+                <span
+                  className="mgr-module-streak"
+                  title={isNotableStreak(m.longestCorrectStreak, m.scoreMax, m.passed) ? "Найдовша серія поспіль правильних відповідей у цьому модулі" : undefined}
+                >
+                  {isNotableStreak(m.longestCorrectStreak, m.scoreMax, m.passed) ? `🎯 ${m.longestCorrectStreak}` : ""}
                 </span>
               )}
-              {medalTier(m.scorePercent) && (
-                <span className="mgr-module-medal" title={`${m.scorePercent}% — медаль за модуль`}>
-                  <MedalIcon tier={medalTier(m.scorePercent)} />
+              {all.some((x) => medalTier(x.scorePercent)) && (
+                <span className="mgr-module-medal" title={medalTier(m.scorePercent) ? `${m.scorePercent}% — медаль за модуль` : undefined}>
+                  {medalTier(m.scorePercent) && <MedalIcon tier={medalTier(m.scorePercent)} />}
                 </span>
               )}
             </li>
@@ -386,12 +395,7 @@ function TeamNode({ node, summaryByEmployeeId, ratingByEmployeeId }) {
 
       {showDetail && (
         <div className="mgr-team-detail">
-          {detailLoading && (
-            <p className="admin-hint">
-              <SpinnerIcon />
-              Завантаження…
-            </p>
-          )}
+          {detailLoading && <LinesSkeleton rows={4} />}
           {detailError && <p className="admin-hint">Не вдалося завантажити.</p>}
           {detail && detail.length === 0 && <p className="admin-hint">Курсів не призначено.</p>}
           {detail && detail.length > 0 && (
@@ -516,10 +520,7 @@ export function ManagerDashboard() {
   if (state.loading) {
     return (
       <div className="admin-page manager-page">
-        <p className="admin-subtitle">
-          <SpinnerIcon />
-          Завантаження…
-        </p>
+        <PageSkeleton />
       </div>
     );
   }

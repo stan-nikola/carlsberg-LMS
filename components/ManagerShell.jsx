@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, LogoutIcon, ChevronIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
@@ -32,6 +32,13 @@ const NAV_ITEMS = [
  * самий підхід, що вже використовує .stage (SSR-безпечно, без
  * гідратаційного "стрибка").
  */
+/** Маркер «перехід триває» всередині Link (useLinkStatus працює лише в
+ *  нащадку Link); стилізує саму вкладку через :has() у CSS. */
+function NavPending() {
+  const { pending } = useLinkStatus();
+  return <span className={`nav-pending${pending ? " is-pending" : ""}`} aria-hidden="true" />;
+}
+
 export function ManagerShell({ employee, hasNewCourses = false, children }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -91,6 +98,7 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
               {label}
               {navBadges[href] && <span className="admin-hint"> · нове</span>}
             </span>
+            <NavPending />
           </Link>
         );
       })}

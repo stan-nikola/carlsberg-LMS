@@ -948,7 +948,8 @@
   border-radius: var(--radius-sm);
   box-shadow: var(--cb-focus-ring);
 }
-.tab-btn.active {
+.tab-btn.active,
+.tab-btn:has(.nav-pending.is-pending) {
   color: var(--cb-primary);
 }
 /* Заливка навколо активної іконки — акцентніший стан за проханням

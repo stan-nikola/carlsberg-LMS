@@ -255,12 +255,14 @@ body:has(.manager-shell) {
    плитка з рамкою акцентного зеленого і зеленою іконкою — читається і
    на сірому фоні панелі, і в згорнутому стані. Колишня зелена тінь 12%
    зливалась із фоном. */
-.mgr-nav-link.active {
+.mgr-nav-link.active,
+.mgr-nav-link:has(.nav-pending.is-pending) {
   background: var(--surface);
   border-color: var(--green-500);
   color: var(--green-700);
 }
-.mgr-nav-link.active svg {
+.mgr-nav-link.active svg,
+.mgr-nav-link:has(.nav-pending.is-pending) svg {
   color: var(--green-500);
 }
 .mgr-sidebar-footer {
@@ -559,19 +561,28 @@ body:has(.manager-shell) {
   color: var(--ink);
   overflow-wrap: anywhere;
 }
+/* Права частина — колонки фіксованої ширини, щоб бал, серія і медаль
+   різних рядків стояли одне під одним (порожні колонки теж займають
+   місце — див. ManagerDashboard). */
 .mgr-module-score {
   font-family: var(--font-mono);
   font-size: 11px;
   flex-shrink: 0;
+  min-width: 36px;
+  text-align: right;
 }
 .mgr-module-streak {
   font-size: 11px;
   flex-shrink: 0;
   white-space: nowrap;
+  min-width: 34px;
+  text-align: right;
 }
 .mgr-module-medal {
   display: flex;
+  justify-content: center;
   flex-shrink: 0;
+  width: 18px;
 }
 .mgr-module-medal svg {
   width: 18px;
