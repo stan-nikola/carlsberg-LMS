@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SettingsSheet } from "@/components/SettingsSheet";
 import { GearIcon, LockIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
@@ -21,6 +21,13 @@ const TABS = [
  * Дані сотрудника отримує layout (Server Component) і сюди не потрібні —
  * логаут працює через сесію-cookie на сервері.
  */
+/** Маркер «перехід триває» всередині Link (useLinkStatus працює лише в
+ *  нащадку Link); стилізує саму вкладку через :has() у CSS. */
+function NavPending() {
+  const { pending } = useLinkStatus();
+  return <span className={`nav-pending${pending ? " is-pending" : ""}`} aria-hidden="true" />;
+}
+
 export function HubShell({ children, isAdmin = false }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -78,6 +85,7 @@ export function HubShell({ children, isAdmin = false }) {
                   <span className="tab-btn-indicator">
                     <Icon filled={isActive} />
                   </span>
+                  <NavPending />
                 </Link>
               );
             })}

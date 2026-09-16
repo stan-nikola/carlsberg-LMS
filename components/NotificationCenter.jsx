@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { SpinnerIcon } from "@/components/icons";
+import { LinesSkeleton } from "@/components/Skeleton";
 import { categoryMeta, formatRelativeTime } from "@/lib/notificationTypes";
 
 /**
@@ -68,11 +68,7 @@ export function NotificationCenter() {
           </div>
         );
       })}
-      {loading && (
-        <p className="hub-empty-note">
-          <SpinnerIcon />
-        </p>
-      )}
+      {loading && <LinesSkeleton rows={items.length ? 2 : 5} />}
       {cursor && !loading && (
         <button type="button" className="btn-secondary-full" onClick={() => load(cursor)}>
           Показати ще

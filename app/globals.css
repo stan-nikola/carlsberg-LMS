@@ -845,3 +845,69 @@ html:has(.adm-shell) {
     border-bottom: none;
   }
 }
+
+/* ---- Скелетон завантаження (components/Skeleton.tsx) ----
+   Сірі плашки, по яких іде та сама повільна зелена хвиля, що на кнопках
+   акордеону в курсі (.tap-next, 5.8s) — «вантажиться», а не «зламалось». */
+.sk {
+  display: block;
+  height: 11px;
+  border-radius: var(--radius-xs);
+  background: linear-gradient(
+    100deg,
+    var(--surface-2) 20%,
+    color-mix(in srgb, var(--cb-secondary) 22%, var(--surface-2)) 40%,
+    var(--surface-2) 60%
+  );
+  background-size: 260% 100%;
+  animation: skSweep 5.8s ease-in-out infinite;
+}
+@keyframes skSweep {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+.sk-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sk-title {
+  width: 46%;
+  max-width: 220px;
+  height: 22px;
+}
+.sk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 150px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.sk-card .sk-btn {
+  margin-top: auto;
+  height: 34px;
+  border-radius: var(--radius-btn);
+}
+.sk-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk {
+    animation: none;
+  }
+}
+/* Натиснута вкладка підсвічується одразу (useLinkStatus у ManagerShell/
+   HubShell), ще до того, як прийде новий екран — щоб не тиснути вдруге. */
+.nav-pending {
+  display: none;
+}
