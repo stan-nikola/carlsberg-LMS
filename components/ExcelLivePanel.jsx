@@ -159,35 +159,39 @@ export function ExcelLivePanel() {
             </div>
           )}
 
-          <div className="admin-employee-table" style={{ marginTop: 20 }}>
-            <div className="admin-employee-row admin-employee-row-head">
-              <span>Кому видано</span>
-              <span>Підпис</span>
-              <span>Створено</span>
-              <span>Останнє використання</span>
-              <span>Дія</span>
-            </div>
-            {tokens.map((t) => (
-              <div className={`admin-employee-row${t.revokedAt ? " emp-tree-row-inactive" : ""}`} key={t.id}>
-                <span>
-                  {t.employee.name}
-                  {t.employee.email ? ` (${t.employee.email})` : ""}
-                </span>
-                <span>{t.label || "—"}</span>
-                <span>{new Date(t.createdAt).toLocaleDateString("uk-UA")}</span>
-                <span>{t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleString("uk-UA") : "ще жодного разу"}</span>
-                <span>
-                  {t.revokedAt ? (
-                    "відкликано"
-                  ) : (
-                    <button className="admin-btn-link" onClick={() => handleRevoke(t.id)}>
-                      Відкликати
-                    </button>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
+          <table className="admin-table" style={{ marginTop: 20 }}>
+            <thead>
+              <tr>
+                <th>Кому видано</th>
+                <th>Підпис</th>
+                <th>Створено</th>
+                <th>Останнє використання</th>
+                <th>Дія</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tokens.map((t) => (
+                <tr className={t.revokedAt ? "emp-tree-row-inactive" : undefined} key={t.id}>
+                  <td>
+                    {t.employee.name}
+                    {t.employee.email ? ` (${t.employee.email})` : ""}
+                  </td>
+                  <td>{t.label || "—"}</td>
+                  <td>{new Date(t.createdAt).toLocaleDateString("uk-UA")}</td>
+                  <td>{t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleString("uk-UA") : "ще жодного разу"}</td>
+                  <td>
+                    {t.revokedAt ? (
+                      "відкликано"
+                    ) : (
+                      <button className="admin-btn-link" onClick={() => handleRevoke(t.id)}>
+                        Відкликати
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </>
       )}
     </div>

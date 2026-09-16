@@ -104,6 +104,7 @@ Push у `main` (merge PR) = автоматичний деплой. Preview-ад�
 | `SESSION_SECRET` | підпис cookie сесії | `openssl rand -hex 32`, інший ніж на dev |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME` | Telegram-бот CarlsON (необов’язково) | див. розділ «Telegram-бот» нижче |
 | `ADMIN_PASSWORD` | вхід у `/admin` | придумати |
+| `SUPER_ADMIN_PASSWORD` | супер-адмін: `/admin/design` і «Зберегти для всіх» (необов’язково) | придумати, інший ніж ADMIN_PASSWORD |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | PIN-листи через Resend | resend.com; **без підтвердженого домену Resend шле лише на пошту власника акаунта** |
 | `EMAIL_PROVIDER=gmail`, `GMAIL_USER`, `GMAIL_APP_PASSWORD` | PIN-листи через Gmail SMTP — поки нема свого домену (рішення 2026-09-15) | Google-акаунт → Безпека → Паролі застосунків (16 символів); ліміт ~500 листів/добу. Коли домен підтверджено — прибрати `EMAIL_PROVIDER`, повернеться Resend |
 | `BLOB_READ_WRITE_TOKEN` | фото уроків | Vercel → Storage → Blob (public access) |

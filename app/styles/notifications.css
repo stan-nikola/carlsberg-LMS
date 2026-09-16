@@ -31,8 +31,8 @@
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  padding: 12px 13px;
-  border: 1px solid var(--line);
+  padding: var(--card-pad-compact);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
   color: inherit;
@@ -80,7 +80,7 @@ a.ntf-item:focus-visible {
 .ntf-card {
   display: flex;
   gap: 12px;
-  padding: 13px;
+  padding: var(--card-pad);
   margin-bottom: 14px;
   border: 1px solid var(--cb-secondary);
   border-radius: var(--radius-card);

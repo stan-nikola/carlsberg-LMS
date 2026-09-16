@@ -2,6 +2,12 @@ import localFont from "next/font/local";
 import { Montserrat, IBM_Plex_Mono } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { OfflineSync } from "@/components/OfflineSync";
+import { DesignTokensOverride } from "@/components/DesignTokensOverride";
+import { designCss, getSavedDesign } from "@/lib/designSettings";
+
+// Токени дизайну читаються з бази на кожен запит (кеш 60с у lib/designSettings)
+// — сторінки не мають запікатись зі старим набором при збірці.
+export const dynamic = "force-dynamic";
 import { PLATFORM_NAME, PLATFORM_SHORT_NAME, PLATFORM_TAGLINE } from "@/lib/branding";
 import "@/app/styles/tokens.css";
 import "./globals.css";
@@ -83,7 +89,11 @@ export const viewport = {
   colorScheme: "light",
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  // Збережені супер-адміном токени (/admin/design → «Зберегти для всіх»)
+  // поверх дефолтів tokens.css; локальне прев’ю (DesignTokensOverride,
+  // inline style на <html>) має вищий пріоритет — у того, хто крутить стенд.
+  const css = designCss((await getSavedDesign())?.values);
   return (
     <html
       lang="uk"
@@ -99,6 +109,8 @@ export default function RootLayout({ children }) {
       suppressHydrationWarning
     >
       <body suppressHydrationWarning>
+        {css && <style id="design-tokens">{css}</style>}
+        <DesignTokensOverride />
         {children}
         <ServiceWorkerRegister />
         <OfflineSync />

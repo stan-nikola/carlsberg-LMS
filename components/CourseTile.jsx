@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CourseIcon, ChevronIcon, CheckIcon, XIcon, LockIcon, MedalIcon, CertificateIcon, ClockIcon, SpinnerIcon } from "@/components/icons";
+import { StatusBadge } from "@/components/StatusBadge";
 import { courseTileStatus, isRecentlyAssigned, isOverdue, medalTier } from "@/lib/progress";
 import { pluralize } from "@/lib/pluralize";
 import { MarqueeText } from "@/components/MarqueeText";
@@ -232,12 +233,11 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
         {cs.status === "completed" && (
           <div className="ct-done-row">
             <div className="ct-done-main">
-              <div className={`ct-status-done ${cs.passed ? "is-pass" : "is-fail"}`}>
-                {cs.passed ? <CheckIcon /> : <XIcon />}
-                {/* Відсоток лише при заліку — при незаліку він не має сенсу
-                    (курс складається помодульно). */}
-                <span>{cs.passed ? `Залік · ${cs.pct}%` : "Незалік"}</span>
-              </div>
+              {/* Відсоток лише при заліку — при незаліку він не має сенсу
+                  (курс складається помодульно). */}
+              <StatusBadge passed={Boolean(cs.passed)} icon>
+                {cs.passed ? `Залік · ${cs.pct}%` : "Незалік"}
+              </StatusBadge>
               {enrollment?.completedAt && (
                 <div className="ct-completed-date">
                   Завершено {new Date(enrollment.completedAt).toLocaleDateString("uk-UA")}

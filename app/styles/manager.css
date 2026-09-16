@@ -135,14 +135,17 @@ body:has(.manager-shell) {
 }
 .mgr-export-link {
   flex-shrink: 0;
-  padding: 8px 14px;
-  border: 1px solid var(--line);
+  padding: 0 var(--btn-px-sm);
+  border: var(--border-w) solid var(--line);
   /* Бордерована кнопка-посилання, не текстове поле — прямокутний
      Malty-паттерн (--radius-btn), не --radius-input (той лише для
      справжніх текстових полів, atoms/Input). */
   border-radius: var(--radius-btn);
   text-decoration: none;
   transition: border-color var(--dur-fast) var(--ease-premium);
+  min-height: var(--btn-h-sm);
+  display: inline-flex;
+  align-items: center;
 }
 @media (hover: hover) {
   .mgr-export-link:hover {
@@ -177,7 +180,7 @@ body:has(.manager-shell) {
   flex-shrink: 0;
   box-sizing: border-box;
   padding: 22px 5px;
-  border-right: 1px solid var(--line);
+  border-right: var(--border-w) solid var(--line);
   background: var(--surface-1);
   position: sticky;
   top: 0;
@@ -209,7 +212,7 @@ body:has(.manager-shell) {
   white-space: nowrap;
   padding: 10px 12px;
   /* Прозора рамка тієї ж товщини, що в активного — пункти не «стрибають». */
-  border: 1.5px solid transparent;
+  border: var(--border-w) solid transparent;
   /* Квадратні, без заокруглення — той самий токен, що .adm-nav-link і
      .mgr-badge (користувач, 2026-09-15). */
   border-radius: var(--radius-btn);
@@ -266,7 +269,7 @@ body:has(.manager-shell) {
   color: var(--green-500);
 }
 .mgr-sidebar-footer {
-  border-top: 1px solid var(--line);
+  border-top: var(--border-w) solid var(--line);
   padding-top: 14px;
   display: flex;
   align-items: center;
@@ -289,7 +292,7 @@ body:has(.manager-shell) {
      globals.css для /hub (viewportFit:"cover" в app/layout.js вже дає
      env() ненульове значення на реальному пристрої). */
   padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--border-w) solid var(--line);
   background: var(--surface-1);
   position: sticky;
   top: 0;
@@ -302,11 +305,11 @@ body:has(.manager-shell) {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  width: 36px;
-  height: 36px;
+  width: var(--iconbtn-md);
+  height: var(--iconbtn-md);
   flex-shrink: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-btn);
   background: var(--surface);
   cursor: pointer;
   padding: 0;
@@ -332,7 +335,7 @@ body:has(.manager-shell) {
 .mgr-nav-sheet-user {
   padding-bottom: 12px;
   margin-bottom: 6px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--border-w) solid var(--line);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -379,14 +382,14 @@ body:has(.manager-shell) {
   margin-bottom: 22px;
 }
 .mgr-kpi-tile {
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface-1);
   /* Висота плитки -30% (запит користувача): урізані і вертикальний
      padding, і кегль числа — самим лише padding такої різниці не вийшло
      б, бо більшу частину висоти займає саме число. Горизонтальний
      padding не чіпаємо — звужувати плитки не просили. */
-  padding: 7px 18px;
+  padding: var(--card-pad-compact);
 }
 .mgr-kpi-tile b {
   display: block;
@@ -450,10 +453,10 @@ body:has(.manager-shell) {
   --card-gap: 8px;
 }
 .mgr-enrollment-row {
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
-  padding: 11px 14px;
+  padding: var(--card-pad-compact);
 }
 .mgr-enrollment-main {
   display: flex;
@@ -507,7 +510,7 @@ body:has(.manager-shell) {
   list-style: none;
   margin: 8px 0 0;
   padding: 8px 0 0;
-  border-top: 1px solid var(--line);
+  border-top: var(--border-w) solid var(--line);
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -592,7 +595,7 @@ body:has(.manager-shell) {
 .mgr-attempts {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--line);
+  border-top: var(--border-w) solid var(--line);
 }
 .mgr-attempts-list {
   list-style: none;
@@ -615,50 +618,9 @@ body:has(.manager-shell) {
 .mgr-attempts-item > * {
   flex: 1 1 90px;
 }
-.mgr-attempt-pass {
-  color: var(--green-700);
-  font-weight: 600;
-}
-.mgr-attempt-fail {
-  color: var(--danger);
-  font-weight: 600;
-}
 
 /* ---- Статус-пілли (той самий підхід, що ct-tag-mandatory в hub.css:
    світлий фон токена + color-mix для читабельного темнішого тексту) ---- */
-.mgr-pill {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  padding: 3px 9px;
-  /* Без заокруглення — за проханням користувача, як офіційні атоми
-     Malty (.admin-btn у admin.css той самий принцип): статус-піл тут
-     навмисно прямокутний, не заокруглена "пігулка". var(--radius-btn),
-     не літеральний 0 — той самий токен, що й .admin-btn, а не
-     дубльоване "на око" значення. */
-  border-radius: var(--radius-btn);
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-}
-.mgr-pill-neutral {
-  background: var(--surface-2);
-  color: var(--ink-soft);
-}
-.mgr-pill-success {
-  background: var(--cb-success-light);
-  color: color-mix(in srgb, var(--cb-success) 45%, var(--cb-black));
-}
-.mgr-pill-fail {
-  background: var(--cb-fail-light);
-  color: color-mix(in srgb, var(--cb-fail) 45%, var(--cb-black));
-}
-.mgr-pill-alert {
-  background: var(--cb-alert-light);
-  color: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
-}
 
 /* ---- Графіки (ручний SVG — у проєкті немає чарт-бібліотеки) ---- */
 /* Тут, на відміну від решти сіток сторінки, auto-fit НЕ підходить:
@@ -698,10 +660,10 @@ body:has(.manager-shell) {
   }
 }
 .mgr-chart-card {
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface-1);
-  padding: 18px 20px;
+  padding: var(--card-pad-roomy);
 }
 .mgr-ring-grid {
   display: grid;
@@ -961,15 +923,16 @@ body:has(.manager-shell) {
   border-left: 2px solid var(--line);
 }
 .mgr-team-node {
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
+  padding: var(--card-pad-compact);
 }
 .mgr-team-row {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 9px 12px;
+  padding: var(--card-pad-compact);
 }
 .mgr-team-row-top {
   display: flex;
@@ -1027,7 +990,7 @@ body:has(.manager-shell) {
   color: var(--ink-soft);
   background: var(--surface-2);
   /* Без заокруглення — той самий принцип/токен, що .mgr-pill вище. */
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-badge);
   padding: 3px 9px;
   white-space: nowrap;
 }
@@ -1114,9 +1077,6 @@ body:has(.manager-shell) {
 }
 
 /* Дзвіночок і «Вийти» в сайдбарі — теж квадратні. */
-.mgr-sidebar .iconbtn {
-  border-radius: var(--radius-btn);
-}
 
 /* ===== /manager/profile і /manager/notifications: mobile-first → десктоп =====
    На телефоні — той самий стовпчик, що в /hub; від 900px профіль стає в
@@ -1140,7 +1100,7 @@ body:has(.manager-shell) {
   /* Блок налаштувань сповіщень — картка, як сусідні блоки зліва. */
   .mgr-profile-side .settings-block {
     padding: 4px 16px;
-    border: 1px solid var(--line);
+    border: var(--border-w) solid var(--line);
     border-radius: var(--radius-card);
     background: var(--surface-1);
   }

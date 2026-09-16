@@ -177,7 +177,7 @@
 }
 .stat-pill {
   background: var(--surface-1);
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   padding: 11px 8px;
   text-align: center;
@@ -217,11 +217,12 @@
    --shadow-hovered (той самий приём, що й cardStyle=Shadowed у Malty). */
 .course-tile {
   background: var(--cb-white);
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
-  padding: 14px;
+  padding: var(--card-pad);
   margin-bottom: 12px;
   transition: box-shadow var(--dur-base) var(--ease-premium);
+  box-shadow: var(--card-shadow);
 }
 .course-tile:hover {
   box-shadow: var(--shadow-hovered);
@@ -325,7 +326,7 @@
   background: var(--gold-soft);
   color: var(--gold);
   padding: 2px 7px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-badge);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -379,23 +380,6 @@
   color: var(--ink-soft);
   flex-shrink: 0;
 }
-.ct-status-done {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: calc(11.8px * var(--fs-scale));
-  font-weight: 700;
-}
-.ct-status-done svg {
-  width: 14px;
-  height: 14px;
-}
-.ct-status-done.is-pass {
-  color: var(--green-700);
-}
-.ct-status-done.is-fail {
-  color: var(--danger);
-}
 .ct-completed-date {
   font-size: calc(11px * var(--fs-scale));
   color: var(--ink-soft);
@@ -411,7 +395,7 @@
   gap: 6px;
   padding-top: 10px;
   margin: 0 0 10px;
-  border-top: 1px solid var(--line);
+  border-top: var(--border-w) solid var(--line);
 }
 .ct-module-row {
   display: flex;
@@ -511,10 +495,11 @@
   text-decoration: none;
   font-weight: 600;
   font-size: calc(12.5px * var(--fs-scale));
-  padding: 10px 14px;
+  padding: 0 var(--btn-px-md);
   border-radius: var(--radius-btn);
   box-shadow: var(--shadow-sm);
   transition: filter var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
+  min-height: var(--btn-h-md);
 }
 @media (hover: hover) {
   .ct-enter-link:hover {
@@ -547,11 +532,12 @@
   font: inherit;
   font-weight: 600;
   font-size: calc(12px * var(--fs-scale));
-  padding: 9px 14px;
+  padding: 0 var(--btn-px-md);
   border-radius: var(--radius-btn);
   border: 1px solid var(--gold);
   cursor: pointer;
   transition: filter var(--dur-fast) var(--ease-premium);
+  min-height: var(--btn-h-md);
 }
 .ct-certificate-link:disabled {
   cursor: wait;
@@ -671,8 +657,8 @@
   gap: 12px;
   align-items: flex-start;
   background: var(--surface-1);
-  border: 1.5px dashed var(--line);
-  border-radius: var(--radius-lg);
+  border: var(--border-w) dashed var(--line);
+  border-radius: var(--radius-card);
   padding: 14px;
   margin-bottom: 12px;
   opacity: 0.85;
@@ -739,7 +725,7 @@
   background: var(--surface-2);
   color: var(--ink-soft);
   padding: 2px 7px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-badge);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -802,9 +788,9 @@
   align-items: center;
   gap: 10px;
   background: var(--surface-1);
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
-  padding: 9px 12px;
+  padding: var(--card-pad-compact);
 }
 /* Власний рядок співробітника в рейтингу — виділений тонкою зеленою
    рамкою, щоб одразу бачити "де я", не шукаючи своє ім'я в списку. */
@@ -863,7 +849,7 @@
   flex-direction: column;
   gap: 0;
   background: var(--surface-1);
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   overflow: hidden;
   margin-bottom: 16px;
@@ -873,7 +859,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--border-w) solid var(--line);
   gap: 10px;
 }
 .pd-row:last-child {
@@ -898,7 +884,7 @@
      зменшена за проханням користувача, разом з .tab-btn/.tab-btn svg
      нижче). */
   margin-top: 8px;
-  border-top: 1px solid var(--line);
+  border-top: var(--border-w) solid var(--line);
   background: var(--surface);
   padding: 2px 10px calc(2px + env(safe-area-inset-bottom));
 }
@@ -965,7 +951,7 @@
   align-items: center;
   justify-content: center;
   padding: 6px 18px;
-  border-radius: 0;
+  border-radius: var(--radius-btn);
   transition: background var(--dur-fast) var(--ease-premium), color var(--dur-fast) var(--ease-premium);
 }
 .tab-btn.active .tab-btn-indicator {
@@ -977,11 +963,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 13px;
+  padding: 0 var(--btn-px-md);
   margin-top: 16px;
   border-radius: var(--radius-btn);
   background: transparent;
-  border: 1.5px solid var(--danger);
+  border: var(--border-w) solid var(--danger);
   color: var(--danger);
   font-weight: 700;
   font-size: calc(13px * var(--fs-scale));
@@ -989,6 +975,7 @@
   width: 100%;
   justify-content: center;
   transition: background 0.15s ease, transform 0.15s ease;
+  min-height: var(--btn-h-lg);
 }
 @media (hover: hover) {
   .logout-row:hover {
@@ -1016,7 +1003,7 @@
   min-width: 20px;
   margin-left: 6px;
   padding: 1px 7px;
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-badge);
   background: var(--surface-2);
   color: var(--ink-soft);
   font-size: calc(11.5px * var(--fs-scale));
@@ -1073,7 +1060,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-resting);
   pointer-events: none; /* камера — лише підказка, тап іде в кружок */
 }
 .avatar-edit-badge svg {

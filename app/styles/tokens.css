@@ -106,6 +106,30 @@
   --radius-lg: 22px;
   --radius-xl: 28px;
   --radius-pill: 999px;
+  /* Бейджі/теги/статуси — одна форма скрізь (стенд /admin/design перемикає
+     пілюля / як кнопки / як поля). */
+  --radius-badge: var(--radius-pill);
+
+  /* ---- UI-шкала (2026-09-16, уніфікація: замість 12 висот кнопок, 7
+     розмірів іконкових, 24 пар паддингів карток). Регулюється на стенді
+     /admin/design (lib/designTokens.ts); обрані значення вписувати сюди. ---- */
+  --border-w: 1px;
+  --btn-h-sm: 32px; /* адмінка, рядки таблиць, профіль */
+  --btn-h-md: 40px; /* картки курсів, перемикачі, іконкові середні */
+  --btn-h-lg: 52px; /* телефон: кнопки на всю ширину, навігація плеєра */
+  --btn-px-sm: 12px;
+  --btn-px-md: 16px;
+  --btn-px-lg: 24px;
+  --iconbtn-sm: 28px;
+  --iconbtn-md: 34px;
+  --card-pad-y: 14px;
+  --card-pad-x: 16px;
+  --card-pad: var(--card-pad-y) var(--card-pad-x);
+  --card-pad-compact: calc(var(--card-pad-y) - 4px) calc(var(--card-pad-x) - 4px);
+  --card-pad-roomy: calc(var(--card-pad-y) + 4px) calc(var(--card-pad-x) + 4px);
+  --card-shadow: none;
+  --table-cell-y: 10px;
+  --table-cell-pad: var(--table-cell-y) 12px;
 
   /* ---- Elevation (shadows.json — 4 фірмові рівні, буквально, а не
      "приблизно схожі") ---- */

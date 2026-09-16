@@ -19,15 +19,21 @@ export async function POST(request) {
     return NextResponse.json({ ok: false, error: "not_configured" }, { status: 500 });
   }
 
-  const providedBuf = Buffer.from(password);
-  const expectedBuf = Buffer.from(expected);
-  const valid =
-    providedBuf.length === expectedBuf.length && crypto.timingSafeEqual(providedBuf, expectedBuf);
+  const matches = (candidate) => {
+    if (!candidate) return false;
+    const providedBuf = Buffer.from(password);
+    const expectedBuf = Buffer.from(candidate);
+    return providedBuf.length === expectedBuf.length && crypto.timingSafeEqual(providedBuf, expectedBuf);
+  };
 
-  if (!valid) {
+  // Той самий екран входу: SUPER_ADMIN_PASSWORD дає рівень "super"
+  // (дизайн-система для всіх), ADMIN_PASSWORD — звичайний. Без окремого
+  // поля/чекбокса — рівень визначає сам пароль.
+  const level = matches(process.env.SUPER_ADMIN_PASSWORD) ? "super" : matches(expected) ? "admin" : null;
+  if (!level) {
     return NextResponse.json({ ok: false, error: "invalid_password" }, { status: 401 });
   }
 
-  await createAdminSession();
-  return NextResponse.json({ ok: true });
+  await createAdminSession(level);
+  return NextResponse.json({ ok: true, level });
 }

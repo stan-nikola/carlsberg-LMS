@@ -30,11 +30,13 @@ const ACTION_LABELS = {
   "folder.delete": "Видалено папку курсів",
   "broadcast.send": "Ручна розсилка",
   "broadcast.delete": "Видалено розсилку",
+  "design.save": "Збережено дизайн-токени для всіх",
+  "design.reset": "Скинуто дизайн-токени до дефолтів",
   "telegram.webhook": "Увімкнено Telegram webhook",
   "telegram.unlink": "Відключено Telegram",
   "telegram.test": "Тест у Telegram",
 };
-const TYPE_LABELS = { enrollment: "призначення", employee: "співробітник", course: "курс", badge: "відзнака", folder: "папка", broadcast: "розсилка", rating: "рейтинг", token: "токен", telegram: "Telegram" };
+const TYPE_LABELS = { enrollment: "призначення", employee: "співробітник", course: "курс", badge: "відзнака", folder: "папка", broadcast: "розсилка", rating: "рейтинг", token: "токен", design: "дизайн", telegram: "Telegram" };
 
 /** /admin/audit — журнал дій адміна: коли, що, над чим, з якими даними. */
 export function AdminAudit() {
@@ -75,33 +77,39 @@ export function AdminAudit() {
       ) : data.entries.length === 0 ? (
         <p className="admin-hint">Записів поки нема.</p>
       ) : (
-        <div className="admin-employee-table admin-audit-table">
-          <div className="admin-employee-row admin-employee-row-head">
-            <span>Коли</span>
-            <span>Дія</span>
-            <span>Об&apos;єкт</span>
-            <span>Деталі</span>
-          </div>
-          {data.entries.map((e) => (
-            <div
-              key={e.id}
-              className="admin-employee-row"
-              role="button"
-              tabIndex={0}
-              onClick={() => setOpen(open === e.id ? null : e.id)}
-              onKeyDown={(ev) => (ev.key === "Enter" || ev.key === " ") && (ev.preventDefault(), setOpen(open === e.id ? null : e.id))}
-            >
-              <span className="admin-employee-meta">{new Date(e.createdAt).toLocaleString("uk-UA")}</span>
-              <span>{ACTION_LABELS[e.action] || e.action}</span>
-              <span className="admin-employee-meta">
-                {TYPE_LABELS[e.targetType] || e.targetType}
-                {e.targetId != null && ` #${e.targetId}`}
-              </span>
-              <span className={`admin-audit-details${open === e.id ? " open" : ""}`}>{e.details ? JSON.stringify(e.details) : "—"}</span>
-            </div>
-          ))}
+        <>
+          <table className="admin-table admin-audit-table">
+            <thead>
+              <tr>
+                <th>Коли</th>
+                <th>Дія</th>
+                <th>Об&apos;єкт</th>
+                <th>Деталі</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.entries.map((e) => (
+                <tr
+                  key={e.id}
+                  className="adm-emp-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setOpen(open === e.id ? null : e.id)}
+                  onKeyDown={(ev) => (ev.key === "Enter" || ev.key === " ") && (ev.preventDefault(), setOpen(open === e.id ? null : e.id))}
+                >
+                  <td className="admin-employee-meta">{new Date(e.createdAt).toLocaleString("uk-UA")}</td>
+                  <td>{ACTION_LABELS[e.action] || e.action}</td>
+                  <td className="admin-employee-meta">
+                    {TYPE_LABELS[e.targetType] || e.targetType}
+                    {e.targetId != null && ` #${e.targetId}`}
+                  </td>
+                  <td className={`admin-audit-details${open === e.id ? " open" : ""}`}>{e.details ? JSON.stringify(e.details) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
           {data.entries.length >= data.limit && <p className="admin-hint">Показано останні {data.limit} записів.</p>}
-        </div>
+        </>
       )}
     </div>
   );

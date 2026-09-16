@@ -3,9 +3,9 @@
 
 .rt-card {
   display: block;
-  padding: 13px 14px;
+  padding: var(--card-pad);
   margin-bottom: 12px;
-  border: 1px solid var(--line);
+  border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface-1);
   color: inherit;
@@ -98,7 +98,7 @@ a.rt-card:focus-visible {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 13px;
+  padding: var(--card-pad-compact);
   border: 1px solid var(--gold);
   border-radius: var(--radius-card);
   background: var(--gold-soft);
