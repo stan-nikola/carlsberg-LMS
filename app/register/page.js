@@ -159,6 +159,12 @@ export default function RegisterPage() {
     }
     setPinError("");
     setPinSubmitBusy(true);
+    // Після успішного входу спінер НЕ гасимо: router.push лише запускає
+    // перехід, а сам кабінет рендериться на сервері ще секунду-дві —
+    // без цього кнопка «оживала», і людина дивилась на форму, не
+    // розуміючи, чи спрацювало. Компонент розмонтується разом із новим
+    // екраном, тож окремого «вимкнути» не потрібно.
+    let navigating = false;
     try {
       const resp = await callAuth("/api/auth/confirm", {
         externalCode: externalCode.trim(),
@@ -172,6 +178,7 @@ export default function RegisterPage() {
         } catch {
           // localStorage недоступний - просто не запам'ятається, не критично
         }
+        navigating = true;
         router.push("/hub");
         router.refresh();
       } else if (resp.error === "pin_expired") {
@@ -182,7 +189,7 @@ export default function RegisterPage() {
     } catch {
       setPinError("Не вдалося надіслати запит. Перевірте інтернет-з'єднання і спробуйте ще раз.");
     } finally {
-      setPinSubmitBusy(false);
+      if (!navigating) setPinSubmitBusy(false);
     }
   }
 
