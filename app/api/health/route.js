@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isPushConfigured } from "@/lib/webPush";
 import { isDemoLoginEnabled } from "@/lib/demoLogin";
+import { isTelegramConfigured } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export async function GET() {
       db: true,
       lastMigration: rows[0]?.migration_name ?? null,
       push: isPushConfigured(),
+      telegram: isTelegramConfigured(),
       demoLogin: isDemoLoginEnabled(),
       env: process.env.VERCEL_ENV || process.env.NODE_ENV,
       ms: Date.now() - startedAt,

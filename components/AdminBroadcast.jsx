@@ -9,7 +9,7 @@ import { SpinnerIcon, XIcon } from "@/components/icons";
  * (target.territoryIds/employeeIds), у формі поки лише посади; додати
  * TerritoryPicker, коли попросять.
  */
-export function AdminBroadcast() {
+export function AdminBroadcast({ children = null }) {
   const [positions, setPositions] = useState([]);
   const [history, setHistory] = useState([]);
   // Видалення з історії: по одному (кнопка в рядку) або масово (чекбокси +
@@ -36,7 +36,7 @@ export function AdminBroadcast() {
     }
   }
   const allSelected = history.length > 0 && selected.size === history.length;
-  const [form, setForm] = useState({ title: "", message: "", url: "", all: true, positionCodes: [] });
+  const [form, setForm] = useState({ title: "", message: "", url: "", all: true, positionCodes: [], push: true, telegram: true });
   // Список курсів для поля «Посилання»: обрав курс — адреса /courses/<slug>
   // підставилась сама, руками slug не вгадувати (користувач, 2026-09-15).
   // Групи <optgroup> «папка / підпапка» → курси; курси поза папками — в
@@ -96,10 +96,11 @@ export function AdminBroadcast() {
           message: form.message,
           url: form.url || undefined,
           target: form.all ? { all: true } : { positionCodes: form.positionCodes },
+          channels: { push: form.push, telegram: form.telegram },
         }),
       });
       const d = await res.json();
-      setResult(res.ok ? `Надіслано: ${d.created} сповіщень (push на ${d.pushed} пристроїв)` : d.error);
+      setResult(res.ok ? `Надіслано: ${d.created} сповіщень · push: ${d.pushed} пристроїв · Telegram: ${d.telegram}` : d.error);
       if (res.ok) {
         setForm((f) => ({ ...f, title: "", message: "", url: "" }));
         loadHistory();
@@ -113,7 +114,7 @@ export function AdminBroadcast() {
     <div className="admin-page">
       <h1>Сповіщення</h1>
       <p className="admin-subtitle">
-        Ручна розсилка в центр сповіщень і push на пристрої. Нові курси, дедлайни та відзнаки розсилаються автоматично.
+        Ручна розсилка в центр сповіщень, push на пристрої і Telegram. Нові курси, дедлайни та відзнаки розсилаються автоматично.
       </p>
 
       <form className="adm-card adm-bc-form" onSubmit={send}>
@@ -159,6 +160,17 @@ export function AdminBroadcast() {
             <option value="positions">За посадами</option>
           </select>
         </div>
+        <div className="admin-field">
+          <span className="admin-label">Канали</span>
+          <div className="adm-bc-channels">
+            <label className="admin-checkbox">
+              <input type="checkbox" checked={form.push} onChange={(e) => setForm({ ...form, push: e.target.checked })} /> Push на пристрої
+            </label>
+            <label className="admin-checkbox">
+              <input type="checkbox" checked={form.telegram} onChange={(e) => setForm({ ...form, telegram: e.target.checked })} /> Telegram
+            </label>
+          </div>
+        </div>
         </div>
         {!form.all && (
           <div className="admin-checkbox-grid">
@@ -181,7 +193,7 @@ export function AdminBroadcast() {
         )}
         <div className="adm-card-foot">
           {result && <p className="admin-hint">{result}</p>}
-          <button type="submit" className="admin-btn admin-btn-primary" disabled={sending || (!form.all && form.positionCodes.length === 0)}>
+          <button type="submit" className="admin-btn admin-btn-primary" disabled={sending || (!form.all && form.positionCodes.length === 0) || (!form.push && !form.telegram)}>
             {sending ? <SpinnerIcon /> : "Надіслати"}
           </button>
         </div>
@@ -217,6 +229,8 @@ export function AdminBroadcast() {
               <th>Заголовок</th>
               <th>Кому</th>
               <th>Отримали</th>
+              <th>Push</th>
+              <th>Telegram</th>
               <th />
             </tr>
           </thead>
@@ -245,6 +259,8 @@ export function AdminBroadcast() {
                 </td>
                 <td>{b.targetSummary}</td>
                 <td>{b.sentCount}</td>
+                <td>{(b.channels || "push,telegram").includes("push") ? b.pushed : "—"}</td>
+                <td>{(b.channels || "push,telegram").includes("telegram") ? b.telegramSent : "—"}</td>
                 <td>
                   <button type="button" className="iconbtn iconbtn-danger" title="Видалити" aria-label="Видалити" onClick={() => removeBroadcasts([b.id])} disabled={deleting}>
                     <XIcon />
@@ -256,6 +272,7 @@ export function AdminBroadcast() {
         </table>
       )}
       </section>
+      {children}
     </div>
   );
 }

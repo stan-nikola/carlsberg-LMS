@@ -210,6 +210,18 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
   (`mailto:…`) — генерує й вписує в .env/Vercel користувач:
   `npx web-push generate-vapid-keys`. Без них `isPushConfigured()` → false,
   push мовчки вимкнено, центр працює.
+- **Telegram** (`lib/telegram.ts`, `lib/telegramLogic.ts`, 2026-09-16) — другий
+  канал доставки в тому ж `notifyEmployees`: після push шле в чат бота
+  CarlsON усім з `TelegramLink`, у кого `NotificationPreference.telegram`
+  не false. Прив’язка — deep link з профілю (`t.me/<bot>?start=<token>`,
+  токен HMAC на SESSION_SECRET, 15 хв, без таблиці) → webhook
+  `app/api/telegram/webhook` (перевіряє `TELEGRAM_WEBHOOK_SECRET`) робить
+  upsert; `/stop` — відв’язати; інший текст — у `TelegramInbound` для
+  адмінки. Bot API — прямі fetch, без бібліотеки. Зниклі чати (403/«chat not
+  found») видаляються, як push 404/410. Адмінка: `/admin/notifications` →
+  `AdminTelegram` (стан, webhook, прив’язки, тест, вхідні); розсилка
+  обирає канали (`Broadcast.channels/pushed/telegramSent`). Без
+  `TELEGRAM_BOT_TOKEN` канал мовчки вимкнено.
 - **Клієнт:** `public/sw.js` (push/notificationclick/pushsubscriptionchange,
   без кешу), `lib/pushClient.js` (стан: unsupported / ios-not-installed /
   denied / subscribed / not-subscribed; дозвіл питати ЛИШЕ з кліку),

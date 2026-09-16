@@ -3005,3 +3005,46 @@
 .adm-card-row + .adm-card {
   margin-top: 16px;
 }
+
+/* /admin/notifications → Telegram (components/AdminTelegram.tsx) */
+.adm-tg-status {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+.adm-tg-status dt {
+  color: var(--ink-soft);
+}
+.adm-tg-status dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.adm-tg-ok {
+  color: var(--green-700);
+}
+.adm-tg-bad {
+  color: var(--danger);
+}
+.adm-tg-search {
+  max-width: 320px;
+}
+.adm-tg-actions {
+  white-space: nowrap;
+}
+.adm-tg-actions .iconbtn + .iconbtn {
+  margin-left: 4px;
+}
+.adm-card-head h2 svg {
+  width: 18px;
+  height: 18px;
+  vertical-align: -3px;
+  margin-right: 4px;
+}
+.adm-bc-channels {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+}

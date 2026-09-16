@@ -102,6 +102,7 @@ Push у `main` (merge PR) = автоматичний деплой. Preview-ад�
 | --- | --- | --- |
 | `DATABASE_URL` | бойова база Neon | Neon → Connection string (pooled). **З 2026-09-15 бойова база — колишня демо-база** (та, що локально в `SYNTHETIC_DEMO_DATABASE_URL`): курси, результати, рейтинг і відзнаки для демонстрації живуть у ній. Стара прод-база з реальним імпортом співробітників лишилась окремим проектом Neon, не видаляти. |
 | `SESSION_SECRET` | підпис cookie сесії | `openssl rand -hex 32`, інший ніж на dev |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME` | Telegram-бот CarlsON (необов’язково) | див. розділ «Telegram-бот» нижче |
 | `ADMIN_PASSWORD` | вхід у `/admin` | придумати |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | PIN-листи через Resend | resend.com; **без підтвердженого домену Resend шле лише на пошту власника акаунта** |
 | `EMAIL_PROVIDER=gmail`, `GMAIL_USER`, `GMAIL_APP_PASSWORD` | PIN-листи через Gmail SMTP — поки нема свого домену (рішення 2026-09-15) | Google-акаунт → Безпека → Паролі застосунків (16 символів); ліміт ~500 листів/добу. Коли домен підтверджено — прибрати `EMAIL_PROVIDER`, повернеться Resend |
@@ -130,6 +131,22 @@ Push у `main` (merge PR) = автоматичний деплой. Preview-ад�
 preview гілки і production-збірка `main` після мержу стартували
 одночасно, обидві брали advisory lock на одній базі, і production
 падала з тим самим P1002.
+
+## 3a. Telegram-бот (необов’язково)
+
+1. У Telegram відкрий **@BotFather** → `/newbot` → ім’я «CarlsON», username
+   `CarlsON_bot` (має закінчуватись на `bot`, дефіси не дозволені). BotFather
+   видасть токен виду `123456:ABC…`.
+2. У Vercel → Environment Variables (Production): `TELEGRAM_BOT_TOKEN` = токен,
+   `TELEGRAM_WEBHOOK_SECRET` = `openssl rand -hex 16`, `TELEGRAM_BOT_USERNAME` =
+   `CarlsON_bot`. **Redeploy.**
+3. `/admin/notifications` → блок «Telegram-бот» → **Увімкнути webhook**. У
+   картці стану має з’явитись адреса `https://<домен>/api/telegram/webhook`.
+4. Перевірка: у своєму профілі → «Telegram» → **Підключити** → у Telegram
+   натиснути Start → у профілі з’явиться «Підключено: @…». В адмінці в
+   таблиці «Підключені» — кнопка «Надіслати тест».
+
+Без токена блок у профілі не показується, розсилки йдуть лише в центр і push.
 
 ## 4. Після деплою
 
