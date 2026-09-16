@@ -197,3 +197,10 @@ a.ntf-item:focus-visible {
   flex-wrap: wrap;
   gap: 8px 16px;
 }
+
+/* Канал Telegram серед категорій — відділений лінією, бо це не «що», а «куди». */
+.ntf-pref-channel {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}

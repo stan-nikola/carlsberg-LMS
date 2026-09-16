@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NOTIFICATION_CATEGORIES } from "@/lib/notificationTypes";
 import { getPushState, subscribeToPush, unsubscribeFromPush } from "@/lib/pushClient";
-import { BellIcon, ChevronIcon } from "@/components/icons";
+import { BellIcon, ChevronIcon, TelegramIcon, SpinnerIcon } from "@/components/icons";
 
 const DISMISS_KEY = "carls_push_prompt_dismissed_until";
 const DISMISS_DAYS = 14;
@@ -31,6 +31,44 @@ export function NotificationSettings({ variant = "full" }) {
   // Категорії — під шевроном, згорнуті: у профілі це другорядне налаштування,
   // п'ять рядків одразу перевантажували екран (користувач, 2026-09-15).
   const [prefsOpen, setPrefsOpen] = useState(false);
+  // Telegram: null — ще не завантажено; { configured, botUsername, link, linkUrl }.
+  // Після тапу «Підключити» відкривається бот, а ми опитуємо стан кожні
+  // 3с до 2 хв — прив’язка з’являється без перезавантаження сторінки.
+  const [tg, setTg] = useState(null);
+  const [tgWaiting, setTgWaiting] = useState(false);
+  const tgPoll = useRef(null);
+
+  async function loadTelegram() {
+    try {
+      const d = await fetch("/api/notifications/telegram").then((r) => r.json());
+      setTg(d);
+      return d;
+    } catch {
+      return null;
+    }
+  }
+  function stopTgPoll() {
+    if (tgPoll.current) clearInterval(tgPoll.current);
+    tgPoll.current = null;
+    setTgWaiting(false);
+  }
+  function tgConnect() {
+    if (!tg?.linkUrl) return;
+    window.open(tg.linkUrl, "_blank", "noopener");
+    setTgWaiting(true);
+    let tries = 0;
+    tgPoll.current = setInterval(async () => {
+      tries += 1;
+      const d = await loadTelegram();
+      if (d?.link || tries >= 40) stopTgPoll();
+    }, 3000);
+  }
+  async function tgDisconnect() {
+    if (!window.confirm("Відключити Telegram? Сповіщення в чат бота більше не приходитимуть.")) return;
+    await fetch("/api/notifications/telegram", { method: "DELETE" });
+    loadTelegram();
+  }
+  useEffect(() => () => stopTgPoll(), []);
 
   useEffect(() => {
     getPushState().then(setState);
@@ -48,6 +86,7 @@ export function NotificationSettings({ variant = "full" }) {
         .then((r) => r.json())
         .then((d) => setPrefs(d.preferences))
         .catch(() => {});
+      loadTelegram();
     }
   }, [variant]);
 
@@ -144,9 +183,51 @@ export function NotificationSettings({ variant = "full" }) {
           </button>
         )}
       </div>
+      {tg?.configured && (
+        <div className="settings-row">
+          <div className="settings-label">
+            <span className="settings-ico">
+              <TelegramIcon />
+            </span>
+            <span className="ntf-row-text">
+              <span className="settings-t">Telegram</span>
+              <span className="settings-d">
+                {tg.link
+                  ? `Підключено: ${tg.link.username ? "@" + tg.link.username : tg.link.firstName || "чат"}`
+                  : tgWaiting
+                    ? "Натисніть Start у Telegram — чекаємо підтвердження…"
+                    : `Сповіщення в чат бота @${tg.botUsername}`}
+              </span>
+            </span>
+          </div>
+          {tg.link ? (
+            <button type="button" className="admin-btn" onClick={tgDisconnect}>
+              Відключити
+            </button>
+          ) : tgWaiting ? (
+            <button type="button" className="admin-btn" onClick={stopTgPoll}>
+              <SpinnerIcon />
+              Скасувати
+            </button>
+          ) : (
+            <button type="button" className="admin-btn" onClick={tgConnect} disabled={!tg.linkUrl}>
+              Підключити
+            </button>
+          )}
+        </div>
+      )}
       {prefs && prefsOpen && (
         <div className="ntf-prefs">
           <div className="ntf-prefs-caption">Які сповіщення отримувати</div>
+          {tg?.link && (
+            <label className="ntf-pref ntf-pref-channel">
+              <input type="checkbox" checked={prefs.telegram !== false} onChange={(e) => toggle("telegram", e.target.checked)} />
+              <span className="ntf-pref-ico" aria-hidden="true">
+                ✈️
+              </span>
+              <span className="ntf-pref-label">Дублювати в Telegram</span>
+            </label>
+          )}
           {NOTIFICATION_CATEGORIES.map((c) => (
             <label key={c.key} className="ntf-pref">
               <input type="checkbox" checked={prefs[c.key] !== false} onChange={(e) => toggle(c.key, e.target.checked)} />

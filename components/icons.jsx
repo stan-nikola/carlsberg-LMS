@@ -444,3 +444,12 @@ export function SlidersIcon() {
     </svg>
   );
 }
+
+/** Telegram (паперовий літачок) — канал сповіщень у профілі та адмінці. */
+export function TelegramIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 3L3 10.5l6.5 2.5L18 6l-6 8.5v5l3-3.5 4 2.5z" />
+    </svg>
+  );
+}

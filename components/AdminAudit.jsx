@@ -32,8 +32,11 @@ const ACTION_LABELS = {
   "broadcast.delete": "Видалено розсилку",
   "design.save": "Збережено дизайн-токени для всіх",
   "design.reset": "Скинуто дизайн-токени до дефолтів",
+  "telegram.webhook": "Увімкнено Telegram webhook",
+  "telegram.unlink": "Відключено Telegram",
+  "telegram.test": "Тест у Telegram",
 };
-const TYPE_LABELS = { enrollment: "призначення", employee: "співробітник", course: "курс", badge: "відзнака", folder: "папка", broadcast: "розсилка", rating: "рейтинг", token: "токен", design: "дизайн" };
+const TYPE_LABELS = { enrollment: "призначення", employee: "співробітник", course: "курс", badge: "відзнака", folder: "папка", broadcast: "розсилка", rating: "рейтинг", token: "токен", design: "дизайн", telegram: "Telegram" };
 
 /** /admin/audit — журнал дій адміна: коли, що, над чим, з якими даними. */
 export function AdminAudit() {

@@ -123,6 +123,8 @@ model Employee {
   badgesAwarded          EmployeeBadge[]         @relation("BadgeAwardedBy")
   pushSubscriptions      PushSubscription[]
   notificationPreference NotificationPreference?
+  telegramLink           TelegramLink?
+  telegramInbound        TelegramInbound[]
 
   /// Soft-delete/деактивація для адмінського CRUD співробітників.
   /// Навмисно НЕ hard delete — Employee має self-relation (managerId/
@@ -575,6 +577,9 @@ model NotificationPreference {
   badges     Boolean  @default(true)
   team       Boolean  @default(true)
   news       Boolean  @default(true)
+  /// Канал Telegram (окремо від категорій): вимкнув — прив’язка лишається,
+  /// повідомлення не йдуть. Push керується самою підпискою пристрою.
+  telegram   Boolean  @default(true)
   updatedAt  DateTime @updatedAt
 }
 
@@ -589,7 +594,42 @@ model Broadcast {
   /// Людський опис адресатів («Усі», «Посади: SV, ASM», «Територія: …»).
   targetSummary String
   sentCount     Int
+  /// Канали доставки, обрані в формі («push,telegram» / «push» / «telegram»)
+  /// і скільки реально доставлено кожним (центр сповіщень — sentCount).
+  channels      String   @default("push,telegram")
+  pushed        Int      @default(0)
+  telegramSent  Int      @default(0)
   createdAt     DateTime @default(now())
+}
+
+/// Прив’язка чату Telegram-бота (CarlsON) до співробітника — робиться
+/// deep link-ом з профілю (/start <token>, app/api/telegram/webhook).
+/// Один чат = одна людина (chatId unique). lib/telegram.ts.
+model TelegramLink {
+  employeeId Int       @id
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  /// Telegram chat id як рядок: у Bot API це 64-бітне число.
+  chatId     String    @unique
+  username   String?
+  firstName  String?
+  linkedAt   DateTime  @default(now())
+  lastSentAt DateTime?
+  /// Остання помилка доставки (Bot API description); null після успіху.
+  lastError  String?
+}
+
+/// Що люди пишуть боту (крім /start і /stop) — журнал для адмінки; бот
+/// відповідей не читає, лише збирає, щоб адміністратор бачив запитання.
+model TelegramInbound {
+  id         Int       @id @default(autoincrement())
+  chatId     String
+  employeeId Int?
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  username   String?
+  text       String
+  createdAt  DateTime  @default(now())
+
+  @@index([createdAt])
 }
 
 /// Токен для "живого" Excel-підключення (Фаза B3 адмінки) — Power Query
