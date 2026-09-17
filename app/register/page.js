@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -31,6 +31,13 @@ import { HintDot } from "@/components/HintDot";
 // одноразово йде й на сервер у тілі /api/auth/register, щоб лист із
 // PIN (lib/auth.js requestLoginPin) міг показати, хто саме й під яким
 // іменем намагається увійти — самого запису в БД це не змінює.
+
+// Який екран показати першим, залежить від localStorage і display-mode —
+// на сервері їх немає, тож рішення можливе лише на клієнті. useLayoutEffect
+// приймає його ДО відмальовування кадру; useEffect спрацьовує вже після, і
+// кадр із неправильним екраном встигає блимнути. На сервері useLayoutEffect
+// не запускається й лається в консоль — звідси підміна.
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const RESEND_COOLDOWN_MS = 20000;
 const LOCAL_NAME_KEY = "employee_display_name_v1";
@@ -154,15 +161,17 @@ export default function RegisterPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Перший вхід: «Вітаємо»/«Застосунок готовий» → (інструкція) → форма.
-  // "form" за замовчуванням (SSR-безпечно) — реальний крок визначається
-  // лише на клієнті (localStorage/display-mode), в ефекті нижче, щоб не
-  // розходитись із серверним рендером при гідратації.
-  const [onboardStep, setOnboardStep] = useState("form");
-  useEffect(() => {
+  // null = крок ще не визначено, і саме цей стан рендерить сервер. Раніше
+  // тут стояло "form", тож першим кадром у всіх пролітала форма реєстрації,
+  // яку через мить змінювало привітання (скарга користувача, 2026-09-17).
+  // Поки null — стоїть лише бренд-блок, той самий і на тому самому місці,
+  // що й на будь-якому з наступних екранів: логотип не стрибає, під ним
+  // домальовується решта.
+  const [onboardStep, setOnboardStep] = useState(null);
+  useIsomorphicLayoutEffect(() => {
     let next = "form";
     if (shouldShowStandaloneIntro()) next = "standalone";
     else if (shouldShowWelcome()) next = "welcome";
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOnboardStep(next);
   }, []);
   function skipOnboarding() {
@@ -357,6 +366,13 @@ export default function RegisterPage() {
     <div className="stage stage--register">
       <div className="course-col">
         <div className="course-card">
+          {onboardStep === null && (
+            <div className="reg-viewport reg-onboard">
+              <div className="reg-badge">
+                <PlatformBrand size="xl" stacked />
+              </div>
+            </div>
+          )}
           {onboardStep === "welcome" && <WelcomeScreen onStart={() => setOnboardStep("guide")} onSkip={skipOnboarding} />}
           {onboardStep === "guide" && <InstallGuideEmbed onDone={finishOnboardingGuide} />}
           {onboardStep === "standalone" && <StandaloneIntroScreen onContinue={completeStandaloneIntro} />}

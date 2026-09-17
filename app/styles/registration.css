@@ -481,14 +481,15 @@
 .reg-onboard-enter {
   animation: regOnboardEnter 0.36s cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
+/* Лише прозорість, без зсуву вгору: перед цим екраном уже стоїть бренд-блок
+   стартового кадру з логотипом на тому самому місці, і translateY змушував
+   логотип на 14px стрибнути — рівно той «скачок», який тут і прибирали. */
 @keyframes regOnboardEnter {
   from {
     opacity: 0;
-    transform: translateY(14px);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {

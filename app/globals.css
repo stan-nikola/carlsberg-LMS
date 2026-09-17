@@ -875,6 +875,38 @@ html:has(.adm-shell) {
     border: none;
     box-shadow: none;
   }
+  /* Крок з анімованою інструкцією — виняток із height:auto вище. Сцена
+     живе в iframe і рахує власні розміри від ширини контейнера (cqw у
+     public/guide/install.html), тож без заданої висоти flex-колонка не
+     дає iframe нічого — він схлопується до дефолтних 150px, і від
+     інструкції лишається смужка з обрізаними кнопками. Ширина теж своя:
+     колонка 560px під форму для широкої сцени завузька. */
+  .stage--register:has(.install-guide-embed) {
+    max-width: min(900px, 92vw);
+  }
+  .stage--register .course-card:has(.install-guide-embed) {
+    height: min(720px, 86vh);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  /* Вітання і «Застосунок готовий» — на телефоні кнопка стоїть у нижній
+     панелі з рамкою зверху, на десктопі та панель без картки навколо
+     читається як чужа смуга через усю сторінку. */
+  .stage--register .reg-onboard-footer {
+    padding: 0;
+    border-top: none;
+    background: none;
+  }
+  .stage--register .reg-onboard-footer .btn-primary-full,
+  .stage--register .reg-onboard-progress {
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .stage--register .reg-onboard-skip {
+    top: 0;
+    right: 0;
+  }
 }
 
 /* ---- Статус-пілюлі (components/StatusBadge.tsx): «Складено / Не складено»
