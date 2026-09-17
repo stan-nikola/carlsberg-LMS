@@ -577,9 +577,16 @@ model NotificationPreference {
   badges     Boolean  @default(true)
   team       Boolean  @default(true)
   news       Boolean  @default(true)
-  /// Канал Telegram (окремо від категорій): вимкнув — прив’язка лишається,
-  /// повідомлення не йдуть. Push керується самою підпискою пристрою.
-  telegram   Boolean  @default(true)
+  /// Telegram — ОКРЕМИЙ набір тих самих 5 категорій (2026-09-17, замінило
+  /// один спільний прапорець telegram): у профілі Push і Telegram — два
+  /// незалежні розкривні списки, можна отримувати курси push-ом, а
+  /// дедлайни — тільки в Telegram. Прив’язка (TelegramLink) лишається
+  /// незалежно від цих прапорців — вони лише фільтр «що слати».
+  telegramCourses   Boolean @default(true)
+  telegramDeadlines Boolean @default(true)
+  telegramBadges    Boolean @default(true)
+  telegramTeam      Boolean @default(true)
+  telegramNews      Boolean @default(true)
   updatedAt  DateTime @updatedAt
 }
 

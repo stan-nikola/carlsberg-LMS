@@ -827,20 +827,85 @@ html:has(.adm-shell) {
   }
 }
 
-/* Екран входу і хаб на десктопі — на всю висоту в’юпорту, як і плеєр
-   вище (скарги 2026-09-15: «окно входа не на всю высоту вьюпорта», потім
-   те саме про /hub/achievements); ширина лишається телефонною
-   (.course-col 400px), на мобільному картка й так 100dvh. */
+/* Хаб на десктопі — на всю висоту в’юпорту, як і плеєр вище (скарги
+   2026-09-15: «окно входа не на всю высоту вьюпорта», потім те саме про
+   /hub/achievements); ширина лишається телефонною (.course-col 400px),
+   на мобільному картка й так 100dvh. Реєстрація мала той самий трюк
+   раніше — тепер у неї власний, нефонний десктопний вигляд нижче. */
 @media (min-width: 900px) {
-  body:has(.stage--register),
   body:has(.stage--hub) {
     padding: 0;
   }
-  .stage--register .course-card,
   .stage--hub .course-card {
     height: 100vh;
     border-top: none;
     border-bottom: none;
+  }
+}
+
+/* Реєстрація на десктопі — НЕ «телефон посередині широкого монітора»
+   (2026-09-18, користувач: «замести контент в центре екрана… без блока
+   з тінню»): знімаємо корпус картки (рамку/тінь/фіксовану вузьку
+   ширину) і центруємо голий вміст комфортною для читання колонкою
+   просто на фоні body (той самий радіальний градієнт, що й був під
+   карткою). Висота — auto: body й так центрує по вертикалі власним
+   display:flex/align-items:center (базове правило вище), картці більше
+   не треба штучно розтягуватись на 100vh, як для плеєра/хаба. 560px —
+   ширше за чисту форму входу (~440px), бо вітальний екран несе довший
+   абзац і три пункти-переваги; вужче не варто — рядок тексту починає
+   виглядати як на телефоні, саме та скарга, що вирішуємо. */
+@media (min-width: 900px) {
+  /* Перебиває загальне row-компонування "@media (min-width: 900px) .stage"
+     вище (воно розраховане на .course-col ПОРУЧ з чимось іншим і фіксовану
+     ширину 400px) — тут .course-col єдина дитина, звичайна центрована
+     колонка. */
+  .stage--register {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 560px;
+  }
+  .stage--register .course-col {
+    width: 100%;
+  }
+  .stage--register .course-card {
+    width: 100%;
+    height: auto;
+    background: none;
+    border: none;
+    box-shadow: none;
+  }
+  /* Крок з анімованою інструкцією — виняток із height:auto вище. Сцена
+     живе в iframe і рахує власні розміри від ширини контейнера (cqw у
+     public/guide/install.html), тож без заданої висоти flex-колонка не
+     дає iframe нічого — він схлопується до дефолтних 150px, і від
+     інструкції лишається смужка з обрізаними кнопками. Ширина теж своя:
+     колонка 560px під форму для широкої сцени завузька. */
+  .stage--register:has(.install-guide-embed) {
+    max-width: min(900px, 92vw);
+  }
+  .stage--register .course-card:has(.install-guide-embed) {
+    height: min(720px, 86vh);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  /* Вітання і «Застосунок готовий» — на телефоні кнопка стоїть у нижній
+     панелі з рамкою зверху, на десктопі та панель без картки навколо
+     читається як чужа смуга через усю сторінку. */
+  .stage--register .reg-onboard-footer {
+    padding: 0;
+    border-top: none;
+    background: none;
+  }
+  .stage--register .reg-onboard-footer .btn-primary-full,
+  .stage--register .reg-onboard-progress {
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .stage--register .reg-onboard-skip {
+    top: 0;
+    right: 0;
   }
 }
 
@@ -944,4 +1009,42 @@ html:has(.adm-shell) {
    HubShell), ще до того, як прийде новий екран — щоб не тиснути вдруге. */
 .nav-pending {
   display: none;
+}
+
+/* ---- Інструкція встановлення (components/InstallGuide.tsx): iframe на
+   public/guide/install.html. На телефоні — на весь екран (сторінка сама
+   верстає під 100dvh), на десктопі — «телефонне» вікно по центру. ---- */
+.install-guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cb-overlay-50);
+}
+.install-guide-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #f6f8f7;
+}
+@media (min-width: 600px) {
+  .install-guide-frame {
+    width: min(480px, 100%);
+    height: min(860px, 100dvh);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-overlay);
+  }
+}
+/* Той самий install.html — крок «guide» онбордингу реєстрації
+   (components/InstallGuide.tsx InstallGuideEmbed): не модалка поверх
+   іншого екрана, а ПОТОЧНИЙ екран — займає увесь .course-card. */
+.install-guide-embed {
+  display: block;
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #f6f8f7;
 }

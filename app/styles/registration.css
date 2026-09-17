@@ -375,3 +375,130 @@
   border-color: var(--green-500);
   box-shadow: var(--cb-focus-ring);
 }
+
+/* ===== Перший вхід: «Вітаємо» → інструкція встановлення / «Застосунок
+   готовий» (app/register/page.js, компонент RegisterOnboarding нижче в
+   тому ж файлі) — 2026-09-18. Той самий .reg-viewport (флекс-колонка з
+   ::before/::after margin:auto — вертикальне центрування контенту, що не
+   влазить — скролиться), лише інший вміст замість форми. ===== */
+.reg-onboard {
+  text-align: center;
+}
+.reg-onboard-skip {
+  position: absolute;
+  top: clamp(10px, 2.4vh, 18px);
+  right: 15px;
+  z-index: 1;
+  padding: 6px 4px;
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: calc(13px * var(--fs-scale));
+  cursor: pointer;
+}
+.reg-onboard-skip:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+  border-radius: var(--radius-sm);
+}
+.reg-onboard-lead {
+  font-size: calc(14px * var(--fs-scale));
+  line-height: 1.5;
+  color: var(--ink-soft);
+  text-align: center;
+  margin: 0 0 clamp(18px, 3.6vh, 30px);
+}
+.reg-onboard-features {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+.reg-onboard-features li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: calc(13.5px * var(--fs-scale));
+  color: var(--ink);
+}
+.reg-onboard-features .settings-ico {
+  flex-shrink: 0;
+}
+/* Велике зелене коло з галочкою — «Застосунок готовий!» (StandaloneIntroScreen). */
+.reg-onboard-check {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto clamp(16px, 3.2vh, 24px);
+  border-radius: 50%;
+  background: var(--cb-success-light);
+  color: color-mix(in srgb, var(--cb-success) 45%, var(--cb-black));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: logoPop 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+.reg-onboard-check svg {
+  width: 32px;
+  height: 32px;
+}
+/* Той самий паддинг/рамка, що .reg-footer, але без правила
+   ".reg-footer .btn-primary-full{display:none}" — тут завжди одна кнопка,
+   а не дві по кроках форми. */
+.reg-onboard-footer {
+  flex: none;
+  padding: 14px 15px calc(20px + env(safe-area-inset-bottom));
+  border-top: var(--border-w) solid var(--line);
+  background: var(--surface);
+}
+/* Тонка смужка, що заповнюється за ONBOARD_DELAY_MS (lib/installGuide.ts)
+   — той самий проміжок, що й авто-перехід далі, щоб не розходились. */
+.reg-onboard-progress {
+  height: 3px;
+  margin-bottom: 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.reg-onboard-progress span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--cb-secondary);
+  animation-name: regOnboardProgress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes regOnboardProgress {
+  to {
+    width: 100%;
+  }
+}
+/* Поява кожного кроку онбордингу — плавно, не миттєвою підміною вмісту. */
+.reg-onboard-enter {
+  animation: regOnboardEnter 0.36s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+/* Лише прозорість, без зсуву вгору: перед цим екраном уже стоїть бренд-блок
+   стартового кадру з логотипом на тому самому місці, і translateY змушував
+   логотип на 14px стрибнути — рівно той «скачок», який тут і прибирали. */
+@keyframes regOnboardEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reg-onboard-progress span {
+    animation: none;
+    width: 100%;
+  }
+  .reg-onboard-enter,
+  .reg-onboard-check {
+    animation: none;
+  }
+}

@@ -89,19 +89,6 @@ function rateColor(pct, allValues) {
 }
 
 /**
- * Чи вартий 🎯-стрик показу керівнику: лише коли тест дійсно СКЛАДЕНО
- * (не провалений і не "в процесі" — "2 поспіль" поруч із червоним "НЕ
- * СКЛАДЕНО" нічого корисного не каже, лише шум) І серія покриває
- * реально помітну частку всіх питань (> 2/3), а не випадкові 2 підряд
- * на довгому тесті. scoreMax може бути відсутній для завершень,
- * записаних до появи цього поля (lib/managerDashboard.js) — тоді теж
- * не показуємо, а не ділимо на 0/вигадуємо.
- */
-function isNotableStreak(streak, scoreMax, passed) {
-  return passed === true && Boolean(streak) && Boolean(scoreMax) && streak / scoreMax > 2 / 3;
-}
-
-/**
  * Пояснення до діаграми по ховеру — спільний HintDot. Кожен блок
  * дашборда рахує щось своє, і зі схожих назв ("Виконано" / "Складено" /
  * "З першої спроби") різницю не видно: підказка каже, що САМЕ в
@@ -187,16 +174,8 @@ function EnrollmentRow({ enrollment }) {
             <ClockIcon /> {duration}
           </span>
         )}
-        {/* 🎯 — той самий emoji, що й "Без помилок" в AchievementsPanel
-            (уже усталений у проєкті знак влучності/серії) — той самий
-            "страйк"-рейт (streak), що й мотиваційні тости в плеєрі:
-            найдовша серія поспіль правильних відповідей за спробу
-            (Enrollment.longestCorrectStreak). */}
-        {isNotableStreak(enrollment.longestCorrectStreak, enrollment.scoreMax, enrollment.passed) && (
-          <span className="mgr-stat-chip" title="Найдовша серія поспіль правильних відповідей">
-            🎯 {enrollment.longestCorrectStreak} поспіль
-          </span>
-        )}
+        {/* Серію правильних відповідей (longestCorrectStreak) тут більше не
+            показуємо — лишилась у базі та Excel-звітах (2026-09-17). */}
         {/* Медаль за той самий бал, що вже показаний вище — золото/срібло/
             бронза за порогом (100% / 95%+ / 90%+): наочний символ поруч із
             цифрою. */}
@@ -229,14 +208,6 @@ function EnrollmentRow({ enrollment }) {
               <span className="mgr-module-title">{m.title}</span>
               {all.some((x) => x.scorePercent != null) && (
                 <span className="mgr-module-score">{m.scorePercent != null ? `${m.scorePercent}%` : ""}</span>
-              )}
-              {all.some((x) => isNotableStreak(x.longestCorrectStreak, x.scoreMax, x.passed)) && (
-                <span
-                  className="mgr-module-streak"
-                  title={isNotableStreak(m.longestCorrectStreak, m.scoreMax, m.passed) ? "Найдовша серія поспіль правильних відповідей у цьому модулі" : undefined}
-                >
-                  {isNotableStreak(m.longestCorrectStreak, m.scoreMax, m.passed) ? `🎯 ${m.longestCorrectStreak}` : ""}
-                </span>
               )}
               {all.some((x) => medalTier(x.scorePercent)) && (
                 <span className="mgr-module-medal" title={medalTier(m.scorePercent) ? `${m.scorePercent}% — медаль за модуль` : undefined}>

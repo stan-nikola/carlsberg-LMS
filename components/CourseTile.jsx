@@ -54,15 +54,11 @@ function ModuleRow({ courseModule, columns }) {
           {courseModule.estimatedMinutes} хв
         </span>
       )}
-      {/* Колонки серії та медалі є в КОЖНОМУ рядку, якщо вони є хоч в
-          одному модулі списку (порожні — теж), інакше відсотки, серії й
-          медалі різних рядків з'їжджали в різні позиції. Немає ні в кого —
-          колонки нема, відсоток стоїть біля правого краю. */}
-      {columns.streak && (
-        <span className="ct-module-streak" title={courseModule.longestCorrectStreak > 0 ? "Найдовша серія поспіль правильних відповідей у цьому модулі" : undefined}>
-          {courseModule.longestCorrectStreak > 0 ? `🎯 ${courseModule.longestCorrectStreak}` : ""}
-        </span>
-      )}
+      {/* Колонка медалі є в КОЖНОМУ рядку, якщо медаль є хоч в одному
+          модулі списку (порожня — теж), інакше відсотки й медалі різних
+          рядків з'їжджали в різні позиції. Серію правильних відповідей
+          (longestCorrectStreak) у картках більше не показуємо — лишилась
+          у базі та Excel-звітах (користувач, 2026-09-17). */}
       {columns.medal && (
         <span className="ct-module-medal" title={tier ? `${courseModule.scorePercent}% — медаль за модуль` : undefined}>
           {tier && <MedalIcon tier={tier} />}
@@ -126,7 +122,6 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
   const modules = course.modules || [];
   const hasModules = modules.length > 0;
   const moduleColumns = {
-    streak: modules.some((m) => m.longestCorrectStreak > 0),
     medal: modules.some((m) => medalTier(m.scorePercent)),
   };
   // Enrollment.status="completed" МАЄ означати, що кожен модуль курсу вже

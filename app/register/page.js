@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { SettingsSheet } from "@/components/SettingsSheet";
-import { GearIcon, LockIcon, ProfileIcon, PeopleIcon } from "@/components/icons";
+import { InstallGuideEmbed } from "@/components/InstallGuide";
+import {
+  ONBOARD_DELAY_MS,
+  WELCOME_DELAY_MS,
+  markStandaloneIntroSeen,
+  markWelcomeSeen,
+  shouldShowStandaloneIntro,
+  shouldShowWelcome,
+} from "@/lib/installGuide";
+import { GearIcon, LockIcon, ProfileIcon, PeopleIcon, CourseIcon, ScreensIcon, AchievementsIcon, CheckIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
 import { HintDot } from "@/components/HintDot";
 
@@ -23,8 +32,108 @@ import { HintDot } from "@/components/HintDot";
 // PIN (lib/auth.js requestLoginPin) міг показати, хто саме й під яким
 // іменем намагається увійти — самого запису в БД це не змінює.
 
+// Який екран показати першим, залежить від localStorage і display-mode —
+// на сервері їх немає, тож рішення можливе лише на клієнті. useLayoutEffect
+// приймає його ДО відмальовування кадру; useEffect спрацьовує вже після, і
+// кадр із неправильним екраном встигає блимнути. На сервері useLayoutEffect
+// не запускається й лається в консоль — звідси підміна.
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 const RESEND_COOLDOWN_MS = 20000;
 const LOCAL_NAME_KEY = "employee_display_name_v1";
+
+/**
+ * Перший вхід у браузері: «Вітаємо» → (сам за ONBOARD_DELAY_MS або по
+ * «Почати») → інструкція встановлення (крок "guide" у RegisterPage,
+ * components/InstallGuide.tsx InstallGuideEmbed) → форма. «Пропустити» —
+ * одразу до форми, минаючи й інструкцію теж (користувач, 2026-09-18).
+ */
+function WelcomeScreen({ onStart, onSkip }) {
+  useEffect(() => {
+    const t = setTimeout(onStart, WELCOME_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [onStart]);
+
+  return (
+    <>
+      <button type="button" className="reg-onboard-skip" onClick={onSkip}>
+        Пропустити
+      </button>
+      <div className="reg-viewport reg-onboard reg-onboard-enter">
+        <div className="reg-badge">
+          <PlatformBrand size="xl" stacked />
+        </div>
+        <h1 className="reg-h1">Вітаємо в CarLS!</h1>
+        {/* Сучасність і простота, не перелік функцій (користувач, 2026-09-18:
+            «щоб було зрозуміло, куди потрапив» — з першого речення). Акцент
+            «розширені можливості» — третій із запропонованих варіантів. */}
+        <p className="reg-onboard-lead">
+          CarLS — це платформа, яка об’єднує курси, прогрес, відзнаки та рейтинг команди в одному місці — більше, ніж
+          просто навчання.
+        </p>
+        <ul className="reg-onboard-features">
+          <li>
+            <span className="settings-ico">
+              <CourseIcon />
+            </span>
+            <span>Курси у зручному форматі</span>
+          </li>
+          <li>
+            <span className="settings-ico">
+              <ScreensIcon />
+            </span>
+            <span>З будь-якого пристрою — телефон, планшет, комп’ютер</span>
+          </li>
+          <li>
+            <span className="settings-ico">
+              <AchievementsIcon filled />
+            </span>
+            <span>Досягнення та рейтинг команди</span>
+          </li>
+        </ul>
+      </div>
+      <div className="reg-onboard-footer">
+        <div className="reg-onboard-progress">
+          <span style={{ animationDuration: `${WELCOME_DELAY_MS}ms` }} />
+        </div>
+        <button type="button" className="btn-primary-full" onClick={onStart}>
+          <span className="btn-label">Почати</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
+/**
+ * Перший вхід ЗІ ЗБЕРЕЖЕНОЇ іконки (PWA вже встановлено) — інструкція вже
+ * не потрібна, лише коротке підтвердження перед формою.
+ */
+function StandaloneIntroScreen({ onContinue }) {
+  useEffect(() => {
+    const t = setTimeout(onContinue, ONBOARD_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [onContinue]);
+
+  return (
+    <>
+      <div className="reg-viewport reg-onboard reg-onboard-enter">
+        <div className="reg-onboard-check">
+          <CheckIcon />
+        </div>
+        <h1 className="reg-h1">Застосунок готовий!</h1>
+        <p className="reg-onboard-lead">CarLS тепер на вашому Початковому екрані. Залишилось зареєструватися — це займе хвилину.</p>
+      </div>
+      <div className="reg-onboard-footer">
+        <div className="reg-onboard-progress">
+          <span style={{ animationDuration: `${ONBOARD_DELAY_MS}ms` }} />
+        </div>
+        <button type="button" className="btn-primary-full" onClick={onContinue}>
+          <span className="btn-label">Зареєструватись</span>
+        </button>
+      </div>
+    </>
+  );
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -50,6 +159,33 @@ export default function RegisterPage() {
 
   const [codeHintOpen, setCodeHintOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Перший вхід: «Вітаємо»/«Застосунок готовий» → (інструкція) → форма.
+  // null = крок ще не визначено, і саме цей стан рендерить сервер. Раніше
+  // тут стояло "form", тож першим кадром у всіх пролітала форма реєстрації,
+  // яку через мить змінювало привітання (скарга користувача, 2026-09-17).
+  // Поки null — стоїть лише бренд-блок, той самий і на тому самому місці,
+  // що й на будь-якому з наступних екранів: логотип не стрибає, під ним
+  // домальовується решта.
+  const [onboardStep, setOnboardStep] = useState(null);
+  useIsomorphicLayoutEffect(() => {
+    let next = "form";
+    if (shouldShowStandaloneIntro()) next = "standalone";
+    else if (shouldShowWelcome()) next = "welcome";
+    setOnboardStep(next);
+  }, []);
+  function skipOnboarding() {
+    markWelcomeSeen();
+    setOnboardStep("form");
+  }
+  function finishOnboardingGuide() {
+    markWelcomeSeen();
+    setOnboardStep("form");
+  }
+  function completeStandaloneIntro() {
+    markStandaloneIntroSeen();
+    setOnboardStep("form");
+  }
 
   // «Тестовий вхід» (lib/demoLogin.ts): кнопка зверху зліва з'являється
   // лише коли сервер каже, що демо увімкнено. У режимі демо звичайні поля
@@ -230,6 +366,18 @@ export default function RegisterPage() {
     <div className="stage stage--register">
       <div className="course-col">
         <div className="course-card">
+          {onboardStep === null && (
+            <div className="reg-viewport reg-onboard">
+              <div className="reg-badge">
+                <PlatformBrand size="xl" stacked />
+              </div>
+            </div>
+          )}
+          {onboardStep === "welcome" && <WelcomeScreen onStart={() => setOnboardStep("guide")} onSkip={skipOnboarding} />}
+          {onboardStep === "guide" && <InstallGuideEmbed onDone={finishOnboardingGuide} />}
+          {onboardStep === "standalone" && <StandaloneIntroScreen onContinue={completeStandaloneIntro} />}
+          {onboardStep === "form" && (
+            <>
           <div className="appbar">
             {demo ? (
               <div className="reg-demo-toggle">
@@ -270,7 +418,7 @@ export default function RegisterPage() {
             </h1>
 
             <div className={`reg-step${step === "identity" ? " active" : ""}`}>
-              <form className="reg-form" id="regForm" onSubmit={handleSubmitIdentity}>
+              <form className="reg-form" id="regForm" onSubmit={handleSubmitIdentity} suppressHydrationWarning>
                 <div className="field">
                   <label htmlFor="fName">{demoOn ? "Ваше ім’я та прізвище" : "Ваше ім’я"}</label>
                   <input
@@ -281,6 +429,7 @@ export default function RegisterPage() {
                     autoComplete="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    suppressHydrationWarning
                   />
                   {demoOn && <div className="reg-field-hint">Так вас назве платформа в кабінеті. Ім’я лишається лише на цьому пристрої.</div>}
                 </div>
@@ -321,7 +470,7 @@ export default function RegisterPage() {
                     </div>
                     <div className="field">
                       <label htmlFor="fDemoPerson">{demoCabinet === "manager" ? "Керівник" : "Хто з команди"}</label>
-                      <select id="fDemoPerson" className="reg-select" value={externalCode} onChange={(e) => setExternalCode(e.target.value)}>
+                      <select id="fDemoPerson" className="reg-select" value={externalCode} onChange={(e) => setExternalCode(e.target.value)} suppressHydrationWarning>
                         {demoPeople.map((o) => (
                           <option key={o.code} value={o.code}>
                             {o.position ? `${o.position} · ` : ""}
@@ -356,6 +505,7 @@ export default function RegisterPage() {
                     spellCheck="false"
                     value={externalCode}
                     onChange={(e) => setExternalCode(e.target.value)}
+                    suppressHydrationWarning
                   />
                   {codeError && <div className="field-error">{codeError}</div>}
                 </div>
@@ -372,6 +522,7 @@ export default function RegisterPage() {
                       inputMode="email"
                       value={demoEmail}
                       onChange={(e) => setDemoEmail(e.target.value)}
+                      suppressHydrationWarning
                     />
                     <div className="reg-field-hint">Лист із 4-значним PIN прийде сюди протягом хвилини; код діє 12 годин.</div>
                   </div>
@@ -398,6 +549,7 @@ export default function RegisterPage() {
                   autoComplete="one-time-code"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
+                  suppressHydrationWarning
                 />
                 {pinError && <div className="field-error">{pinError}</div>}
               </div>
@@ -458,6 +610,8 @@ export default function RegisterPage() {
               <span className="btn-spinner" aria-hidden="true" />
             </button>
           </div>
+            </>
+          )}
         </div>
       </div>
 
