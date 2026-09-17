@@ -35,6 +35,13 @@
   margin: 0 14px;
   flex-shrink: 0;
 }
+/* Вступний екран: не смуга, а розділювач — 1px системного сірого
+   (--line, той самий, що в усіх рамках), без заокруглення. */
+.cp-progress-track.is-rule {
+  height: var(--border-w);
+  border-radius: 0;
+  background: var(--line);
+}
 .cp-progress-fill {
   height: 100%;
   border-radius: inherit;
@@ -142,47 +149,14 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding-top: 20px;
+  /* 12px саме маржином, padding обнулено — інакше відступ складався б із
+     двох джерел і в інспекторі показував інше число, ніж задано. */
+  margin-top: 12px;
+  padding-top: 0;
 }
-.cp-intro-stats {
-  display: flex;
-  gap: 9px;
-  width: 100%;
-  margin: 6px 0 20px;
-}
-.cp-intro-stats .stat {
-  flex: 1;
-  background: var(--surface-1);
-  border: var(--border-w) solid var(--line);
-  border-radius: var(--radius-card);
-  padding: 11px 6px;
-}
-.cp-intro-stats .stat b {
-  display: block;
-  font-family: var(--font-display);
-  font-size: calc(18px * var(--fs-scale));
-}
-/* Кожна плашка несе іконку перед числом (екрани / питання / хвилини) —
-   inline-flex+justify-content, щоб пара «іконка+число» лишалась
-   відцентрованою всередині плашки. */
-.cp-intro-stats .stat b.cp-stat-val {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-}
-/* 20px = колишні 15px + 30% (19.5, округлено) — за проханням користувача;
-   всі три іконки одного 24-viewBox/stroke-2 набору, тому один розмір. */
-.cp-intro-stats .stat b.cp-stat-val svg {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
-.cp-intro-stats .stat span {
-  font-size: calc(10.5px * var(--fs-scale));
-  color: var(--ink-soft);
-}
+/* .cp-intro-stats (екранів/питань/хв) прибрано 2026-09-17: три плашки над
+   планом дублювали сам план — той самий час і кількість модулів там уже
+   є, тільки точніше (з урахуванням реальної сесії, а не всього курсу). */
 /* Раніше .cp-note взагалі не мав власного стилю (голий <p>) — базове
    оформлення тепер є в обох (підказка про блокування модуля й заохочення
    до сертифіката нижче), не лише "непомітний сірий текст". */
@@ -1504,8 +1478,16 @@
   /* Вступний екран курсу — вужча колонка по центру: три плашки й банер
      сертифіката на всі 960px виглядали розтягнутими. */
   .cp-intro {
-    max-width: 720px;
-    margin: 0 auto;
+    /* На всю ширину .cp-screen (960px, а не власні 720px, як було): план
+       курсу з появою «змейки» карток модулів (2026-09-17) потребує всієї
+       наявної ширини, щоб показати більше за один стовпчик — вузький
+       .cp-intro різав би сітку до того, як та встигла розгорнутись. */
+    max-width: 100%;
+    /* 12px зверху — те саме, що й на вузькій картці. Padding обнулено:
+       на цій ширині .cp-screen дає 24px зверху, і без цього відступ
+       складався б із двох джерел. */
+    margin-top: 12px;
+    padding-top: 0;
   }
   /* Фото не вище половини екрана — інакше один знімок займає весь
      в'юпорт і текст під ним доводиться шукати скролом. Обгортка тримає
@@ -1546,8 +1528,11 @@
     margin-bottom: 0;
   }
   .navbar {
-    max-width: 960px;
-    margin: 0 auto;
+    /* На всю ширину картки (100%, а не власні 960px, як було) — план
+       курсу на вступному екрані сам розтягнувся на всю ширину
+       (.cp-intro, 2026-09-17), і кнопки під ним мали слідувати за тією ж
+       шириною, а не лишатись вужчою смугою по центру. */
+    max-width: 100%;
     padding: 10px 32px 14px;
     /* Назад ліворуч / Далі праворуч — звичний десктопний патерн, не
        впритул поруч зліва (те, що дало б сам лише flex:0). */
@@ -1880,4 +1865,680 @@
 /* Результат у черзі офлайн (lib/offlineOutbox.js) — не помилка, а очікування мережі. */
 .cp-save-status.cp-save-queued {
   color: color-mix(in srgb, var(--cb-notification) 70%, var(--cb-black));
+}
+
+/* ===================== План курсу (components/CoursePlan.tsx) =====================
+   Перший екран курсу: склад курсу, що складено, з чого піде навчання, коли
+   відкриються закриті модулі й скільки часу закласти. До 2026-09-17 плеєр
+   показував лише «екран 3 з 18», і людина не бачила ні плану, ні способу
+   обрати конкретний модуль (скарга користувача).
+   Той самий блок використовується і в методичці (CourseReview), тому всі
+   розміри — від ширини картки (@container cp-card), а не вікна. */
+.cp-plan {
+  width: 100%;
+  text-align: left;
+  margin-top: 4px;
+}
+/* Факти про курс: призначено / дедлайн / час / складено. Дві колонки на
+   телефоні — по одному рядку на факт було б удвічі довше за сам список
+   модулів, заради якого сюди і заходять. */
+.cp-plan-facts {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+@container cp-card (min-width: 640px) {
+  .cp-plan-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.cp-plan-facts li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-1);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  padding: var(--card-pad-compact);
+  min-width: 0;
+}
+.cp-plan-facts li svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--ink-soft);
+}
+.cp-plan-facts li span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: calc(10.5px * var(--fs-scale));
+  color: var(--ink-soft);
+}
+.cp-plan-facts li b {
+  font-family: var(--font-display);
+  font-size: calc(14px * var(--fs-scale));
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+/* Прострочений дедлайн — єдине місце тут, де колір несе сенс, а не
+   оформлення: решта фактів навмисно нейтральні, інакше картка почне
+   «кричати» вся одразу. */
+.cp-plan-facts li.is-overdue svg,
+.cp-plan-facts li.is-overdue b {
+  color: var(--cb-fail);
+}
+/* Отриманий сертифікат — другий (і останній) факт, де колір несе сенс. */
+.cp-plan-facts li.is-earned svg,
+.cp-plan-facts li.is-earned b {
+  color: var(--cb-success);
+}
+.cp-plan-pace {
+  margin: 0 0 12px;
+  padding: var(--card-pad-compact);
+  border-radius: var(--radius-card);
+  background: var(--cb-secondary-tint);
+  font-size: calc(12px * var(--fs-scale));
+  color: var(--ink);
+}
+.cp-plan-pace.is-overdue {
+  background: var(--cb-fail-light);
+}
+/* ===================== Дорога плану курсу — суцільна "змійка" =====================
+   (2026-09-17, П'ЯТА ітерація — див. довгий коментар над CoursePlanPanel
+   у components/CoursePlan.tsx для повного обґрунтування: чому мобільний
+   режим — ліва рейка, а не флагшток; чому колір без червоного; чому
+   картки на десктопі за контентом, не жорсткою сіткою.) */
+.cp-plan-road-wrap {
+  position: relative;
+}
+.cp-plan-road-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.cp-plan-road-base {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cp-plan-road-progress {
+  fill: none;
+  stroke: var(--cb-secondary);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* pathLength=1 (React-проп у JSX) нормалізує довжину шляху під 1 —
+     тому "0" і "1" тут означають "увесь шлях", а не пікселі. Завдяки
+     цьому протяжка лінії рахується самим CSS, без жодної JS-математики
+     довжини. */
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.cp-plan-road-progress.is-mounted {
+  stroke-dashoffset: 0;
+  /* 1.08s = 0.9s база × 1.2 ("на 20% довше", 2026-09-17) — МАЄ збігатись
+     із ROAD_DRAW_MS у components/CoursePlan.tsx: звідти рахується
+     затримка сплеску масштабу на кожному вузлі, щоб він встигав за
+     лінією. */
+  transition: stroke-dashoffset 1.08s var(--ease-premium);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-plan-road-progress {
+    transition: none;
+  }
+}
+
+/* Сітка карток. Мобільно (за замовчуванням, нижче @container-порога) —
+   ОДНА колонка, картки одна під одною зверху вниз. Десктоп
+   (@container cp-card, min-width:640px) — картки в ряд ЗА КОНТЕНТОМ
+   (flex-wrap, не жорсткі grid-колонки: скільки влазить за шириною
+   тексту, стільки й стає), ЦЕНТРОВАНІ (justify-content:center)
+   незалежно від того, скільки влізло в ряд, і ОДНАКОВОЇ висоти в межах
+   одного ряду (дефолтний align-items:stretch, не flex-start — по
+   найвищій картці цього ряду, сама висота й далі за контентом).
+   row-gap на десктопі — під вільний проміжок, куди вписується перехід
+   рядка "флагштока" (див. .cp-plan-dot нижче), на мобільному — просто
+   візуальний відступ між картками (рейка зліва в переносах не має
+   потреби — колонка X одна й та сама, snakePath сам малює пряму
+   лінію). */
+.cp-plan-grid {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+@container cp-card (min-width: 640px) {
+  .cp-plan-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 34px 0 0;
+    gap: 66px 16px;
+  }
+}
+.cp-plan-cell {
+  position: relative;
+}
+
+/* Вузол-станція — ОДИН і той самий "флагшток" в обох режимах: маленька
+   крапка на лінії (реальний "якір" лінії — вимірюється в CoursePlan.tsx
+   напряму через getBoundingClientRect, без магічних чисел), коротка
+   ніжка, великий кольоровий кружечок статусу наполовину на картці.
+   Різниться лише вісь: на мобільному — зліва (крапка на вертикальній
+   рейці, кружечок наполовину на лівій грані картки, .cp-plan-square з
+   відступом margin-left під рейку); на десктопі — згори (той самий
+   принцип, повернутий на 90°: крапка над карткою, кружечок наполовину
+   на верхній грані). Крапка НЕ на самій грані картки, а на 26px
+   осторонь — лінія раніше йшла точно по рамці картки й візуально
+   зливалась із нею. */
+.cp-plan-square {
+  margin-left: 40px;
+}
+.cp-plan-dot {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--line);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+.cp-plan-stem {
+  position: absolute;
+  top: 50%;
+  left: 16.5px;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 9px;
+  height: 2px;
+  background: var(--line);
+}
+.cp-plan-badge {
+  position: absolute;
+  top: 50%;
+  left: 40px;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--cb-overlay-10);
+  color: var(--ink-soft);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+.cp-plan-badge svg {
+  width: 14px;
+  height: 14px;
+}
+@container cp-card (min-width: 640px) {
+  .cp-plan-square {
+    margin-left: 0;
+  }
+  .cp-plan-dot {
+    top: -30.5px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .cp-plan-stem {
+    top: -21.5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 7.5px;
+  }
+  .cp-plan-badge {
+    top: 0;
+    left: 50%;
+  }
+}
+/* Колірна схема станцій — "світлофор без червоного" (рішення
+   користувача, 2026-09-17): пройдено — зелений, доступно/наступний —
+   синій бренд-акцент, провалено/потрібен повтор — бурштиновий
+   `--cb-alert` (не червоний: ~8% чоловіків не відрізняють червоний від
+   зеленого, і червоний семантично читається як "стоп, назавжди", що
+   хибно для стану "спробуй ще раз"). Закрито — нейтральний сірий
+   (дефолт вище, без перевизначення). Малий кружечок на лінії теж у
+   колір стану. */
+.cp-plan-cell.is-passed .cp-plan-dot {
+  background: var(--cb-success);
+}
+.cp-plan-cell.is-available .cp-plan-dot {
+  background: var(--cb-notification);
+}
+.cp-plan-cell.is-failed .cp-plan-dot {
+  background: var(--cb-alert);
+}
+.cp-plan-cell.is-passed .cp-plan-badge {
+  background: var(--cb-success);
+  color: var(--cb-white);
+}
+.cp-plan-cell.is-available .cp-plan-badge {
+  background: var(--cb-notification);
+  color: var(--cb-white);
+}
+.cp-plan-cell.is-failed .cp-plan-badge {
+  background: var(--cb-alert);
+  color: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
+}
+
+/* Легкий сплеск масштабу на вже пройдених вузлах/картках — зі
+   вбудованим `transform`, тому базовий transform (центрування бейджа)
+   прописаний у самих keyframes, інакше анімація перезаписала б його й
+   бейдж стрибнув би з місця. Затримка (animationDelay) рахується в
+   CoursePlan.tsx пропорційно індексу картки, щоб сплеск ішов ЗА лінією,
+   що малюється, а не спалахував увесь одразу. */
+@keyframes cp-plan-pop-badge {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  45% {
+    transform: translate(-50%, -50%) scale(1.18);
+  }
+}
+@keyframes cp-plan-pop-card {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.035);
+  }
+}
+.cp-plan-grid.is-mounted .cp-plan-cell.is-reached .cp-plan-badge {
+  animation: cp-plan-pop-badge 0.5s var(--ease-premium) both;
+}
+.cp-plan-grid.is-mounted .cp-plan-cell.is-reached .cp-plan-square {
+  animation: cp-plan-pop-card 0.5s var(--ease-premium) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-plan-grid.is-mounted .cp-plan-cell.is-reached .cp-plan-badge,
+  .cp-plan-grid.is-mounted .cp-plan-cell.is-reached .cp-plan-square {
+    animation: none;
+  }
+}
+
+/* Картка. На мобільному — блок на всю решту ширини (за вирахуванням
+   рейки зліва), висота за вмістом. На десктопі — ширина ТЕЖ за вмістом
+   (min/max-width, без жорсткого aspect-ratio), висота — 100% від
+   стретчнутої батьківської комірки (щоб картки одного ряду виглядали
+   однаковими, а не лише формально мали однакову висоту комірки). Усі
+   дані модуля (moduleFacts у CoursePlan.tsx) — ПРЯМО на лицьовій
+   стороні завжди, тултипа по ховеру більше немає взагалі — ні на
+   мобільному, ні на десктопі. */
+.cp-plan-square {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 64px;
+  /* Зліва — 20px, не 14: великий кружечок статусу наполовину заходить на
+     картку (див. .cp-plan-badge вище, центр рівно на лівій грані), і при
+     стандартних 14px контент упритул торкався кружечка (скарга
+     користувача, 2026-09-18). 20px лишає видимий проміжок. */
+  padding: 12px 14px 10px 20px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+@container cp-card (min-width: 640px) {
+  .cp-plan-square {
+    width: auto;
+    height: 100%;
+    min-width: 140px;
+    max-width: 260px;
+    padding: 16px 14px 10px;
+    align-items: center;
+    text-align: center;
+  }
+}
+.cp-plan-square:not(.is-static):hover {
+  border-color: var(--cb-secondary);
+  transform: translateY(-2px);
+}
+.cp-plan-square:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.cp-plan-square.is-static {
+  cursor: default;
+}
+.cp-plan-square-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: calc(12.5px * var(--fs-scale));
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+/* Кожен факт — .cp-plan-fact (іконка svg або кубок-емодзі + текст), між
+   сусідніми фактами "·" через ::before (без вибірки по span, щоб не
+   зачепити саму іконку всередині факту). Переноситься по ширині картки,
+   а не обрізається. */
+.cp-plan-square-facts {
+  display: flex;
+  flex-wrap: wrap;
+  /* auto, не фіксовані 4px (2026-09-18, скарга користувача): назва різної
+     довжини (1-2 рядки) інакше зсуває факти/дату на різну висоту в
+     кожній картці, і сусідні картки того самого ряду "пливуть" одна
+     відносно одної. auto притискає факти (і слідом за ними кнопку дії)
+     до низу картки — вони завжди на одному рівні із сусідами, хай там
+     що з назвою вище. */
+  margin-top: auto;
+  padding-top: 4px;
+  font-size: calc(10.5px * var(--fs-scale));
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+@container cp-card (min-width: 640px) {
+  .cp-plan-square-facts {
+    justify-content: center;
+  }
+}
+.cp-plan-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.cp-plan-fact svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+.cp-plan-fact + .cp-plan-fact::before {
+  content: "·";
+  margin-right: 5px;
+  color: var(--ink-soft);
+}
+/* Бал текстом — зелений, якщо складено (вище прохідного порога курсу за
+   визначенням статусу passed), червоний, якщо ні (2026-09-18, рішення
+   користувача: саме для цифри бала, не для бейджа/кружечка стану —
+   той лишається без червоного, "світлофор" стосується станів, а не
+   оцінки за спробу). */
+.cp-plan-fact.is-good {
+  color: var(--cb-success);
+  font-weight: 600;
+}
+.cp-plan-fact.is-bad {
+  color: var(--cb-fail);
+  font-weight: 600;
+}
+.cp-plan-square-action {
+  /* margin-top:auto тут НЕ ставимо — .cp-plan-square-facts вище вже його
+     має, а два auto-відступи поспіль ділили б вільний простір навпіл і
+     розсунули факти й кнопку дії окремо, замість тримати їх однією
+     групою внизу картки. */
+  margin-top: 6px;
+  padding-top: 0;
+  /* По центру картки (2026-09-18): решта вмісту зліва, але кнопку дії
+     користувач попросив саме центрувати, а не лишати притиснутою до
+     тієї ж лівої грані, що й назва/факти. */
+  text-align: center;
+  font-size: calc(10.5px * var(--fs-scale));
+  font-weight: 700;
+  color: var(--cb-notification);
+}
+.cp-plan-cell.is-failed .cp-plan-square-action {
+  color: color-mix(in srgb, var(--cb-alert) 65%, var(--cb-black));
+}
+.cp-plan-cell.is-passed .cp-plan-square {
+  background: var(--cb-success-light);
+  border-color: color-mix(in srgb, var(--cb-success) 35%, var(--line));
+}
+.cp-plan-cell.is-available .cp-plan-square {
+  background: var(--cb-notification-light);
+  border-color: var(--cb-notification);
+}
+.cp-plan-cell.is-failed .cp-plan-square {
+  background: var(--cb-alert-light);
+  border-color: color-mix(in srgb, var(--cb-alert) 45%, var(--line));
+}
+.cp-plan-cell.is-locked .cp-plan-square {
+  background: var(--surface-1);
+  color: var(--ink-soft);
+}
+/* "Наступний" — трохи товща рамка поверх кольору available/next, а не
+   окремий колір: available вже акцентний, і другий колір поруч почав би
+   сперечатися сам із собою. */
+.cp-plan-cell.is-next .cp-plan-square {
+  border-width: 2px;
+}
+
+.cp-plan-pace.is-behind {
+  background: var(--cb-alert-light);
+}
+.cp-plan-pace.is-ahead,
+.cp-plan-pace.is-on_track {
+  background: var(--cb-secondary-tint);
+}
+
+/* Розбір по варіантах відповіді (2026-09-17). Окремим списком під
+   вердиктом: невірний обраний варіант і правильний — кожен зі своїм
+   поясненням. Кольором позначено лише маркер зліва, сам текст лишається
+   звичайним — інакше блок читається як суцільна помилка. */
+.q-fb-options {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.q-fb-options li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 10px;
+  border-left: 3px solid var(--line);
+  text-align: left;
+}
+.q-fb-options li.is-correct {
+  border-left-color: var(--cb-success);
+}
+.q-fb-options li.is-wrong {
+  border-left-color: var(--cb-fail);
+}
+.q-fb-options b {
+  font-size: calc(12.5px * var(--fs-scale));
+  color: var(--ink);
+}
+.q-fb-options span {
+  font-size: calc(12px * var(--fs-scale));
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+/* ===================== Порядок кроків і відповідність (2026-09-17) =====================
+   Обидва типи БЕЗ перетягування: застосунок телефонний, а drag на дотику
+   промахується. Порядок рухається стрілками, пари зіставляються тапами —
+   найбільша можлива «зона влучання» це кнопка. */
+.q-order {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  counter-reset: none;
+}
+.q-order-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: var(--card-pad-compact);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.q-order-row.is-correct {
+  border-color: var(--cb-success);
+  background: var(--cb-success-light);
+}
+.q-order-row.is-wrong {
+  border-color: var(--cb-fail);
+  background: var(--cb-fail-light);
+}
+.q-order-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--iconbtn-sm);
+  height: var(--iconbtn-sm);
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--cb-overlay-10);
+  font-family: var(--font-mono);
+  font-size: calc(12.5px * var(--fs-scale));
+  font-weight: 700;
+}
+.q-order-text {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(13.5px * var(--fs-scale));
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.q-order-moves {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.q-order-moves button {
+  width: var(--iconbtn-sm);
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-btn);
+  background: var(--surface-1);
+  cursor: pointer;
+  color: var(--ink);
+}
+.q-order-moves button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.q-order-moves button svg {
+  width: 14px;
+  height: 14px;
+}
+/* Друга стрілка — та сама іконка, розвернута: окремої «вниз» у наборі
+   немає, а заводити її заради одного місця не варто. */
+.q-order-moves button:first-child svg {
+  transform: rotate(-90deg);
+}
+.q-order-moves button:last-child svg {
+  transform: rotate(90deg);
+}
+.q-order-mark {
+  flex-shrink: 0;
+  display: flex;
+}
+.q-order-mark svg {
+  width: 18px;
+  height: 18px;
+}
+.q-order-row.is-correct .q-order-mark {
+  color: var(--cb-success);
+}
+.q-order-row.is-wrong .q-order-mark {
+  color: var(--cb-fail);
+}
+
+.q-match-hint {
+  margin: 12px 0 6px;
+  font-size: calc(12px * var(--fs-scale));
+  color: var(--ink-soft);
+}
+.q-match {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: start;
+}
+.q-match-col {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.q-match-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  min-height: var(--btn-h-md);
+  padding: 8px 10px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  font: inherit;
+  font-size: calc(12.5px * var(--fs-scale));
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.q-match-item:disabled {
+  cursor: default;
+}
+.q-match-item.is-active {
+  border-color: var(--cb-secondary);
+  background: var(--cb-secondary-tint);
+}
+.q-match-item.is-linked {
+  border-color: var(--cb-secondary);
+}
+.q-match-item.is-correct {
+  border-color: var(--cb-success);
+  background: var(--cb-success-light);
+}
+.q-match-item.is-wrong {
+  border-color: var(--cb-fail);
+  background: var(--cb-fail-light);
+}
+/* Номер пари замість лінії між колонками: лінії на телефоні або
+   перетинаються, або не влазять, а число читається однозначно. */
+.q-match-badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--cb-secondary);
+  color: var(--cb-white);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }

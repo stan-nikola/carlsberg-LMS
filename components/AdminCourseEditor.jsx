@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ComponentScreen, QuizScreen, CoursePlayer } from "@/components/CoursePlayer";
 import { HotspotScreen } from "@/components/ScreenComponents";
+import { OrderingScreen, MatchingScreen } from "@/components/QuestionScreens";
 import { ChevronIcon, GripIcon, SpinnerIcon, XIcon } from "@/components/icons";
 import { pluralize } from "@/lib/pluralize";
 import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, RETIRED_COMPONENT_TYPES, defaultContentForType, isScored } from "@/lib/componentTypes";
@@ -183,32 +184,62 @@ function OptionListEditor({ options, onChange }) {
     onChange(options.filter((_, i) => i !== index));
   }
   function addOption() {
-    onChange([...options, { text: "", correct: false }]);
+    onChange([...options, { text: "", correct: false, explanation: "" }]);
+  }
+
+  /** Пресет «Правда / Неправда» — не окремий тип компонента, а два готові
+   *  варіанти: для співробітника це той самий вибір одного варіанта, тож
+   *  дублювати заради нього редактор і рендер немає сенсу. */
+  function makeTrueFalse() {
+    if (options.some((o) => o.text.trim()) && !confirm("Замінити наявні варіанти на «Правда» і «Неправда»?")) return;
+    onChange([
+      { text: "Правда", correct: true, explanation: "" },
+      { text: "Неправда", correct: false, explanation: "" },
+    ]);
   }
 
   return (
     <div className="admin-field">
-      <label className="admin-label">Варіанти відповіді</label>
+      <label className="admin-label">
+        Варіанти відповіді{" "}
+        <HintDot
+          align="start"
+          text="Позначте галочкою всі правильні. Пояснення під варіантом показується співробітнику ПІСЛЯ відповіді: у невірного — чому він невірний, у правильного — чому саме він. Це впливає на запам'ятовування сильніше за формат питання, тому варто заповнювати хоча б у невірних варіантів, які обирають найчастіше."
+        />
+      </label>
       {options.map((opt, i) => (
-        <div className="admin-row admin-option-row" key={i}>
-          <label className="admin-checkbox">
-            <input type="checkbox" checked={opt.correct} onChange={(e) => updateOption(i, "correct", e.target.checked)} />
-            <span>правильний</span>
-          </label>
+        <div className="admin-option-block" key={i}>
+          <div className="admin-row admin-option-row">
+            <label className="admin-checkbox">
+              <input type="checkbox" checked={opt.correct} onChange={(e) => updateOption(i, "correct", e.target.checked)} />
+              <span>правильний</span>
+            </label>
+            <input
+              placeholder="Текст варіанту"
+              value={opt.text}
+              onChange={(e) => updateOption(i, "text", e.target.value)}
+              className="admin-input-flex"
+            />
+            <button type="button" onClick={() => removeOption(i)} className="admin-icon-btn" aria-label="Видалити варіант" title="Видалити цей варіант відповіді">
+              ✕
+            </button>
+          </div>
           <input
-            placeholder="Текст варіанту"
-            value={opt.text}
-            onChange={(e) => updateOption(i, "text", e.target.value)}
-            className="admin-input-flex"
+            placeholder={opt.correct ? "Чому саме цей варіант правильний (необов'язково)" : "Чому цей варіант невірний (необов'язково)"}
+            value={opt.explanation || ""}
+            onChange={(e) => updateOption(i, "explanation", e.target.value)}
+            className="admin-input-flex admin-option-explain"
           />
-          <button type="button" onClick={() => removeOption(i)} className="admin-icon-btn" aria-label="Видалити варіант" title="Видалити цей варіант відповіді">
-            ✕
-          </button>
         </div>
       ))}
-      <button type="button" onClick={addOption} className="admin-btn-link" title="Додати ще один варіант відповіді">
-        + Додати варіант
-      </button>
+      <div className="admin-btn-group">
+        <button type="button" onClick={addOption} className="admin-btn-link" title="Додати ще один варіант відповіді">
+          + Додати варіант
+        </button>
+        <button type="button" onClick={makeTrueFalse} className="admin-btn-link" title="Замінити варіанти на «Правда» і «Неправда»">
+          Правда / Неправда
+        </button>
+      </div>
     </div>
   );
 }
@@ -744,6 +775,126 @@ function HotspotFields({ content, onChange, onUploadingChange }) {
   );
 }
 
+/** «Порядок кроків»: правильна послідовність — та, у якій кроки стоять
+ *  ТУТ. Плеєр показує їх перемішаними, тож окремого поля «правильна
+ *  відповідь» немає й не може розсинхронитись зі списком. */
+function OrderingFields({ content, onChange, onUploadingChange }) {
+  const c = { lead: "", images: [], items: [], explanation: "", ...content };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+  const setItem = (i, text) => set("items")(c.items.map((it, j) => (j === i ? { ...it, text } : it)));
+
+  function move(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= c.items.length) return;
+    const next = [...c.items];
+    [next[i], next[j]] = [next[j], next[i]];
+    set("items")(next);
+  }
+
+  return (
+    <>
+      <div className="admin-field">
+        <label className="admin-label">Вступний рядок (необов&apos;язково)</label>
+        <input value={c.lead} onChange={(e) => set("lead")(e.target.value)} className="admin-input-flex" placeholder="Наприклад: розставте етапи візиту" />
+      </div>
+      <ImageListEditor images={c.images} onChange={set("images")} onUploadingChange={onUploadingChange} />
+      <div className="admin-field">
+        <label className="admin-label">
+          Кроки у ПРАВИЛЬНОМУ порядку{" "}
+          <HintDot
+            align="start"
+            text="Впишіть кроки так, як вони мають іти насправді — окремого поля «правильна відповідь» немає, правильний порядок це сам цей список. Співробітнику вони покажуться перемішаними, і він відновлює послідовність стрілками. Зарахується лише повний збіг: часткового балу тут немає."
+          />
+        </label>
+        {c.items.map((it, i) => (
+          <div className="admin-row admin-option-row" key={i}>
+            <span className="admin-hint" style={{ minWidth: 18 }}>
+              {i + 1}
+            </span>
+            <input value={it.text || ""} onChange={(e) => setItem(i, e.target.value)} placeholder="Текст кроку" className="admin-input-flex" />
+            <button type="button" onClick={() => move(i, -1)} className="admin-icon-btn" aria-label="Вище" title="Підняти крок">
+              ↑
+            </button>
+            <button type="button" onClick={() => move(i, 1)} className="admin-icon-btn" aria-label="Нижче" title="Опустити крок">
+              ↓
+            </button>
+            <button
+              type="button"
+              onClick={() => set("items")(c.items.filter((_, j) => j !== i))}
+              className="admin-icon-btn"
+              aria-label="Видалити крок"
+              title="Видалити цей крок"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={() => set("items")([...c.items, { text: "" }])} className="admin-btn-link" title="Додати ще один крок">
+          + Додати крок
+        </button>
+      </div>
+      <div className="admin-field">
+        <label className="admin-label">
+          Пояснення <span className="admin-hint">— показується після відповіді</span>
+        </label>
+        <textarea value={c.explanation} onChange={(e) => set("explanation")(e.target.value)} rows={2} className="admin-textarea" placeholder="Чому саме такий порядок" />
+      </div>
+    </>
+  );
+}
+
+/** «Відповідність»: пари «ліве — праве». Ліва колонка показується як є,
+ *  права перемішується, тож правильна пара — це просто рядок таблиці. */
+function MatchingFields({ content, onChange, onUploadingChange }) {
+  const c = { lead: "", images: [], pairs: [], explanation: "", ...content };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+  const setPair = (i, field, value) => set("pairs")(c.pairs.map((p, j) => (j === i ? { ...p, [field]: value } : p)));
+
+  return (
+    <>
+      <div className="admin-field">
+        <label className="admin-label">Вступний рядок (необов&apos;язково)</label>
+        <input value={c.lead} onChange={(e) => set("lead")(e.target.value)} className="admin-input-flex" placeholder="Наприклад: зіставте бренд і категорію" />
+      </div>
+      <ImageListEditor images={c.images} onChange={set("images")} onUploadingChange={onUploadingChange} />
+      <div className="admin-field">
+        <label className="admin-label">
+          Пари{" "}
+          <HintDot
+            align="start"
+            text="Кожен рядок — одна правильна пара. Ліва колонка покажеться співробітнику в тому ж порядку, права — перемішаною; він зіставляє їх двома тапами. Три-п'ять пар читаються на телефоні найкраще: більше не вміщається на екран без прокрутки. Зарахується лише повний збіг."
+          />
+        </label>
+        {c.pairs.map((p, i) => (
+          <div className="admin-row admin-option-row" key={i}>
+            <input value={p.left || ""} onChange={(e) => setPair(i, "left", e.target.value)} placeholder="Ліворуч" className="admin-input-flex" />
+            <span className="admin-hint">—</span>
+            <input value={p.right || ""} onChange={(e) => setPair(i, "right", e.target.value)} placeholder="Праворуч" className="admin-input-flex" />
+            <button
+              type="button"
+              onClick={() => set("pairs")(c.pairs.filter((_, j) => j !== i))}
+              className="admin-icon-btn"
+              aria-label="Видалити пару"
+              title="Видалити цю пару"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={() => set("pairs")([...c.pairs, { left: "", right: "" }])} className="admin-btn-link" title="Додати ще одну пару">
+          + Додати пару
+        </button>
+      </div>
+      <div className="admin-field">
+        <label className="admin-label">
+          Пояснення <span className="admin-hint">— показується після відповіді</span>
+        </label>
+        <textarea value={c.explanation} onChange={(e) => set("explanation")(e.target.value)} rows={2} className="admin-textarea" placeholder="Що тут головне запам'ятати" />
+      </div>
+    </>
+  );
+}
+
 function InputFields({ content, onChange }) {
   const c = { label: "", placeholder: "", multiline: false, ...content };
   const set = (field) => (value) => onChange({ ...c, [field]: value });
@@ -785,6 +936,10 @@ function ComponentTypeFields({ type, content, onChange, componentId, onUploading
       return <PhotoFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
     case "hotspot":
       return <HotspotFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
+    case "ordering":
+      return <OrderingFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
+    case "matching":
+      return <MatchingFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
     case "input":
       return <InputFields content={content} onChange={onChange} />;
     default:
@@ -1402,14 +1557,31 @@ function PreviewQuiz({ component, screenNumber }) {
   // (правки контенту вживу), не тільки при зміні обраного екрана.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setAnswer(undefined), [component.id, component.content]);
-  const Screen = component.type === "hotspot" ? HotspotScreen : QuizScreen;
-  return <Screen component={component} screenNumber={screenNumber} answer={answer} onAnswer={setAnswer} />;
+  const Screen =
+    component.type === "hotspot"
+      ? HotspotScreen
+      : component.type === "ordering"
+        ? OrderingScreen
+        : component.type === "matching"
+          ? MatchingScreen
+          : QuizScreen;
+  // key по вмісту — щоб перемішування варіантів/кроків перерахувалось,
+  // коли автор правит список: інакше прев'ю показувало б старий порядок.
+  return (
+    <Screen
+      key={JSON.stringify(component.content)}
+      component={component}
+      screenNumber={screenNumber}
+      answer={answer}
+      onAnswer={setAnswer}
+    />
+  );
 }
 
 /** Список компонентів екрана з перетягуванням (та сама механіка, що й
  * модулі, — див. ModuleHeader/handleModuleDrop) — ручка на кожному рядку,
  * порядок зберігається одразу через PATCH /api/admin/components/:id. */
-function ComponentNavList({ components, selectedComponentId, onSelect, onReordered }) {
+function ComponentNavList({ components, selectedComponentId, onSelect, onReordered, questionStats = {} }) {
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
 
@@ -1469,7 +1641,16 @@ function ComponentNavList({ components, selectedComponentId, onSelect, onReorder
             title="Відкрити цей екран для редагування"
           >
             <span>{component.title || COMPONENT_TYPE_LABELS[component.type]}</span>
-            <span className="admin-lesson-nav-type">{COMPONENT_TYPE_LABELS[component.type] || component.type}</span>
+            <span className="admin-lesson-nav-type">
+              {COMPONENT_TYPE_LABELS[component.type] || component.type}
+              {/* Частка правильних по цьому питанню — «легке/складне»
+                  видно одразу в списку, без переходу в саме питання. */}
+              {questionStats[component.id] ? (
+                <b className={questionStats[component.id].pct < 50 ? "admin-q-stat is-hard" : "admin-q-stat"}>
+                  {questionStats[component.id].pct}%
+                </b>
+              ) : null}
+            </span>
           </button>
         </div>
       ))}
@@ -1602,6 +1783,9 @@ function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved
   const [title, setTitle] = useState(courseModule.title);
   const [cooldownDays, setCooldownDays] = useState(courseModule.cooldownDays ?? "");
   const [retakeCooldownDays, setRetakeCooldownDays] = useState(courseModule.retakeCooldownDays ?? "");
+  const [questionPoolSize, setQuestionPoolSize] = useState(courseModule.questionPoolSize ?? "");
+  const [retryFreeAttempts, setRetryFreeAttempts] = useState(courseModule.retryFreeAttempts ?? "");
+  const [retryCooldownHours, setRetryCooldownHours] = useState(courseModule.retryCooldownHours ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save(patch) {
@@ -1633,6 +1817,16 @@ function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved
     const value = retakeCooldownDays === "" ? null : Number(retakeCooldownDays);
     if (value === (courseModule.retakeCooldownDays ?? null)) return;
     save({ retakeCooldownDays: value });
+  }
+
+  /** Числові поля модуля зберігаються однаково: порожньо = null (успадкувати
+   *  або «без обмежень»), інакше число; без змін — запиту немає. */
+  function numericBlur(field, raw) {
+    return () => {
+      const value = raw === "" ? null : Number(raw);
+      if (value === (courseModule[field] ?? null)) return;
+      save({ [field]: value });
+    };
   }
 
   async function handleDelete(e) {
@@ -1700,6 +1894,65 @@ function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved
           дн.
         </label>
       )}
+      {/* Пул питань і перевизначення правил перескладання — тут, поруч із
+          паузами, а не в налаштуваннях курсу: це властивості КОНКРЕТНОГО
+          модуля, і автор задає їх, коли вже бачить, скільки в модулі
+          питань і наскільки він складний. Пояснення — на «ⓘ», бо в один
+          рядок ці правила не вміщаються. */}
+      {expanded && (
+        <label className="admin-module-unlock" onClick={(e) => e.stopPropagation()}>
+          Питань за спробу
+          <input
+            type="number"
+            min="0"
+            value={questionPoolSize}
+            onChange={(e) => setQuestionPoolSize(e.target.value)}
+            onBlur={numericBlur("questionPoolSize", questionPoolSize)}
+            placeholder="усі"
+            className="admin-num-wide"
+          />
+          <HintDot
+            align="end"
+            text="Скільки питань модуля показувати за одну спробу — випадкові з усіх, що є. Саме це ламає перебір варіантів при перескладанні: з другого разу питання інші, а знання те саме. Порожньо або число, не менше за кількість питань — показуються всі. Вибірка робиться на сервері, тож підглянути решту в коді сторінки не вийде."
+          />
+        </label>
+      )}
+      {expanded && (
+        <label className="admin-module-unlock" onClick={(e) => e.stopPropagation()}>
+          Спроб без паузи
+          <input
+            type="number"
+            min="0"
+            value={retryFreeAttempts}
+            onChange={(e) => setRetryFreeAttempts(e.target.value)}
+            onBlur={numericBlur("retryFreeAttempts", retryFreeAttempts)}
+            placeholder="з курсу"
+            className="admin-num-wide"
+          />
+          <HintDot
+            align="end"
+            text="Перевизначає правило курсу для ЦЬОГО модуля: скільки разів підряд можна перескласти його без паузи, якщо не склали. Порожньо — береться значення з налаштувань курсу («Перескладання»). Нуль — пауза діє одразу після першої невдалої спроби."
+          />
+        </label>
+      )}
+      {expanded && (
+        <label className="admin-module-unlock" onClick={(e) => e.stopPropagation()}>
+          Пауза, годин
+          <input
+            type="number"
+            min="0"
+            value={retryCooldownHours}
+            onChange={(e) => setRetryCooldownHours(e.target.value)}
+            onBlur={numericBlur("retryCooldownHours", retryCooldownHours)}
+            placeholder="з курсу"
+            className="admin-num-wide"
+          />
+          <HintDot
+            align="end"
+            text="Скільки годин чекати після вичерпання вільних спроб саме в цьому модулі. Порожньо — береться значення з налаштувань курсу. Нуль — паузи немає, скільки б спроб не було."
+          />
+        </label>
+      )}
       {saving && <span className="admin-hint">збереження…</span>}
       <button type="button" onClick={handleDelete} className="admin-icon-btn" aria-label="Видалити модуль" title="Видалити цей модуль і весь його вміст">
         ✕
@@ -1748,6 +2001,22 @@ export function AdminCourseEditor({ courseId }) {
   // модалки одного екрана.
   const [runPreview, setRunPreview] = useState(false);
   const [loadError, setLoadError] = useState("");
+  // Частка правильних по кожному питанню курсу — вантажиться один раз і
+  // далі лише показується біля питань (аналітика складності, 2026-09-17).
+  const [questionStats, setQuestionStats] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/admin/courses/${courseId}/question-stats`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        // Статистика — довідкова: її відсутність не має ламати редактор.
+        if (!cancelled && data?.stats) setQuestionStats(data.stats);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId]);
   const [dragModuleIndex, setDragModuleIndex] = useState(null);
   const [overModuleIndex, setOverModuleIndex] = useState(null);
 
@@ -2072,6 +2341,7 @@ export function AdminCourseEditor({ courseId }) {
                           {isScreenExpanded && (
                             <div className="admin-accordion-body">
                               <ComponentNavList
+                                questionStats={questionStats}
                                 components={screen.components}
                                 selectedComponentId={selectedComponentId}
                                 onSelect={(componentId) => selectComponent(courseModule.id, screen.id, componentId)}

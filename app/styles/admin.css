@@ -3129,3 +3129,94 @@
   flex-wrap: wrap;
   padding-top: 6px;
 }
+
+/* Калькулятор розкладу курсу (components/CoursePacingCalculator.tsx) —
+   у секції «Розклад» налаштувань курсу. Сам план усередині — той самий
+   .cp-plan, що й у плеєрі (course-player.css), тут лише обгортка. */
+.admin-pacing {
+  margin-top: 10px;
+  padding: var(--card-pad-compact);
+  border: var(--border-w) dashed var(--line);
+  border-radius: var(--radius-card);
+}
+.admin-pacing-controls {
+  margin-bottom: 8px;
+}
+.admin-pacing-total {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--btn-h-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.admin-pacing-warning {
+  margin: 4px 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-card);
+  background: var(--cb-alert-light);
+  color: var(--ink);
+}
+.admin-pacing .cp-plan {
+  font-size: 13px;
+}
+
+/* Налаштування модуля (пауза, пул питань, правила перескладання) — їх стало
+   п'ять, і в один рядок шапки вони більше не вміщаються. Перенос із
+   вирівнюванням замість горизонтального скролу: кожен регулятор лишається
+   цілим, разом із власною підказкою «ⓘ». */
+.admin-accordion-header {
+  flex-wrap: wrap;
+}
+.admin-module-unlock {
+  gap: 6px;
+}
+.admin-module-unlock .hint-dot {
+  margin-left: 2px;
+}
+
+/* Назва модуля не має схлопуватись, коли рядок налаштувань переноситься:
+   flex:1 без мінімуму віддає їй усе, що лишилось, — а лишалось кілька
+   пікселів, і поле ставало нечитабельним. */
+.admin-accordion-header .admin-title-input {
+  min-width: 180px;
+}
+/* Числове поле з текстовим плейсхолдером («з курсу», «усі») ширше за
+   звичайні 52px — інакше підказка про успадкування обрізається. */
+.admin-module-unlock input.admin-num-wide {
+  width: 90px;
+}
+
+/* Варіант відповіді разом із поясненням — один блок: без цього поле
+   пояснення візуально «прилипає» до наступного варіанта. */
+.admin-option-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.admin-option-block .admin-option-row {
+  margin-bottom: 0;
+}
+.admin-option-explain {
+  margin-left: 26px;
+  font-size: 13px;
+}
+
+/* Частка правильних по питанню в списку компонентів (2026-09-17).
+   Приглушена, поки все гаразд; червоніє, коли питання валить більшість —
+   це сигнал автору, що або формулювання незрозуміле, або матеріал його
+   не пояснює. */
+.admin-q-stat {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: var(--radius-badge);
+  background: var(--cb-overlay-10);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+}
+.admin-q-stat.is-hard {
+  background: var(--cb-fail-light);
+  color: var(--cb-fail);
+}

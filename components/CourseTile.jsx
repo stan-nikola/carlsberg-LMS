@@ -2,71 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CourseIcon, ChevronIcon, CheckIcon, XIcon, LockIcon, MedalIcon, CertificateIcon, ClockIcon, SpinnerIcon } from "@/components/icons";
+import { CourseIcon, ChevronIcon, CertificateIcon, SpinnerIcon } from "@/components/icons";
 import { StatusBadge } from "@/components/StatusBadge";
-import { courseTileStatus, isRecentlyAssigned, isOverdue, medalTier } from "@/lib/progress";
+import { courseTileStatus, isRecentlyAssigned, isOverdue, moduleProgress } from "@/lib/progress";
 import { pluralize } from "@/lib/pluralize";
-import { MarqueeText } from "@/components/MarqueeText";
 import { HintDot } from "@/components/HintDot";
 import { getLocalDisplayName } from "@/lib/localName";
 import { downloadCertificate } from "@/lib/downloadCertificate";
-
-const MODULE_STATUS_META = {
-  completed: { label: "Складено", className: "is-completed" },
-  failed: { label: "Не складено", className: "is-failed" },
-  available: { label: "Доступний", className: "is-available" },
-  locked: { label: "Заблоковано", className: "is-locked" },
-};
-
-function ModuleStatusIcon({ status }) {
-  if (status === "completed") return <CheckIcon />;
-  if (status === "failed") return <XIcon />;
-  if (status === "locked") return <LockIcon />;
-  return <span className="ct-module-dot" aria-hidden="true" />;
-}
-
-/**
- * Один модуль курсу всередині акордеону CourseTile — лише попередній
- * перегляд (статус/бал), не окремий вхід у плеєр: плеєр завжди веде
- * безперервне проходження від початку/збереженого localStorage-прогресу
- * (components/CoursePlayer.jsx), у нього немає "почати саме з цього
- * модуля".
- */
-function ModuleRow({ courseModule, columns }) {
-  const meta = MODULE_STATUS_META[courseModule.status];
-  const tier = medalTier(courseModule.scorePercent);
-  return (
-    <div className={`ct-module-row ${meta.className}`}>
-      <span className="ct-module-status-icon">
-        <ModuleStatusIcon status={courseModule.status} />
-      </span>
-      <MarqueeText className="ct-module-title">{courseModule.title}</MarqueeText>
-      {courseModule.scorePercent != null ? (
-        <span className="ct-module-score">{courseModule.scorePercent}%</span>
-      ) : (
-        // Орієнтовний час — лише поки модуль ще не пройдено (після цього
-        // важливіший реальний бал, не приблизна оцінка "скільки б це
-        // зайняло"). Порахований автоматично з реального контенту модуля
-        // (lib/courseContent.js estimateModuleMinutes), не ручне поле в
-        // /admin — завжди відповідає справжньому вмісту.
-        <span className="ct-module-time" title="Орієнтовний час проходження">
-          <ClockIcon />
-          {courseModule.estimatedMinutes} хв
-        </span>
-      )}
-      {/* Колонка медалі є в КОЖНОМУ рядку, якщо медаль є хоч в одному
-          модулі списку (порожня — теж), інакше відсотки й медалі різних
-          рядків з'їжджали в різні позиції. Серію правильних відповідей
-          (longestCorrectStreak) у картках більше не показуємо — лишилась
-          у базі та Excel-звітах (користувач, 2026-09-17). */}
-      {columns.medal && (
-        <span className="ct-module-medal" title={tier ? `${courseModule.scorePercent}% — медаль за модуль` : undefined}>
-          {tier && <MedalIcon tier={tier} />}
-        </span>
-      )}
-    </div>
-  );
-}
 
 /**
  * Картка курсу на Home/Learning табах — портовано з .course-tile в
@@ -81,7 +23,6 @@ function ModuleRow({ courseModule, columns }) {
  * дією нижче.
  */
 export function CourseTile({ course, enrollment, description, inProgressDescription, hasEmail = true }) {
-  const [expanded, setExpanded] = useState(false);
   // Сертифікат генерується на сервері (route.js, pdfkit) з Employee.name —
   // для співробітників без email це заглушка з посади/території (див.
   // lib/localName.js), а справжнє ім'я лежить лише в localStorage цього
@@ -121,9 +62,7 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
   const overdue = isOverdue(enrollment);
   const modules = course.modules || [];
   const hasModules = modules.length > 0;
-  const moduleColumns = {
-    medal: modules.some((m) => medalTier(m.scorePercent)),
-  };
+  const progress = moduleProgress(modules);
   // Enrollment.status="completed" МАЄ означати, що кожен модуль курсу вже
   // має власний результат (completed/failed) — але це два окремі записи
   // в БД (Enrollment і ModuleCompletion), і якщо колись один запис
@@ -180,19 +119,14 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
           </span>
         </div>
 
-        <button
-          type="button"
-          className="ct-toggle"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          disabled={!hasModules}
-          title={hasModules ? (expanded ? "Згорнути список модулів" : "Розгорнути список модулів") : undefined}
-        >
-          {hasModules && (
-            <span className={`admin-course-row-caret ct-caret${expanded ? " open" : ""}`}>
-              <ChevronIcon />
-            </span>
-          )}
+        {/* Раніше тут був акордеон зі списком модулів. Прибрано
+            2026-09-17: у сітці /manager/courses grid-auto-rows:1fr рівняє
+            ВСІ ряди сітки, тож розкриття однієї картки роздувало кожну
+            картку сторінки (263 -> 457px) і лишало дірки в сусідах. А сам
+            список дублював план курсу в плеєрі, де до нього ще й дати
+            відкриття, графік і кнопки перепроходження. Тепер картка —
+            просто картка сталої висоти. */}
+        <div className="ct-toggle">
           <div className="ct-icon">
             <CourseIcon />
           </div>
@@ -208,16 +142,22 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
                 {new Date(enrollment.dueDate).toLocaleDateString("uk-UA")}
               </div>
             )}
-            {cs.status !== "completed" && (
+            {/* Прогрес = складені модулі, не бал (lib/progress.js
+                moduleProgress). До 2026-09-17 тут стояв cs.pct: у
+                незавершеного курсу він завжди 0, тож курс із одним
+                складеним модулем із десяти виглядав як незрушений. */}
+            {cs.status !== "completed" && hasModules && (
               <div className="ct-progress-row">
                 <div className="ct-progress-track">
-                  <div className="ct-progress-fill" style={{ width: `${cs.pct}%` }} />
+                  <div className="ct-progress-fill" style={{ width: `${progress.pct}%` }} />
                 </div>
-                <span className="ct-progress-pct">{cs.pct}%</span>
+                <span className="ct-progress-pct">
+                  {progress.passed} з {progress.total}
+                </span>
               </div>
             )}
           </div>
-        </button>
+        </div>
 
         {/* Підсумок пройденого курсу і сертифікат — ОДИН контейнер, в один
             рівень: результат ("Залік · 100%"), дата завершення й кнопка
@@ -279,14 +219,6 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
           </div>
         )}
       </div>
-
-      {expanded && hasModules && (
-        <div className="ct-modules-list">
-          {modules.map((courseModule) => (
-            <ModuleRow key={courseModule.id} courseModule={courseModule} columns={moduleColumns} />
-          ))}
-        </div>
-      )}
 
       {certDownloadError && <p className="ct-certificate-caption ct-certificate-error">{certDownloadError}</p>}
       {/* ОДНА кнопка на всю ширину в будь-якому стані курсу

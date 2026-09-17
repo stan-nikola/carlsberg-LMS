@@ -125,6 +125,29 @@ export function XIcon() {
   );
 }
 
+// Трикутник відтворення — вузол «доступний, почати» на дорозі плану курсу
+// (components/CoursePlan.tsx): заповнений, а не контурний, щоб на 14px
+// лишався читабельним.
+export function PlayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <path d="M7 4.5v15l13-7.5Z" />
+    </svg>
+  );
+}
+
+// Знак оклику — вузол «провалено, потрібна пересдача» на дорозі плану
+// курсу: окреме, четверте, візуально відмінне від «закрито» (LockIcon) і
+// «складено» (CheckIcon) стан.
+export function AlertIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 8v5" />
+      <circle cx="12" cy="16.3" r="0.15" fill="currentColor" stroke="currentColor" strokeWidth="2.2" />
+    </svg>
+  );
+}
+
 export function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

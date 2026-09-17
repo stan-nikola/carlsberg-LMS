@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronIcon, CertificateIcon, SpinnerIcon } from "@/components/icons";
 import { ComponentScreen } from "@/components/CoursePlayer";
+import { CoursePlanPanel } from "@/components/CoursePlan";
 import { ImageLightbox } from "@/components/ScreenComponents";
 import { getLocalDisplayName } from "@/lib/localName";
 import { downloadCertificate } from "@/lib/downloadCertificate";
@@ -25,7 +26,7 @@ import { isScored } from "@/lib/componentTypes";
  * гейтами — і читалась як повторне проходження (скарга користувача
  * 2026-09-14).
  */
-export function CourseReview({ course, modules, scorePercent, hasEmail = true }) {
+export function CourseReview({ course, modules, scorePercent, hasEmail = true, plan = null }) {
   const router = useRouter();
   const [zoomImage, setZoomImage] = useState(null);
   // Той самий підхід, що CourseTile.jsx — справжнє ім'я співробітника без
@@ -98,10 +99,16 @@ export function CourseReview({ course, modules, scorePercent, hasEmail = true })
               <h1 className="cp-h1">{course.title}</h1>
               {course.description && <p className="cp-lead">{course.description}</p>}
               <p className="cp-note">
-                {scorePercent === 100
-                  ? "Курс складено на 100% — тут лише матеріал для повторення, без тестів і обмежень."
-                  : "Усі модулі курсу вже складено — тут лише матеріал для повторення, без тестів і обмежень. Щоб перепройти конкретний модуль ще раз (з тестами), поверніться пізніше — після паузи повторного проходження він знову з'явиться в плеєрі."}
+                {plan && plan.remainingCount > 0
+                  ? "Наступний модуль ще закритий — у плані нижче видно, коли він відкриється. Тут лише матеріал уже складених модулів для повторення."
+                  : scorePercent === 100
+                    ? "Курс складено на 100% — тут лише матеріал для повторення, без тестів і обмежень."
+                    : "Усі модулі курсу вже складено — нижче матеріал для повторення, без тестів і обмежень. Модуль, складений не на 100%, можна перепройти з тестами прямо з плану курсу."}
               </p>
+              {/* План з кнопками «Перепройти» — раніше методичка лише
+                  обіцяла, що модуль «колись знову з'явиться в плеєрі», і
+                  зайти в конкретний модуль було нічим. */}
+              {plan && <CoursePlanPanel plan={plan} slug={course.slug} />}
               {scorePercent === 100 ? (
                 <>
                   <button

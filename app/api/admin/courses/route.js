@@ -45,6 +45,8 @@ export async function POST(request) {
       category: body.category || null,
       isMandatory: Boolean(body.isMandatory),
       deadlineDays: body.deadlineDays === "" || body.deadlineDays == null ? null : Number(body.deadlineDays),
+      moduleDays: body.moduleDays === "" || body.moduleDays == null ? null : Number(body.moduleDays),
+      modulePauseDays: body.modulePauseDays === "" || body.modulePauseDays == null ? null : Number(body.modulePauseDays),
       passThreshold: body.passThreshold === "" || body.passThreshold == null ? 80 : Number(body.passThreshold),
       points: body.points === "" || body.points == null ? null : Number(body.points),
       // Дефолти повторюють schema.prisma: сертифікат видається, якщо не

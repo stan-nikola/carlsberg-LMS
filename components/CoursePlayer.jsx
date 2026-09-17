@@ -5,7 +5,9 @@ import { enqueue } from "@/lib/offlineOutbox";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { renderRichText } from "@/lib/richText";
-import { ChevronIcon, CheckIcon, XIcon, CertificateIcon, SpinnerIcon, ClockIcon, ScreensIcon, QuestionIcon } from "@/components/icons";
+import { ChevronIcon, CheckIcon, XIcon, CertificateIcon, SpinnerIcon, QuestionIcon } from "@/components/icons";
+import { CoursePlanPanel } from "@/components/CoursePlan";
+import { OrderingScreen, MatchingScreen } from "@/components/QuestionScreens";
 import {
   AccordionScreen,
   ChecklistScreen,
@@ -22,7 +24,6 @@ import {
 } from "@/components/ScreenComponents";
 import { isGateSatisfied, gateTotal, gateHint, isScored } from "@/lib/componentTypes";
 import { courseStreakMessages, pickStreakMessage, resolveStreakSub, isScheduledStreak } from "@/lib/streakMessages";
-import { estimateMinutesFromComponentCount } from "@/lib/estimateTime";
 import { numberComponents, shuffleArray } from "@/lib/coursePlayerLogic";
 import { peekScrollTo } from "@/lib/scrollHints";
 import { downloadCertificate } from "@/lib/downloadCertificate";
@@ -226,6 +227,24 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
     onAnswer(allCorrect);
   }
 
+  /**
+   * Які пояснення показати після відповіді. Не всі підряд: обраний
+   * невірний варіант («чому це не так») і пропущений правильний («що
+   * треба було обрати»). Правильний обраний варіант теж пояснюємо — його
+   * могли вгадати.
+   */
+  const optionFeedback = isAnswered
+    ? options
+        .map((opt, index) => {
+          if (!opt.explanation) return null;
+          const chosen = selected.includes(index);
+          if (chosen && !opt.correct) return { index, kind: "is-wrong", text: opt.text, explanation: opt.explanation };
+          if (opt.correct) return { index, kind: "is-correct", text: opt.text, explanation: opt.explanation };
+          return null;
+        })
+        .filter(Boolean)
+    : [];
+
   function optionClass(opt, index) {
     const classes = ["opt"];
     if (isAnswered) {
@@ -308,6 +327,20 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
           {/* Пояснення автора — показуємо і при правильній відповіді:
               вгадати можна й не зрозумівши, а сенс питання саме в тому,
               щоб людина дізналась ЧОМУ. */}
+          {/* Розбір ПО ВАРІАНТАХ, а не лише один на питання: людині треба
+              знати, чому невірне — невірне, і що вона проґавила. Саме
+              якість зворотного зв'язку впливає на запам'ятовування
+              сильніше за формат питання (рішення користувача, 2026-09-17). */}
+          {optionFeedback.length > 0 && (
+            <ul className="q-fb-options">
+              {optionFeedback.map((o) => (
+                <li key={o.index} className={o.kind}>
+                  <b>{o.text}</b>
+                  <span>{o.explanation}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           {explanation && <span className="q-fb-explain">{explanation}</span>}
         </div>
       )}
@@ -337,7 +370,27 @@ function ScreenComponentBlock({
 }) {
   return (
     <div className="screen-component" ref={blockRef} data-next-component={nextComponentId ?? undefined}>
-      {component.type === "hotspot" ? (
+      {component.type === "ordering" ? (
+        <OrderingScreen
+          component={component}
+          screenNumber={screenNumber}
+          answer={answers[component.id]}
+          onAnswer={(isCorrect) => onQuizAnswer(component.id, isCorrect)}
+          onZoomImage={onZoomImage}
+          questionNumber={questionNumber}
+          questionTotal={questionTotal}
+        />
+      ) : component.type === "matching" ? (
+        <MatchingScreen
+          component={component}
+          screenNumber={screenNumber}
+          answer={answers[component.id]}
+          onAnswer={(isCorrect) => onQuizAnswer(component.id, isCorrect)}
+          onZoomImage={onZoomImage}
+          questionNumber={questionNumber}
+          questionTotal={questionTotal}
+        />
+      ) : component.type === "hotspot" ? (
         <HotspotScreen
           component={component}
           screenNumber={screenNumber}
@@ -375,7 +428,12 @@ function ScreenComponentBlock({
  * модуль, не весь курс — не плутати з CompleteScreen (той для всього курсу).
  */
 function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
-  const { moduleTitle, scorePercent, scoreRaw, scoreMax, passed, saving, saveError, note, sessionEnd } = checkpoint;
+  const { moduleTitle, scorePercent, scoreRaw, scoreMax, passed, saving, saveError, note, sessionEnd, retry } = checkpoint;
+  // «М'яке гальмо» перескладання: перші спроби підряд вільні, далі коротка
+  // пауза. Поки результат зберігається, кнопку не міняємо — інакше вона
+  // блимала б із «спробувати» на «зачекайте» і назад.
+  const retryBlocked = !passed && !saving && retry && retry.canRetryNow === false;
+  const attemptsLeft = !passed && retry && typeof retry.attemptsLeft === "number" ? retry.attemptsLeft : null;
 
   return (
     <div className="cp-screen cp-complete">
@@ -408,8 +466,24 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
       )}
       {saveError && <p className="cp-save-status cp-save-error">Не вдалося зберегти результат: {saveError}</p>}
 
-      <button type="button" className="btn-primary-full" onClick={passed ? onContinue : onRetry}>
-        <span className="btn-label">{passed ? (sessionEnd ? "На головну" : "Продовжити") : "Спробувати модуль ще раз"}</span>
+      {retryBlocked && (
+        <p className="cp-note">
+          Вільні спроби вичерпано. Наступна — через {retry.waitLabel}. Перегляньте матеріал модуля ще раз:
+          пауза саме для того, щоб повернутись до нього, а не перебирати варіанти.
+        </p>
+      )}
+      {!passed && !retryBlocked && attemptsLeft != null && attemptsLeft > 0 && (
+        <p className="cp-note">Спроб підряд без паузи лишилось: {attemptsLeft}.</p>
+      )}
+
+      <button
+        type="button"
+        className="btn-primary-full"
+        onClick={passed ? onContinue : retryBlocked ? onContinue : onRetry}
+      >
+        <span className="btn-label">
+          {passed ? (sessionEnd ? "На головну" : "Продовжити") : retryBlocked ? "На головну" : "Спробувати модуль ще раз"}
+        </span>
       </button>
     </div>
   );
@@ -588,6 +662,12 @@ export function CoursePlayer({
   // реальному проходженні є пауза, чекпоінт це пояснює. { [moduleId]: days }
   moduleCooldowns = null,
   skippedModuleScores = [],
+  // План курсу для першого екрана (lib/coursePlan.ts, вже у вигляді
+  // готових рядків). null — у прев'ю конструктора, де ні призначення, ні
+  // дедлайну, ні складених модулів не існує.
+  plan = null,
+  // Назва модуля, коли людина обрала в плані саме його (?module=<id>).
+  singleModuleTitle = null,
   hasEmail = true,
   // Режим прев'ю в /admin: той самий плеєр від початку до кінця, але
   // БЕЗ жодного запису — ні в БД, ні в localStorage. Ключ прогресу в
@@ -601,7 +681,12 @@ export function CoursePlayer({
   const introIdx = 0;
   const completeIdx = screens.length + 1;
 
-  const [idx, setIdx] = useState(introIdx);
+  // Обраний у плані модуль (?module=N) стартує одразу з першого екрана:
+  // вступ із планом — це те місце, ЗВІДКИ людина натиснула «Почати», і
+  // показувати його ще раз означає «нічого не сталося». Для звичайної
+  // сесії вступ лишається. Спрацьовує при монтуванні — page.js перемонтовує
+  // плеєр по key на кожну зміну модуля.
+  const [idx, setIdx] = useState(singleModuleTitle && screens.length > 0 ? introIdx + 1 : introIdx);
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
   const [moduleCheckpoint, setModuleCheckpoint] = useState(null);
@@ -645,19 +730,6 @@ export function CoursePlayer({
   // «Назад» ховається, а замість «Пройти ще раз» лишається вихід на
   // головну.
   const isPerfectResult = result?.scorePercent === 100;
-
-  // Орієнтовний час проходження — та сама формула (45с/компонент), що вже
-  // показує ModuleRow у CourseTile.jsx (lib/courseContent.js
-  // estimateModuleMinutes), тільки порахована прямо тут із власного
-  // `screens` плеєра: він і так уже СЕСІЙНО-обмежений (getPlayableModules —
-  // пройдені й ще на паузі перепроходження модулі сюди не потрапляють), як
-  // і сусідні "N екранів"/"N питань" на цьому ж вступному екрані. Формула
-  // винесена в lib/estimateTime.js окремо від lib/courseContent.js саме
-  // тому, що той тягне @/lib/prisma — непридатне для "use client".
-  const estimatedMinutes = useMemo(
-    () => estimateMinutesFromComponentCount(screens.reduce((sum, s) => sum + s.components.length, 0)),
-    [screens]
-  );
 
   /**
    * Ідеальне завершення "модуля питань" — реального Course Module курсу, а
@@ -736,6 +808,13 @@ export function CoursePlayer({
   useEffect(() => () => clearTimeout(streakTimerRef.current), []);
 
   const startedAtRef = useRef(new Date().toISOString());
+  // Коли почався ПОТОЧНИЙ модуль (сегмент) — від нього рахується РЕАЛЬНИЙ
+  // час на модуль для картки плану курсу (2026-09-17, до цього там завжди
+  // стояла лише орієнтовна оцінка). Скидається в goNext() при переході в
+  // наступний сегмент. Той самий рівень точності, що вже є в
+  // startedAtRef вище для курсу в цілому — не намагаємось точніше
+  // враховувати відновлення сесії з localStorage після закриття вкладки.
+  const segmentStartRef = useRef(Date.now());
 
   // Офлайн: просимо SW (public/sw.js) закешувати сторінку курсу і фото всіх
   // екранів наперед — щоб курс, відкритий онлайн, можна було пройти в полі
@@ -802,7 +881,10 @@ export function CoursePlayer({
   // з чого починати).
   const [resumePrompt, setResumePrompt] = useState(null);
   useEffect(() => {
-    if (previewMode) return;
+    // Одиночний модуль (?module=N) збережений прогрес не читає: у
+    // localStorage лежить idx ПОВНОЇ сесії курсу, і в сесії з одного
+    // модуля він показує в порожнечу або одразу на екран завершення.
+    if (previewMode || singleModuleTitle) return;
     const saved = loadProgress(course.slug);
     if (saved && typeof saved.idx === "number" && saved.idx > introIdx) {
       setResumePrompt(saved);
@@ -837,8 +919,11 @@ export function CoursePlayer({
       skipFirstSaveRef.current = false;
       return;
     }
-    if (!previewMode && idx !== completeIdx) saveProgress(course.slug, idx, answers);
-  }, [idx, answers, course.slug, completeIdx]);
+    // …і не пише його: інакше індекси одномодульної сесії отруїли б
+    // відновлення повної (той самий ключ у localStorage). Модуль короткий —
+    // якщо вийшли посередині, він просто починається заново.
+    if (!previewMode && !singleModuleTitle && idx !== completeIdx) saveProgress(course.slug, idx, answers);
+  }, [idx, answers, course.slug, completeIdx, singleModuleTitle]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -889,6 +974,10 @@ export function CoursePlayer({
       .slice(segment.startIdx, segment.endIdx + 1)
       .flatMap((s) => s.components.filter(isScored).map((c) => c.id));
     const scoreRaw = rangeIds.filter((id) => answers[id] === true).length;
+    // Поштучні відповіді — для аналітики складності питань у конструкторі.
+    const perQuestion = rangeIds
+      .filter((id) => answers[id] !== undefined)
+      .map((id) => ({ componentId: id, correct: answers[id] === true }));
     const scoreMax = rangeIds.length;
     // Модуль без питань (лише інфо-екрани) нікого не блокує — 100%.
     const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 100;
@@ -896,6 +985,7 @@ export function CoursePlayer({
       scoreRaw,
       scoreMax,
       scorePercent,
+      perQuestion,
       passed: scorePercent >= (course.passThreshold ?? 80),
       longestCorrectStreak: longestStreakOf(rangeIds),
     };
@@ -911,15 +1001,22 @@ export function CoursePlayer({
       longestCorrectStreak: score.longestCorrectStreak,
       scoreRaw: score.scoreRaw,
       scoreMax: score.scoreMax,
+      answers: score.perQuestion || [],
+      durationSeconds: score.durationSeconds,
     };
     try {
-      await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      return null;
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      // Сервер повертає стан «гальма» перескладання (lib/retryPolicy.ts) —
+      // саме він вирішує, показати кнопку повтору чи «наступна спроба
+      // через …»; на клієнті це рахувати не можна, там немає лічильника
+      // спроб і його легко підмінити.
+      const data = await res.json().catch(() => null);
+      return { error: null, retry: data?.retry || null };
     } catch (err) {
       // Немає мережі — у чергу (lib/offlineOutbox.js), досилається
       // автоматично; порядок «модуль → курс» черга зберігає.
       enqueue(url, body);
-      return err.message;
+      return { error: err.message, retry: null };
     }
   }
 
@@ -930,7 +1027,7 @@ export function CoursePlayer({
     if (idx === introIdx || idx === completeIdx) return true;
     const screen = screens[idx - 1];
     return screen.components.every((component) =>
-      component.type === "quiz" ? answers[component.id] !== undefined : isGateSatisfied(component, gateProgress[component.id])
+      isScored(component) ? answers[component.id] !== undefined : isGateSatisfied(component, gateProgress[component.id])
     );
   }
 
@@ -1056,7 +1153,9 @@ export function CoursePlayer({
     // «На головну».
     const sessionEnd = isLastSegmentOfCourse && Boolean(afterSession?.moreModules);
     if (isLastScreenOfSegment && (!isLastSegmentOfCourse || sessionEnd)) {
-      const score = scoreForSegment(segment);
+      const durationSeconds = Math.round((Date.now() - segmentStartRef.current) / 1000);
+      segmentStartRef.current = Date.now(); // годинник наступного модуля стартує з чекпоінта
+      const score = { ...scoreForSegment(segment), durationSeconds };
       const nextSegment = moduleSegments[moduleSegments.indexOf(segment) + 1];
       const pauseDays = nextSegment && moduleCooldowns ? moduleCooldowns[nextSegment.moduleId] : 0;
       const note = sessionEnd
@@ -1075,8 +1174,8 @@ export function CoursePlayer({
         sessionEnd,
       });
       if (!previewMode) {
-        const saveError = await postModuleCompletion(segment.moduleId, score);
-        setModuleCheckpoint((c) => (c ? { ...c, saving: false, saveError } : c));
+        const { error: saveError, retry } = await postModuleCompletion(segment.moduleId, score);
+        setModuleCheckpoint((c) => (c ? { ...c, saving: false, saveError, retry } : c));
       }
       return;
     }
@@ -1093,7 +1192,11 @@ export function CoursePlayer({
 
   function handleModuleContinue() {
     if (!moduleCheckpoint) return;
-    if (moduleCheckpoint.sessionEnd) {
+    // Провалений модуль під паузою перескладання: далі по курсу не
+    // пускаємо (наступний модуль відкривається лише після СКЛАДАННЯ
+    // цього) — виходимо в хаб, звідки видно план і час наступної спроби.
+    const retryBlocked = !moduleCheckpoint.passed && moduleCheckpoint.retry?.canRetryNow === false;
+    if (moduleCheckpoint.sessionEnd || retryBlocked) {
       if (!previewMode) clearProgress(course.slug);
       router.push("/hub");
       return;
@@ -1146,19 +1249,33 @@ export function CoursePlayer({
               sub={resolveStreakSub(streakToast.message, streakToast.streak)} />
           )}
           <div className="appbar">
-            <button className="iconbtn" aria-label="Назад" onClick={() => router.push("/hub")}>
+            <button className="iconbtn" aria-label="До списку курсів" onClick={() => router.push("/hub/learn")}>
               <span style={{ transform: "rotate(180deg)", display: "inline-flex" }}>
                 <ChevronIcon />
               </span>
             </button>
             <div style={{ flex: 1 }} />
-            <span className="cp-step-count">
-              {idx + 1}/{totalSteps}
-            </span>
+            {/* На вступному екрані (план курсу) лічильник не показуємо —
+                план і так показує повний склад курсу й прогрес, номер
+                екрана в сесії тут нічого не додає, лише дублює (2026-09-17,
+                той самий принцип, що прибрані плашки "екранів/питань/хв"
+                над планом). Усередині курсу — лишається: там дійсно корисно
+                бачити, скільки ще екранів до кінця сесії. */}
+            {idx !== introIdx && (
+              <span className="cp-step-count">
+                {idx + 1}/{totalSteps}
+              </span>
+            )}
           </div>
 
-          <div className="cp-progress-track">
-            <div className="cp-progress-fill" style={{ width: `${progressPct}%` }} />
+          {/* На ВСТУПНОМУ екрані замість смуги — тонка сіра лінія (той
+              самий елемент, клас is-rule): заповнення рахується від номера
+              екрана, тож на вступі смуга завжди порожня, а склад курсу й
+              так показує лінія часу плану нижче. Усередині курсу смуга
+              лишається: саме там вона рухається й дає відчуття, скільки
+              ще лишилось (2026-09-17). */}
+          <div className={`cp-progress-track${idx === introIdx ? " is-rule" : ""}`}>
+            {idx !== introIdx && <div className="cp-progress-fill" style={{ width: `${progressPct}%` }} />}
           </div>
 
           <div className="cp-viewport" ref={viewportRef} key={viewportKey}>
@@ -1166,40 +1283,24 @@ export function CoursePlayer({
               <div className="cp-screen cp-intro">
                 <h1 className="cp-h1">{course.title}</h1>
                 {course.description && <p className="cp-lead">{course.description}</p>}
-                {/* Іконка перед числом у КОЖНІЙ плашці (раніше — лише у «хв»):
-                    три однакові за формою блоки з іконками читаються як один
-                    набір, а не як два числа й одна «особлива» плашка. */}
-                <div className="cp-intro-stats">
-                  <div className="stat">
-                    <b className="cp-stat-val">
-                      <ScreensIcon />
-                      {screens.length}
-                    </b>
-                    <span>екранів</span>
-                  </div>
-                  <div className="stat">
-                    <b className="cp-stat-val">
-                      <QuestionIcon />
-                      {quizComponentIds.length}
-                    </b>
-                    <span>питань</span>
-                  </div>
-                  <div className="stat">
-                    <b className="cp-stat-val">
-                      <ClockIcon />
-                      {estimatedMinutes}
-                    </b>
-                    <span>хв</span>
-                  </div>
-                </div>
-                {/* Заохочення старатись, а не просто "пройти поріг" (80%) —
-                    сертифікат видається лише за 100%, за проханням
-                    користувача. */}
-                <p className="cp-note cp-certificate-hint">
-                  <CertificateIcon />
-                  <span>Пройдіть курс на всі 100% — і отримаєте іменний сертифікат!</span>
-                </p>
-                {lockedNotice && <p className="cp-note">{lockedNotice}</p>}
+                {singleModuleTitle && (
+                  <p className="cp-note">
+                    Ви обрали модуль «{singleModuleTitle}» — проходимо лише його.
+                  </p>
+                )}
+                {/* Плашки "екранів/питань/хв" і банер "пройдіть на 100%!"
+                    прибрано (2026-09-17): перші дублювали план нижче
+                    бідніше за нього ж, другий не ніс інформації понад бал
+                    кожного модуля. Час на курс і статус сертифіката тепер
+                    живуть усередині самого плану — lib/coursePlan.ts
+                    appendRemainingTime/certificateStatus,
+                    components/CoursePlan.tsx. */}
+                {/* План курсу сам показує, який модуль коли відкриється,
+                    тож окрема плашка про найближчий блок тут була б тим
+                    самим текстом двічі. Без плану (прев'ю конструктора)
+                    вона лишається єдиним поясненням. */}
+                {lockedNotice && !plan && <p className="cp-note">{lockedNotice}</p>}
+                {plan && <CoursePlanPanel plan={plan} slug={course.slug} />}
               </div>
             )}
 

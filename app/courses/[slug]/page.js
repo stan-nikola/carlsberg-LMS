@@ -6,15 +6,30 @@ import {
   getEnrollmentForCourse,
   flattenScreens,
   getSessionModules,
+  moduleCooldownDays,
 } from "@/lib/courseContent";
+import { buildCoursePlan, toPlanView } from "@/lib/coursePlan";
+import { pickQuestionPool } from "@/lib/retryPolicy";
+import { isScored } from "@/lib/componentTypes";
 import { CoursePlayer } from "@/components/CoursePlayer";
 import { CourseReview } from "@/components/CourseReview";
+
+/** Скільки компонентів у модулі — з цього рахується орієнтовний час. У
+ *  плеєрі модулі приходять із повним вмістом (screens[].components[]), а
+ *  не з _count, як у хабі, тому рахуємо тут. */
+function componentCount(courseModule) {
+  return courseModule.screens.reduce((sum, screen) => sum + screen.components.length, 0);
+}
 
 // Доступ лише призначеним (є Enrollment) — на відміну від legacy, де курс
 // відкривався будь-кому із профілем платформи; тепер призначення явне
 // (assignCourseToRole / адмін-ендпоінт із Кроку 2).
-export default async function CoursePage({ params }) {
+export default async function CoursePage({ params, searchParams }) {
   const { slug } = await params;
+  // ?module=<id> — людина сама обрала модуль у плані курсу
+  // (components/CoursePlan.tsx). Раніше вибору не було взагалі: плеєр
+  // мовчки вирішував, з чого почати (скарга користувача, 2026-09-17).
+  const requestedModuleId = Number((await searchParams)?.module) || null;
   const employee = await getCurrentUser();
   if (!employee) redirect("/register");
 
@@ -55,7 +70,48 @@ export default async function CoursePage({ params }) {
   // минула, сюди НЕ потрапляють — плеєр більше не змушує переграти вже
   // складене з нуля щоразу, як людина заходить у курс (реальна скарга
   // користувача: "кнопка знову відкриває пройдений модуль").
-  const { playable: playableModules, nextLocked } = getSessionModules(course, completionsByModuleId);
+  const { playable: sessionModules, nextLocked } = getSessionModules(course, completionsByModuleId);
+
+  // План курсу — рахується ЗАВЖДИ: він потрібен і плеєру (перший екран), і
+  // методичці (щоб із неї можна було перепройти модуль, складений не на
+  // 100%). Дати форматуються тут, на сервері: той самий toLocaleDateString
+  // на клієнті в іншій таймзоні дав би інший текст і розбіжність гідратації.
+  const plan = buildCoursePlan(
+    course.modules.map((m) => ({
+      id: m.id,
+      title: m.title,
+      order: m.order,
+      cooldownDays: m.cooldownDays,
+      retakeCooldownDays: m.retakeCooldownDays,
+      componentCount: componentCount(m),
+      retryFreeAttempts: m.retryFreeAttempts,
+      retryCooldownHours: m.retryCooldownHours,
+    })),
+    completions,
+    { assignedAt: enrollment.assignedAt, dueDate: enrollment.dueDate },
+    new Date(),
+    // Темп і правила перескладання з конструктора: рекомендовано днів на
+    // модуль, загальна пауза між модулями і «м'яке гальмо» повторних
+    // спроб (власні поля модуля мають пріоритет над курсом).
+    {
+      moduleDays: course.moduleDays ?? null,
+      pauseDays: course.modulePauseDays ?? null,
+      retryFreeAttempts: course.retryFreeAttempts ?? null,
+      retryCooldownHours: course.retryCooldownHours ?? null,
+    }
+  );
+  const planView = toPlanView(plan, course.certificateEnabled !== false);
+
+  // Обраний модуль грається сам по собі — але лише якщо план справді
+  // дозволяє його зараз проходити. Інакше ?module= у рядку адреси став би
+  // способом обійти і паузу між модулями, і паузу перепроходження.
+  const requestedPlanModule = requestedModuleId
+    ? plan.modules.find((m) => m.id === requestedModuleId && m.canPlay)
+    : null;
+  const singleModule = requestedPlanModule
+    ? course.modules.find((m) => m.id === requestedPlanModule.id)
+    : null;
+  const playableModules = singleModule ? [singleModule] : sessionModules;
 
   // Курс складено на 100% і кожен модуль має запис про складання —
   // перепроходити нічого (фінальний екран при 100% і кнопки «Пройти ще
@@ -78,9 +134,20 @@ export default async function CoursePage({ params }) {
     return (
       <CourseReview
         course={course}
-        modules={course.modules}
+        // Поки курс не пройдено до кінця, для повторення відкриті лише
+        // СКЛАДЕНІ модулі: інакше після першого модуля людина читала б
+        // матеріал усіх наступних ще до того, як пауза їх відкрила, — і
+        // пауза між модулями втрачала б сенс.
+        modules={
+          plan.remainingCount > 0
+            ? course.modules.filter((m) => completionsByModuleId.get(m.id)?.passed)
+            : course.modules
+        }
         scorePercent={enrollment.scorePercent}
         hasEmail={Boolean(employee.email)}
+        // План потрібен і тут: курс може бути пройдений повністю, але з
+        // модулями нижче 100% — саме звідси людина їх перепроходить.
+        plan={planView}
       />
     );
   }
@@ -114,7 +181,26 @@ export default async function CoursePage({ params }) {
     })
     .filter(Boolean);
 
-  const courseWithPlayableContent = { ...course, modules: playableModules };
+  // Пул питань (Module.questionPoolSize): за одну спробу показуємо лише
+  // частину питань модуля, випадкову. Саме це ламає перебір варіантів при
+  // перескладанні — з другого разу питання інші, а знання те саме.
+  // Вибірка ТУТ, на сервері: інакше повний список питань приїхав би в
+  // браузер і його можна було б прочитати в коді сторінки.
+  const modulesWithPool = playableModules.map((m) => {
+    // isScored приймає КОМПОНЕНТ, не рядок типу — інакше список питань
+    // виходив порожнім і пул мовчки не застосовувався.
+    const quizIds = m.screens.flatMap((s) => s.components.filter(isScored).map((c) => c.id));
+    const keep = pickQuestionPool(quizIds, m.questionPoolSize);
+    if (keep.size === quizIds.length) return m;
+    const screens = m.screens
+      .map((s) => ({ ...s, components: s.components.filter((c) => !isScored(c) || keep.has(c.id)) }))
+      // Екран, з якого прибрали єдине питання, показувати нічого — тихо
+      // прибираємо, інакше людина побачила б порожній крок.
+      .filter((s) => s.components.length > 0);
+    return { ...m, screens };
+  });
+
+  const courseWithPlayableContent = { ...course, modules: modulesWithPool };
 
   const screens = flattenScreens(courseWithPlayableContent).map((screen) => ({
     id: screen.id,
@@ -135,16 +221,39 @@ export default async function CoursePage({ params }) {
       reason === "cooldown"
         ? `Модуль «${nl.title}» відкриється ${unlocksAt.toLocaleDateString("uk-UA")}.`
         : reason === "pause"
-          ? `Модуль «${nl.title}» відкриється через ${nl.cooldownDays} дн. після складання попереднього.`
+          ? `Модуль «${nl.title}» відкриється через ${moduleCooldownDays(course, nl)} дн. після складання попереднього.`
           : `Модуль «${nl.title}» відкриється після того, як ви складете попередній модуль.`;
   }
   // Сесія не доходить до кінця курсу (попереду модуль під паузою) —
   // плеєр після останнього модуля сесії показує чекпоінт і НЕ відправляє
   // /submit (курс ще не пройдено).
-  const afterSession = nextLocked ? { moreModules: true, notice: lockedNotice } : null;
+  //
+  // Окремо обраний модуль: курс завершується лише тоді, коли після нього
+  // запис про складання буде в КОЖНОГО модуля курсу. Саме це дає
+  // перерахунок балу при перепроходженні — /submit складає новий бал
+  // цього модуля з уже збереженими балами решти (skippedModuleScores), і
+  // останній результат перекриває попередній (рішення користувача,
+  // 2026-09-17). Якщо ж попереду ще є нескладені модулі, /submit не
+  // відправляється: курс не можна «закрити» одним обраним модулем.
+  let afterSession = nextLocked ? { moreModules: true, notice: lockedNotice } : null;
+  if (singleModule) {
+    const completesCourse = course.modules.every(
+      (m) => completionsByModuleId.has(m.id) || m.id === singleModule.id
+    );
+    afterSession = completesCourse
+      ? null
+      : { moreModules: true, notice: "Модуль зараховано. Решта курсу чекає у плані." };
+  }
 
   return (
     <CoursePlayer
+      // key — щоб перехід із плану на ?module=N ПЕРЕМОНТУВАВ плеєр. Без
+      // нього Next робить клієнтську навігацію в той самий маршрут, і
+      // компонент лишається зі старим станом: idx на вступі, answers і
+      // gateProgress від попередньої сесії, ефект відновлення з
+      // localStorage уже відпрацював. Людина натискала «Почати» на модулі
+      // й бачила той самий вступний екран (скарга користувача, 2026-09-17).
+      key={singleModule ? `module-${singleModule.id}` : "session"}
       course={{
         id: course.id,
         slug: course.slug,
@@ -162,6 +271,10 @@ export default async function CoursePage({ params }) {
       lockedNotice={lockedNotice}
       afterSession={afterSession}
       skippedModuleScores={skippedModuleScores}
+      plan={planView}
+      // Людина сама обрала цей модуль у плані — плеєр каже про це прямо,
+      // щоб не здавалося, ніби курс «скоротився».
+      singleModuleTitle={singleModule ? singleModule.title : null}
     />
   );
 }

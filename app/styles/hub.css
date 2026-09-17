@@ -302,13 +302,6 @@
   outline: none;
   box-shadow: var(--cb-focus-ring);
 }
-/* Шеврон розгортання — завжди зліва від іконки курсу (той самий бік, що й
-   в усіх інших акордеонах застосунку — команда керівника, список модулів
-   в /admin), вирівняний по центру висоти іконки курсу (46px). */
-.ct-toggle .ct-caret {
-  margin-top: 13px;
-  flex-shrink: 0;
-}
 .ct-tags {
   display: flex;
   flex-wrap: wrap;
@@ -387,98 +380,7 @@
   font-weight: 500;
   margin-top: 2px;
 }
-/* Акордеон модулів курсу (розгортається кліком по .ct-toggle) — рядок на
-   модуль зі статусом складено/не складено/доступний/заблоковано і балом,
-   якщо вже пройдено. Лише попередній перегляд, не окремий вхід у плеєр. */
-.ct-modules-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 10px;
-  margin: 0 0 10px;
-  border-top: var(--border-w) solid var(--line);
-}
-.ct-module-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: calc(11.5px * var(--fs-scale));
-  color: var(--ink);
-}
-.ct-module-status-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 15px;
-  height: 15px;
-  flex-shrink: 0;
-  color: var(--ink-soft);
-}
-.ct-module-status-icon svg {
-  width: 100%;
-  height: 100%;
-}
-.ct-module-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.ct-module-row.is-completed .ct-module-status-icon {
-  color: var(--green-700);
-}
-.ct-module-row.is-failed .ct-module-status-icon {
-  color: var(--danger);
-}
-.ct-module-row.is-available .ct-module-status-icon {
-  color: var(--cb-primary);
-}
-.ct-module-row.is-locked {
-  color: var(--ink-soft);
-}
-/* overflow/white-space/text-overflow навмисно НЕ тут — несе MarqueeText
-   через спільний клас .marquee (app/globals.css). */
-.ct-module-title {
-  flex: 1;
-  min-width: 0;
-}
-/* Права частина рядка модуля — колонки фіксованої ширини (бал / серія /
-   медаль), щоб значення різних рядків стояли одне під одним. */
-.ct-module-score {
-  font-family: var(--font-mono);
-  font-size: calc(10px * var(--fs-scale));
-  color: var(--ink-soft);
-  flex-shrink: 0;
-  min-width: 36px;
-  text-align: right;
-}
-.ct-module-time {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 36px;
-  gap: 3px;
-  font-family: var(--font-mono);
-  font-size: calc(10px * var(--fs-scale));
-  color: var(--ink-soft);
-  flex-shrink: 0;
-}
-.ct-module-time svg {
-  width: 11px;
-  height: 11px;
-}
-.ct-module-medal {
-  display: flex;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 16px;
-}
-.ct-module-medal svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* Вхід у сам плеєр курсу — окрема дія від розгортання акордеону вище. */
+/* Вхід у сам плеєр курсу. */
 .ct-enter-link {
   display: flex;
   align-items: center;
