@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DESIGN_PRESETS, DESIGN_TOKENS, applyOverrides, defaultValues, matchPreset, readOverrides, toCss, writeOverrides, type TokenValues } from "@/lib/designTokens";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CardSkeleton } from "@/components/Skeleton";
+import { CompletionRing } from "@/components/CompletionRing";
 import { BellIcon, ChevronIcon, PencilIcon, PeopleIcon, ProfileIcon, SpinnerIcon, XIcon } from "@/components/icons";
 
 /**
@@ -396,6 +397,41 @@ export function DesignStand() {
               <div className="rt-card"><b>Без помилок</b><div className="admin-hint">Перше проходження на 100%</div></div>
               <div className="lb-row lb-row-self"><span className="lb-rank">1</span><span className="lb-name">Ви</span><span className="lb-score">980</span></div>
               <CardSkeleton />
+            </div>
+          </section>
+
+          <section className="adm-card">
+            <div className="adm-card-head">
+              <h2>Діаграми</h2>
+              <span className="admin-hint">кабінет керівника, прогрес курсу, рейтинг</span>
+            </div>
+            <div className="ds-charts">
+              <div className="mgr-chart-card">
+                <ul className="mgr-bar-list">
+                  {[
+                    { label: "до 10 хв", pct: 30, value: "6" },
+                    { label: "10–20 хв", pct: 80, value: "17" },
+                    { label: "20–40 хв", pct: 100, value: "21" },
+                    { label: "понад 40 хв", pct: 0, value: "0" },
+                  ].map((b) => (
+                    <li key={b.label} className="mgr-bar-row">
+                      <span className="mgr-bar-label">{b.label}</span>
+                      <div className="mgr-bar-track">
+                        <div className="mgr-bar-fill" style={{ width: `${b.pct}%` }} />
+                      </div>
+                      <span className="mgr-bar-value">{b.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {/* Той самий CompletionRing, що й у керівника, а не схожа
+                  копія — інакше прев’ю з часом розійдеться з реальністю.
+                  0% поруч навмисно: на ньому видно, що заокруглений кінець
+                  не лишає крапки там, де значення нульове. */}
+              <div className="mgr-chart-card ds-ring-demo">
+                <CompletionRing pct={82} label="З першої спроби" />
+                <CompletionRing pct={0} label="Порожнє значення" />
+              </div>
             </div>
           </section>
         </div>

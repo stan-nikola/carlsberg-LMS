@@ -13,6 +13,7 @@ import {
   CourseIcon,
 } from "@/components/icons";
 import { HintDot } from "@/components/HintDot";
+import { CompletionRing } from "@/components/CompletionRing";
 import { medalTier } from "@/lib/progress";
 import { PageSkeleton, LinesSkeleton } from "@/components/Skeleton";
 import { Avatar } from "@/components/Avatar";
@@ -56,16 +57,6 @@ function formatDuration(seconds) {
   return minutes > 0 ? `${hours} год ${minutes} хв` : `${hours} год`;
 }
 
-/** Кільце — той самий strokeDasharray-прийом, що вже є в SpinnerIcon
- * (components/icons.jsx), тільки з реальним % замість нескінченного
- * обертання. Компактний варіант (менший stroke) для сітки 2×2 замість
- * одного великого кільця, яке займало багато місця під один-єдиний
- * показник. Кінці НЕ заокруглені (strokeLinecap не задано → butt за
- * замовчуванням) — чіткий, "інженерний" вигляд замість м'якого.
- * Заповнення анімується від 0 при першому рендері (mounted-стан +
- * transition на stroke-dasharray, --dur-slow/--ease-premium — ті самі
- * токени руху, що й скрізь у проєкті), а не миттєво стрибає на
- * фінальне значення. */
 /**
  * Колір кільця відносно решти кілець у тій самій сітці — не фіксований
  * per-метрика колір (той підхід плутав: "Розпочали 100%" виходило
@@ -96,42 +87,6 @@ function rateColor(pct, allValues) {
  */
 function ChartHint({ text }) {
   return <HintDot text={text} />;
-}
-
-function CompletionRing({ pct, label, color = "var(--cb-secondary)" }) {
-  const [animated, setAnimated] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setAnimated(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-
-  const radius = 46;
-  const circumference = 2 * Math.PI * radius;
-  const clamped = Math.max(0, Math.min(100, pct));
-  const dash = animated ? (clamped / 100) * circumference : 0;
-
-  return (
-    <div className="mgr-ring-item">
-      <svg viewBox="0 0 120 120" className="mgr-ring" role="img" aria-label={`${label ? label + ": " : ""}${clamped}%`}>
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="var(--line)" strokeWidth="14" />
-        <circle
-          cx="60"
-          cy="60"
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth="14"
-          className="mgr-ring-fill"
-          strokeDasharray={`${dash} ${circumference}`}
-          transform="rotate(-90 60 60)"
-        />
-        <text x="60" y="67" textAnchor="middle" className="mgr-ring-text">
-          {clamped}%
-        </text>
-      </svg>
-      {label && <span className="mgr-ring-label">{label}</span>}
-    </div>
-  );
 }
 
 function EnrollmentRow({ enrollment }) {

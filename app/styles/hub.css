@@ -158,13 +158,13 @@
 }
 .xp-track {
   height: var(--size-2xs);
-  border-radius: var(--size-4xs);
+  border-radius: var(--chart-bar-radius);
   background: var(--cb-overlay-10);
   overflow: hidden;
 }
 .xp-fill {
   height: 100%;
-  border-radius: var(--size-4xs);
+  border-radius: inherit;
   background: var(--cb-primary);
   transition: width var(--dur-slow) var(--ease-out);
 }
@@ -358,19 +358,20 @@
   align-items: center;
   gap: 8px;
 }
-/* atoms/ProgressBar: висота --size-2xs (8px), радіус --size-4xs (4px, НЕ
-   pill), фон overlay.digital-black.10, заповнення — суцільний themePrimary
-   (без градієнта). */
+/* atoms/ProgressBar: висота --size-2xs (8px), фон overlay.digital-black.10,
+   заповнення — суцільний themePrimary (без градієнта). Радіус — спільний
+   --chart-bar-radius (дефолт 4px, як і вимагає atoms/ProgressBar, але тепер
+   один на всі смуги й регульований на стенді). */
 .ct-progress-track {
   flex: 1;
   height: var(--size-2xs);
-  border-radius: var(--size-4xs);
+  border-radius: var(--chart-bar-radius);
   background: var(--cb-overlay-10);
   overflow: hidden;
 }
 .ct-progress-fill {
   height: 100%;
-  border-radius: var(--size-4xs);
+  border-radius: inherit;
   background: var(--cb-primary);
   transition: width var(--dur-base) ease-in-out;
 }

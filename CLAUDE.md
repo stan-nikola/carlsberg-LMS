@@ -269,7 +269,8 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
 іконкових, 3 реалізації таблиць, 24 пари паддингів карток):
 `--radius-btn/-card/-input/-badge`, `--btn-h-sm/-md/-lg` + `--btn-px-*`,
 `--iconbtn-sm/-md`, `--border-w`, `--card-pad(-compact/-roomy)`,
-`--card-shadow`, `--table-cell-pad`. Правила:
+`--card-shadow`, `--table-cell-pad`, `--chart-bar-radius`,
+`--chart-ring-w`, `--chart-ring-cap`. Правила:
 
 - Кнопка = один із трьох розмірів (`min-height: var(--btn-h-*)`, горизонтальний
   паддинг `--btn-px-*`), іконкова — `--iconbtn-sm`/`-md` і `--radius-btn`;
@@ -279,6 +280,15 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
 - Таблиця — лише справжня `<table class="admin-table">` (рядок-кнопка:
   `<tr class="adm-emp-row" role="button" tabIndex={0}>`); grid-«таблиці»
   з `<span>` більше не робити.
+- Діаграма — форма кінців ЛИШЕ з токенів: будь-яка прогрес-смуга
+  (`.mgr-bar-track/-fill`, `.ct-progress-*`, `.xp-*`, `.cp-progress-*`)
+  бере `--chart-bar-radius`, кільце — `--chart-ring-w`/`--chart-ring-cap`
+  через CSS, а не атрибутами `stroke-width`/`stroke-linecap` у JSX (SVG
+  не приймає там `var()`). Кільце — спільний `components/CompletionRing.tsx`,
+  один і в кабінеті керівника, і в прев'ю стенду; нової копії не робити.
+  Рядок діаграми (`.mgr-bar-row`) — grid з `grid-template-areas`, не
+  `flex-wrap`: при wrap перенос рахується за базовими ширинами, і значення
+  (воно не стискається) лишалось саме на другому рядку.
 - Бейдж/тег/чип — `border-radius: var(--radius-badge)`; статус
   «Складено / Не складено» і стани призначення — `components/StatusBadge.tsx`
   (`.status-pill*` у globals.css), не власні класи по файлах.
