@@ -686,12 +686,25 @@ body:has(.manager-shell) {
   font-size: 18px;
   fill: var(--ink);
 }
+/* Товщина обведення — з токена, а не атрибутом stroke-width у JSX:
+   презентаційні атрибути SVG не приймають var(), а CSS-властивість
+   приймає, і тоді кільце крутиться на стенді разом з рештою. */
+.mgr-ring circle {
+  stroke-width: var(--chart-ring-w);
+}
 .mgr-ring-fill {
-  /* Кінці НЕ заокруглені (без strokeLinecap="round" у JSX — стандартний
-     butt) + анімоване заповнення при появі даних, ті самі токени руху,
-     що й бари вище. Довше за звичайний --dur-slow (×1.5) — на повному
-     колі заповнення "з нуля" на 400мс виглядало занадто різко. */
+  /* Форма кінців дуги — теж з токена (--chart-ring-cap). Анімоване
+     заповнення при появі даних, ті самі токени руху, що й бари вище.
+     Довше за звичайний --dur-slow (×1.5) — на повному колі заповнення
+     "з нуля" на 400мс виглядало занадто різко. */
+  stroke-linecap: var(--chart-ring-cap);
   transition: stroke-dasharray calc(var(--dur-slow) * 1.5) var(--ease-premium);
+}
+/* Дуга нульової довжини: із заокругленим кінцем браузер намалював би
+   крапку на початку кола — на показнику 0% вона читалась би як маленьке
+   ненульове значення. */
+.mgr-ring-fill-zero {
+  stroke-linecap: butt;
 }
 .mgr-bar-list {
   list-style: none;
@@ -701,17 +714,58 @@ body:has(.manager-shell) {
   flex-direction: column;
   gap: 12px;
 }
+/* Сітка з іменованими областями, а не flex-wrap. Причина: при flex-wrap
+   перенос рахується за БАЗОВИМИ ширинами (label 140px + track 160px), і
+   min-width:0 на це не впливає — він дозволяє стиснутись уже після того,
+   як рядок вирішив переноситись. У картці на 4 колонки (і на телефоні)
+   не вміщалось саме значення, яке не стискається й не переноситься
+   всередині себе: підпис і смуга лишались угорі, а число падало саме
+   на другий рядок — читалось як зламана верстка (скарга користувача,
+   2026-09-17, скріншот «Час на проходження», «Розподіл балів»).
+   Тепер вузький варіант — підпис окремим рядком, під ним смуга й
+   значення поруч; широкий — усе в один рядок. Число НІКОЛИ не лишається
+   саме. Поріг рахується від ширини самої картки (@container), а не
+   вікна: та сама картка живе і в 1 колонку на телефоні, і в 4 на
+   десктопі. */
+.mgr-chart-card {
+  container-type: inline-size;
+  container-name: mgr-chart;
+}
 .mgr-bar-row {
-  /* flex-wrap замість жорсткої grid-колонки з мінімумом 120px — на
-     вузькому екрані трек сам переноситься на другий рядок під
-     назву+значення, а не змушує рядок вилазити за межі картки. */
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label label"
+    "track value";
   align-items: center;
-  gap: 6px 12px;
+  gap: 4px 12px;
+}
+@container mgr-chart (min-width: 260px) {
+  .mgr-bar-row {
+    grid-template-columns: minmax(0, 1fr) minmax(56px, 1.6fr) auto;
+    grid-template-areas: "label track value";
+    gap: 12px;
+  }
+  /* Дворядковому підпису (назва модуля + курс) в один рядок треба
+     помітно більше місця, ніж «10-20 хв», інакше він розсипається на
+     три рядки в колонці шириною 100px. */
+  .mgr-bar-row:has(.mgr-bar-label-stack) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "label label"
+      "track value";
+    gap: 4px 12px;
+  }
+}
+@container mgr-chart (min-width: 440px) {
+  .mgr-bar-row:has(.mgr-bar-label-stack) {
+    grid-template-columns: minmax(0, 1.4fr) minmax(56px, 1fr) auto;
+    grid-template-areas: "label track value";
+    gap: 12px;
+  }
 }
 .mgr-bar-label {
-  flex: 1 1 140px;
+  grid-area: label;
   min-width: 0;
   font-size: 13px;
   color: var(--ink);
@@ -720,16 +774,16 @@ body:has(.manager-shell) {
   white-space: nowrap;
 }
 .mgr-bar-track {
-  flex: 3 1 160px;
+  grid-area: track;
   min-width: 0;
   height: var(--size-2xs);
-  /* Без border-radius — рівні, не заокруглені кінці (свідомий вибір, не
-     недогляд: "інженерний" вигляд діаграм замість м'якого). */
+  border-radius: var(--chart-bar-radius);
   background: var(--cb-overlay-10);
   overflow: hidden;
 }
 .mgr-bar-fill {
   height: 100%;
+  border-radius: inherit;
   background: var(--cb-primary);
   /* --dur-slow/--ease-premium — ті самі токени руху, що вже скрізь у
      проєкті (не власна довільна тривалість) — заповнення анімується від
@@ -742,7 +796,6 @@ body:has(.manager-shell) {
    однорядкові nowrap/ellipsis базового .mgr-bar-label. Основа ширша
    (200px замість 140px), бо назва модуля довша за назву курсу. */
 .mgr-bar-label-stack {
-  flex: 1 1 200px;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -768,7 +821,8 @@ body:has(.manager-shell) {
   background: var(--cb-fail);
 }
 .mgr-bar-value {
-  flex: 0 0 auto;
+  grid-area: value;
+  justify-self: end;
   font-size: 12px;
   color: var(--ink-soft);
   white-space: nowrap;
@@ -856,6 +910,9 @@ body:has(.manager-shell) {
 .mgr-trend-bar-fill {
   width: 100%;
   background: var(--cb-primary);
+  /* Вертикальний стовпчик стоїть на осі — заокруглюємо лише верх, інакше
+     він виглядає відірваним від підпису під ним. */
+  border-radius: var(--chart-bar-radius) var(--chart-bar-radius) 0 0;
   min-height: 3px;
   /* ×1.5 --dur-slow — те саме сповільнення, що й .mgr-ring-fill/
      .mgr-bar-fill, щоб заповнення при появі даних не стрибало миттєво. */

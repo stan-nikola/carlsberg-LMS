@@ -3038,6 +3038,24 @@
   --card-min: 220px;
   margin-top: 12px;
 }
+/* Прев’ю діаграм: смуги ліворуч, кільця праворуч. Дві колонки — щоб на
+   стенді було видно обидві форми одночасно, коли крутиш повзунки. */
+.ds-charts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+@media (min-width: 720px) {
+  .ds-charts {
+    grid-template-columns: 1fr auto;
+  }
+}
+.ds-ring-demo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .ds-preset {
   display: flex;
   gap: 8px;

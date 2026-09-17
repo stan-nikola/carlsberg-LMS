@@ -62,6 +62,21 @@ export const DESIGN_TOKENS: TokenDef[] = [
   { key: "card-pad-y", label: "Картка: відступ зверху/знизу", group: "Відступи", kind: "px", min: 8, max: 24, def: 14 },
   { key: "card-pad-x", label: "Картка: відступ з боків", group: "Відступи", kind: "px", min: 8, max: 28, def: 16 },
   { key: "table-cell-y", label: "Таблиця: висота рядка", group: "Відступи", kind: "px", min: 6, max: 16, def: 10 },
+  // Смуга заввишки 8px: радіус понад 4px браузер усе одно обріже до
+  // половини висоти, тому max саме 4 — щоб повзунок не мав мертвої зони.
+  { key: "chart-bar-radius", label: "Смуги: заокруглення кінців", group: "Діаграми", kind: "px", min: 0, max: 4, def: 4 },
+  { key: "chart-ring-w", label: "Кільця: товщина", group: "Діаграми", kind: "px", min: 6, max: 20, def: 14 },
+  {
+    key: "chart-ring-cap",
+    label: "Кільця: кінці дуги",
+    group: "Діаграми",
+    kind: "choice",
+    choices: [
+      { label: "Заокруглені", value: "round" },
+      { label: "Прямі (точніше передають частку)", value: "butt" },
+    ],
+    def: "round",
+  },
 ];
 
 export type TokenValues = Record<string, string>;
@@ -129,6 +144,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
       "radius-btn": px(12), "radius-card": px(16), "radius-input": px(10), "radius-badge": "var(--radius-pill)",
       "btn-h-sm": px(32), "btn-h-md": px(44), "btn-h-lg": px(50), "iconbtn-sm": px(28), "iconbtn-md": px(36),
       "border-w": "1px", "card-shadow": "none", "card-pad-y": px(14), "card-pad-x": px(16), "table-cell-y": px(11),
+      "chart-bar-radius": px(4), "chart-ring-w": px(12), "chart-ring-cap": "round",
     },
   },
   {
@@ -139,6 +155,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
       "radius-btn": px(4), "radius-card": px(8), "radius-input": px(4), "radius-badge": "var(--radius-pill)",
       "btn-h-sm": px(32), "btn-h-md": px(32), "btn-h-lg": px(44), "iconbtn-sm": px(28), "iconbtn-md": px(32),
       "border-w": "1px", "card-shadow": "var(--shadow-resting)", "card-pad-y": px(12), "card-pad-x": px(16), "table-cell-y": px(8),
+      "chart-bar-radius": px(2), "chart-ring-w": px(12), "chart-ring-cap": "butt",
     },
   },
   {
@@ -149,6 +166,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
       "radius-btn": px(20), "radius-card": px(12), "radius-input": px(4), "radius-badge": "var(--radius-pill)",
       "btn-h-sm": px(32), "btn-h-md": px(40), "btn-h-lg": px(56), "iconbtn-sm": px(28), "iconbtn-md": px(40),
       "border-w": "1px", "card-shadow": "var(--shadow-resting)", "card-pad-y": px(16), "card-pad-x": px(16), "table-cell-y": px(12),
+      "chart-bar-radius": px(4), "chart-ring-w": px(14), "chart-ring-cap": "round",
     },
   },
   {
@@ -159,6 +177,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
       "radius-btn": px(6), "radius-card": px(8), "radius-input": px(6), "radius-badge": "var(--radius-btn)",
       "btn-h-sm": px(31), "btn-h-md": px(38), "btn-h-lg": px(48), "iconbtn-sm": px(28), "iconbtn-md": px(38),
       "border-w": "1px", "card-shadow": "none", "card-pad-y": px(16), "card-pad-x": px(16), "table-cell-y": px(8),
+      "chart-bar-radius": px(0), "chart-ring-w": px(14), "chart-ring-cap": "butt",
     },
   },
   {
@@ -169,6 +188,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
       "radius-btn": px(6), "radius-card": px(8), "radius-input": px(6), "radius-badge": "var(--radius-pill)",
       "btn-h-sm": px(32), "btn-h-md": px(36), "btn-h-lg": px(44), "iconbtn-sm": px(28), "iconbtn-md": px(36),
       "border-w": "1px", "card-shadow": "var(--shadow-resting)", "card-pad-y": px(16), "card-pad-x": px(20), "table-cell-y": px(10),
+      "chart-bar-radius": px(4), "chart-ring-w": px(10), "chart-ring-cap": "round",
     },
   },
 ];
