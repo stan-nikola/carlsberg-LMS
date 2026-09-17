@@ -7,7 +7,16 @@
  * (NotificationPreference). Тип — конкретна подія всередині категорії.
  */
 
-export const NOTIFICATION_CATEGORIES = [
+export type NotificationCategoryKey = "courses" | "deadlines" | "badges" | "team" | "news";
+
+export type NotificationCategoryMeta = {
+  key: NotificationCategoryKey;
+  label: string;
+  hint: string;
+  icon: string;
+};
+
+export const NOTIFICATION_CATEGORIES: NotificationCategoryMeta[] = [
   {
     key: "courses",
     label: "Нові курси",
@@ -40,10 +49,19 @@ export const NOTIFICATION_CATEGORIES = [
   },
 ];
 
-export const CATEGORY_KEYS = NOTIFICATION_CATEGORIES.map((c) => c.key);
+export const CATEGORY_KEYS: NotificationCategoryKey[] = NOTIFICATION_CATEGORIES.map((c) => c.key);
+
+/** "courses" -> "telegramCourses" — назва поля NotificationPreference для
+ *  Telegram-варіанта тієї самої категорії (профіль показує Push і
+ *  Telegram як два незалежні розкривні списки з тими самими 5 рядками). */
+export function telegramCategoryKey(categoryKey: string): string {
+  return `telegram${categoryKey.charAt(0).toUpperCase()}${categoryKey.slice(1)}`;
+}
+
+export const TELEGRAM_CATEGORY_KEYS: string[] = CATEGORY_KEYS.map(telegramCategoryKey);
 
 /** Тип події → категорія. Єдине місце, де це зіставлення записано. */
-export const TYPE_CATEGORY = {
+export const TYPE_CATEGORY: Record<string, NotificationCategoryKey> = {
   enrollment_assigned: "courses",
   module_unlocked: "courses",
   deadline_3d: "deadlines",
@@ -55,48 +73,61 @@ export const TYPE_CATEGORY = {
   broadcast: "news",
 };
 
-export function categoryOf(type) {
+export function categoryOf(type: string): string {
   return TYPE_CATEGORY[type] || "system";
 }
 
-export function categoryMeta(key) {
+export function categoryMeta(key: string): NotificationCategoryMeta | { key: string; label: string; icon: string; hint: string } {
   return NOTIFICATION_CATEGORIES.find((c) => c.key === key) || { key, label: key, icon: "🔔", hint: "" };
 }
 
+export type PreferenceValues = Record<string, boolean>;
+
 /** Дефолти вподобань — усе увімкнено (рядка в БД може не бути). */
-export const DEFAULT_PREFERENCES = Object.freeze({
+export const DEFAULT_PREFERENCES: PreferenceValues = Object.freeze({
   ...Object.fromEntries(CATEGORY_KEYS.map((k) => [k, true])),
-  // Канал Telegram (не категорія): чи слати в чат бота, якщо прив’язано.
-  telegram: true,
+  ...Object.fromEntries(TELEGRAM_CATEGORY_KEYS.map((k) => [k, true])),
 });
 
 /**
  * Чи хоче людина цю категорію. prefs — рядок NotificationPreference або
  * null; "system" (службові) не вимикається.
  */
-export function wantsCategory(prefs, category) {
+export function wantsCategory(prefs: PreferenceValues | null | undefined, category: string): boolean {
   if (category === "system") return true;
-  if (!CATEGORY_KEYS.includes(category)) return true;
+  if (!CATEGORY_KEYS.includes(category as NotificationCategoryKey)) return true;
   if (!prefs) return DEFAULT_PREFERENCES[category];
   return prefs[category] !== false;
+}
+
+/** Той самий gate, що wantsCategory, але для незалежного Telegram-списку
+ *  (lib/notifications.js: телеграм-адресати — підмножина тих, кому й так
+ *  створюється Notification, додатково відфільтрована цим прапорцем). */
+export function wantsTelegramCategory(prefs: PreferenceValues | null | undefined, category: string): boolean {
+  if (category === "system") return true;
+  if (!CATEGORY_KEYS.includes(category as NotificationCategoryKey)) return true;
+  const key = telegramCategoryKey(category);
+  if (!prefs) return DEFAULT_PREFERENCES[key];
+  return prefs[key] !== false;
 }
 
 /**
  * Приводить довільний об'єкт із налаштувань (тіло PUT-запиту) до валідних
  * полів: лише відомі ключі, лише boolean. Невідоме — відкидається.
  */
-export function sanitizePreferences(input) {
-  const out = {};
-  for (const key of [...CATEGORY_KEYS, "telegram"]) {
-    if (typeof input?.[key] === "boolean") out[key] = input[key];
+export function sanitizePreferences(input: unknown): PreferenceValues {
+  const out: PreferenceValues = {};
+  const src = input as Record<string, unknown> | null | undefined;
+  for (const key of [...CATEGORY_KEYS, ...TELEGRAM_CATEGORY_KEYS]) {
+    if (typeof src?.[key] === "boolean") out[key] = src[key] as boolean;
   }
   return out;
 }
 
 /** Відносний час для списку («щойно», «5 хв тому», «вчора», дата). */
-export function formatRelativeTime(date, now = new Date()) {
+export function formatRelativeTime(date: string | number | Date, now: Date = new Date()): string {
   const d = new Date(date);
-  const diffMs = now - d;
+  const diffMs = now.getTime() - d.getTime();
   const min = Math.floor(diffMs / 60000);
   if (min < 1) return "щойно";
   if (min < 60) return `${min} хв тому`;

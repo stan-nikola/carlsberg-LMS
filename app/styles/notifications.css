@@ -154,20 +154,16 @@ a.ntf-item:focus-visible {
 .ntf-row-toggle.open .ntf-expand svg {
   transform: rotate(90deg);
 }
+/* Кнопки каналів (Push / Telegram) однакової ширини — щоб «Увімкнути» і
+   «Вимкнути» стояли одна під одною, а не стрибали по довжині слова. */
+.ntf-row-btn {
+  min-width: 108px;
+  flex-shrink: 0;
+}
 /* Розгорнутий список: підпис одним дрібним рядком + компактні рядки
    «чекбокс · іконка · назва», без підказок — це другорядне налаштування. */
 .ntf-prefs {
   padding: 4px 0 8px 26px;
-}
-.ntf-prefs-caption {
-  font-size: calc(11px * var(--fs-scale));
-  color: var(--ink-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .ntf-pref {
   display: flex;
@@ -198,9 +194,3 @@ a.ntf-item:focus-visible {
   gap: 8px 16px;
 }
 
-/* Канал Telegram серед категорій — відділений лінією, бо це не «що», а «куди». */
-.ntf-pref-channel {
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 8px;
-  margin-bottom: 4px;
-}

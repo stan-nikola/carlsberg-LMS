@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SettingsGearIcon, LogoutIcon } from "@/components/icons";
+import { SettingsGearIcon, LogoutIcon, DownloadIcon } from "@/components/icons";
+import { InstallGuideModal } from "@/components/InstallGuide";
+import { isStandalone } from "@/lib/installGuide";
 
 // Портовано з legacy/js/settings.js — той самий ключ localStorage, щоб
 // налаштування розміру шрифту не губились для існуючих користувачів.
@@ -15,6 +17,10 @@ const FS_STORAGE_KEY = "telesale_fs_step";
  */
 export function SettingsSheet({ open, onClose, onLogout }) {
   const [fsStep, setFsStep] = useState(0);
+  // «Встановити застосунок» — лише коли відкрито в браузері, не з іконки;
+  // визначається після монтування (SSR не знає display-mode).
+  const [canInstall, setCanInstall] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
     let saved = 0;
@@ -30,6 +36,7 @@ export function SettingsSheet({ open, onClose, onLogout }) {
     // ефекті, після монтування на клієнті.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFsStep(saved);
+    setCanInstall(!isStandalone());
     document.documentElement.style.setProperty("--fs-scale", String(FS_SCALES[saved]));
   }, []);
 
@@ -82,6 +89,24 @@ export function SettingsSheet({ open, onClose, onLogout }) {
             </div>
           </div>
         </div>
+        {canInstall && (
+          <div className="settings-block">
+            <div className="settings-row">
+              <div className="settings-label">
+                <span className="settings-ico">
+                  <DownloadIcon />
+                </span>
+                <div>
+                  <div className="settings-t">Встановити застосунок</div>
+                  <div className="settings-d">Іконка на екрані, повний екран, push-сповіщення</div>
+                </div>
+              </div>
+              <button type="button" className="admin-btn ntf-row-btn" onClick={() => setGuideOpen(true)}>
+                Як це зробити
+              </button>
+            </div>
+          </div>
+        )}
         <p className="footnote">
           Налаштування зберігаються лише на цьому пристрої й не впливають на результат тесту.
         </p>
@@ -93,6 +118,7 @@ export function SettingsSheet({ open, onClose, onLogout }) {
           </button>
         )}
       </div>
+      <InstallGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>
   );
 }

@@ -574,13 +574,6 @@ body:has(.manager-shell) {
   min-width: 36px;
   text-align: right;
 }
-.mgr-module-streak {
-  font-size: 11px;
-  flex-shrink: 0;
-  white-space: nowrap;
-  min-width: 34px;
-  text-align: right;
-}
 .mgr-module-medal {
   display: flex;
   justify-content: center;

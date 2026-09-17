@@ -466,13 +466,6 @@
   width: 11px;
   height: 11px;
 }
-.ct-module-streak {
-  font-size: calc(10px * var(--fs-scale));
-  flex-shrink: 0;
-  white-space: nowrap;
-  min-width: 36px;
-  text-align: right;
-}
 .ct-module-medal {
   display: flex;
   justify-content: center;

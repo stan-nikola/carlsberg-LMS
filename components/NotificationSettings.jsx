@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { NOTIFICATION_CATEGORIES } from "@/lib/notificationTypes";
+import { NOTIFICATION_CATEGORIES, telegramCategoryKey } from "@/lib/notificationTypes";
 import { getPushState, subscribeToPush, unsubscribeFromPush } from "@/lib/pushClient";
 import { BellIcon, ChevronIcon, TelegramIcon, SpinnerIcon } from "@/components/icons";
 
@@ -30,7 +30,11 @@ export function NotificationSettings({ variant = "full" }) {
   const [hidden, setHidden] = useState(variant === "card");
   // Категорії — під шевроном, згорнуті: у профілі це другорядне налаштування,
   // п'ять рядків одразу перевантажували екран (користувач, 2026-09-15).
-  const [prefsOpen, setPrefsOpen] = useState(false);
+  // Push і Telegram — два НЕЗАЛЕЖНІ розкривні списки з тими самими 5
+  // категоріями (користувач, 2026-09-17): можна отримувати курси push-ом,
+  // а дедлайни — лише в Telegram, кожен канал розгортається окремо.
+  const [pushPrefsOpen, setPushPrefsOpen] = useState(false);
+  const [tgPrefsOpen, setTgPrefsOpen] = useState(false);
   // Telegram: null — ще не завантажено; { configured, botUsername, link, linkUrl }.
   // Після тапу «Підключити» відкривається бот, а ми опитуємо стан кожні
   // 3с до 2 хв — прив’язка з’являється без перезавантаження сторінки.
@@ -148,17 +152,21 @@ export function NotificationSettings({ variant = "full" }) {
     );
   }
 
+  const pushOnCount = prefs ? NOTIFICATION_CATEGORIES.filter((c) => prefs[c.key] !== false).length : 0;
+  const tgOnCount = prefs ? NOTIFICATION_CATEGORIES.filter((c) => prefs[telegramCategoryKey(c.key)] !== false).length : 0;
+
   return (
     <div className="settings-block ntf-settings">
+      {/* Push і Telegram — два ОДНАКОВІ блоки: рядок каналу (іконка, назва,
+          стан, кнопка Увімкнути/Вимкнути однакової ширини) сам є кнопкою-
+          шевроном, що розгортає СВІЙ окремий список тих самих 5 категорій
+          (користувач, 2026-09-17). */}
       <div className="settings-row">
-        {/* Увесь рядок (крім кнопки праворуч) розгортає категорії; рядок
-            «N з 5 увімкнено» прибрано — користувач (2026-09-15): один блок,
-            коротко, без лічильника. */}
         <button
           type="button"
-          className={`settings-label ntf-row-toggle${prefsOpen ? " open" : ""}`}
-          onClick={() => setPrefsOpen((v) => !v)}
-          aria-expanded={prefsOpen}
+          className={`settings-label ntf-row-toggle${pushPrefsOpen ? " open" : ""}`}
+          onClick={() => setPushPrefsOpen((v) => !v)}
+          aria-expanded={pushPrefsOpen}
           disabled={!prefs}
         >
           <span className="ntf-expand" aria-hidden="true">
@@ -169,65 +177,25 @@ export function NotificationSettings({ variant = "full" }) {
           </span>
           <span className="ntf-row-text">
             <span className="settings-t">Push на цьому пристрої</span>
-            <span className="settings-d">{STATE_TEXT[state] || (state === "subscribed" ? "Увімкнено" : "Вимкнено")}</span>
+            <span className="settings-d">
+              {STATE_TEXT[state] || (state === "subscribed" ? "Увімкнено" : "Вимкнено")}
+              {prefs && state === "subscribed" && ` · ${pushOnCount} з ${NOTIFICATION_CATEGORIES.length} категорій`}
+            </span>
           </span>
         </button>
         {state === "subscribed" && (
-          <button type="button" className="admin-btn" onClick={disable} disabled={busy}>
+          <button type="button" className="admin-btn ntf-row-btn" onClick={disable} disabled={busy}>
             Вимкнути
           </button>
         )}
         {state === "not-subscribed" && (
-          <button type="button" className="admin-btn" onClick={enable} disabled={busy}>
+          <button type="button" className="admin-btn ntf-row-btn" onClick={enable} disabled={busy}>
             Увімкнути
           </button>
         )}
       </div>
-      {tg?.configured && (
-        <div className="settings-row">
-          <div className="settings-label">
-            <span className="settings-ico">
-              <TelegramIcon />
-            </span>
-            <span className="ntf-row-text">
-              <span className="settings-t">Telegram</span>
-              <span className="settings-d">
-                {tg.link
-                  ? `Підключено: ${tg.link.username ? "@" + tg.link.username : tg.link.firstName || "чат"}`
-                  : tgWaiting
-                    ? "Натисніть Start у Telegram — чекаємо підтвердження…"
-                    : `Сповіщення в чат бота @${tg.botUsername}`}
-              </span>
-            </span>
-          </div>
-          {tg.link ? (
-            <button type="button" className="admin-btn" onClick={tgDisconnect}>
-              Відключити
-            </button>
-          ) : tgWaiting ? (
-            <button type="button" className="admin-btn" onClick={stopTgPoll}>
-              <SpinnerIcon />
-              Скасувати
-            </button>
-          ) : (
-            <button type="button" className="admin-btn" onClick={tgConnect} disabled={!tg.linkUrl}>
-              Підключити
-            </button>
-          )}
-        </div>
-      )}
-      {prefs && prefsOpen && (
+      {prefs && pushPrefsOpen && (
         <div className="ntf-prefs">
-          <div className="ntf-prefs-caption">Які сповіщення отримувати</div>
-          {tg?.link && (
-            <label className="ntf-pref ntf-pref-channel">
-              <input type="checkbox" checked={prefs.telegram !== false} onChange={(e) => toggle("telegram", e.target.checked)} />
-              <span className="ntf-pref-ico" aria-hidden="true">
-                ✈️
-              </span>
-              <span className="ntf-pref-label">Дублювати в Telegram</span>
-            </label>
-          )}
           {NOTIFICATION_CATEGORIES.map((c) => (
             <label key={c.key} className="ntf-pref">
               <input type="checkbox" checked={prefs[c.key] !== false} onChange={(e) => toggle(c.key, e.target.checked)} />
@@ -238,6 +206,67 @@ export function NotificationSettings({ variant = "full" }) {
             </label>
           ))}
         </div>
+      )}
+
+      {tg?.configured && (
+        <>
+          <div className="settings-row">
+            <button
+              type="button"
+              className={`settings-label ntf-row-toggle${tgPrefsOpen ? " open" : ""}`}
+              onClick={() => setTgPrefsOpen((v) => !v)}
+              aria-expanded={tgPrefsOpen}
+              disabled={!prefs}
+            >
+              <span className="ntf-expand" aria-hidden="true">
+                <ChevronIcon />
+              </span>
+              <span className="settings-ico">
+                <TelegramIcon />
+              </span>
+              <span className="ntf-row-text">
+                <span className="settings-t">Telegram</span>
+                <span className="settings-d">
+                  {tg.link
+                    ? `Увімкнено: ${tg.link.username ? "@" + tg.link.username : tg.link.firstName || "чат"}${prefs ? ` · ${tgOnCount} з ${NOTIFICATION_CATEGORIES.length} категорій` : ""}`
+                    : tgWaiting
+                      ? "Натисніть Start у Telegram — чекаємо підтвердження…"
+                      : `Вимкнено — сповіщення в чат бота @${tg.botUsername}`}
+                </span>
+              </span>
+            </button>
+            {tg.link ? (
+              <button type="button" className="admin-btn ntf-row-btn" onClick={tgDisconnect}>
+                Вимкнути
+              </button>
+            ) : tgWaiting ? (
+              <button type="button" className="admin-btn ntf-row-btn" onClick={stopTgPoll}>
+                <SpinnerIcon />
+                Скасувати
+              </button>
+            ) : (
+              <button type="button" className="admin-btn ntf-row-btn" onClick={tgConnect} disabled={!tg.linkUrl}>
+                Увімкнути
+              </button>
+            )}
+          </div>
+          {prefs && tgPrefsOpen && (
+            <div className="ntf-prefs">
+              {NOTIFICATION_CATEGORIES.map((c) => {
+                const key = telegramCategoryKey(c.key);
+                return (
+                  <label key={key} className="ntf-pref">
+                    <input type="checkbox" checked={prefs[key] !== false} onChange={(e) => toggle(key, e.target.checked)} />
+                    <span className="ntf-pref-ico" aria-hidden="true">
+                      {c.icon}
+                    </span>
+                    <span className="ntf-pref-label">{c.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
