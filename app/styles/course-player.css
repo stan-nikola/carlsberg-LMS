@@ -9,7 +9,168 @@
 .cp-viewport {
   position: relative;
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
+}
+/* .mr-body — спільний контейнер .cp-viewport + панелі модулів методички
+   (CourseReview.jsx), ЗАМІСТЬ .cp-viewport напряму в .course-card: так
+   панель лишається ПОЗА скрол-зоною (ніколи не з'їжджає геть), а сам
+   контейнер лише розвертає РЯДОК/КОЛОНКУ на @container-порозі.
+   Мобільно (2026-09-18, скарга користувача: горизонтальна смуга знизу на
+   телефоні виявилась гіршою за просту рейку — повернули) — вертикальна
+   рейка ЗЛІВА: row-reverse тримає DOM-порядок [viewport, панель]
+   незмінним (важливо для .mr-tabbar-list нижче), лише візуально міняє
+   місцями. Десктоп (@container cp-card, min-width:640px, той самий
+   поріг, що скрізь у плеєрі) — горизонтальна панель ЗНИЗУ, звичайна
+   column: DOM-порядок і так [viewport, панель] = [зверху, знизу]. */
+.mr-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: row-reverse;
+}
+@container cp-card (min-width: 640px) {
+  .mr-body {
+    flex-direction: column;
+  }
+}
+
+/* Список модулів + кнопка "нагору" — В ЦЬОМУ порядку в DOM навмисно (не
+   навпаки): у мобільній колонці (flex-direction:column нижче) кнопка,
+   як останній елемент, опиняється ВНИЗУ рейки; у десктопному рядку
+   (row) вона останньою опиняється СПРАВА. Обидві вимоги користувача
+   (2026-09-18: "кнопку вгору... справа" десктоп, "...внизу" мобільний)
+   виконуються самим порядком розмітки, без CSS order. */
+.mr-tabbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  /* 76px тримало колонку "номер + підпис теми" (нижче прибрано — лишились
+     самі кружечки з номером), тепер вузько під сам кружечок + клікабельний
+     запас навколо (2026-09-19, запит користувача — без назв модулів). */
+  width: 44px;
+  padding: 10px 4px;
+  border-right: var(--border-w) solid var(--line);
+  background: var(--surface);
+  overflow: hidden;
+}
+@container cp-card (min-width: 640px) {
+  .mr-tabbar {
+    flex-direction: row;
+    width: auto;
+    padding: 6px 10px;
+    border-right: none;
+    border-top: var(--border-w) solid var(--line);
+  }
+}
+.mr-tabbar-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface-1);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.mr-tabbar-top svg {
+  width: 13px;
+  height: 13px;
+}
+.mr-tabbar-top:hover {
+  background: var(--cb-overlay-10);
+}
+.mr-tabbar-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  /* offsetParent для .mr-tab-ring нижче — кільце позиціюється transform-ом
+     відносно ЦЬОГО контейнера (offsetLeft/Top кружечка рахуються саме від
+     його padding-box), не від viewport. */
+  position: relative;
+}
+@container cp-card (min-width: 640px) {
+  .mr-tabbar-list {
+    flex-direction: row;
+    flex: 1;
+    justify-content: center;
+    overflow-y: visible;
+    overflow-x: auto;
+  }
+}
+/* Кожна вкладка — ЛИШЕ кружечок з номером, без назви теми (2026-09-19,
+   запит користувача: назви прибрано на всіх пристроях — рейка й так
+   максимально скорочена, а курс уже прочитаний, орієнтир тут лише "на
+   якому я модулі"). `.mr-tab` сам по собі — прозора клікабельна зона
+   навколо кружечка (не пляшка з фоном/рамкою, як раніше), однакова на
+   мобільному й десктопі — розгортати в рядок/колонку вже нема чого,
+   лишився один елемент. Колір самого кружечка (`.mr-tab-num`) — ті самі
+   токени статусу, що й на плані курсу (CoursePlan.tsx): зелений —
+   складено, бурштиновий — провалено, синій/сірий — решта (тут практично
+   не трапляються, методичка показує вже пройдені модулі). */
+.mr-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 5px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+/* Синє "кільце" на активному кружечку — окремий елемент (.mr-tab-ring), а
+   не box-shadow прямо на .mr-tab-num: так воно може ПЛАВНО "переїхати" з
+   одного номера на інший transform-ом (2026-09-19, запит користувача — і
+   при кліку по рейці, і при звичайному скролі вмісту), замість миттєвого
+   перескакування. Позиціює й анімує його CourseReview.jsx (positionRing) —
+   тут лише статичний вигляд самого кільця. */
+.mr-tab-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--cb-notification);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s ease, opacity 0.15s ease;
+}
+.mr-tab-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--cb-overlay-10);
+  color: var(--ink-soft);
+  font-size: 9px;
+  font-weight: 700;
+}
+.mr-tab.is-passed .mr-tab-num {
+  background: var(--cb-success);
+  color: var(--cb-white);
+}
+.mr-tab.is-failed .mr-tab-num {
+  background: var(--cb-alert);
+  color: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
+}
+.mr-tab.is-available .mr-tab-num {
+  background: var(--cb-notification);
+  color: var(--cb-white);
 }
 .cp-screen {
   /* Бокові поля -30% від початкових 18px (~12.6, округлено до 13px). */

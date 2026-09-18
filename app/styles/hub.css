@@ -607,11 +607,35 @@
   color: var(--green-700);
   margin-bottom: 4px;
 }
+/* Максимум 4 рядки (2026-09-18, скарга користувача): без обмеження довгий
+   опис роздував висоту картки — особливо помітно в сітці /manager/courses
+   (grid-auto-rows:1fr рівняє РЯД, тож один довгий опис витягував усі
+   картки того самого ряду). Спосіб показу решти — за типом вводу, не за
+   шириною картки (@media (pointer), не @container: сенс саме в
+   миша-проти-пальця, а не в розмірі):
+   - дотик (телефон, планшет без миші) — рядки просто обрізаються "…"
+     (-webkit-line-clamp), без прокрутки: внутрішній скрол картки на
+     дотиковому екрані — відомий source of frustration (конфліктує зі
+     скролом самої сторінки, важко влучити пальцем);
+   - миша (@media hover:hover + pointer:fine, десктоп) — той самий
+     4-рядковий блок, але прокручуваний (overflow-y:auto): колесо миші чи
+     смуга прокрутки тут звичний, однозначний жест, конфлікту немає. */
 .ct-desc {
   font-size: calc(11.8px * var(--fs-scale));
   color: var(--ink-soft);
   margin-bottom: 9px;
   line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ct-desc {
+    -webkit-line-clamp: unset;
+    max-height: calc(1.4em * 4);
+    overflow-y: auto;
+  }
 }
 .pc-soon {
   font-family: var(--font-mono);

@@ -11,6 +11,7 @@ import {
 import { buildCoursePlan, toPlanView } from "@/lib/coursePlan";
 import { pickQuestionPool } from "@/lib/retryPolicy";
 import { isScored } from "@/lib/componentTypes";
+import { isManagerTier } from "@/lib/permissions";
 import { CoursePlayer } from "@/components/CoursePlayer";
 import { CourseReview } from "@/components/CourseReview";
 
@@ -32,6 +33,14 @@ export default async function CoursePage({ params, searchParams }) {
   const requestedModuleId = Number((await searchParams)?.module) || null;
   const employee = await getCurrentUser();
   if (!employee) redirect("/register");
+  // Керівний шар (SV і вище) не бачить /hub взагалі — app/hub/layout.js
+  // перекидає будь-який запит туди на /manager (isManagerTier). Кнопка
+  // "назад" у плеєрі/методичці мала на увазі саме це й раніше вела на
+  // /hub/learn для всіх — для керівника це закінчувалось на загальному
+  // дашборді команди, а не на списку курсів (скарга користувача,
+  // 2026-09-18). /manager/courses — той самий особистий список курсів,
+  // лише в кабінеті керівника.
+  const backHref = isManagerTier(employee) ? "/manager/courses" : "/hub/learn";
 
   const course = await getCourseForPlayer(slug);
   if (!course) notFound();
@@ -134,6 +143,7 @@ export default async function CoursePage({ params, searchParams }) {
     return (
       <CourseReview
         course={course}
+        backHref={backHref}
         // Поки курс не пройдено до кінця, для повторення відкриті лише
         // СКЛАДЕНІ модулі: інакше після першого модуля людина читала б
         // матеріал усіх наступних ще до того, як пауза їх відкрила, — і
@@ -144,9 +154,10 @@ export default async function CoursePage({ params, searchParams }) {
             : course.modules
         }
         scorePercent={enrollment.scorePercent}
-        hasEmail={Boolean(employee.email)}
-        // План потрібен і тут: курс може бути пройдений повністю, але з
-        // модулями нижче 100% — саме звідси людина їх перепроходить.
+        // План тут не показується (2026-09-18: прибрано разом із
+        // сертифікатом — обидва вже є на картці курсу), потрібен лише
+        // remainingCount для вступного підпису ("наступний модуль ще
+        // закритий" проти "усі модулі складено").
         plan={planView}
       />
     );
@@ -254,6 +265,7 @@ export default async function CoursePage({ params, searchParams }) {
       // localStorage уже відпрацював. Людина натискала «Почати» на модулі
       // й бачила той самий вступний екран (скарга користувача, 2026-09-17).
       key={singleModule ? `module-${singleModule.id}` : "session"}
+      backHref={backHref}
       course={{
         id: course.id,
         slug: course.slug,

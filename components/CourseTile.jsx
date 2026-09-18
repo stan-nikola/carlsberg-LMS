@@ -73,14 +73,14 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
   const allModulesResolved = !hasModules || modules.every((m) => m.status === "completed" || m.status === "failed");
   const isActuallyDone = cs.status === "completed" && allModulesResolved;
   const anyModuleStarted = modules.some((m) => m.status === "completed" || m.status === "failed");
-  // "Почати курс" ЛИШЕ коли жоден модуль ще не торкнутий І сам enrollment
-  // справді ще не розпочато — courseTileStatus() згортає "overdue" в
-  // "not_started" (для КОЛЬОРУ/пілу це правильно), але для тексту кнопки
-  // прострочений курс — це вже "почався" (час іде), тому має бути
-  // "Продовжити", а не "Почати" (реальна скарга користувача: "курс уже
-  // начався, тут має бути продовжити"). Звідси — сирий enrollment.status,
-  // не cs.status.
-  const trulyNotStarted = enrollment?.status === "not_started" && !anyModuleStarted;
+  // "Почати курс" ЛИШЕ коли жоден модуль ще не торкнутий, enrollment
+  // справді ще не розпочато, І дедлайн ще не минув: прострочений курс —
+  // це вже "почався" (час іде), тому має бути "Продовжити", а не "Почати"
+  // (реальна скарга користувача: "курс уже начався, тут має бути
+  // продовжити"). Раніше тут бракувало саме перевірки !overdue — картка
+  // показувала "Почати курс" на прострочений, ще не відкритий курс
+  // (2026-09-18, живий скрін користувача).
+  const trulyNotStarted = enrollment?.status === "not_started" && !anyModuleStarted && !overdue;
 
   // Пройдений курс: 100% відкриває методичку; залік нижче 100% — можна
   // покращити; незалік — пройти знову (користувач, 2026-09-15).
@@ -136,7 +136,12 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
             </div>
             {hasModules && <div className="ct-modules-count">{pluralize(modules.length, "модуль", "модулі", "модулів")}</div>}
             <div className="ct-desc">{desc}</div>
-            {enrollment?.dueDate && cs.status !== "completed" && (
+            {/* !isActuallyDone, не cs.status !== "completed" (2026-09-18,
+                той самий фікс, що й прогрес-бар нижче): на курсі з
+                неузгодженими даними дедлайн для решти модулів усе ще
+                актуальний, ховати його тому, що enrollment уже мовчки
+                позначено "completed", — неправда. */}
+            {enrollment?.dueDate && !isActuallyDone && (
               <div className={`ct-due${overdue ? " is-overdue" : ""}`}>
                 {overdue ? "Термін минув · " : "Термін до "}
                 {new Date(enrollment.dueDate).toLocaleDateString("uk-UA")}
@@ -145,8 +150,15 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
             {/* Прогрес = складені модулі, не бал (lib/progress.js
                 moduleProgress). До 2026-09-17 тут стояв cs.pct: у
                 незавершеного курсу він завжди 0, тож курс із одним
-                складеним модулем із десяти виглядав як незрушений. */}
-            {cs.status !== "completed" && hasModules && (
+                складеним модулем із десяти виглядав як незрушений.
+                !isActuallyDone, не cs.status !== "completed" (2026-09-18,
+                живий скрін користувача): інакше на неузгоджених даних
+                (enrollment "completed", але не кожен модуль має власний
+                результат) картка ховала прогрес-бар і показувала підсумок
+                "Завершено · Незалік", а кнопка нижче (та вже орієнтована
+                на isActuallyDone) писала "Продовжити курс" — два різні
+                джерела правди суперечили одне одному на тій самій картці. */}
+            {!isActuallyDone && hasModules && (
               <div className="ct-progress-row">
                 <div className="ct-progress-track">
                   <div className="ct-progress-fill" style={{ width: `${progress.pct}%` }} />
@@ -165,13 +177,18 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
             їх по різних кутах картки не було сенсу.
             Живе поза .ct-toggle, бо .ct-toggle — <button>, а сертифікат
             теж <button> (вкладати не можна, див. коментар вище). */}
-        {cs.status === "completed" && (
+        {isActuallyDone && (
           <div className="ct-done-row">
             <div className="ct-done-main">
               {/* Відсоток лише при заліку — при незаліку він не має сенсу
-                  (курс складається помодульно). */}
+                  (курс складається помодульно). Золотий кубок — лише за
+                  рівно 100% (2026-09-18, рішення користувача): ідеальний
+                  результат курсу в цілому, а не окремого модуля (там
+                  кубків більше нема — лишились лише check/x SVG), тому
+                  емодзі тут, а не в spільній StatusBadge, яку скрізь
+                  інде показують і для менш ніж ідеальних результатів. */}
               <StatusBadge passed={Boolean(cs.passed)} icon>
-                {cs.passed ? `Залік · ${cs.pct}%` : "Незалік"}
+                {cs.passed ? `Залік · ${cs.pct}%${cs.pct === 100 ? " 🏆" : ""}` : "Незалік"}
               </StatusBadge>
               {enrollment?.completedAt && (
                 <div className="ct-completed-date">

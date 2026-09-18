@@ -675,6 +675,12 @@ export function CoursePlayer({
   // цього автор затирав би реальний прогрес співробітників на своєму
   // ж пристрої.
   previewMode = false,
+  // Куди веде "назад" у шапці — /hub/learn для звичайного співробітника,
+  // /manager/courses для керівного шару (той самий особистий список
+  // курсів, лише в іншому кабінеті — /hub цілком перекидає керівника на
+  // /manager, app/hub/layout.js). Рахується один раз у
+  // app/courses/[slug]/page.js (там є employee.position.level), не тут.
+  backHref = "/hub/learn",
 }) {
   const router = useRouter();
   const totalSteps = screens.length + 2; // + вступ + завершення
@@ -1249,7 +1255,7 @@ export function CoursePlayer({
               sub={resolveStreakSub(streakToast.message, streakToast.streak)} />
           )}
           <div className="appbar">
-            <button className="iconbtn" aria-label="До списку курсів" onClick={() => router.push("/hub/learn")}>
+            <button className="iconbtn" aria-label="До списку курсів" onClick={() => router.push(backHref)}>
               <span style={{ transform: "rotate(180deg)", display: "inline-flex" }}>
                 <ChevronIcon />
               </span>
