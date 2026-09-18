@@ -101,6 +101,17 @@ export function CourseImage({ src, alt, onLoaded, zoomable = false }) {
         width={800}
         height={500}
         style={{ width: "100%", height: "auto" }}
+        // Без sizes при CSS-responsive картинці (style width:100%) браузер
+        // сам вважає, що вона займе 100vw, і на широкому десктопі тягне
+        // 2x-варіант навіть там, де .course-card реально вужчий (аудит
+        // швидкодії, 2026-09-19; node_modules/next/dist/docs/.../image.md
+        // "sizes should be used when… CSS is used to make the image
+        // responsive"). 900px — той самий @media-поріг, на якому
+        // .stage--course-player.course-card розтягується до
+        // min(1400px,96vw) (app/globals.css) — картка ширша за 800px, але
+        // сама картинка всередині з відступами, тож 800px (той самий
+        // intrinsic width вище) — безпечна, не занижена оцінка.
+        sizes="(min-width: 900px) 800px, 100vw"
         // eager, а не типовий lazy. Фото завжди на ПОТОЧНОМУ екрані (їх
         // щонайбільше три) і призначене, щоб його роздивлялись одразу —
         // відкладати нічого. Плюс ліниве завантаження тут просто не

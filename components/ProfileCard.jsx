@@ -16,8 +16,33 @@ import { CameraIcon, SpinnerIcon, XIcon } from "@/components/icons";
  * значення - без цього довелось би тягнути localStorage на сервер, що
  * неможливо.
  */
+// Фліп аватара — вітальний жест: він має статись РІВНО один раз за
+// завантаження сторінки. Модульний прапорець, а не CSS-анімація на класі:
+// у dev React монтує компонент двічі (StrictMode), і аватар перевертався
+// двічі поспіль (скарга користувача). Прапорець живе до перезавантаження
+// сторінки — рівно стільки, скільки треба.
+let avatarFlipPlayed = false;
+
 export function ProfileCard({ dbName, hasEmail, externalCode, levelLabel, avatarUrl = null, editable = false }) {
   const [displayName, setDisplayName] = useState(dbName);
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    if (avatarFlipPlayed) return;
+    const node = cardRef.current?.querySelector(".avatar");
+    if (!node) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    avatarFlipPlayed = true;
+    // Навмисно без cancel у cleanup: у dev StrictMode прибирає й повертає
+    // ефекти на тому САМОМУ вузлі — скасування вбило б єдиний показ.
+    node.animate?.(
+      [
+        { transform: "perspective(320px) rotateY(-90deg)", opacity: 0 },
+        { transform: "perspective(320px) rotateY(0deg)", opacity: 1 },
+      ],
+      { duration: 700, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
+    );
+  }, []);
   // Фото профілю: на сторінках профілю (editable) клік по аватару відкриває
   // вибір файлу, сервер обрізає в квадрат і кладе у Blob
   // (app/api/profile/avatar). Стан локальний — без перезавантаження.
@@ -68,7 +93,7 @@ export function ProfileCard({ dbName, hasEmail, externalCode, levelLabel, avatar
   }, [hasEmail]);
 
   return (
-    <div className="profile-card">
+    <div className="profile-card" ref={cardRef}>
       {editable ? (
         <div className="avatar-edit">
           {/* Тап по кружку — вибрати/замінити фото. Значок у куті: без фото —
