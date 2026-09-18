@@ -508,7 +508,12 @@ export default function RegisterPage() {
                     type="text"
                     id="fUserId"
                     required
-                    placeholder="Наприклад: ml03005"
+                    // Приклад у ФОРМАТІ реальних кодів (Employee.externalCode:
+                    // SV0036, MR0106, TECH0001 — літери посади + номер), але
+                    // навмисно з номером 0000, якого в базі немає: старий
+                    // приклад "ml03005" не збігався з жодним реальним кодом і
+                    // збивав людей із патерну (скарга користувача).
+                    placeholder="Наприклад: MR0000"
                     autoComplete="off"
                     autoCapitalize="off"
                     spellCheck="false"
