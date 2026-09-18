@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@/app/generated/prisma";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { DESIGN_TOKENS, type TokenValues } from "@/lib/designTokens";
 
@@ -11,15 +12,16 @@ const prisma = prismaUntyped as PrismaClient;
  * whitelist DESIGN_TOKENS (ключ, діапазон, варіант) — у <style> ніколи не
  * потрапляє довільний рядок з запиту.
  *
- * ponytail: кеш у пам’яті процесу на 60с (один запит до бази на хвилину на
- * інстанс, зміна видима всім протягом хвилини; після збереження власний
- * інстанс скидає кеш одразу). Коли інстансів багато і хвилина заважає —
- * revalidateTag.
+ * Кеш — унутрішній Data Cache Next (unstable_cache), НЕ змінна в пам'яті
+ * процесу (аудит швидкодії, 2026-09-18): на Vercel serverless-функції не
+ * діляться пам'яттю між викликами, тож попередній `let cache = …` фактично
+ * не працював на проді — кожен рендер кожної сторінки (а кореневий layout
+ * був `force-dynamic`, тобто це буквально КОЖЕН запит) ходив у базу лише
+ * заради «чи не перефарбував хтось кнопки». Це й було головною причиною
+ * загального відчуття «повільно скрізь».
  */
 export const DESIGN_SETTING_KEY = "design-tokens";
-const TTL_MS = 60_000;
-
-let cache: { at: number; value: SavedDesign | null } | null = null;
+const CACHE_TAG = "design-tokens";
 
 export type SavedDesign = { values: TokenValues; updatedAt: Date };
 
@@ -43,18 +45,23 @@ export function sanitizeDesignValues(input: unknown): TokenValues {
   return out;
 }
 
+const readSavedDesign = unstable_cache(
+  async (): Promise<SavedDesign | null> => {
+    try {
+      const row = await prisma.appSetting.findUnique({ where: { key: DESIGN_SETTING_KEY } });
+      return row ? { values: sanitizeDesignValues(row.value), updatedAt: row.updatedAt } : null;
+    } catch (err) {
+      // База недоступна або міграція ще не застосована — дефолти з tokens.css.
+      console.warn("[design] settings read failed:", (err as Error)?.message);
+      return null;
+    }
+  },
+  ["design-settings"],
+  { tags: [CACHE_TAG], revalidate: 60 }
+);
+
 export async function getSavedDesign(): Promise<SavedDesign | null> {
-  if (cache && Date.now() - cache.at < TTL_MS) return cache.value;
-  let value: SavedDesign | null = null;
-  try {
-    const row = await prisma.appSetting.findUnique({ where: { key: DESIGN_SETTING_KEY } });
-    if (row) value = { values: sanitizeDesignValues(row.value), updatedAt: row.updatedAt };
-  } catch (err) {
-    // База недоступна або міграція ще не застосована — дефолти з tokens.css.
-    console.warn("[design] settings read failed:", (err as Error)?.message);
-  }
-  cache = { at: Date.now(), value };
-  return value;
+  return readSavedDesign();
 }
 
 /** CSS для <style> у layout; порожній рядок, якщо нічого не збережено. */
@@ -71,11 +78,15 @@ export async function saveDesign(input: unknown): Promise<SavedDesign> {
     update: { value: values },
     create: { key: DESIGN_SETTING_KEY, value: values },
   });
-  cache = null;
+  // { expire: 0 } — не "max": супер-адмін, який щойно зберіг, має побачити
+  // зміну одразу на наступному запиті, а не чекати на фонову ревалідацію
+  // (те саме "власний інстанс скидає кеш одразу", що було в старому
+  // in-memory варіанті).
+  revalidateTag(CACHE_TAG, { expire: 0 });
   return { values, updatedAt: row.updatedAt };
 }
 
 export async function resetDesign(): Promise<void> {
   await prisma.appSetting.deleteMany({ where: { key: DESIGN_SETTING_KEY } });
-  cache = null;
+  revalidateTag(CACHE_TAG, { expire: 0 });
 }

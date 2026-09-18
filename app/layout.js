@@ -5,9 +5,13 @@ import { OfflineSync } from "@/components/OfflineSync";
 import { DesignTokensOverride } from "@/components/DesignTokensOverride";
 import { designCss, getSavedDesign } from "@/lib/designSettings";
 
-// Токени дизайну читаються з бази на кожен запит (кеш 60с у lib/designSettings)
-// — сторінки не мають запікатись зі старим набором при збірці.
-export const dynamic = "force-dynamic";
+// Токени дизайну читаються через lib/designSettings.ts (unstable_cache,
+// 60с, revalidateTag при збереженні) — раніше тут стояв force-dynamic,
+// який змушував рендеритись динамічно взагалі КОЖЕН маршрут застосунку
+// (аудит швидкодії, 2026-09-18: причина відчуття «повільно скрізь» —
+// сторінки, яким не потрібна сесія, більше не можуть кешуватись/бути
+// статичними). Сторінки з реальною потребою в сесії (cookies()) лишаються
+// динамічними самі по собі — Next визначає це автоматично.
 import { PLATFORM_NAME, PLATFORM_SHORT_NAME, PLATFORM_TAGLINE } from "@/lib/branding";
 import "@/app/styles/tokens.css";
 import "./globals.css";
