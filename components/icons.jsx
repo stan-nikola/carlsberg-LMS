@@ -485,3 +485,56 @@ export function DownloadIcon() {
     </svg>
   );
 }
+
+/** Іконка формату Excel у кнопці "Завантажити звіт" (/manager): білий
+ * аркуш + фірмова зелена плашка з білим "X" — впізнається як Excel з
+ * першого погляду (запит користувача: підпис "(Excel)" словом прибрано,
+ * іконка має бути саме зеленою екселівською, а не контурним аркушем).
+ * Кольори тут ЗАХАРДКОЖЕНІ, а не з токенів дизайн-системи: це чужий
+ * бренд-колір формату файлу, він не має їздити разом з темою застосунку. */
+export function ExcelIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none">
+      <path
+        d="M13.5 2.5H6A1.5 1.5 0 0 0 4.5 4v16A1.5 1.5 0 0 0 6 21.5h12a1.5 1.5 0 0 0 1.5-1.5V8.5z"
+        fill="#fff"
+        stroke="#b9c0c6"
+      />
+      <path d="M13.5 2.5 19.5 8.5H14a.5.5 0 0 1-.5-.5z" fill="#cfd6db" />
+      {/* Зелена плашка навмисно велика (більша частина аркуша) і "X" —
+          жирний: у 20px кнопці дрібний значок читався просто як сірий
+          документ, без упізнаваного Excel (запит користувача). */}
+      <rect x="2.5" y="9" width="14" height="12.5" rx="1.6" fill="#1d6f42" />
+      <path d="m5.6 12.1 8 6.3M13.6 12.1l-8 6.3" stroke="#fff" strokeWidth="2.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Хрест зі стрілок — «переставити картки» на дашборді /manager
+ * (режим перетягування). Навмисно не шестерня й не повзунки: це дія над
+ * РОЗТАШУВАННЯМ, а не налаштування вмісту. */
+export function ArrowsMoveIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v18M3 12h18" />
+      <path d="m9 6 3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" />
+    </svg>
+  );
+}
+
+/** Повзунки-фільтри — навмисно НЕ шестерня (GearIcon уже зайнята
+ * загальними налаштуваннями застосунку, SettingsGearIcon — розміром
+ * шрифту) — кнопка «які картки-діаграми показувати на дашборді»
+ * (components/ManagerDashboardSettings.jsx) семантично ближча до
+ * «фільтрів/перемикачів», ніж до «налаштувань» — і має виглядати
+ * інакше, щоб дві різні дії не зливались в одну кнопку на очах. */
+export function DashboardTuneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h13M21 18h-1" />
+      <circle cx="15" cy="6" r="2" />
+      <circle cx="9" cy="12" r="2" />
+      <circle cx="18" cy="18" r="2" />
+    </svg>
+  );
+}

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { enqueue } from "@/lib/offlineOutbox";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
 import { renderRichText } from "@/lib/richText";
 import { ChevronIcon, CheckIcon, XIcon, CertificateIcon, SpinnerIcon, QuestionIcon } from "@/components/icons";
 import { CoursePlanPanel } from "@/components/CoursePlan";
@@ -693,6 +693,48 @@ export function CoursePlayer({
   // сесії вступ лишається. Спрацьовує при монтуванні — page.js перемонтовує
   // плеєр по key на кожну зміну модуля.
   const [idx, setIdx] = useState(singleModuleTitle && screens.length > 0 ? introIdx + 1 : introIdx);
+
+  // Прогрів фото сусідніх екранів (аудит швидкодії, 2026-09-19) — без
+  // цього <CourseImage> навіть не починає вантажити фото, поки екран не
+  // стане поточним (screens[idx-1] — єдиний, що рендериться), тож кожне
+  // "Далі"/"Назад" показувало cp-img-skeleton наново, навіть якщо людина
+  // вже гортала туди-сюди. rel=preload з imageSrcSet/imageSizes (не
+  // просто new Image().src) — next/image генерує кілька кандидатів
+  // srcset під різні щільності екрана, і лише таким preload браузер сам
+  // вибере ТОЙ САМИЙ файл, що потім реально попросить <Image>, інакше
+  // прогрівається не той варіант і кешу однаково нема. getImageProps —
+  // офіційний спосіб Next отримати ці атрибути без монтування <Image>.
+  useEffect(() => {
+    const urls = new Set();
+    for (const screen of [screens[idx], screens[idx - 2]]) {
+      if (!screen) continue;
+      for (const component of screen.components) {
+        for (const img of component.content?.images ?? []) {
+          if (img?.url) urls.add(img.url);
+        }
+      }
+    }
+    if (urls.size === 0) return undefined;
+    const links = [...urls].map((url) => {
+      const { props } = getImageProps({
+        src: url,
+        alt: "",
+        width: 800,
+        height: 500,
+        sizes: "(min-width: 900px) 800px, 100vw",
+      });
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = props.src;
+      if (props.srcSet) link.imageSrcset = props.srcSet;
+      if (props.sizes) link.imageSizes = props.sizes;
+      document.head.appendChild(link);
+      return link;
+    });
+    return () => links.forEach((link) => link.remove());
+  }, [idx, screens]);
+
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
   const [moduleCheckpoint, setModuleCheckpoint] = useState(null);

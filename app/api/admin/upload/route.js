@@ -1,6 +1,36 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
+import sharp from "sharp";
 import { requireAdmin } from "@/lib/adminAuth";
+
+// Довша сторона — 1920px вистачає для будь-якого реального показу фото
+// курсу (телефон, планшет, прев'ю в адмінці); більше — зайва вага без
+// видимої різниці. withoutEnlargement — не розтягуємо маленькі фото.
+const MAX_DIMENSION = 1920;
+
+/**
+ * Стискає фото перед завантаженням у Blob (аудит швидкодії, 2026-09-18):
+ * до цього оригінал (до 8 МБ) клався як є — і в плеєрі (через next/image,
+ * який усе одно спершу тягне оригінал з Blob), і особливо в адмінці, де
+ * прев'ю рендериться звичайним <img> без жодної оптимізації взагалі.
+ * Безпечно для hotspot-зон (components/AdminCourseEditor.jsx
+ * HotspotFields) — їхні координати завжди у відсотках від РЕНДЕРЕНОГО
+ * розміру фото, не від пікселів оригіналу, тож ресайз на них не впливає.
+ * gif/анімований webp — animated:true, щоб не схлопнути в один кадр.
+ */
+async function compressImage(buffer, mimeType) {
+  const animated = mimeType === "image/gif" || mimeType === "image/webp";
+  let img = sharp(buffer, animated ? { animated: true } : undefined)
+    .rotate() // орієнтація з EXIF, сам EXIF далі не зберігається
+    .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true });
+
+  if (mimeType === "image/jpeg") img = img.jpeg({ quality: 82, mozjpeg: true });
+  else if (mimeType === "image/png") img = img.png({ compressionLevel: 9 });
+  else if (mimeType === "image/webp") img = img.webp({ quality: 82 });
+  else if (mimeType === "image/gif") img = img.gif();
+
+  return img.toBuffer();
+}
 
 // POST /api/admin/upload — multipart/form-data з полем "file". Приймає
 // фото з "провідника файлів" (кнопка вибору фото в /admin) і кладе його у
@@ -38,8 +68,17 @@ export async function POST(request) {
   }
 
   try {
-    const blob = await put(`course-images/${Date.now()}-${file.name}`, file, {
+    let body = file;
+    try {
+      body = await compressImage(Buffer.from(await file.arrayBuffer()), file.type);
+    } catch (err) {
+      // Пошкоджений/нестандартний файл, який пройшов перевірку MIME, але
+      // не декодується sharp — не блокуємо завантаження, кладемо оригінал.
+      console.warn("[admin/upload] compression failed, uploading original:", err.message);
+    }
+    const blob = await put(`course-images/${Date.now()}-${file.name}`, body, {
       access: "public",
+      contentType: file.type,
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
     return NextResponse.json({ url: blob.url });

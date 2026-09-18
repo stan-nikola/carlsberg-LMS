@@ -1015,6 +1015,12 @@
   width: 76px;
   height: 76px;
   font-size: calc(24px * var(--fs-scale));
+  /* Легкий фліп при заході на сторінку (запит користувача) робить
+     components/ProfileCard.jsx через Web Animations API, а не CSS-анімація
+     на цьому класі: клас спрацьовував на КОЖНЕ монтування, і в dev
+     (React StrictMode монтує двічі) аватар перевертався двічі поспіль. */
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
 }
 .profile-avatar-hint {
   margin-top: 4px;

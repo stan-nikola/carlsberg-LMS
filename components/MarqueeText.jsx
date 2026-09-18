@@ -39,9 +39,17 @@ export function MarqueeText({ children, className = "", as: Tag = "span" }) {
     if (!container || !text) return;
 
     function check() {
+      // padding-right у .marquee-text (globals.css) — це РОЗРИВ між двома
+      // копіями тексту в безшовній петлі, а не сам текст; scrollWidth його
+      // враховує, тож без віднімання маркі вмикалось на написи, які
+      // насправді влазять (видно на коротких підписах діаграм /manager:
+      // "Прострочено" їхало в картці, де порожнього місця більше за сам
+      // напис). Читаємо з computed style, а не хардкодимо 28px — щоб не
+      // розходилось із CSS.
+      const loopGap = parseFloat(getComputedStyle(text).paddingRight) || 0;
       // +1px — щоб субпіксельне округлення не вмикало маркі на текст,
       // який насправді впритул влазить.
-      const isOver = text.scrollWidth > container.clientWidth + 1;
+      const isOver = text.scrollWidth - loopGap > container.clientWidth + 1;
       setOverflowing(isOver);
       if (isOver) {
         // Дистанція одного проходу = ширина одного примірника тексту
@@ -54,6 +62,12 @@ export function MarqueeText({ children, className = "", as: Tag = "span" }) {
 
     const ro = new ResizeObserver(check);
     ro.observe(container);
+    // Спостерігаємо і за САМИМ текстом, не лише за контейнером: коли
+    // догружається шрифт (@font-face), напис міняє ширину, а контейнер —
+    // ні, тож перша (ще на фолбек-шрифті, ширшому) перевірка застрягала
+    // в "не влазить" назавжди — на дашборді /manager так їхали всі KPI-
+    // підписи, хоч місця було вдвічі більше за напис.
+    ro.observe(text);
     return () => ro.disconnect();
   }, [children]);
 
