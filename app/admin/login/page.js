@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+/** "через 12 хв" / "менше ніж за хвилину" — для повідомлення про блокування. */
+function minutesUntil(isoDate) {
+  const ms = new Date(isoDate).getTime() - Date.now();
+  const minutes = Math.ceil(ms / 60000);
+  return minutes > 0 ? `${minutes} хв` : "менше ніж хвилину";
+}
+
 // Отдельный вход в /admin по общему паролю (ADMIN_PASSWORD, см.
 // app/api/admin/login/route.js) — не связан с employee PIN-логином
 // (/register). Сознательно минималистичный, вне брендового .course-card
@@ -29,6 +36,8 @@ export default function AdminLoginPage() {
         router.refresh();
       } else if (data.error === "not_configured") {
         setError("ADMIN_PASSWORD не налаштовано на сервері.");
+      } else if (data.error === "locked") {
+        setError(`Забагато невдалих спроб. Спробуйте ще раз через ${minutesUntil(data.retryAt)}.`);
       } else {
         setError("Невірний пароль.");
       }
