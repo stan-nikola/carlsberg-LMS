@@ -737,7 +737,7 @@ export function ManagerDashboard() {
         <div className="mgr-chart-card mgr-chart-card-wide">
           <h2>
             <CourseIcon /> Найскладніші модулі
-            <ChartHint text="Модулі, які команда найчастіше провалює — за кількістю людей, що не набрали прохідний бал модуля. Сортування за кількістю провалів, а не за відсотком: «1 з 1» дало б 100% і витіснило б реально проблемний «3 з 8». Модулі без жодного провалу в список не потрапляють." />
+            <ChartHint text="Модулі, які команда найчастіше провалює — за кількістю людей, що не набрали прохідний бал модуля. Сортування за кількістю провалів, а не за відсотком: «1 з 1» дало б 100% і витіснило б реально проблемний «3 з 8». Модулі без жодного провалу в список не потрапляють. «У середньому спроб» — скільки разів людині доводилось проходити модуль: 1.0 означає «склали з першого разу», більше — матеріал давався важко навіть тим, хто зрештою склав." />
           </h2>
           {stats.hardestModules.length === 0 ? (
             <p className="admin-hint">Жоден модуль не провалено — складних місць поки немає.</p>
@@ -754,6 +754,9 @@ export function ManagerDashboard() {
                   <span className="mgr-bar-label mgr-bar-label-stack">
                     <span className="mgr-bar-label-main">{m.title}</span>
                     {m.course ? <span className="mgr-bar-label-sub">{m.course}</span> : null}
+                    {m.avgAttempts > 1 ? (
+                      <span className="mgr-bar-label-sub">У середньому спроб: {m.avgAttempts}</span>
+                    ) : null}
                   </span>
                   <div className="mgr-bar-track">
                     <div

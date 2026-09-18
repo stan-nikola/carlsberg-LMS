@@ -7,8 +7,24 @@ const nextConfig = {
   // бачить — а на Vercel у функції нема public/ узагалі (тільки в CDN).
   // Після turbopackIgnore (2026-09-15) сертифікат на проді впав з ENOENT,
   // лист мовчки йшов без логотипа. Явний include — на всі маршрути.
+  //
+  // app/generated/prisma/** — той самий клас багу (2026-09-19):
+  // кастомний output-шлях Prisma-клієнта (schema.prisma generator client)
+  // містить query_compiler_fast_bg.wasm (~3.4 МБ) і runtime/*, які
+  // Prisma-рантайм підвантажує зсередини СВОГО ЖЕ коду динамічно — те
+  // саме, що трасування збірки статично не бачить, як і шлях лого вище.
+  // Підозра: на Vercel це проявлялось як P2023 "Value 'ordering' not
+  // found in enum 'ComponentType'" при читанні реальних рядків із БД
+  // (курс test-hrafika-10-moduliv) — сама схема/дані коректні (перевірено
+  // напряму), локальний `next build`+`next start` з тим самим кодом теж
+  // не відтворював баг, тож підозра саме на serverless-бандлінг Vercel,
+  // не на код.
   outputFileTracingIncludes: {
-    "/*": ["public/icons/icon-192.png", "public/assets/brand/trefoil-solid-green.png"],
+    "/*": [
+      "public/icons/icon-192.png",
+      "public/assets/brand/trefoil-solid-green.png",
+      "app/generated/prisma/**",
+    ],
   },
   // Дозволяє відкривати dev-сервер із телефону в тій самій Wi-Fi мережі
   // (http://192.168.0.231:3000). Без цього Next у dev-режимі блокує

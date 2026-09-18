@@ -69,6 +69,10 @@ export async function PATCH(request, { params }) {
   if (body.category !== undefined) data.category = body.category || null;
   if (body.isMandatory !== undefined) data.isMandatory = body.isMandatory;
   if (body.deadlineDays !== undefined) data.deadlineDays = body.deadlineDays;
+  if (body.moduleDays !== undefined) data.moduleDays = body.moduleDays === "" || body.moduleDays == null ? null : Number(body.moduleDays);
+  if (body.modulePauseDays !== undefined) {
+    data.modulePauseDays = body.modulePauseDays === "" || body.modulePauseDays == null ? null : Number(body.modulePauseDays);
+  }
   if (body.passThreshold !== undefined) data.passThreshold = body.passThreshold === "" || body.passThreshold == null ? 80 : Number(body.passThreshold);
   if (body.points !== undefined) data.points = body.points === "" || body.points == null ? null : Number(body.points);
   if (body.certificateEnabled !== undefined) data.certificateEnabled = Boolean(body.certificateEnabled);

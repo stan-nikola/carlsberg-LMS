@@ -153,8 +153,33 @@ model Course {
 
   isMandatory  Boolean @default(false)
   /// Сколько дней даётся на прохождение с момента назначения (используется
-  /// для расчёта Enrollment.dueDate).
+  /// для расчёта Enrollment.dueDate). Це ЄДИНИЙ жорсткий термін курсу.
   deadlineDays Int?
+
+  /// Темп курсу (2026-09-17, «Розклад» у конструкторі). Рекомендовано днів
+  /// на один модуль: k-й модуль варто скласти до assignedAt + k × moduleDays.
+  /// М'який орієнтир, як suggested deadlines у Coursera: без штрафу, лише
+  /// «за графіком / відстаєте» у плані курсу (lib/coursePlan.ts). null —
+  /// графіка немає. Калькулятор у конструкторі пропонує
+  /// deadlineDays = кількість модулів × moduleDays.
+  moduleDays Int?
+  /// Мінімальна пауза перед наступним модулем (днів після складання
+  /// попереднього) — загальна для курсу, дефолт для модулів, у яких
+  /// власний Module.cooldownDays не задано (той має пріоритет). Перший
+  /// модуль паузи не має ніколи.
+  modulePauseDays Int?
+
+  /// Правила ПЕРЕСКЛАДАННЯ проваленого модуля (2026-09-17). Дефолт для
+  /// всього курсу; окремий модуль може перевизначити своїми полями.
+  /// Модель — «м'яке гальмо» замість заборони: перші спроби підряд без
+  /// паузи (миттєвий повтор корисний для навчання), далі коротка пауза,
+  /// щоб не можна було перебрати варіанти. null у retryFreeAttempts —
+  /// спроби не обмежені зовсім (поточна поведінка до появи поля).
+  retryFreeAttempts Int?
+  /// Пауза в ГОДИНАХ після вичерпання вільних спроб. null/0 — без паузи.
+  /// Години, а не дні: доба між спробами всередині робочого дня —
+  /// завелика ціна за помилку, а година вже ламає перебір.
+  retryCooldownHours Int?
 
   /// Прохідний бал курсу (%) — те саме порогове значення, що раніше було
   /// захардкоджене як 80 у components/CoursePlayer.jsx (і на рівні
@@ -304,6 +329,19 @@ model Module {
   /// використовується дефолт (RETAKE_COOLDOWN_DAYS_DEFAULT, lib/courseContent.js).
   retakeCooldownDays Int?
 
+  /// Скільки питань модуля показувати за одну спробу (випадкові з усіх,
+  /// що є в модулі). null або >= кількості питань — показуються всі, як
+  /// і було. Сенс: при перескладанні людина отримує ІНШІ питання, тож
+  /// перебір варіантів перестає працювати, а знання лишається тим самим
+  /// (2026-09-17). Вибірка робиться на сервері при відкритті сесії —
+  /// інакше її можна було б підглянути в коді сторінки.
+  questionPoolSize Int?
+
+  /// Перевизначення правил перескладання для ЦЬОГО модуля. null — беруться
+  /// з курсу (Course.retryFreeAttempts / retryCooldownHours).
+  retryFreeAttempts Int?
+  retryCooldownHours Int?
+
   screens     Screen[]
   completions ModuleCompletion[]
 }
@@ -341,6 +379,20 @@ model ModuleCompletion {
   /// поточну сесію взагалі). null для завершень, записаних до цих полів.
   scoreRaw             Int?
   scoreMax             Int?
+  /// Скільки разів людина проходила ЦЕЙ модуль (кожен дохід до кінця
+  /// модуля +1, і провальний теж). Рядок перезаписується при кожній
+  /// спробі (upsert по enrollmentId+moduleId), тож без цього лічильника
+  /// «склав з першого разу» й «склав з п'ятого» виглядали однаково —
+  /// керівник не бачив, де матеріал реально не заходить (2026-09-17).
+  /// completedAt — час ОСТАННЬОЇ спроби, з нього ж рахується пауза
+  /// перед наступною (Course/Module.retryCooldownHours).
+  attemptCount         Int      @default(1)
+  /// Скільки секунд РЕАЛЬНО зайняла ОСТАННЯ спроба — від першого екрана
+  /// модуля до чекпоінта (2026-09-17, картка плану курсу). null для
+  /// завершень, записаних до появи цього поля (не вигадуємо заднім
+  /// числом — там і далі показується орієнтовна оцінка з
+  /// lib/estimateTime.js, як і для ще не пройдених модулів).
+  durationSeconds      Int?
 
   @@unique([enrollmentId, moduleId])
 }
@@ -397,6 +449,15 @@ enum ComponentType {
   /// зображенні. Це ПИТАННЯ, а не гейт — результат іде в бал нарівні з
   /// quiz (див. lib/componentTypes.js isScored).
   hotspot
+  /// Розставити кроки у правильному порядку (2026-09-17). ПИТАННЯ:
+  /// правильний порядок — той, у якому кроки стоять у content.items,
+  /// плеєр показує їх перемішаними. Зараховується лише повний збіг —
+  /// часткового балу в системі немає (рішення користувача).
+  ordering
+  /// Зіставити пари «ліве — праве» (2026-09-17). ПИТАННЯ: ліва колонка
+  /// показується як у content.pairs, права перемішується. Зараховується
+  /// лише повний збіг.
+  matching
 }
 
 model Component {
@@ -415,8 +476,14 @@ model Component {
   /// редеплоя):
   /// info: { body: string, imageUrl?: string }
   /// quiz: { questionType: "single" | "multi",
-  ///         options: [{ text: string, correct: boolean }] }
+  ///         options: [{ text: string, correct: boolean, explanation?: string }] }
+  /// ordering: { items: [{ text: string }] } — правильний порядок = порядок у масиві
+  /// matching: { pairs: [{ left: string, right: string }] }
   content Json
+
+  /// Відповіді співробітників на це питання — аналітика складності
+  /// (частка правильних) у конструкторі.
+  questionAnswers QuestionAnswer[]
 }
 
 // ---------------------------------------------------------------------
@@ -469,6 +536,7 @@ model Enrollment {
   longestCorrectStreak Int?
 
   attempts          EnrollmentAttempt[]
+  questionAnswers   QuestionAnswer[]
   moduleCompletions ModuleCompletion[]
 
   /// Аудит-слід ручної корекції адміном (Фаза D адмінки) — чому статус/бал
@@ -488,6 +556,29 @@ model Enrollment {
 /// повторно — "Пройти ще раз" в legacy). Enrollment хранит только сводку
 /// по последней попытке для быстрого доступа (карточки/отчёты); сюда
 /// пишется каждая попытка отдельной строкой.
+/// Відповідь на ОДНЕ питання — щоб автор курсу бачив, який саме
+/// компонент люди валять (2026-09-17). До цього в базі лежав лише бал за
+/// модуль: видно, що модуль складний, але не видно, яке питання в ньому
+/// погане. Рядок пишеться на кожну спробу (не upsert) — з нього ж
+/// рахується частка правильних по кожному питанню.
+model QuestionAnswer {
+  id           Int        @id @default(autoincrement())
+  enrollmentId Int
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  /// Компонент-питання (quiz / hotspot / ordering / matching).
+  componentId  Int
+  component    Component  @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  /// Модуль, у межах якого відповідали — щоб не тягнути join через екран.
+  moduleId     Int
+  correct      Boolean
+  /// Яка це була спроба модуля (ModuleCompletion.attemptCount на момент запису).
+  attemptNumber Int       @default(1)
+  answeredAt   DateTime   @default(now())
+
+  @@index([componentId])
+  @@index([enrollmentId])
+}
+
 model EnrollmentAttempt {
   id           Int        @id @default(autoincrement())
   enrollmentId Int

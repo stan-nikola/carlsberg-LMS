@@ -3,7 +3,8 @@ import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 
-// PATCH /api/admin/modules/:moduleId — { title?, order?, cooldownDays?, retakeCooldownDays? }
+// PATCH /api/admin/modules/:moduleId — { title?, order?, cooldownDays?,
+// retakeCooldownDays?, questionPoolSize?, retryFreeAttempts?, retryCooldownHours? }
 export async function PATCH(request, { params }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -15,6 +16,10 @@ export async function PATCH(request, { params }) {
   if (body.order !== undefined) data.order = body.order;
   if (body.cooldownDays !== undefined) data.cooldownDays = body.cooldownDays;
   if (body.retakeCooldownDays !== undefined) data.retakeCooldownDays = body.retakeCooldownDays;
+  // null = «успадкувати з курсу» / «усі питання»; число — власне значення модуля.
+  if (body.questionPoolSize !== undefined) data.questionPoolSize = body.questionPoolSize;
+  if (body.retryFreeAttempts !== undefined) data.retryFreeAttempts = body.retryFreeAttempts;
+  if (body.retryCooldownHours !== undefined) data.retryCooldownHours = body.retryCooldownHours;
 
   const courseModule = await prisma.module.update({ where: { id: Number(moduleId) }, data });
   return NextResponse.json(courseModule);

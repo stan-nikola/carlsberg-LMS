@@ -738,10 +738,24 @@
   gap: 12px;
   min-width: 0; /* дозволяє полям всередині коректно стискатись/обрізатись в grid-колонці */
 }
-/* Три секції (Основне / Розклад / Кому призначати) — колонками зліва
- * направо, не одна під одною; кожна секція всередині лишається
+/* Три секції (Загальна інформація / Розклад / Кому призначати) — колонками
+ * зліва направо, не одна під одною; кожна секція всередині лишається
  * вертикальним стовпчиком своїх полів (.admin-form-row). На вузькому
- * екрані колонки самі складаються в один стовпчик (auto-fit). */
+ * екрані колонки самі складаються в один стовпчик (auto-fit). "Перескладання"
+ * (2026-09-19, було окремою 4-ю колонкою, хоча сітка нижче й коментар над
+ * нею завжди описували рівно три — колонка мовчки "з'їжджала", а "Кому
+ * призначати" переставало потрапляти у свою широку 2fr-колонку) тепер НЕ
+ * своя колонка, а підрозділ УСЕРЕДИНІ "Загальна інформація"
+ * (.admin-form-subsection нижче) — інша функціональна група полів у тій
+ * самій колонці, відділена лінією. */
+.admin-form-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: var(--border-w) solid var(--line);
+}
 /* "Кому призначати" — третя колонка — містить дерево територій/людей і
  * потребує вдвічі більше місця за перші дві (1fr : 1fr : 2fr = 50% від
  * усієї ширини рядка). */
@@ -3128,4 +3142,190 @@
   gap: 16px;
   flex-wrap: wrap;
   padding-top: 6px;
+}
+
+/* Калькулятор розкладу курсу (components/CoursePacingCalculator.tsx) —
+   у секції «Розклад» налаштувань курсу. Сам план усередині — той самий
+   .cp-plan, що й у плеєрі (course-player.css), тут лише обгортка. */
+.admin-pacing {
+  margin-top: 10px;
+  padding: var(--card-pad-compact);
+  border: var(--border-w) dashed var(--line);
+  border-radius: var(--radius-card);
+}
+.admin-pacing-controls {
+  margin-bottom: 8px;
+}
+.admin-pacing-total {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--btn-h-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.admin-pacing-warning {
+  margin: 4px 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-card);
+  background: var(--cb-alert-light);
+  color: var(--ink);
+}
+.admin-pacing .cp-plan {
+  font-size: 13px;
+}
+.admin-pacing-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.admin-pacing-trigger-warn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-badge);
+  background: var(--cb-alert);
+  color: var(--cb-white);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Плаваюче вікно (components/FloatingWindow.tsx) — перетягується за
+   заголовок, змінює розмір за правий-нижній кут. БЕЗ оверлею/блюра фону і
+   БЕЗ блокування скролу body (свідомо не модалка — сторінка позаду
+   лишається видною й клікабельною), запит користувача 2026-09-19. */
+.floating-window {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  min-width: 420px;
+  min-height: 280px;
+  background: var(--surface);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.floating-window-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 8px 10px 14px;
+  background: var(--surface-1);
+  border-bottom: var(--border-w) solid var(--line);
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+}
+.floating-window-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--green-700);
+}
+.floating-window-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--iconbtn-sm);
+  height: var(--iconbtn-sm);
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-btn);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.floating-window-close:hover {
+  background: var(--cb-overlay-10);
+}
+.floating-window-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+  /* Той самий поріг, що й скрізь у плеєрі (@container cp-card,
+     min-width:640px, course-player.css) — тут ЄДИНЕ місце, де ця назва
+     контейнера встановлюється поза .course-card, спеціально для прев'ю
+     плану в конструкторі: вікно за замовчуванням достатньо широке
+     (FloatingWindow defaultWidth=860), щоб дорога одразу показувала
+     десктопний горизонтальний вигляд. */
+  container-type: inline-size;
+  container-name: cp-card;
+}
+.floating-window-handle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  border-right: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
+  border-bottom-right-radius: 3px;
+}
+
+/* Налаштування модуля (пауза, пул питань, правила перескладання) — їх стало
+   п'ять, і в один рядок шапки вони більше не вміщаються. Перенос із
+   вирівнюванням замість горизонтального скролу: кожен регулятор лишається
+   цілим, разом із власною підказкою «ⓘ». */
+.admin-accordion-header {
+  flex-wrap: wrap;
+}
+.admin-module-unlock {
+  gap: 6px;
+}
+.admin-module-unlock .hint-dot {
+  margin-left: 2px;
+}
+
+/* Назва модуля не має схлопуватись, коли рядок налаштувань переноситься:
+   flex:1 без мінімуму віддає їй усе, що лишилось, — а лишалось кілька
+   пікселів, і поле ставало нечитабельним. */
+.admin-accordion-header .admin-title-input {
+  min-width: 180px;
+}
+/* Числове поле з текстовим плейсхолдером («з курсу», «усі») ширше за
+   звичайні 52px — інакше підказка про успадкування обрізається. */
+.admin-module-unlock input.admin-num-wide {
+  width: 90px;
+}
+
+/* Варіант відповіді разом із поясненням — один блок: без цього поле
+   пояснення візуально «прилипає» до наступного варіанта. */
+.admin-option-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.admin-option-block .admin-option-row {
+  margin-bottom: 0;
+}
+.admin-option-explain {
+  margin-left: 26px;
+  font-size: 13px;
+}
+
+/* Частка правильних по питанню в списку компонентів (2026-09-17).
+   Приглушена, поки все гаразд; червоніє, коли питання валить більшість —
+   це сигнал автору, що або формулювання незрозуміле, або матеріал його
+   не пояснює. */
+.admin-q-stat {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: var(--radius-badge);
+  background: var(--cb-overlay-10);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+}
+.admin-q-stat.is-hard {
+  background: var(--cb-fail-light);
+  color: var(--cb-fail);
 }
