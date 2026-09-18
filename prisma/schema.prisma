@@ -880,3 +880,16 @@ model AppSetting {
   value     Json
   updatedAt DateTime @updatedAt
 }
+
+/// Rate-limit невдалих спроб входу (2026-09-18, lib/loginThrottle.ts) —
+/// Vercel serverless-функції не мають спільної пам'яті між викликами, тож
+/// лічильник живе в БД, а не в змінній процесу. key: "admin-login" (один
+/// спільний лічильник — пароль /admin один на всю організацію, IP тут не
+/// рахуємо) або "pin:<externalCode>" (окремо на кожен код). Успішний вхід
+/// видаляє рядок; 5-та поспіль невдала спроба виставляє lockedUntil.
+model LoginAttempt {
+  key         String    @id
+  failCount   Int       @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+}

@@ -1,5 +1,58 @@
+// Content-Security-Policy та інші security-заголовки (2026-09-18, аудит
+// безпеки). 'unsafe-inline' у script-src/style-src — свідомий компроміс:
+// "правильний" nonce-based CSP (node_modules/next/dist/docs/.../content-
+// security-policy.md) вимагає, щоб УСІ сторінки рендерились динамічно
+// (Proxy — новий Next 16 еквівалент middleware — генерує nonce на кожен
+// запит), а це прибирає статичну оптимізацію/кешування по всьому
+// застосунку — окрема, набагато більша архітектурна зміна, якої тут не
+// просили. Навіть з 'unsafe-inline' CSP все одно реально захищає: блокує
+// завантаження ЧУЖИХ скриптів/стилів (найпоширеніший XSS-вектор —
+// підвантажити evil.com/payload.js), звужує img/connect/frame до відомих
+// джерел і закриває clickjacking (frame-ancestors). XSS у самому коді
+// застосунку не знайдено (аудит: жодного dangerouslySetInnerHTML) — CSP
+// тут другий шар захисту, не єдиний.
+function buildCsp() {
+  const isDev = process.env.NODE_ENV === "development";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    // blob:/data: — Next.js own recommended default (next/image optimizer,
+    // og-image тощо); *.public.blob.vercel-storage.com — фото уроків
+    // (lib/adminSession.js upload), upload.wikimedia.org — тестові фото
+    // курсів (обидва вже в images.remotePatterns нижче).
+    "img-src 'self' blob: data: https://*.public.blob.vercel-storage.com https://upload.wikimedia.org",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "worker-src 'self'",
+    "frame-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // X-Powered-By: Next.js — палить фреймворк без жодної користі,
+  // вимикається одним прапорцем.
+  poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "Content-Security-Policy", value: buildCsp() },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+    ];
+  },
   // Файли з public/, які серверний код читає з диска (fs), а не віддає
   // як статику: логотип на PDF-сертифікаті (app/api/courses/[slug]/
   // certificate) і трилисник у PIN-листі (lib/emailTemplates.ts). Шлях там

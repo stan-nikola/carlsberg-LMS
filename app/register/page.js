@@ -42,6 +42,13 @@ const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : us
 const RESEND_COOLDOWN_MS = 20000;
 const LOCAL_NAME_KEY = "employee_display_name_v1";
 
+/** "через 12 хв" / "менше ніж хвилину" — для повідомлення про блокування PIN. */
+function minutesUntil(isoDate) {
+  const ms = new Date(isoDate).getTime() - Date.now();
+  const minutes = Math.ceil(ms / 60000);
+  return minutes > 0 ? `${minutes} хв` : "менше ніж хвилину";
+}
+
 /**
  * Перший вхід у браузері: «Вітаємо» → (сам за ONBOARD_DELAY_MS або по
  * «Почати») → інструкція встановлення (крок "guide" у RegisterPage,
@@ -319,6 +326,8 @@ export default function RegisterPage() {
         router.refresh();
       } else if (resp.error === "pin_expired") {
         setPinError("Час дії PIN-коду минув (діє 12 годин). Натисніть «Надіслати ще раз».");
+      } else if (resp.error === "locked") {
+        setPinError(`Забагато невдалих спроб. Спробуйте ще раз через ${minutesUntil(resp.retryAt)}.`);
       } else {
         setPinError("Невірний PIN-код. Спробуйте ще раз.");
       }
