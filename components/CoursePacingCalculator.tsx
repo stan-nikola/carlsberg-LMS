@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { buildCoursePlan, toPlanView, pluralDays } from "@/lib/coursePlan";
 import { CoursePlanPanel } from "@/components/CoursePlan";
+import { FloatingWindow } from "@/components/FloatingWindow";
 
 /**
  * Калькулятор розкладу в конструкторі курсу («Розклад» у налаштуваннях):
@@ -56,6 +57,15 @@ export function CoursePacingCalculator({
 }) {
   const [startDate, setStartDate] = useState(() => toInputDate(new Date()));
   const [manualCount, setManualCount] = useState(5);
+  // Раніше калькулятор+дорога рендерились завжди інлайн у вузькій
+  // grid-колонці «Розклад» — @container там ніколи не досягав порогу
+  // 640px, і дорога назавжди лишалась мобільною/вертикальною, навіть коли
+  // авторові хотілось побачити десктопний вигляд. Тепер за замовчуванням
+  // на місці калькулятора лишається лише кнопка, а сам він — у плаваючому
+  // вікні (components/FloatingWindow.tsx), яке досить широке, щоб дорога
+  // одразу показувала горизонтальний десктопний вигляд (запит
+  // користувача, 2026-09-19).
+  const [open, setOpen] = useState(false);
 
   const perModule = num(moduleDays);
   const pause = num(pauseDays);
@@ -110,7 +120,7 @@ export function CoursePacingCalculator({
     warnings.push(`За графіком курс займе ${suggested} ${pluralDays(suggested)}, а дедлайн — ${deadline}: людина відстане, навіть ідучи за графіком.`);
   }
 
-  return (
+  const pacingContent = (
     <div className="admin-pacing">
       <div className="admin-form-row admin-pacing-controls">
         <div className="admin-field">
@@ -157,5 +167,19 @@ export function CoursePacingCalculator({
         <p className="admin-hint">Вкажіть кількість модулів — з’явиться розклад.</p>
       )}
     </div>
+  );
+
+  return (
+    <>
+      <button type="button" className="admin-btn admin-pacing-trigger" onClick={() => setOpen(true)}>
+        Переглянути розклад
+        {warnings.length > 0 && <span className="admin-pacing-trigger-warn">{warnings.length}</span>}
+      </button>
+      {open && (
+        <FloatingWindow title="Розклад курсу — попередній перегляд" onClose={() => setOpen(false)}>
+          {pacingContent}
+        </FloatingWindow>
+      )}
+    </>
   );
 }

@@ -355,6 +355,44 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
             </div>
           </div>
           <StreakMessagesField value={streakMessages} onChange={setStreakMessages} />
+
+          <div className="admin-form-subsection">
+            <span className="admin-form-section-title">
+              Перескладання <HintDot align="start" text={HINTS.retrySection} />
+            </span>
+            <p className="admin-hint">
+              Діє на модуль, який НЕ склали. Для вже складеного модуля працює інше правило — «пауза перед
+              повторним проходженням» у налаштуваннях самого модуля.
+            </p>
+            <div className="admin-form-row">
+              <div className="admin-field">
+                <label className="admin-label">
+                  Спроб підряд без паузи <HintDot align="start" text={HINTS.retryFreeAttempts} />
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={retryFreeAttempts}
+                  onChange={(e) => setRetryFreeAttempts(e.target.value)}
+                  className="admin-input-flex"
+                  placeholder="без обмежень"
+                />
+              </div>
+              <div className="admin-field">
+                <label className="admin-label">
+                  Пауза після них (годин) <HintDot align="start" text={HINTS.retryCooldownHours} />
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={retryCooldownHours}
+                  onChange={(e) => setRetryCooldownHours(e.target.value)}
+                  className="admin-input-flex"
+                  placeholder="без паузи"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="admin-form-section">
@@ -442,44 +480,6 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
             <span>Видавати сертифікат за проходження</span>
             <HintDot text={CERTIFICATE_HINT} align="start" />
           </label>
-        </div>
-
-        <div className="admin-form-section">
-          <span className="admin-form-section-title">
-            Перескладання <HintDot align="start" text={HINTS.retrySection} />
-          </span>
-          <p className="admin-hint">
-            Діє на модуль, який НЕ склали. Для вже складеного модуля працює інше правило — «пауза перед
-            повторним проходженням» у налаштуваннях самого модуля.
-          </p>
-          <div className="admin-form-row">
-            <div className="admin-field">
-              <label className="admin-label">
-                Спроб підряд без паузи <HintDot align="start" text={HINTS.retryFreeAttempts} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={retryFreeAttempts}
-                onChange={(e) => setRetryFreeAttempts(e.target.value)}
-                className="admin-input-flex"
-                placeholder="без обмежень"
-              />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Пауза після них (годин) <HintDot align="start" text={HINTS.retryCooldownHours} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={retryCooldownHours}
-                onChange={(e) => setRetryCooldownHours(e.target.value)}
-                className="admin-input-flex"
-                placeholder="без паузи"
-              />
-            </div>
-          </div>
         </div>
 
         <div className="admin-form-section">
@@ -757,6 +757,44 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
             </div>
           </div>
           <StreakMessagesField value={streakMessages} onChange={setStreakMessages} />
+
+          <div className="admin-form-subsection">
+            <span className="admin-form-section-title">
+              Перескладання <HintDot align="start" text={HINTS.retrySection} />
+            </span>
+            <p className="admin-hint">
+              Діє на модуль, який НЕ склали. Для вже складеного модуля працює інше правило — «пауза перед
+              повторним проходженням» у налаштуваннях самого модуля.
+            </p>
+            <div className="admin-form-row">
+              <div className="admin-field">
+                <label className="admin-label">
+                  Спроб підряд без паузи <HintDot align="start" text={HINTS.retryFreeAttempts} />
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={retryFreeAttempts}
+                  onChange={(e) => setRetryFreeAttempts(e.target.value)}
+                  className="admin-input-flex"
+                  placeholder="без обмежень"
+                />
+              </div>
+              <div className="admin-field">
+                <label className="admin-label">
+                  Пауза після них (годин) <HintDot align="start" text={HINTS.retryCooldownHours} />
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={retryCooldownHours}
+                  onChange={(e) => setRetryCooldownHours(e.target.value)}
+                  className="admin-input-flex"
+                  placeholder="без паузи"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="admin-form-section">
@@ -850,44 +888,6 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
             <span>Видавати сертифікат за проходження</span>
             <HintDot text={CERTIFICATE_HINT} align="start" />
           </label>
-        </div>
-
-        <div className="admin-form-section">
-          <span className="admin-form-section-title">
-            Перескладання <HintDot align="start" text={HINTS.retrySection} />
-          </span>
-          <p className="admin-hint">
-            Діє на модуль, який НЕ склали. Для вже складеного модуля працює інше правило — «пауза перед
-            повторним проходженням» у налаштуваннях самого модуля.
-          </p>
-          <div className="admin-form-row">
-            <div className="admin-field">
-              <label className="admin-label">
-                Спроб підряд без паузи <HintDot align="start" text={HINTS.retryFreeAttempts} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={retryFreeAttempts}
-                onChange={(e) => setRetryFreeAttempts(e.target.value)}
-                className="admin-input-flex"
-                placeholder="без обмежень"
-              />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Пауза після них (годин) <HintDot align="start" text={HINTS.retryCooldownHours} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={retryCooldownHours}
-                onChange={(e) => setRetryCooldownHours(e.target.value)}
-                className="admin-input-flex"
-                placeholder="без паузи"
-              />
-            </div>
-          </div>
         </div>
 
         <div className="admin-form-section">
