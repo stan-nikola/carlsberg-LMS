@@ -99,7 +99,12 @@
 }
 .reg-form input[type="text"] {
   width: 100%;
-  min-height: 52px;
+  /* 52px — фіксований дотик-таргет для телефону; на короткому вьюпорті
+     (десктоп/ноутбук з малою висотою, скарга користувача 2026-09-18:
+     форма впиралась у скрол навіть без демо-полів) мишею можна влучити й
+     у менше поле, тож тут — той самий підхід, що й paddings вище: живе
+     звужується до 40px замість того, щоб фіксовано займати місце. */
+  min-height: clamp(40px, 8vh, 52px);
   background: var(--surface-1);
   border: var(--border-w) solid var(--line);
   border-radius: var(--radius-input);
@@ -133,7 +138,7 @@
   color: var(--ink-soft);
   background: var(--green-tint);
   border-radius: var(--radius-sm);
-  padding: 11px 13px;
+  padding: clamp(6px, 1.6vh, 11px) 13px;
   text-align: left;
   margin-top: 6px;
   width: 100%;
@@ -141,8 +146,11 @@
 .reg-footer {
   flex-shrink: 0;
   /* Ті самі -30% бокових полів, що й .reg-viewport вище — щоб кнопка
-     лишалась вирівняна з полями форми над нею. */
-  padding: 14px 15px calc(20px + env(safe-area-inset-bottom));
+     лишалась вирівняна з полями форми над нею. Вертикальний padding —
+     той самий clamp(vh), що й .reg-viewport, з тієї самої причини
+     (скарга 2026-09-18: на короткому десктопному вьюпорті фіксовані
+     14/20px забирали місце, якого й так бракувало). */
+  padding: clamp(8px, 1.8vh, 14px) 15px calc(clamp(10px, 2vh, 20px) + env(safe-area-inset-bottom));
   border-top: var(--border-w) solid var(--line);
   background: var(--surface);
 }
@@ -151,6 +159,14 @@
 }
 .reg-footer .btn-primary-full.step-active {
   display: flex;
+}
+/* var(--btn-h-lg) (52px) — спільний токен, фіксований для кнопок в
+   усьому застосунку (навігація плеєра тощо); тут звужується разом з
+   рештою екрана реєстрації на короткому вьюпорті, тим самим clamp(vh),
+   що й поля форми вище. */
+.reg-footer .btn-primary-full,
+.reg-onboard-footer .btn-primary-full {
+  min-height: clamp(40px, 8vh, 52px);
 }
 
 .field-error {
@@ -215,7 +231,7 @@
   font-family: var(--font-mono) !important;
   font-size: calc(26px * var(--fs-scale)) !important;
   font-weight: 700 !important;
-  min-height: 64px !important;
+  min-height: clamp(48px, 9vh, 64px) !important;
 }
 .reg-step-links {
   display: flex;
@@ -314,7 +330,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: var(--btn-h-md);
+  /* var(--btn-h-md) (40px) — спільний токен кнопок, фіксований скрізь у
+     застосунку; тут перевизначено лише для цього екрана тим самим
+     clamp(vh), що й .reg-form input вище, щоб демо-перемикач теж
+     стискався на короткому вьюпорті, а не тримав фіксовані 40px. */
+  min-height: clamp(32px, 6vh, 40px);
   padding: 8px 6px;
   border: none;
   border-radius: var(--radius-btn);
@@ -360,7 +380,7 @@
 .reg-form .reg-select,
 .reg-form input[type="email"] {
   width: 100%;
-  min-height: 52px;
+  min-height: clamp(40px, 8vh, 52px);
   background: var(--surface-1);
   border: var(--border-w) solid var(--line);
   border-radius: var(--radius-input);
