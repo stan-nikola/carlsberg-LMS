@@ -11,6 +11,12 @@ import { getEmployeeBadgesView, getEmployeeCertificates } from "@/lib/achievemen
 // історії спроб — та тягнеться окремо, лише при розкритті конкретної
 // картки, див. /api/manager/employees/[id]), агрегати для KPI/графіків, і
 // власні enrollments керівника ("Мої курси").
+// ВРЕМЕННО: без явного force-dynamic Next.js кэширует GET Route Handler
+// без учёта query-строки (search params не входят в ключ кеша по
+// умолчанию) — ?diagTiming=1 стабильно возвращал закэшированный обычный
+// ответ. Убрать вместе с диагностикой выше.
+export const dynamic = "force-dynamic";
+
 export async function GET(request) {
   const employee = await getCurrentUser();
   if (!employee) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
