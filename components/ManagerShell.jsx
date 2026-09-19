@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, LogoutIcon, ChevronIcon } from "@/components/icons";
+import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, GearIcon, ChevronIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
 import { NotificationBell } from "@/components/NotificationBell";
+import { SettingsSheet } from "@/components/SettingsSheet";
 
 // Згорнутий сайдбар — особиста зручність, localStorage (як в AdminShell).
 const SIDEBAR_COLLAPSED_KEY = "manager-sidebar-collapsed";
@@ -24,11 +25,12 @@ const NAV_ITEMS = [
  * - ≥900px (той самий брейкпоінт, що вже використовує .stage у
  *   globals.css для hub/desktop) — постійний сайдбар зліва.
  * - <900px — той самий НИЖНІЙ таббар, що бачать підлеглі в /hub
- *   (.tabbar/.tab-btn з hub.css, та сама розмітка й ті самі іконки).
- *   Раніше тут був бургер із nav-шторкою: керівник із телефона діставав
- *   розділи в два тапи, тоді як його ж підлеглі — в один (скарга
- *   користувача, 2026-09-19). Вихід із акаунту переїхав у сам appbar —
- *   він був єдиним, крім навігації, що жило в тій шторці.
+ *   (.tabbar/.tab-btn з hub.css, та сама розмітка й ті самі іконки,
+ *   тепер і та сама капсула-індикатор). Раніше тут був бургер із
+ *   nav-шторкою: керівник із телефона діставав розділи в два тапи, тоді
+ *   як його ж підлеглі — в один (скарга користувача, 2026-09-19). Вихід
+ *   із акаунту переїхав у шторку налаштувань (той самий SettingsSheet,
+ *   що й у підлеглих) — не в appbar.
  * Обидві розмітки рендеряться завжди, перемикання — чистим CSS
  * (@media у app/styles/manager.css), без JS-визначення ширини: той
  * самий підхід, що вже використовує .stage (SSR-безпечно, без
@@ -45,7 +47,12 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const tabbarRef = useRef(null);
+  const pillRef = useRef(null);
+  const tabRefs = useRef(new Map());
+
+  useLayoutEffect(() => {
     try {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1") setCollapsed(true);
@@ -104,6 +111,31 @@ export function ManagerShell({ hasNewCourses = false, children }) {
     </nav>
   );
 
+  // Капсула під активною вкладкою — той самий прийом, що й components/HubShell.jsx
+  // (дзеркальна копія: два окремих компоненти рендерять свій таббар, тож
+  // логіка виміру дублюється, а не виноситься в спільний хук — так само,
+  // як уже дублюється сама розмітка NAV_ITEMS/TABS). left:0 на .tab-pill
+  // в CSS обов'язковий — інакше капсула "тікає" вбік (знайдений раніше
+  // баг на прототипі, той самий підводний камінь для будь-якого
+  // абсолютно спозиціонованого елемента у flex-контейнері).
+  useLayoutEffect(() => {
+    const activeHref = NAV_ITEMS.find((t) => pathname === t.href)?.href ?? NAV_ITEMS[0].href;
+    const activeEl = tabRefs.current.get(activeHref);
+    const pill = pillRef.current;
+    const bar = tabbarRef.current;
+    if (!activeEl || !pill || !bar) return;
+    const move = () => {
+      const barRect = bar.getBoundingClientRect();
+      const elRect = activeEl.getBoundingClientRect();
+      pill.style.width = elRect.width + "px";
+      pill.style.height = elRect.height + "px";
+      pill.style.transform = `translate(${elRect.left - barRect.left}px, ${elRect.top - barRect.top}px)`;
+    };
+    move();
+    window.addEventListener("resize", move);
+    return () => window.removeEventListener("resize", move);
+  }, [pathname]);
+
   return (
     <div className="manager-shell">
       {/* ---- Десктоп/планшет (≥900px): постійний сайдбар зліва ---- */}
@@ -119,8 +151,12 @@ export function ManagerShell({ hasNewCourses = false, children }) {
         </div>
         {navLinks}
         <div className="mgr-sidebar-footer">
-          <button type="button" className="iconbtn" title="Вийти" aria-label="Вийти" onClick={handleLogout}>
-            <LogoutIcon />
+          {/* Вихід переїхав у шторку налаштувань (той самий SettingsSheet,
+              що й у підлеглих у /hub) — там же й розмір тексту, замість
+              окремої кнопки-виходу поруч із навігацією (запит користувача,
+              2026-09-19: узгодити з тим, як це влаштовано в /hub). */}
+          <button type="button" className="iconbtn" title="Налаштування" aria-label="Налаштування" onClick={() => setSettingsOpen(true)}>
+            <GearIcon />
           </button>
         </div>
         <button
@@ -139,15 +175,16 @@ export function ManagerShell({ hasNewCourses = false, children }) {
       <header className="mgr-appbar">
         <PlatformBrand size="sm" />
         <NotificationBell href="/manager/notifications" />
-        <button type="button" className="iconbtn" aria-label="Вийти" title="Вийти" onClick={handleLogout}>
-          <LogoutIcon />
+        <button type="button" className="iconbtn" aria-label="Налаштування" title="Налаштування" onClick={() => setSettingsOpen(true)}>
+          <GearIcon />
         </button>
       </header>
 
       <main className="mgr-main">{children}</main>
 
       {/* ---- Мобільний (<900px): нижній таббар, той самий, що в /hub ---- */}
-      <nav className="tabbar mgr-tabbar" role="tablist">
+      <nav className="tabbar mgr-tabbar" role="tablist" ref={tabbarRef}>
+        <span className="tab-pill" ref={pillRef} aria-hidden="true" />
         {NAV_ITEMS.map(({ href, label, Icon }) => {
           const isActive = pathname === href;
           return (
@@ -161,7 +198,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
               aria-current={isActive ? "page" : undefined}
               title={label}
             >
-              <span className="tab-btn-indicator">
+              <span className="tab-btn-indicator" ref={(el) => { if (el) tabRefs.current.set(href, el); else tabRefs.current.delete(href); }}>
                 <Icon filled={isActive} />
                 {navBadges[href] && <span className="mgr-nav-dot" aria-hidden="true" />}
               </span>
@@ -170,6 +207,8 @@ export function ManagerShell({ hasNewCourses = false, children }) {
           );
         })}
       </nav>
+
+      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} />
     </div>
   );
 }

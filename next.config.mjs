@@ -11,7 +11,7 @@
 // джерел і закриває clickjacking (frame-ancestors). XSS у самому коді
 // застосунку не знайдено (аудит: жодного dangerouslySetInnerHTML) — CSP
 // тут другий шар захисту, не єдиний.
-function buildCsp() {
+function buildCsp({ frameAncestors = "'none'" } = {}) {
   const isDev = process.env.NODE_ENV === "development";
   return [
     "default-src 'self'",
@@ -29,8 +29,15 @@ function buildCsp() {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
+    `frame-ancestors ${frameAncestors}`,
+    // Лише прод: у dev застосунок навмисно тестують по LAN (телефон) на
+    // звичайному http:// (TLS локально не піднятий) — ця директива
+    // примушує браузер апгрейдити КОЖЕН підресурс (CSS/JS/картинки/шрифти)
+    // на https, і на не-localhost origin (де браузер не вважає http
+    // довіреним) запити на неіснуючий https тихо провалюються: сторінка
+    // лишається геть без стилів. localhost цього не показує — браузери
+    // вважають його довіреним і не чіпають.
+    ...(isDev ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
 }
 
@@ -49,6 +56,21 @@ const nextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+      // public/guide/install.html — застосунок навмисно показує його в
+      // <iframe> (components/InstallGuide.tsx, GUIDE_URL): онбординг у
+      // app/register/page.js і повторний перегляд із SettingsSheet. Загальне
+      // правило вище (X-Frame-Options: DENY, frame-ancestors 'none') рахує
+      // це клікджекінгом і глушить власний iframe застосунку білим екраном
+      // — тут дозволяємо фрейм лише з того самого origin, не звідусіль.
+      // Пізніший запис у масиві перекриває той самий ключ заголовка для
+      // збіжного шляху (Next.js headers() Header Overriding Behavior).
+      {
+        source: "/guide/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: buildCsp({ frameAncestors: "'self'" }) },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
         ],
       },
     ];

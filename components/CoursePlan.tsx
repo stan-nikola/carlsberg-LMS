@@ -3,6 +3,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckIcon, LockIcon, ClockIcon, CalendarIcon, CertificateIcon, PlayIcon, AlertIcon, XIcon } from "@/components/icons";
+import { MorphRevealIcon } from "@/components/MorphRevealIcon";
 import type { CoursePlanView, PlanModuleStatus } from "@/lib/coursePlan";
 import { buildProgressPath, buildSnakePath, type SnakePoint } from "@/lib/snakePath";
 
@@ -67,7 +68,10 @@ import { buildProgressPath, buildSnakePath, type SnakePoint } from "@/lib/snakeP
  */
 
 const STATUS_ICON: Record<PlanModuleStatus, React.ReactNode> = {
-  passed: <CheckIcon />,
+  // Морф-анімація появи (MorphRevealIcon, запит користувача, 2026-09-19) —
+  // єдиний вузол дороги, для якого це має сенс: "складено" — кінцевий,
+  // радісний стан, решта (available/locked/failed) статичні за задумом.
+  passed: <MorphRevealIcon shape="check" label="Складено" size={14} />,
   failed: <AlertIcon />,
   available: <PlayIcon />,
   locked: <LockIcon />,

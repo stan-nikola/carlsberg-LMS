@@ -5,7 +5,8 @@ import { enqueue } from "@/lib/offlineOutbox";
 import { useRouter } from "next/navigation";
 import Image, { getImageProps } from "next/image";
 import { renderRichText } from "@/lib/richText";
-import { ChevronIcon, CheckIcon, XIcon, CertificateIcon, SpinnerIcon, QuestionIcon } from "@/components/icons";
+import { ChevronIcon, CertificateIcon, SpinnerIcon, QuestionIcon } from "@/components/icons";
+import { MorphRevealIcon } from "@/components/MorphRevealIcon";
 import { CoursePlanPanel } from "@/components/CoursePlan";
 import { OrderingScreen, MatchingScreen } from "@/components/QuestionScreens";
 import {
@@ -367,9 +368,17 @@ function ScreenComponentBlock({
   tapHint = true,
   questionNumber,
   questionTotal,
+  staggerIndex = 0,
 }) {
+  // Каскадна поява карток одного екрана (2026-09-19): кожен наступний
+  // .screen-component з'являється трохи пізніше попереднього
+  // (course-player.css .cp-screen > .screen-component). Кап на 5 — на
+  // екрані з десятком компонентів (рідкість, але буває) хвіст затримки
+  // інакше розтягнувся б на секунду й останній компонент довелось би
+  // чекати замість читати.
+  const cascadeStyle = { "--stagger-i": Math.min(staggerIndex, 5) };
   return (
-    <div className="screen-component" ref={blockRef} data-next-component={nextComponentId ?? undefined}>
+    <div className="screen-component" ref={blockRef} data-next-component={nextComponentId ?? undefined} style={cascadeStyle}>
       {component.type === "ordering" ? (
         <OrderingScreen
           component={component}
@@ -439,7 +448,9 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
     <div className="cp-screen cp-complete">
       {/* Складений модуль — теж свято, як і фінал курсу (користувач, 2026-09-15). */}
       {passed && <ConfettiBurst />}
-      <div className={`trophy ${passed ? "win" : ""}`}>{passed ? <CheckIcon /> : <XIcon />}</div>
+      <div className={`trophy ${passed ? "win" : ""}`}>
+        <MorphRevealIcon shape={passed ? "check" : "x"} label={passed ? "Складено" : "Не складено"} size={36} strokeWidth={2.4} />
+      </div>
       <h2 className="result-title">{passed ? `Модуль «${moduleTitle}» складено!` : `Модуль «${moduleTitle}» не складено`}</h2>
       <p className="lead">
         {passed
@@ -541,7 +552,7 @@ function CompleteScreen({ result, onRetake, course, hasEmail, previewMode }) {
       {/* Свято лише за бездоганне проходження — тоді воно щось означає. */}
       {isPerfect && <ConfettiBurst />}
       <div className={`trophy ${passed ? "win" : ""}`}>
-        {passed ? <CheckIcon /> : <XIcon />}
+        <MorphRevealIcon shape={passed ? "check" : "x"} label={passed ? "Складено" : "Не складено"} size={36} strokeWidth={2.4} />
       </div>
       <h2 className="result-title">
         {isPerfect ? "Бездоганно! Курс пройдено на 100% 🎉" : passed ? "Вітаємо! Тест складено успішно 🎉" : "Тест поки не пройдено"}
@@ -693,6 +704,15 @@ export function CoursePlayer({
   // сесії вступ лишається. Спрацьовує при монтуванні — page.js перемонтовує
   // плеєр по key на кожну зміну модуля.
   const [idx, setIdx] = useState(singleModuleTitle && screens.length > 0 ? introIdx + 1 : introIdx);
+  // Напрямок анімованого в'їзду картки екрана (2026-09-19, "супер плеєр
+  // курсів") — «Далі»/продовження модуля в'їжджають знизу, «Назад»/
+  // перескладання в'їжджають зверху (course-player.css
+  // .cp-viewport[data-nav]). Чиста CSS-анімація на щойно змонтованому
+  // .cp-screen (key={viewportKey} нижче й так перемонтовує його на кожен
+  // idx) — швидкий повторний клік «Далі» просто монтує ЩЕ один новий
+  // вузол і скасовує попередній: жодного стану "анімація в процесі" не
+  // потрібно тримати чи блокувати нею кнопку.
+  const [navDirection, setNavDirection] = useState("forward");
 
   // Прогрів фото сусідніх екранів (аудит швидкодії, 2026-09-19) — без
   // цього <CourseImage> навіть не починає вантажити фото, поки екран не
@@ -1230,11 +1250,13 @@ export function CoursePlayer({
 
     if (idx === completeIdx - 1) {
       const next = idx + 1;
+      setNavDirection("forward");
       setIdx(next);
       submitResult();
       return;
     }
     if (idx === completeIdx) return;
+    setNavDirection("forward");
     setIdx(idx + 1);
   }
 
@@ -1249,6 +1271,7 @@ export function CoursePlayer({
       router.push("/hub");
       return;
     }
+    setNavDirection("forward");
     setIdx(moduleCheckpoint.nextIdx);
     setModuleCheckpoint(null);
   }
@@ -1263,6 +1286,9 @@ export function CoursePlayer({
         rangeIds.forEach((id) => delete next[id]);
         return next;
       });
+      // "back" — повертаємось перескласти вже пройдене, той самий напрям,
+      // що й ручне «Назад».
+      setNavDirection("back");
       setIdx(segment.startIdx + 1);
     }
     setModuleCheckpoint(null);
@@ -1270,6 +1296,7 @@ export function CoursePlayer({
 
   function goBack() {
     if (idx === introIdx) return;
+    setNavDirection("back");
     setIdx(idx - 1);
   }
 
@@ -1279,6 +1306,7 @@ export function CoursePlayer({
     setResult(null);
     startedAtRef.current = new Date().toISOString();
     activeSecondsRef.current = 0;
+    setNavDirection("back");
     setIdx(introIdx);
   }
 
@@ -1326,7 +1354,7 @@ export function CoursePlayer({
             {idx !== introIdx && <div className="cp-progress-fill" style={{ width: `${progressPct}%` }} />}
           </div>
 
-          <div className="cp-viewport" ref={viewportRef} key={viewportKey}>
+          <div className="cp-viewport" ref={viewportRef} key={viewportKey} data-nav={navDirection}>
             {idx === introIdx && (
               <div className="cp-screen cp-intro">
                 <h1 className="cp-h1">{course.title}</h1>
@@ -1377,6 +1405,7 @@ export function CoursePlayer({
                         tapHint={component.id === firstOpenGateId}
                         questionNumber={quizComponentIds.indexOf(component.id) + 1 || undefined}
                         questionTotal={quizComponentIds.length}
+                        staggerIndex={i}
                       />
                     ))}
                   </div>

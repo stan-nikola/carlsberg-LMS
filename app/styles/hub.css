@@ -797,6 +797,7 @@
 }
 
 .tabbar {
+  position: relative;
   flex-shrink: 0;
   display: flex;
   /* +8px зверху — опускає весь таббар разом із лінією-розділювачем
@@ -807,6 +808,39 @@
   border-top: var(--border-w) solid var(--line);
   background: var(--surface);
   padding: 2px 10px calc(2px + env(safe-area-inset-bottom));
+}
+/* Капсула під активною вкладкою (2026-09-19, рішення користувача) — їде
+   й змінює розмір, замість того щоб кожна вкладка мала власну заливку,
+   яка просто з'являється/зникає на місці. "Капсула" — умовна назва:
+   форма НЕ заокруглена (--radius-btn, не 999px) — той самий фірмовий
+   прямокутний язик Malty, що вже стояв у .tab-btn-indicator нижче
+   ("прямокутник, не піл" — те рішення лишається чинним, міняється лише
+   механіка руху). Позиція/розмір рахує JS (components/HubShell.jsx,
+   components/ManagerShell.jsx — getBoundingClientRect, той самий прийом,
+   що вже є в CoursePlan snake-path). left:0 ОБОВ'ЯЗКОВИЙ: без нього
+   position:absolute усередині flex-контейнера сам вираховує "статичну
+   позицію" за алгоритмом flex-розкладки, і translateX/Y рахується не
+   від нуля — капсула "тікає" вбік (знайдений на прототипі баг, той самий
+   підводний камінь для будь-якого абсолютно спозиціонованого елемента у
+   flex-контейнері).
+   Тривалість/крива — токени дизайн-системи (--tab-pill-duration/-ease,
+   tokens.css), а не сирі числа: супер-адмін крутить їх наживо в
+   /admin/design без git (lib/designTokens.ts DESIGN_TOKENS). */
+.tab-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: var(--radius-btn);
+  background: var(--cb-primary);
+  z-index: 0;
+  pointer-events: none;
+  transition: transform var(--tab-pill-duration) var(--tab-pill-ease), width var(--tab-pill-duration) var(--tab-pill-ease),
+    height var(--tab-pill-duration) var(--tab-pill-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-pill {
+    transition: none;
+  }
 }
 .tab-btn {
   flex: 1;
@@ -867,15 +901,18 @@
    користувача, той самий принцип, що .course-card/.mgr-pill/.admin-btn
    (квадратні атоми Malty, не заокруглені); прямокутник, не піл. */
 .tab-btn-indicator {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 6px 18px;
   border-radius: var(--radius-btn);
-  transition: background var(--dur-fast) var(--ease-premium), color var(--dur-fast) var(--ease-premium);
+  transition: color var(--dur-fast) var(--ease-premium);
 }
+/* Заливку тепер малює .tab-pill вище (одна спільна капсула, що їде під
+   вкладками) — тут лишається тільки колір іконки поверх неї. */
 .tab-btn.active .tab-btn-indicator {
-  background: var(--cb-primary);
   color: var(--cb-white);
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SettingsSheet } from "@/components/SettingsSheet";
@@ -33,6 +33,38 @@ export function HubShell({ children, isAdmin = false }) {
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const viewportRef = useRef(null);
+  const tabbarRef = useRef(null);
+  const pillRef = useRef(null);
+  const tabRefs = useRef(new Map());
+
+  // Капсула під активною вкладкою їде й змінює розмір замість того, щоб
+  // кожна вкладка мала власну заливку, що просто з'являється/зникає на
+  // місці (рішення користувача 2026-09-19: той самий рух, що вже
+  // перевірений на бенчі — components/ManagerShell.jsx дзеркалить цю ж
+  // логіку 1:1, і той самий підводний камінь: без left:0 на .tab-pill
+  // абсолютно спозиціонований елемент усередині flex-контейнера сам
+  // вираховує "статичну позицію" за алгоритмом flex-розкладки, і
+  // translateX рахується не від нуля — капсула "тікає" вбік). Форма —
+  // не заокруглена капсула, а той самий --radius-btn, що й .tab-btn-
+  // indicator мав завжди: фірмовий прямокутний язик Malty (задокументовано
+  // нижче в CSS), лише тепер механіка "їде", а не "з'являється на місці".
+  useLayoutEffect(() => {
+    const activeHref = TABS.find((t) => pathname === t.href)?.href ?? TABS[0].href;
+    const activeEl = tabRefs.current.get(activeHref);
+    const pill = pillRef.current;
+    const bar = tabbarRef.current;
+    if (!activeEl || !pill || !bar) return;
+    const move = () => {
+      const barRect = bar.getBoundingClientRect();
+      const elRect = activeEl.getBoundingClientRect();
+      pill.style.width = elRect.width + "px";
+      pill.style.height = elRect.height + "px";
+      pill.style.transform = `translate(${elRect.left - barRect.left}px, ${elRect.top - barRect.top}px)`;
+    };
+    move();
+    window.addEventListener("resize", move);
+    return () => window.removeEventListener("resize", move);
+  }, [pathname]);
 
   // Перехід між вкладками — це client-side навігація всередині ОДНОГО й
   // того самого внутрішнього скрол-контейнера (.hub-viewport), а не окрема
@@ -69,7 +101,8 @@ export function HubShell({ children, isAdmin = false }) {
 
           <div className="hub-viewport" ref={viewportRef}>{children}</div>
 
-          <nav className="tabbar" role="tablist">
+          <nav className="tabbar" role="tablist" ref={tabbarRef}>
+            <span className="tab-pill" ref={pillRef} aria-hidden="true" />
             {TABS.map(({ href, label, Icon }) => {
               const isActive = pathname === href;
               return (
@@ -82,7 +115,7 @@ export function HubShell({ children, isAdmin = false }) {
                   aria-selected={isActive}
                   title={label}
                 >
-                  <span className="tab-btn-indicator">
+                  <span className="tab-btn-indicator" ref={(el) => { if (el) tabRefs.current.set(href, el); else tabRefs.current.delete(href); }}>
                     <Icon filled={isActive} />
                   </span>
                   <NavPending />

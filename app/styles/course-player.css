@@ -188,6 +188,112 @@
   border-top: var(--border-w) solid var(--line);
 }
 
+/* ---- "Супер плеєр" — анімовані переходи між екранами (2026-09-19) ----
+   Рішення користувача, свідомо ПРОТИ звичного для цього файлу спокійного
+   --ease-premium/--dur-base (порівняй .streak-toast-overlay вище — там
+   навпаки навмисно лишили той самий стриманий темп): попереджено про
+   ризик "розваги замість робочого інструменту" (щоденне обов'язкове
+   проходження), обрано "максимально playful" все одно — тож нова, гучніша
+   крива тут навмисна, не забута стара.
+
+   Технічний підхід — CSS keyframes на щойно ЗМОНТОВАНОМУ елементі, не
+   View Transitions API: React 19 не має для нього штатної інтеграції
+   (ручне обгортання setState), а Safari <18/старі Android WebView (реальні
+   пристрої польових співробітників) не підтримують його взагалі — CSS
+   keyframes працюють скрізь і дають точний контроль напрямку.
+   .cp-viewport вище й так перемонтовує дітей на кожен idx
+   (key={viewportKey}) — досить лише заграти keyframe при вставці, без
+   жодного JS-стану "анімація в процесі". Це ж вирішує швидкий повторний
+   клік «Далі»: React просто монтує ЩЕ один новий вузол замість
+   попереднього — старий і його анімація зникають разом із ним, новий
+   стартує свою з нуля. Напрямок задає data-nav на .cp-viewport
+   (components/CoursePlayer.jsx, navDirection): "forward" — «Далі»/
+   продовження модуля/картки в'їжджають ЗНИЗУ; "back" — «Назад»/
+   перескладання/рестарт курсу в'їжджають ЗВЕРХУ (directional cue —
+   людина вчиться, що зворотний рух завжди «зверху», ще до першого
+   свідомого натискання «Назад»). */
+.cp-viewport[data-nav="forward"] > .cp-screen {
+  animation: cpScreenInForward 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.cp-viewport[data-nav="back"] > .cp-screen {
+  animation: cpScreenInBack 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes cpScreenInForward {
+  from {
+    opacity: 0;
+    transform: translateY(34px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes cpScreenInBack {
+  from {
+    opacity: 0;
+    transform: translateY(-34px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+/* Чекпоінт модуля й фінал курсу — свято, вже й так стоїть конфеті
+   (StreakToast/ConfettiBurst) — сама картка теж отримує помітніший,
+   ширший поп замість звичайного в'їзду. Один keyframe на обидва напрямки:
+   тут не важливо, звідки саме прийшли, важливо що це кульмінація. */
+.cp-viewport[data-nav="forward"] > .cp-screen.cp-complete,
+.cp-viewport[data-nav="back"] > .cp-screen.cp-complete {
+  animation: cpCompleteIn 620ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes cpCompleteIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+/* Кілька компонентів на одному екрані (screens[idx-1].components) —
+   каскадна поява одна за одною, а не всі одразу пачкою. --stagger-i —
+   інлайн-властивість з JS-індексу (components/CoursePlayer.jsx
+   ScreenComponentBlock), капнута на 5, щоб екран із десятком компонентів
+   не розтягував появу на цілу секунду. Анімація власна (не той самий
+   in-keyframe, що в .cp-screen) — .screen-component не повинен ще й сам
+   зсуватись по Y (це вже робить його ж рух разом із контейнером), лише
+   виринати на місці. */
+.cp-screen > .screen-component {
+  opacity: 0;
+  animation: cpBlockIn 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* 45ms, не 70 — правило `stagger-sequence` зі скіла ui-ux-pro-max
+     (.claude/skills/ui-ux-pro-max/references/quick-reference.md §7,
+     джерело Material Motion): 30-50мс на елемент; більше — і останній
+     блок починає читатись як "підвисла" сторінка, а не як каскад. */
+  animation-delay: calc(var(--stagger-i, 0) * 45ms);
+}
+@keyframes cpBlockIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-viewport[data-nav="forward"] > .cp-screen,
+  .cp-viewport[data-nav="back"] > .cp-screen,
+  .cp-viewport[data-nav="forward"] > .cp-screen.cp-complete,
+  .cp-viewport[data-nav="back"] > .cp-screen.cp-complete,
+  .cp-screen > .screen-component {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 .cp-progress-track {
   height: var(--size-4xs);
   border-radius: var(--chart-bar-radius);
@@ -608,16 +714,26 @@
   text-align: center;
   padding-top: 20px;
 }
+/* Колір — той самий "світлофор без червоного", що й .cp-plan-badge на
+   дорозі плану курсу (CoursePlan.tsx): складено — зелений, ще ні —
+   бурштиновий (не червоний/золотий градієнт, як тут стояло раніше —
+   однаковий "святковий" градієнт малювався і на провалі теж, що
+   плутало; запит користувача, 2026-09-19: "кружок як у снейк-рельсі"). */
 .trophy {
   width: 80px;
   height: 80px;
   border-radius: 50%;
   margin-bottom: 15px;
-  background: radial-gradient(circle at 32% 28%, var(--gold), var(--green-700) 78%);
+  background: var(--cb-alert);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 16px 30px -14px rgba(185, 146, 75, 0.55);
+  box-shadow: 0 16px 30px -14px color-mix(in srgb, var(--cb-alert) 55%, transparent);
+  color: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
+}
+.trophy.win {
+  background: var(--cb-success);
+  box-shadow: 0 16px 30px -14px color-mix(in srgb, var(--cb-success) 55%, transparent);
   color: var(--cb-white);
 }
 .trophy svg {
@@ -676,8 +792,12 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
+  /* opacity у списку — правило `state-transition` (ui-ux-pro-max §7):
+     зміна стану не має "клацати". «Далі» вмикається рівно тоді, коли
+     людина закрила гейт екрана, і різкий стрибок 0.4 → 1 читався як
+     перемальовування, а не як "тепер можна". */
   transition: transform var(--dur-fast) var(--ease-premium), filter var(--dur-fast) var(--ease-premium),
-    box-shadow var(--dur-fast) var(--ease-premium);
+    box-shadow var(--dur-fast) var(--ease-premium), opacity var(--dur-base) var(--ease-premium);
   font-family: inherit;
   min-height: var(--btn-h-lg);
 }
@@ -702,6 +822,39 @@
 .btn-primary:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+/* Гейт екрана щойно закрито — кнопка не просто перестає бути блідою, а
+   коротко "дихає". Правило `motion-meaning` (ui-ux-pro-max §7): рух має
+   виражати причину-наслідок, а не бути прикрасою — це ЄДИНИЙ момент у
+   плеері, коли власна дія людини відкриває наступний крок, і саме його
+   варто показати рухом, а не мовчазною зміною прозорості.
+   Чистий CSS, без жодного JS-стану: властивість animation з'являється
+   рівно в момент, коли кнопка перестає бути :disabled (none → задана),
+   і браузер стартує її один раз. .navbar не перемонтовується між
+   екранами, тож на екрані БЕЗ гейта (кнопка активна весь час) властивість
+   не міняється і пульс не грає — саме те, що потрібно.
+   БЕЗ fill-mode (не both/forwards) навмисно: інакше після кінця анімації
+   її останній кадр лишався б застосованим із пріоритетом анімації і
+   назавжди перебивав би transform зі .btn:active — тап перестав би
+   давати відчутний відгук (правило `scale-feedback`). */
+.btn-primary:not(:disabled) {
+  animation: cpUnlockPulse 520ms var(--ease-premium);
+}
+@keyframes cpUnlockPulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.035);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary:not(:disabled) {
+    animation: none;
+  }
 }
 .btn-ghost {
   background: var(--surface-1);
@@ -1857,8 +2010,14 @@
 /* Правильна зона — показується ЛИШЕ після відповіді. Тонке коло, а не
    заливка: під ним має лишатись видно саме фото, інакше пояснення
    «чому тут» втрачає сенс. */
+/* z-index:2 — той самий підводний камінь, що й .zoom-badge вище: <img>
+   усередині .cp-img-wrap несе z-index:1 (щоб стояти над скелетоном),
+   без власного z-index коло/пін ховались ПІД фото — видно в DOM
+   (opacity:1, правильна позиція), але невидимо на екрані (запит
+   користувача, 2026-09-19: "визуально место не обведено"). */
 .hs-zone {
   position: absolute;
+  z-index: 2;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: 2px solid var(--cb-secondary);
@@ -1880,6 +2039,7 @@
    промахнулась, а не просто «не туди». */
 .hs-pin {
   position: absolute;
+  z-index: 2;
   width: 14px;
   height: 14px;
   margin: -7px 0 0 -7px;

@@ -189,34 +189,62 @@ body:has(.manager-shell) {
 .mgr-export-link:focus-visible {
   border-radius: var(--radius-btn);
 }
+/* На мобільному підпис ховається — сама кнопка з текстом+іконкою не
+   влазила в один рядок поруч із заголовком "Команда" (скарга користувача,
+   2026-09-19), через що ряд дій переносився під заголовок. Іконка
+   лишається єдиним носієм сенсу — тому саме на ExcelIcon (components/
+   icons.jsx) додано маленьку стрілку завантаження, а не просто "плашка
+   Excel без контексту". Ширина зрівняна з сусідніми --iconbtn-md
+   кнопками — усі три виглядають одним рядом квадратних кнопок. */
+@media (max-width: 899px) {
+  .mgr-export-label {
+    display: none;
+  }
+  .mgr-export-link {
+    width: var(--iconbtn-md);
+    padding: 0;
+    justify-content: center;
+  }
+}
 
 /* ---- Кнопка "картки дашборда" + шторка налаштувань (2026-09-19) ----
-   Кнопка навмисно з легкою заливкою --green-tint, а не звичайний
-   .iconbtn — щоб не зливалась із сусідньою кнопкою "Завантажити звіт" і
-   візуально читалась як "тут є вибір, щось увімкнено/вимкнено", а не як
-   ще одна лінк-кнопка. */
+   Нейтральний .iconbtn-вигляд у стані спокою — постійна зелена заливка
+   читалась як "уже натиснуто/увімкнено" завжди, навіть коли шторка
+   закрита й нічого не активовано (скарга користувача, 2026-09-19).
+   Зелений (.is-active) — лише поки шторка налаштувань справді відкрита. */
 .mgr-dashboard-settings-btn {
   flex-shrink: 0;
   width: var(--iconbtn-md);
   height: var(--iconbtn-md);
   border-radius: var(--radius-btn);
-  border: var(--border-w) solid var(--green-500);
-  background: var(--green-tint);
-  color: var(--green-700);
+  border: var(--border-w) solid var(--line);
+  background: var(--surface-1);
+  color: var(--ink);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-premium);
+  transition: background var(--dur-fast) var(--ease-premium), border-color var(--dur-fast) var(--ease-premium),
+    color var(--dur-fast) var(--ease-premium);
 }
 @media (hover: hover) {
   .mgr-dashboard-settings-btn:hover {
-    background: color-mix(in srgb, var(--green-500) 22%, var(--cb-white));
+    background: var(--surface-2);
   }
 }
 .mgr-dashboard-settings-btn:focus-visible {
   outline: none;
   box-shadow: var(--cb-focus-ring);
+}
+.mgr-dashboard-settings-btn.is-active {
+  border-color: var(--green-500);
+  background: var(--green-tint);
+  color: var(--green-700);
+}
+@media (hover: hover) {
+  .mgr-dashboard-settings-btn.is-active:hover {
+    background: color-mix(in srgb, var(--green-500) 22%, var(--cb-white));
+  }
 }
 .mgr-dashboard-settings-btn svg {
   width: 18px;
@@ -730,22 +758,12 @@ body:has(.manager-shell) {
 }
 /* Нижній таббар — РІВНО той самий .tabbar/.tab-btn, що в /hub
    (app/styles/hub.css): у підлеглих і в керівника з телефона має бути та
-   сама навігація (запит користувача, 2026-09-19). Там таббар — останній
-   flex-елемент телефонної картки; тут картки нема, тому лише позиція:
-   sticky, а не fixed — так він притиснутий до низу екрана при скролі й
-   при цьому займає своє місце в потоці, тож не доводиться вручну
-   тримати padding-bottom у .mgr-main під його висоту. */
-.mgr-tabbar {
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
-  margin-top: 0;
-}
+   сама навігація (запит користувача, 2026-09-19). Позиція — position:fixed
+   (нижче, разом із компенсацією .mgr-main), не sticky: сторінки /manager
+   скролляться самим вікном, а не внутрішньою карткою, як /hub. */
 /* Маркер «нове» на вкладці — той самий, що в сайдбарі, лише прив'язаний
-   до кута заливки активного/неактивного індикатора. */
-.mgr-tabbar .tab-btn-indicator {
-  position: relative;
-}
+   до кута заливки активного/неактивного індикатора (інші top/right, ніж
+   у .mgr-nav-dot за замовчуванням: тут інший padding контейнера). */
 .mgr-tabbar .mgr-nav-dot {
   position: absolute;
   top: 2px;
@@ -755,6 +773,25 @@ body:has(.manager-shell) {
 .mgr-main {
   flex: 1;
   min-width: 0;
+}
+
+/* Нижній таббар мобільного керівника (запит користувача, 2026-09-19):
+   сторінки /manager скролляться самим вікном (на відміну від /hub, де все
+   обмежено висотою .stage--hub), тож без position:fixed .mgr-tabbar
+   лишався в кінці звичайного потоку — під довгим списком картки команди
+   доводилось гортати аж до низу, щоб побачити навігацію. */
+.mgr-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-sticky);
+}
+/* Компенсація висоти зафіксованого таббару, інакше останній рядок
+   контенту ховається під ним. ~62px виміряний .tabbar (іконка+підпис+
+   паддинги) + safe-area на iPhone з "чубчиком" знизу. */
+.mgr-main {
+  padding-bottom: calc(70px + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 900px) {
@@ -767,6 +804,13 @@ body:has(.manager-shell) {
   .mgr-appbar,
   .mgr-tabbar {
     display: none;
+  }
+  /* Скидає компенсацію висоти зафіксованого .mgr-tabbar (mobile-first
+     правило вище, .mgr-main padding-bottom) — на цій ширині таббар і так
+     display:none (рядок вище), нижній відступ під нього більше не
+     потрібен. */
+  .mgr-main {
+    padding-bottom: 0;
   }
 }
 

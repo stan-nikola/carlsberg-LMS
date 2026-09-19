@@ -77,6 +77,34 @@ export const DESIGN_TOKENS: TokenDef[] = [
     ],
     def: "round",
   },
+  // Капсула-індикатор нав-таббару (.tab-pill, app/styles/hub.css) —
+  // "choice", не новий kind "ms": стенд поки рендерить лише px-повзунок і
+  // choice-випадайку (components/DesignStand.tsx), додавати третій вид
+  // заради двох токенів — окрема робота понад цю задачу.
+  {
+    key: "tab-pill-duration",
+    label: "Капсула нав-таббару: тривалість",
+    group: "Рух",
+    kind: "choice",
+    choices: [
+      { label: "Швидко (220мс)", value: "220ms" },
+      { label: "Помірно (340мс) — дефолт", value: "340ms" },
+      { label: "Повільно (480мс)", value: "480ms" },
+    ],
+    def: "340ms",
+  },
+  {
+    key: "tab-pill-ease",
+    label: "Капсула нав-таббару: характер руху",
+    group: "Рух",
+    kind: "choice",
+    choices: [
+      { label: "Спокійно, без перельоту", value: "var(--ease-premium)" },
+      { label: "Пружно, з перельотом — дефолт", value: "cubic-bezier(0.34, 1.56, 0.64, 1)" },
+      { label: "Виражений відскок", value: "cubic-bezier(0.34, 2.2, 0.64, 1)" },
+    ],
+    def: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+  },
 ];
 
 export type TokenValues = Record<string, string>;

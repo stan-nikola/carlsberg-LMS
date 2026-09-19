@@ -82,11 +82,31 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
   // (2026-09-18, живий скрін користувача).
   const trulyNotStarted = enrollment?.status === "not_started" && !anyModuleStarted && !overdue;
 
-  // Пройдений курс: 100% відкриває методичку; залік нижче 100% — можна
-  // покращити; незалік — пройти знову (користувач, 2026-09-15).
+  // Чи є ЗАРАЗ що перепроходити: хоч один складений нижче 100% модуль, у
+  // якого вже минула пауза перепроходження (lib/courseContent.js
+  // getModuleStatusList canRetakeNow — той самий розрахунок, яким
+  // getSessionModules вирішує, відкрити плеєр чи методичку).
+  // До 2026-09-19 картка дивилась ЛИШЕ на бал курсу: курс на 94%,
+  // складений сьогодні, обіцяв «Покращити результат», а відкривався
+  // методичкою — єдиний модуль нижче 100% був ще під 2-денною паузою
+  // (жива скарга користувача, курс «Тест графіка: 10 модулів»).
+  const canImproveNow = modules.some(
+    (m) => m.status === "completed" && m.scorePercent !== null && m.scorePercent < 100 && m.canRetakeNow
+  );
+  // Найближчий момент, коли покращення стане можливим — щоб замість
+  // мовчазної методички сказати, коли повертатись.
+  const nextRetakeAt = modules
+    .map((m) => m.retakeAvailableAt)
+    .filter(Boolean)
+    .map((d) => new Date(d))
+    .sort((a, b) => a - b)[0] || null;
+
+  // Пройдений курс: 100% (або поки нічого не можна перепройти) відкриває
+  // методичку; залік нижче 100% із доступним модулем — можна покращити;
+  // незалік — пройти знову (користувач, 2026-09-15).
   const enterLabel = isActuallyDone
     ? cs.passed
-      ? cs.pct === 100
+      ? cs.pct === 100 || !canImproveNow
         ? "Відкрити методичку"
         : "Покращити результат"
       : "Пройти курс знову"
@@ -193,6 +213,15 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
               {enrollment?.completedAt && (
                 <div className="ct-completed-date">
                   Завершено {new Date(enrollment.completedAt).toLocaleDateString("uk-UA")}
+                </div>
+              )}
+              {/* Курс нижче 100%, але покращувати поки нема чого — пауза
+                  перепроходження ще йде. Без цього рядка кнопка просто
+                  мовчки перетворювалась на «Відкрити методичку», і було
+                  незрозуміло, чому курс на 94% не дає себе перепройти. */}
+              {cs.passed && cs.pct !== 100 && !canImproveNow && nextRetakeAt && (
+                <div className="ct-completed-date">
+                  Покращити результат можна з {nextRetakeAt.toLocaleDateString("uk-UA")}
                 </div>
               )}
             </div>
