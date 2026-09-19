@@ -4,8 +4,6 @@ import { isPushConfigured } from "@/lib/webPush";
 import { isDemoLoginEnabled } from "@/lib/demoLogin";
 import { isTelegramConfigured } from "@/lib/telegram";
 
-export const dynamic = "force-dynamic";
-
 /**
  * GET /api/health — перевірка після деплою (DEPLOY.md): чи жива база, чи
  * застосовано міграції (остання з _prisma_migrations), чи задано push і

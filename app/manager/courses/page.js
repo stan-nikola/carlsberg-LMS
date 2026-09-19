@@ -3,6 +3,10 @@ import { getEmployeeEnrollments } from "@/lib/employeeProgress";
 import { sortByUrgency } from "@/lib/progress";
 import { CourseTile } from "@/components/CourseTile";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 // "Курси" керівника — його ВЛАСНІ призначені курси (керівник теж Employee
 // зі своїми enrollments), той самий CourseTile, що й app/hub/learn/page.js
 // — але під ManagerShell (sidebar/hamburger), не HubShell.

@@ -43,6 +43,14 @@ function buildCsp({ frameAncestors = "'none'" } = {}) {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Cache Components (PPR) — миттєва навігація: статична "оболонка" екрана
+  // рендериться одразу, дані сесії/БД доливаються окремим потоком поверх
+  // неї (аудит "як в Instagram", 2026-09-19). Вмикається одним прапорцем,
+  // після чого КОЖЕН маршрут мусить бути prerender-able — codemod
+  // `cache-components-instant-false` вже розставив `export const instant =
+  // false` на всіх page/layout/default як тимчасовий opt-out (позначено
+  // `// TODO: Cache Components adoption`), знімаємо по одному екрану.
+  cacheComponents: true,
   // X-Powered-By: Next.js — палить фреймворк без жодної користі,
   // вимикається одним прапорцем.
   poweredByHeader: false,
