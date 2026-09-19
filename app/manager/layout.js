@@ -1,14 +1,21 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { isManagerTier } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { isRecentlyAssigned } from "@/lib/progress";
 import { ManagerShell } from "@/components/ManagerShell";
+import { ManagerShellSkeleton } from "@/components/ManagerShellSkeleton";
 
 // Дзеркало app/hub/layout.js в інший бік: без сесії — на реєстрацію; є
 // сесія, але людина НЕ керівного рівня (SV..RM) — назад у звичайний /hub,
 // а не показуємо їй порожній/чужий кабінет команди.
-export default async function ManagerLayout({ children }) {
+//
+// Винесено під Suspense у окремий async-гейт (аудит "чорний екран на
+// холодному старті", 2026-09-19) — той самий привід, що й у app/hub/
+// layout.js, тільки тут ДВА послідовних запити (getCurrentUser +
+// enrollment.findMany) блокували перший JSX, а не один.
+async function ManagerGate({ children }) {
   const employee = await getCurrentUser();
   if (!employee) {
     redirect("/register");
@@ -39,5 +46,13 @@ export default async function ManagerLayout({ children }) {
     <ManagerShell hasNewCourses={hasNewCourses}>
       {children}
     </ManagerShell>
+  );
+}
+
+export default function ManagerLayout({ children }) {
+  return (
+    <Suspense fallback={<ManagerShellSkeleton />}>
+      <ManagerGate>{children}</ManagerGate>
+    </Suspense>
   );
 }
