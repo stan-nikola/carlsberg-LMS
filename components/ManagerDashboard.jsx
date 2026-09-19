@@ -585,6 +585,14 @@ export function ManagerDashboard() {
   // "Запит уже пішов" — саме ref, а не стан: стан у залежностях ефекту
   // перезапускав би його сам на себе (див. коментар при ефекті нижче).
   const hardestQuestionsRequestedRef = useRef(false);
+  // "Детально по команді" — унизу сторінки, найважчий за DOM блок
+  // (по вузлу на кожного підлеглого, і не кожен керівник долистовує туди
+  // одразу): дані вже прийшли з тим самим /api/manager/overview (їх
+  // потребує й "Статус по людях" вгорі), а сам РЕНДЕР списку відкладено
+  // до наближення секції до вʼюпорта (аудит "легкість застосунку",
+  // 2026-09-19) — IntersectionObserver нижче.
+  const [teamTreeVisible, setTeamTreeVisible] = useState(false);
+  const teamTreeSectionRef = useRef(null);
   // Перетягування карток (як іконки на iPhone): режим редагування, id
   // картки в руці та її зсув відносно точки захоплення.
   const [storedOrder, setStoredOrder] = useState(readStoredOrder);
@@ -1231,6 +1239,32 @@ export function ManagerDashboard() {
       if (!settled) hardestQuestionsRequestedRef.current = false;
     };
   }, [wantsHardestQuestions]);
+
+  // Дані вже завантажені (той самий /api/manager/overview) — тут лише
+  // ВИДИМІСТЬ секції, щоб не монтувати важкий список заздалегідь.
+  // state.data у залежностях ОБОВ'ЯЗКОВИЙ, не лише teamTreeVisible:
+  // поки state.loading===true, компонент повертає скелетон РАНІШЕ цього
+  // <section ref=...> — ref ще null, ефект виходить без спостерігача.
+  // Без state.data у залежностях повторний рендер (коли дані нарешті
+  // прийшли й ref з'явився) нічого не змінює у [teamTreeVisible] (той
+  // самий false і до, і після) — ефект просто НЕ перезапускається, і
+  // список навіки лишається на скелетоні (знайдено живим тестом скролу,
+  // не лише збіркою, 2026-09-19).
+  useEffect(() => {
+    const el = teamTreeSectionRef.current;
+    if (!el || teamTreeVisible) return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) setTeamTreeVisible(true);
+      },
+      // 600px запасу знизу — монтується, поки керівник ще скролить до
+      // секції, а не в момент, коли вона вже впирається в нижній край
+      // екрана (інакше короткий "скелетон-спалах" видно щоразу).
+      { rootMargin: "600px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [teamTreeVisible, state.data]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1891,7 +1925,7 @@ export function ManagerDashboard() {
         ])}
       </section>
 
-      <section className="mgr-section">
+      <section className="mgr-section" ref={teamTreeSectionRef}>
         <div className="mgr-team-header">
           <h2>
             <PeopleIcon /> Детально по команді
@@ -1924,6 +1958,15 @@ export function ManagerDashboard() {
           <p className="admin-hint">У вас немає підлеглих.</p>
         ) : filteredFlat && filteredFlat.length === 0 ? (
           <p className="admin-hint">Нікого не знайдено.</p>
+        ) : !teamTreeVisible ? (
+          // Дані вже в пам'яті (той самий /api/manager/overview) — тут
+          // відкладено лише сам РЕНДЕР: по вузлу-компоненту на кожного
+          // підлеглого (з бейджами, MarqueeText, можливими дітьми) —
+          // найважчий за кількістю DOM-вузлів блок сторінки, а долистовує
+          // сюди не кожен керівник одразу (аудит "легкість застосунку",
+          // 2026-09-19). IntersectionObserver вище монтує список, щойно
+          // секція наближається до вʼюпорта.
+          <LinesSkeleton rows={6} />
         ) : (
           <ul className="mgr-team-tree">
             {visibleNodes.map((node) => (
