@@ -506,6 +506,12 @@ export function ExcelIcon() {
           документ, без упізнаваного Excel (запит користувача). */}
       <rect x="2.5" y="9" width="14" height="12.5" rx="1.6" fill="#1d6f42" />
       <path d="m5.6 12.1 8 6.3M13.6 12.1l-8 6.3" stroke="#fff" strokeWidth="2.1" strokeLinecap="round" />
+      {/* Стрілка завантаження — бейдж поверх кута аркуша: на мобільному
+          кнопка лишається без підпису "Завантажити звіт" (тільки іконка),
+          тож сама іконка мусить сказати "завантажити", а не лише "це
+          Excel" (запит користувача, 2026-09-19). */}
+      <circle cx="19" cy="19" r="4.6" fill="#1d6f42" stroke="#fff" strokeWidth="1.3" />
+      <path d="M19 16.8v4.2m-1.9-1.9 1.9 1.9 1.9-1.9" stroke="#fff" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

@@ -1411,8 +1411,8 @@ export function ManagerDashboard() {
         <div className="mgr-page-header-actions">
           {/* Прямий лінк на /api/manager/export — браузер сам ініціює
               завантаження по Content-Disposition:attachment, без fetch+blob. */}
-          <a className="admin-btn-link mgr-export-link" href="/api/manager/export" title="Завантажити звіт у форматі Excel">
-            <ExcelIcon /> Завантажити звіт
+          <a className="admin-btn-link mgr-export-link" href="/api/manager/export" title="Завантажити звіт у форматі Excel" aria-label="Завантажити звіт у форматі Excel">
+            <ExcelIcon /> <span className="mgr-export-label">Завантажити звіт</span>
           </a>
           {/* Навмисно ІНША іконка, ніж загальні налаштування застосунку
               (components/icons.jsx DashboardTuneIcon) — щоб "які графіки
@@ -1437,10 +1437,11 @@ export function ManagerDashboard() {
           )}
           <button
             type="button"
-            className="mgr-dashboard-settings-btn"
+            className={`mgr-dashboard-settings-btn${settingsOpen ? " is-active" : ""}`}
             onClick={() => setSettingsOpen(true)}
             aria-label="Налаштувати картки дашборда"
             title="Налаштувати картки дашборда"
+            aria-pressed={settingsOpen}
           >
             <DashboardTuneIcon />
           </button>
