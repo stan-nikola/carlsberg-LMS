@@ -3,6 +3,10 @@ import { getEmployeeEnrollments } from "@/lib/employeeProgress";
 import { groupLearning } from "@/lib/progress";
 import { CourseTile } from "@/components/CourseTile";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 // Портовано з .hub-screen[data-tab="learning"] в legacy index.html.
 // Захардкоджені картки-заглушки ("скоро", без реального курсу під ними)
 // прибрані — показуємо лише реально призначені курси (Enrollment),

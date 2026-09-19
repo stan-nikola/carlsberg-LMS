@@ -15,6 +15,10 @@ import { isManagerTier } from "@/lib/permissions";
 import { CoursePlayer } from "@/components/CoursePlayer";
 import { CourseReview } from "@/components/CourseReview";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 /** Скільки компонентів у модулі — з цього рахується орієнтовний час. У
  *  плеєрі модулі приходять із повним вмістом (screens[].components[]), а
  *  не з _count, як у хабі, тому рахуємо тут. */

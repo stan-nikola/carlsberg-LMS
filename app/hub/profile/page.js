@@ -4,6 +4,10 @@ import { ProfileCard } from "@/components/ProfileCard";
 import { ProfileDetailPanel } from "@/components/ProfileDetailPanel";
 import { NotificationSettings } from "@/components/NotificationSettings";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 // Портовано з .hub-screen[data-tab="profile"] в legacy index.html.
 // pdSvEmail ("Керівник (email)") тепер employee.manager.email замість
 // плаского profile.svEmail; pdRegisteredAt — employee.firstLoginAt
