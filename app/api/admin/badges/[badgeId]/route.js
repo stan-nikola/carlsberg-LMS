@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
+import { syncBadgeAwards } from "@/lib/rating";
 
 // PATCH /api/admin/badges/:badgeId — редагування вигляду типу ачивки
 // (title/description/icon). kind/ruleKey/code НЕ редагуються тут навіть
@@ -30,8 +31,13 @@ export async function PATCH(request, { params }) {
     data,
     select: { id: true, code: true, title: true, description: true, icon: true, kind: true, points: true, hiddenUntilEarned: true },
   });
-  await audit("badge.update", "badge", updated.id, data);
-  return NextResponse.json(updated);
+  // Ціна відзнаки — «жива», а не знімок на момент видачі (рішення
+  // користувача 2026-09-19): підняв «Кращій СВ» зі 100 до 1000 — усі, хто
+  // її має, одразу мають 1000. Інакше на екрані «Досягнення» плашка
+  // відзнаки показувала +1000, а в сумі балів лежало 100.
+  const rating = "points" in data ? await syncBadgeAwards(updated.id) : null;
+  await audit("badge.update", "badge", updated.id, { ...data, rating });
+  return NextResponse.json({ ...updated, rating });
 }
 
 // DELETE /api/admin/badges/:badgeId — лише manual-типи (auto пересоздасть

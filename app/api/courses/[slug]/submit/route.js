@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { recordCourseCompletion } from "@/lib/rating";
+import { syncEnrollmentEvents } from "@/lib/rating";
 
 /**
  * POST /api/courses/:slug/submit
@@ -136,7 +136,7 @@ export async function POST(request, { params }) {
   // Бали рейтингу — best-effort ПІСЛЯ транзакції: результат уже в базі,
   // збій нарахування не має його відкотити (lib/rating.ts).
   try {
-    await recordCourseCompletion(enrollment.id);
+    await syncEnrollmentEvents(enrollment.id);
   } catch (err) {
     console.warn("[rating] course completion:", err?.message);
   }

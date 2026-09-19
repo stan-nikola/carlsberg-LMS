@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   computeCourseEvents,
   computeBadgeEvent,
+  badgePoints,
   levelFor,
   breakdown,
   rankOf,
@@ -67,6 +68,16 @@ describe("computeBadgeEvent / levelFor / breakdown / rankOf", () => {
   it("відзнака з 0 балів — декоративна", () => {
     expect(computeBadgeEvent(1, { id: 5, points: 0 })).toBeNull();
     expect(computeBadgeEvent(1, { id: 5, points: 40 })).toMatchObject({ kind: "badge", points: 40, refId: 5 });
+  });
+
+  // manual_badge_default до 2026-09-19 висіло в /admin/rating із підписом
+  // «якщо в самій відзнаці бали не задано», але код його не читав узагалі.
+  it("ручна відзнака без своїх балів бере manual_badge_default; авто — ні", () => {
+    expect(badgePoints({ id: 5, points: 0, kind: "manual" }, DEFAULT_RULES)).toBe(50);
+    expect(badgePoints({ id: 5, points: 0, kind: "auto" }, DEFAULT_RULES)).toBe(0);
+    // Власні бали відзнаки завжди головніші за фолбек.
+    expect(badgePoints({ id: 5, points: 1000, kind: "manual" }, DEFAULT_RULES)).toBe(1000);
+    expect(computeBadgeEvent(1, { id: 5, points: 0, kind: "manual" }, DEFAULT_RULES)).toMatchObject({ points: 50 });
   });
 
   it("рівні за порогами і прогрес до наступного", () => {

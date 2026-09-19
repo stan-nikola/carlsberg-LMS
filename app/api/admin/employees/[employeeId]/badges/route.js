@@ -58,6 +58,8 @@ export async function POST(request, { params }) {
         id: true,
         awardedAt: true,
         note: true,
+        // kind — потрібен рейтингу: ручна відзнака без власних балів падає
+        // на правило manual_badge_default (lib/ratingLogic.ts badgePoints).
         badge: { select: { id: true, title: true, icon: true, description: true, kind: true, points: true } },
       },
     });

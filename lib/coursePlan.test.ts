@@ -379,14 +379,14 @@ describe("toPlanView — статус сертифіката (замінює б�
     expect(toPlanView(plan, false).certificateLabel).toBeNull();
   });
 
-  it("нічого ще не пройдено — ціль «за 100%»", () => {
+  it("нічого ще не пройдено — ціль «за складений курс»", () => {
     const plan = buildCoursePlan([mod({ id: 1 }), mod({ id: 2 })], [], NO_DATES, NOW);
     const view = toPlanView(plan);
-    expect(view.certificateLabel).toBe("За 100%");
+    expect(view.certificateLabel).toBe("За складений курс");
     expect(view.certificateEarned).toBe(false);
   });
 
-  it("пройдений модуль нижче 100% — ціль лишається досяжною через перепроходження", () => {
+  it("складено лише частину модулів — ще не отримано", () => {
     const plan = buildCoursePlan(
       [mod({ id: 1 }), mod({ id: 2 })],
       [done({ moduleId: 1, scorePercent: 90 })],
@@ -394,7 +394,7 @@ describe("toPlanView — статус сертифіката (замінює б�
       NOW
     );
     const view = toPlanView(plan);
-    expect(view.certificateLabel).toBe("За 100%");
+    expect(view.certificateLabel).toBe("За складений курс");
     expect(view.certificateEarned).toBe(false);
   });
 
@@ -410,7 +410,10 @@ describe("toPlanView — статус сертифіката (замінює б�
     expect(view.certificateEarned).toBe(true);
   });
 
-  it("усе складено, але не на 100% — ще не отримано", () => {
+  // Один критерій сертифіката на весь застосунок (2026-09-19): складений
+  // курс, а не «кожен модуль рівно на 100%» — саме тут раніше розходились
+  // план курсу і список «Досягнення».
+  it("усе складено, хоч і не на 100% — отримано", () => {
     const plan = buildCoursePlan(
       [mod({ id: 1 }), mod({ id: 2 })],
       [done({ moduleId: 1, scorePercent: 100 }), done({ moduleId: 2, scorePercent: 90 })],
@@ -418,7 +421,19 @@ describe("toPlanView — статус сертифіката (замінює б�
       NOW
     );
     const view = toPlanView(plan);
-    expect(view.certificateLabel).toBe("За 100%");
+    expect(view.certificateLabel).toBe("Отримано");
+    expect(view.certificateEarned).toBe(true);
+  });
+
+  it("провалений модуль — курс ще не складено, сертифіката немає", () => {
+    const plan = buildCoursePlan(
+      [mod({ id: 1 }), mod({ id: 2 })],
+      [done({ moduleId: 1, scorePercent: 100 }), done({ moduleId: 2, scorePercent: 40, passed: false })],
+      NO_DATES,
+      NOW
+    );
+    const view = toPlanView(plan);
+    expect(view.certificateLabel).toBe("За складений курс");
     expect(view.certificateEarned).toBe(false);
   });
 });

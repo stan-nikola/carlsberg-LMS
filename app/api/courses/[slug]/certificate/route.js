@@ -38,7 +38,7 @@ function formatDateUk(date) {
   return new Date(date).toLocaleDateString("uk-UA", { day: "2-digit", month: "long", year: "numeric" });
 }
 
-function buildCertificatePdf({ employeeName, courseTitle, completedAt }) {
+function buildCertificatePdf({ employeeName, courseTitle, completedAt, scorePercent }) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0 });
     const chunks = [];
@@ -114,11 +114,15 @@ function buildCertificatePdf({ employeeName, courseTitle, completedAt }) {
       .fillColor(BRAND_GREEN)
       .text(courseTitle, 60, 293, { align: "center", width: width - 120 });
 
+    // Реальний бал, а не константа "100%": з 2026-09-19 сертифікат
+    // видається за СКЛАДЕНИЙ курс (прохідний бал), тож надрукований
+    // результат — те, що робить нижчу планку чесною. Ідеальний результат
+    // лишається окремим формулюванням, він того вартий.
     doc
       .font("bold")
       .fontSize(16)
       .fillColor(BRAND_GOLD)
-      .text("зі 100% результатом", 0, 333, { align: "center" });
+      .text(scorePercent === 100 ? "зі 100% результатом" : `з результатом ${scorePercent}%`, 0, 333, { align: "center" });
 
     doc
       .font("body")
@@ -130,11 +134,13 @@ function buildCertificatePdf({ employeeName, courseTitle, completedAt }) {
   });
 }
 
-// GET /api/courses/:slug/certificate — PDF-сертифікат про 100% проходження.
-// Навмисно рівно 100%, не "просто складено" (Enrollment.passed — кожен
-// модуль ≥ Course.passThreshold, per-курс налаштовуваний поріг): сертифікат
-// — окрема, вища планка, щоб мотивувати вчити матеріал по-справжньому, а
-// не лише "пройти поріг" (те саме прохання користувача — заохотити старатись).
+// GET /api/courses/:slug/certificate — PDF-сертифікат за СКЛАДЕНИЙ курс
+// (Enrollment.passed — кожен модуль ≥ Course.passThreshold). До 2026-09-19
+// поріг був рівно 100%, і сертифікатів у людини практично не з'являлось
+// (скарга користувача: «Сертифікати должно быть больше») — рішення
+// користувача: планка = складений курс, а реальний бал друкується в самому
+// PDF, тож ідеальний результат усе одно видно. Той самий критерій, що в
+// lib/achievements.ts і в статусі сертифіката в плані курсу.
 export async function GET(request, { params }) {
   const { slug } = await params;
   const employee = await getCurrentUser();
@@ -166,8 +172,8 @@ export async function GET(request, { params }) {
   const enrollment = await prisma.enrollment.findUnique({
     where: { employeeId_courseId: { employeeId: employee.id, courseId: course.id } },
   });
-  if (!enrollment || enrollment.status !== "completed" || enrollment.scorePercent !== 100) {
-    return new Response(JSON.stringify({ error: "Сертифікат доступний лише при 100% проходженні курсу" }), {
+  if (!enrollment || enrollment.status !== "completed" || !enrollment.passed) {
+    return new Response(JSON.stringify({ error: "Сертифікат доступний лише за складений курс" }), {
       status: 403,
     });
   }
@@ -176,6 +182,7 @@ export async function GET(request, { params }) {
     employeeName,
     courseTitle: course.title,
     completedAt: enrollment.completedAt,
+    scorePercent: enrollment.scorePercent,
   });
 
   return new Response(buffer, {

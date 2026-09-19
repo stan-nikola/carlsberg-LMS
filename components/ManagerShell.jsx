@@ -23,10 +23,12 @@ const NAV_ITEMS = [
  * десктопний формат кабінету керівника (а не телефонна рамка):
  * - ≥900px (той самий брейкпоінт, що вже використовує .stage у
  *   globals.css для hub/desktop) — постійний сайдбар зліва.
- * - <900px — верхній appbar з бургер-кнопкою праворуч, що відкриває
- *   nav-шторку (той самий .sheet-overlay/.sheet патерн, що й
- *   SettingsSheet — тут той самий, лише зі списком розділів замість
- *   налаштувань).
+ * - <900px — той самий НИЖНІЙ таббар, що бачать підлеглі в /hub
+ *   (.tabbar/.tab-btn з hub.css, та сама розмітка й ті самі іконки).
+ *   Раніше тут був бургер із nav-шторкою: керівник із телефона діставав
+ *   розділи в два тапи, тоді як його ж підлеглі — в один (скарга
+ *   користувача, 2026-09-19). Вихід із акаунту переїхав у сам appbar —
+ *   він був єдиним, крім навігації, що жило в тій шторці.
  * Обидві розмітки рендеряться завжди, перемикання — чистим CSS
  * (@media у app/styles/manager.css), без JS-визначення ширини: той
  * самий підхід, що вже використовує .stage (SSR-безпечно, без
@@ -39,10 +41,9 @@ function NavPending() {
   return <span className={`nav-pending${pending ? " is-pending" : ""}`} aria-hidden="true" />;
 }
 
-export function ManagerShell({ employee, hasNewCourses = false, children }) {
+export function ManagerShell({ hasNewCourses = false, children }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [navOpen, setNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
     try {
@@ -75,9 +76,8 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
   // напряму), щоб згодом легко додати ще один сигнал (напр. зміни в
   // "Команда") без переписування розмітки.
   const navBadges = { "/manager/courses": hasNewCourses };
-  const hasAnyBadge = Object.values(navBadges).some(Boolean);
 
-  const navLinks = (onNavigate) => (
+  const navLinks = (
     <nav className="mgr-nav">
       {NAV_ITEMS.map(({ href, label, Icon }) => {
         const isActive = pathname === href;
@@ -86,7 +86,6 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
             key={href}
             href={href}
             className={`mgr-nav-link${isActive ? " active" : ""}`}
-            onClick={onNavigate}
             aria-current={isActive ? "page" : undefined}
             title={label}
           >
@@ -118,7 +117,7 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
         <div className="mgr-nav-bell">
           <NotificationBell href="/manager/notifications" />
         </div>
-        {navLinks()}
+        {navLinks}
         <div className="mgr-sidebar-footer">
           <button type="button" className="iconbtn" title="Вийти" aria-label="Вийти" onClick={handleLogout}>
             <LogoutIcon />
@@ -136,45 +135,41 @@ export function ManagerShell({ employee, hasNewCourses = false, children }) {
         </button>
       </aside>
 
-      {/* ---- Мобільний (<900px): верхній appbar + бургер + шторка ---- */}
+      {/* ---- Мобільний (<900px): верхній appbar ---- */}
       <header className="mgr-appbar">
         <PlatformBrand size="sm" />
         <NotificationBell href="/manager/notifications" />
-        <button
-          type="button"
-          className="mgr-burger-btn"
-          aria-label={hasAnyBadge ? "Меню розділів (є нові)" : "Меню розділів"}
-          aria-expanded={navOpen}
-          onClick={() => setNavOpen(true)}
-        >
-          <span />
-          <span />
-          <span />
-          {hasAnyBadge && <span className="mgr-nav-dot mgr-burger-dot" aria-hidden="true" />}
+        <button type="button" className="iconbtn" aria-label="Вийти" title="Вийти" onClick={handleLogout}>
+          <LogoutIcon />
         </button>
       </header>
 
-      <div
-        className={`sheet-overlay mgr-nav-sheet-overlay${navOpen ? " open" : ""}`}
-        onClick={(event) => {
-          if (event.target === event.currentTarget) setNavOpen(false);
-        }}
-      >
-        <div className="sheet mgr-nav-sheet">
-          <div className="sheet-handle" />
-          <div className="mgr-nav-sheet-user">
-            <span className="manager-topbar-name">{employee.name}</span>
-            <span className="admin-hint">{employee.position?.name || "Керівник"}</span>
-          </div>
-          {navLinks(() => setNavOpen(false))}
-          <button type="button" className="logout-row" onClick={handleLogout}>
-            <LogoutIcon />
-            <span>Вийти з акаунту</span>
-          </button>
-        </div>
-      </div>
-
       <main className="mgr-main">{children}</main>
+
+      {/* ---- Мобільний (<900px): нижній таббар, той самий, що в /hub ---- */}
+      <nav className="tabbar mgr-tabbar" role="tablist">
+        {NAV_ITEMS.map(({ href, label, Icon }) => {
+          const isActive = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`tab-btn${isActive ? " active" : ""}`}
+              role="tab"
+              aria-label={navBadges[href] ? `${label} (є нові)` : label}
+              aria-selected={isActive}
+              aria-current={isActive ? "page" : undefined}
+              title={label}
+            >
+              <span className="tab-btn-indicator">
+                <Icon filled={isActive} />
+                {navBadges[href] && <span className="mgr-nav-dot" aria-hidden="true" />}
+              </span>
+              <NavPending />
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }
