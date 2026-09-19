@@ -6,7 +6,9 @@ import { getEmployeeBadgesView, getEmployeeCertificates } from "@/lib/achievemen
 // ВРЕМЕННЫЙ диагностический роут (аудит быстродействия, 2026-09-19) —
 // замеряет каждый из 4 параллельных вызовов /manager/achievements по
 // отдельности, чтобы понять, какой именно не берётся из unstable_cache
-// при повторных запросах. Удалить после диагностики.
+// при повторных запросах. Удалить после диагностики. (re-deploy retry —
+// первый деплой этого роута почему-то не зарегистрировался на Vercel,
+// хотя локальный `next build` собирал его корректно)
 export async function GET() {
   const employee = await getCurrentUser();
   if (!employee) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
