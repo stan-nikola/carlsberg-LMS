@@ -77,6 +77,25 @@ export const metadata = {
     // Мета читається при встановленні — після зміни PWA треба перевстановити.
     statusBarStyle: "default",
     title: PLATFORM_SHORT_NAME,
+    // iOS ігнорує background_color з app/manifest.js для сплеша при
+    // холодному запуску PWA (на відміну від Android) — без явних
+    // apple-touch-startup-image показує чорний екран, поки не домалюється
+    // перший реальний контент (аудит "4 секунди чорний екран", 2026-09-19).
+    // Один PNG на кожен поширений розмір iPhone (public/splash/, той самий
+    // фон #ffffff, що й background_color у манифесті, трилисток по центру)
+    // — iOS обирає точний збіг за media, точної відповідності нема —
+    // фолбек усе одно чорний, але для більшості реальних пристроїв тепер
+    // брендований сплеш замість пустого екрана.
+    startupImage: [
+      { url: "/splash/iphone12-13-14.png", media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" },
+      { url: "/splash/iphone14pro-15-16.png", media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" },
+      { url: "/splash/iphone12-13-14promax.png", media: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" },
+      { url: "/splash/iphone14-15-16promax.png", media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" },
+      { url: "/splash/iphonex-11pro-12mini.png", media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" },
+      { url: "/splash/iphonexr-11.png", media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" },
+      { url: "/splash/iphonexsmax-11promax.png", media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" },
+      { url: "/splash/iphonese-6-7-8.png", media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" },
+    ],
   },
   // Іконки — файлові конвенції Next: app/favicon.ico, app/icon.png,
   // app/apple-icon.png (трилисник у digital-black, 2026-09-15); окремий
