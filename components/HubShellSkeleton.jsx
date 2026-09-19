@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GearIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
+import { GearIcon, BellIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
 import { HubHomeSkeleton } from "@/components/HubHomeSkeleton";
 
@@ -26,6 +26,15 @@ const TABS = [
  * скелетона має збігатись із реальною (вертикальна колонка карток, не
  * сітка) — інакше видимий стрибок при заміні (скарга користувача,
  * 2026-09-19).
+ *
+ * Вкладка "Головна" одразу активна (заливка --cb-primary просто на
+ * .tab-btn-indicator, а не через окремий .tab-pill, що зазвичай їде
+ * JS-виміром getBoundingClientRect у HubShell.jsx) — статичний скелетон
+ * рухатись нікуди не буде, а домовленість "перше відкриття встановленого
+ * PWA завжди на /hub" відома заздалегідь (той самий start_url), тож
+ * зображати нейтральний/невідомий стан немає сенсу: користувач бачив, як
+ * таббар "вмикає колір" одразу після заміни скелетона на справжній shell
+ * (скарга 2026-09-19) — тепер обидва стани виглядають однаково.
  */
 export function HubShellSkeleton() {
   return (
@@ -34,6 +43,16 @@ export function HubShellSkeleton() {
         <div className="course-card">
           <div className="appbar">
             <PlatformBrand size="sm" />
+            {/* Дзвіночок/шестерня — статичні (без лічильника непрочитаних,
+                без onClick): NotificationBell — клієнтський компонент із
+                власним polling, тут потрібна лише його форма, щоб apbar не
+                "стрибав" при заміні на справжній shell. */}
+            <span className="iconbtn ntf-bell" aria-hidden="true">
+              <BellIcon />
+            </span>
+            <span className="iconbtn" aria-hidden="true">
+              <GearIcon />
+            </span>
           </div>
 
           <div className="hub-viewport">
@@ -41,10 +60,10 @@ export function HubShellSkeleton() {
           </div>
 
           <nav className="tabbar" role="tablist" aria-hidden="true">
-            {TABS.map(({ href, label, Icon }) => (
-              <Link key={href} href={href} className="tab-btn" role="tab" aria-label={label} tabIndex={-1}>
-                <span className="tab-btn-indicator">
-                  <Icon />
+            {TABS.map(({ href, label, Icon }, i) => (
+              <Link key={href} href={href} className={`tab-btn${i === 0 ? " active" : ""}`} role="tab" aria-label={label} tabIndex={-1}>
+                <span className="tab-btn-indicator" style={i === 0 ? { background: "var(--cb-primary)" } : undefined}>
+                  <Icon filled={i === 0} />
                 </span>
               </Link>
             ))}
