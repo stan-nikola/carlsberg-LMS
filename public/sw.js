@@ -3,9 +3,18 @@
 //     WebAPK при «Додати на головний екран», а не ярлик);
 //  2. Web Push: приймає повідомлення від push-сервісу й показує системне
 //     сповіщення; клік відкриває/фокусує застосунок на потрібному екрані;
-//  3. офлайн: network-first кеш усіх same-origin GET (сторінки, RSC,
-//     чанки, next/image) — онлайн поведінка не змінюється (завжди свіже,
-//     HMR на dev не страждає), без мережі віддається останнє бачене.
+//  3. офлайн: ДВІ стратегії кешу для same-origin GET, залежно від типу
+//     (аудит швидкодії, 2026-09-19):
+//     - сторінки/RSC-пейлоади (переходи між екранами) — і далі network-first,
+//       онлайн поведінка не міняється (завжди свіже, HMR на dev не страждає);
+//     - /_next/static/* (JS/CSS/шрифти — хешовані у назві файла, тому
+//       ІМУТАБЕЛЬНІ: зміна вмісту завжди дає нову назву) і /_next/image
+//       (фото курсів) — stale-while-revalidate: віддаємо закешоване
+//       МИТТЄВО, без очікування мережі, і оновлюємо кеш у фоні. Для
+//       іменованого хешем файла "застаріла" відповідь неможлива за
+//       визначенням; для фото — той самий принцип, що вже був у офлайн-
+//       фолбеку нижче ("будь-який закешований варіант того ж url= годиться").
+//     Без мережі — останнє бачене (обидві стратегії).
 //     Відкритий курс плеєр досилає повідомленням {type:"precache", urls}
 //     (сторінка + фото всіх екранів), щоб ТП у полі без зв'язку міг
 //     пройти курс до кінця; відповіді копить lib/offlineOutbox.js.
@@ -30,11 +39,18 @@ self.addEventListener("activate", (event) =>
   )
 );
 
+// /_next/static/... — хешовані у назві файли (JS/CSS/шрифти), завжди з
+// вкладеним шляхом. /_next/image — рівно цей шлях (без "/" після, сам
+// url фото йде в query-рядку: /_next/image?url=...&w=...&q=...) — окрема
+// перевірка, не той самий regex.
+const STATIC_ASSET = /^\/_next\/static\//;
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
-  event.respondWith(networkFirst(req, url));
+  const isStatic = STATIC_ASSET.test(url.pathname) || url.pathname === "/_next/image";
+  event.respondWith(isStatic ? staleWhileRevalidate(event, req, url) : networkFirst(req, url));
 });
 
 async function networkFirst(req, url) {
@@ -63,6 +79,37 @@ async function networkFirst(req, url) {
     }
     throw err;
   }
+}
+
+async function staleWhileRevalidate(event, req, url) {
+  const cache = await caches.open(CACHE);
+  const hit = await cache.match(req, { ignoreVary: true });
+  // Оновлення в фоні — навіть коли є кеш-хіт, наступний візит матиме
+  // свіжіший варіант; помилку мережі тут навмисно ковтаємо (як
+  // networkFirst() ловить err у своєму catch), бо відповідь уже пішла
+  // з кешу й чекати нема на що. event.waitUntil() — інакше браузер може
+  // "приспати" SW одразу після return hit нижче, і фоновий fetch/cache.put
+  // ніколи не довиконається (respondWith() сам по собі життя SW не продовжує).
+  const revalidate = fetch(req)
+    .then((res) => {
+      if (res.ok) cache.put(req, res.clone());
+      return res;
+    })
+    .catch(() => null);
+  event.waitUntil(revalidate);
+  if (hit) return hit;
+  const res = await revalidate;
+  if (res) return res;
+  // next/image: точної відповідності нема (інша ширина/якість того ж
+  // фото) — той самий принцип, що офлайн-фолбек у networkFirst().
+  if (url.pathname === "/_next/image") {
+    const want = url.searchParams.get("url");
+    for (const key of await cache.keys()) {
+      const k = new URL(key.url);
+      if (k.pathname === "/_next/image" && k.searchParams.get("url") === want) return cache.match(key, { ignoreVary: true });
+    }
+  }
+  throw new Error(`staleWhileRevalidate: no cache and network failed for ${url.pathname}`);
 }
 
 // Плеєр просить закешувати курс наперед: сторінку і фото всіх екранів.
