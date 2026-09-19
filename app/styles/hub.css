@@ -14,6 +14,24 @@
   overflow-y: auto;
   position: relative;
 }
+/* "Потягнути, щоб оновити" (components/usePullToRefresh.js, 2026-09-19) —
+   перший дочірній елемент .hub-viewport, тому росте height штовхає
+   контент вниз без position:absolute/трансформацій. transition лише на
+   opacity: height анімує сам React-стан кадр-у-кадр під час тягнення
+   (власний "гумовий" рух пальця), а не CSS-перехід поверх нього — двічі
+   анімувати ту саму властивість дало б лаг за пальцем. */
+.ptr-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--ink-soft);
+  transition: opacity var(--dur-fast) var(--ease-premium);
+}
+.ptr-indicator .admin-spinner {
+  width: 20px;
+  height: 20px;
+}
 .hub-screen {
   /* Бокові поля -30% від початкових 18px (~12.6, округлено до 13px). */
   padding: 16px 13px 18px;

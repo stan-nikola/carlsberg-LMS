@@ -3,10 +3,6 @@ import { getEmployeeBadgesView, getEmployeeCertificates } from "@/lib/achievemen
 import { getEmployeeRating, getLeaderboard } from "@/lib/rating";
 import { AchievementsPanel } from "@/components/AchievementsPanel";
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 // «Досягнення» керівника — та сама панель, що й app/hub/achievements/page.js,
 // але лідерборд — уся гілка підпорядкування (усі посади регіону), а не
 // лише колеги по посаді: керівнику цікаво, хто в команді попереду.

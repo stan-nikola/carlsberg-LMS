@@ -9,7 +9,12 @@ import { getEmployeeRating, getTeamRating } from "@/lib/rating";
 // round-trip: дерево команди, легкий підсумок по кожній людині (без
 // історії спроб — та тягнеться окремо, лише при розкритті конкретної
 // картки, див. /api/manager/employees/[id]), агрегати для KPI/графіків, і
-// власні enrollments керівника ("Мої курси").
+// власні enrollments керівника ("Мої курси"). Дерево лишається тут (не
+// окремим лінивим запитом) — "Статус по людях" (peopleStatus, дефолтна
+// картка для SV/ASM) читає його вже вгорі сторінки, тож відкладати
+// завантаження до скролу до "Детально по команді" не можна (аудит
+// "легкість застосунку", 2026-09-19) — там відкладено лише сам РЕНДЕР
+// важкого списку, дивись teamTreeVisible у ManagerDashboard.jsx.
 export async function GET() {
   const employee = await getCurrentUser();
   if (!employee) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

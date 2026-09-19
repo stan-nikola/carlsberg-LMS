@@ -3,10 +3,6 @@ import { getEmployeeBadgesView, getEmployeeCertificates } from "@/lib/achievemen
 import { getEmployeeRating, getLeaderboard } from "@/lib/rating";
 import { AchievementsPanel } from "@/components/AchievementsPanel";
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 // «Досягнення» співробітника: рейтинг + відзнаки + сертифікати + лідери
 // когорти (та сама посада). Сам вміст — components/AchievementsPanel.jsx,
 // той самий блок рендерить і /manager/achievements (з когортою «команда»).
