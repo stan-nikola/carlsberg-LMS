@@ -87,13 +87,31 @@ export function computeCourseEvents({
   ];
 }
 
-/** Подія за відзнаку. badge.points 0 — відзнака декоративна, події нема. */
+export type BadgeForRating = { id: number; points?: number | null; kind?: string | null };
+
+/**
+ * Скільки балів РЕАЛЬНО коштує відзнака. Власні бали відзнаки — головні;
+ * ручна відзнака без своїх балів падає на правило manual_badge_default
+ * (до 2026-09-19 це правило висіло в /admin/rating із підписом «якщо в
+ * самій відзнаці бали не задано», але код його не читав узагалі —
+ * налаштування просто брехало). Авто-відзнаки фолбеку не мають: «Перший
+ * вхід» і «Курс складено» навмисно по 0 (вхід не заслуга, а курс уже дає
+ * бали сам), і фолбек тихо зробив би їх платними.
+ */
+export function badgePoints(badge: BadgeForRating, rules: RatingRuleLike[] = []): number {
+  if (badge.points && badge.points > 0) return badge.points;
+  return badge.kind === "manual" ? rulePoints(rules, "manual_badge_default") : 0;
+}
+
+/** Подія за відзнаку. 0 балів — відзнака декоративна, події нема. */
 export function computeBadgeEvent(
   employeeId: number,
-  badge: { id: number; points?: number | null }
+  badge: BadgeForRating,
+  rules: RatingRuleLike[] = []
 ): RatingEventInput | null {
-  if (!badge.points || badge.points <= 0) return null;
-  return { employeeId, kind: "badge", points: badge.points, refType: "badge", refId: badge.id };
+  const points = badgePoints(badge, rules);
+  if (points <= 0) return null;
+  return { employeeId, kind: "badge", points, refType: "badge", refId: badge.id };
 }
 
 /** Рівень за сумою балів + скільки до наступного. */

@@ -6,7 +6,7 @@ import { getLocalDisplayName } from "@/lib/localName";
 import { downloadCertificate } from "@/lib/downloadCertificate";
 
 /**
- * Сертифікати на екрані «Досягнення» — кожен курс на 100% із прямим
+ * Сертифікати на екрані «Досягнення» — кожен складений курс із прямим
  * завантаженням PDF (той самий downloadCertificate, що в CourseTile/
  * CourseReview; ім'я для співробітника без email — з localStorage).
  */
@@ -36,7 +36,7 @@ export function CertificateList({ certificates, hasEmail }) {
   }
 
   if (certificates.length === 0) {
-    return <p className="hub-empty-note">Сертифікат видається за курс, складений на 100%. Поки що таких немає.</p>;
+    return <p className="hub-empty-note">Сертифікат видається за складений курс. Поки що таких немає.</p>;
   }
 
   return (
@@ -48,7 +48,7 @@ export function CertificateList({ certificates, hasEmail }) {
           </span>
           <span className="cert-body">
             <b>{c.title}</b>
-            <span>{new Date(c.completedAt).toLocaleDateString("uk-UA")} · 100%</span>
+            <span>{new Date(c.completedAt).toLocaleDateString("uk-UA")}{c.scorePercent != null && ` · ${c.scorePercent}%`}</span>
           </span>
           <button type="button" className="admin-btn" onClick={() => download(c.slug)} disabled={busy === c.slug} aria-label={`Завантажити сертифікат: ${c.title}`}>
             {busy === c.slug ? <SpinnerIcon /> : "PDF"}

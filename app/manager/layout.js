@@ -36,7 +36,7 @@ export default async function ManagerLayout({ children }) {
   const hasNewCourses = myEnrollments.some((e) => isRecentlyAssigned(e));
 
   return (
-    <ManagerShell employee={employee} hasNewCourses={hasNewCourses}>
+    <ManagerShell hasNewCourses={hasNewCourses}>
       {children}
     </ManagerShell>
   );
