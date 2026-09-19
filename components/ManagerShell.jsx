@@ -3,10 +3,11 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, GearIcon, ChevronIcon } from "@/components/icons";
+import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, GearIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
 import { NotificationBell } from "@/components/NotificationBell";
 import { SettingsSheet } from "@/components/SettingsSheet";
+import { usePullToRefresh } from "@/components/usePullToRefresh";
 
 // Згорнутий сайдбар — особиста зручність, localStorage (як в AdminShell).
 const SIDEBAR_COLLAPSED_KEY = "manager-sidebar-collapsed";
@@ -51,6 +52,9 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   const tabbarRef = useRef(null);
   const pillRef = useRef(null);
   const tabRefs = useRef(new Map());
+  // Без ref — window-режим (/manager скролляться самим вікном, не
+  // внутрішньою карткою, як /hub, див. usePullToRefresh.js).
+  const { pull, threshold } = usePullToRefresh();
 
   useLayoutEffect(() => {
     try {
@@ -180,7 +184,12 @@ export function ManagerShell({ hasNewCourses = false, children }) {
         </button>
       </header>
 
-      <main className="mgr-main">{children}</main>
+      <main className="mgr-main">
+        <div className="ptr-indicator" style={{ height: pull, opacity: Math.min(1, pull / threshold) }} aria-hidden="true">
+          <SpinnerIcon />
+        </div>
+        {children}
+      </main>
 
       {/* ---- Мобільний (<900px): нижній таббар, той самий, що в /hub ---- */}
       <nav className="tabbar mgr-tabbar" role="tablist" ref={tabbarRef}>

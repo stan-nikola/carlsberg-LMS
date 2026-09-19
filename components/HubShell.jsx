@@ -4,9 +4,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SettingsSheet } from "@/components/SettingsSheet";
-import { GearIcon, LockIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
+import { GearIcon, LockIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, SpinnerIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
 import { NotificationBell } from "@/components/NotificationBell";
+import { usePullToRefresh } from "@/components/usePullToRefresh";
 
 const TABS = [
   { href: "/hub", label: "Головна", Icon: HomeIcon },
@@ -36,6 +37,7 @@ export function HubShell({ children, isAdmin = false }) {
   const tabbarRef = useRef(null);
   const pillRef = useRef(null);
   const tabRefs = useRef(new Map());
+  const { pull, threshold } = usePullToRefresh(viewportRef);
 
   // Капсула під активною вкладкою їде й змінює розмір замість того, щоб
   // кожна вкладка мала власну заливку, що просто з'являється/зникає на
@@ -99,7 +101,12 @@ export function HubShell({ children, isAdmin = false }) {
             </button>
           </div>
 
-          <div className="hub-viewport" ref={viewportRef}>{children}</div>
+          <div className="hub-viewport" ref={viewportRef}>
+            <div className="ptr-indicator" style={{ height: pull, opacity: Math.min(1, pull / threshold) }} aria-hidden="true">
+              <SpinnerIcon />
+            </div>
+            {children}
+          </div>
 
           <nav className="tabbar" role="tablist" ref={tabbarRef}>
             <span className="tab-pill" ref={pillRef} aria-hidden="true" />
