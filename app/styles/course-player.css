@@ -714,16 +714,26 @@
   text-align: center;
   padding-top: 20px;
 }
+/* Колір — той самий "світлофор без червоного", що й .cp-plan-badge на
+   дорозі плану курсу (CoursePlan.tsx): складено — зелений, ще ні —
+   бурштиновий (не червоний/золотий градієнт, як тут стояло раніше —
+   однаковий "святковий" градієнт малювався і на провалі теж, що
+   плутало; запит користувача, 2026-09-19: "кружок як у снейк-рельсі"). */
 .trophy {
   width: 80px;
   height: 80px;
   border-radius: 50%;
   margin-bottom: 15px;
-  background: radial-gradient(circle at 32% 28%, var(--gold), var(--green-700) 78%);
+  background: var(--cb-alert);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 16px 30px -14px rgba(185, 146, 75, 0.55);
+  box-shadow: 0 16px 30px -14px color-mix(in srgb, var(--cb-alert) 55%, transparent);
+  color: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
+}
+.trophy.win {
+  background: var(--cb-success);
+  box-shadow: 0 16px 30px -14px color-mix(in srgb, var(--cb-success) 55%, transparent);
   color: var(--cb-white);
 }
 .trophy svg {

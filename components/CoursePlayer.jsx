@@ -5,7 +5,8 @@ import { enqueue } from "@/lib/offlineOutbox";
 import { useRouter } from "next/navigation";
 import Image, { getImageProps } from "next/image";
 import { renderRichText } from "@/lib/richText";
-import { ChevronIcon, CheckIcon, XIcon, CertificateIcon, SpinnerIcon, QuestionIcon } from "@/components/icons";
+import { ChevronIcon, CertificateIcon, SpinnerIcon, QuestionIcon } from "@/components/icons";
+import { MorphRevealIcon } from "@/components/MorphRevealIcon";
 import { CoursePlanPanel } from "@/components/CoursePlan";
 import { OrderingScreen, MatchingScreen } from "@/components/QuestionScreens";
 import {
@@ -447,7 +448,9 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
     <div className="cp-screen cp-complete">
       {/* Складений модуль — теж свято, як і фінал курсу (користувач, 2026-09-15). */}
       {passed && <ConfettiBurst />}
-      <div className={`trophy ${passed ? "win" : ""}`}>{passed ? <CheckIcon /> : <XIcon />}</div>
+      <div className={`trophy ${passed ? "win" : ""}`}>
+        <MorphRevealIcon shape={passed ? "check" : "x"} label={passed ? "Складено" : "Не складено"} size={36} strokeWidth={2.4} />
+      </div>
       <h2 className="result-title">{passed ? `Модуль «${moduleTitle}» складено!` : `Модуль «${moduleTitle}» не складено`}</h2>
       <p className="lead">
         {passed
@@ -549,7 +552,7 @@ function CompleteScreen({ result, onRetake, course, hasEmail, previewMode }) {
       {/* Свято лише за бездоганне проходження — тоді воно щось означає. */}
       {isPerfect && <ConfettiBurst />}
       <div className={`trophy ${passed ? "win" : ""}`}>
-        {passed ? <CheckIcon /> : <XIcon />}
+        <MorphRevealIcon shape={passed ? "check" : "x"} label={passed ? "Складено" : "Не складено"} size={36} strokeWidth={2.4} />
       </div>
       <h2 className="result-title">
         {isPerfect ? "Бездоганно! Курс пройдено на 100% 🎉" : passed ? "Вітаємо! Тест складено успішно 🎉" : "Тест поки не пройдено"}
