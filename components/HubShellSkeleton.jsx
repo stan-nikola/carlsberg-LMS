@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { GearIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
-import { PageSkeleton } from "@/components/Skeleton";
+import { HubHomeSkeleton } from "@/components/HubHomeSkeleton";
 
 const TABS = [
   { href: "/hub", label: "Головна", Icon: HomeIcon },
@@ -14,13 +14,18 @@ const TABS = [
  * Suspense-фолбек у app/hub/layout.js на час, поки резолвиться
  * getCurrentUser() (аудит "чорний екран на холодному старті", 2026-09-19):
  * без цього layout.js сам був async-компонентом, що чекав сесію/БД ДО
- * повернення будь-якого JSX — ні appbar, ні tabbar, ні навіть PageSkeleton
+ * повернення будь-якого JSX — ні appbar, ні tabbar, ні навіть скелетон
  * не встигали домалюватись, і на холодному запуску PWA (Vercel-функція +
  * Neon щойно прокинулись) екран лишався порожнім на кілька секунд.
  * Та сама розмітка/класи, що й у HubShell.jsx — щоб заміна на справжній
  * shell не викликала стрибка макета. isAdmin/активна вкладка ще невідомі
  * (сесія не резолвнута) — іконка адмінки прихована, вкладки без active/
- * капсули-індикатора.
+ * капсули-індикатора. Контент — HubHomeSkeleton (не універсальний
+ * PageSkeleton): manifest start_url — саме /hub, тож це ЄДИНА сторінка,
+ * яку реально видно на холодному запуску встановленого PWA, і форма
+ * скелетона має збігатись із реальною (вертикальна колонка карток, не
+ * сітка) — інакше видимий стрибок при заміні (скарга користувача,
+ * 2026-09-19).
  */
 export function HubShellSkeleton() {
   return (
@@ -32,7 +37,7 @@ export function HubShellSkeleton() {
           </div>
 
           <div className="hub-viewport">
-            <PageSkeleton />
+            <HubHomeSkeleton />
           </div>
 
           <nav className="tabbar" role="tablist" aria-hidden="true">
