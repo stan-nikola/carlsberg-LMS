@@ -76,7 +76,7 @@ export type CertificateView = { slug: string; title: string; completedAt: Date; 
  * «Сертифікати должно быть больше»). Бал друкується в самому PDF, тож
  * нижчий поріг сертифікат не знецінює.
  */
-export async function getEmployeeCertificates(employeeId: number): Promise<CertificateView[]> {
+async function computeEmployeeCertificates(employeeId: number): Promise<CertificateView[]> {
   const rows = await prisma.enrollment.findMany({
     where: { employeeId, status: "completed", passed: true, course: { certificateEnabled: true } },
     orderBy: { completedAt: "desc" },
@@ -88,4 +88,17 @@ export async function getEmployeeCertificates(employeeId: number): Promise<Certi
     completedAt: r.completedAt as Date,
     scorePercent: r.scorePercent,
   }));
+}
+
+// Один запит, але завжди в тому самому Promise.all, що й cachedEmployeeBadgesView/
+// cachedLeaderboard на "Досягнення" (аудит швидкодії, 2026-09-19) — той
+// самий revalidate:60, щоб не лишатись єдиним некешованим викликом у
+// парі й не тягнути час найповільнішого разом з рештою.
+const cachedEmployeeCertificates = unstable_cache(computeEmployeeCertificates, ["employee-certificates"], {
+  revalidate: 60,
+  tags: ["certificates"],
+});
+
+export async function getEmployeeCertificates(employeeId: number): Promise<CertificateView[]> {
+  return cachedEmployeeCertificates(employeeId);
 }
