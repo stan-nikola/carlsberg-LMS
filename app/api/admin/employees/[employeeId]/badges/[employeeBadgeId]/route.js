@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
+import { syncBadgeAwards } from "@/lib/rating";
 
 // DELETE /api/admin/employees/:employeeId/badges/:employeeBadgeId —
 // відкликати ачивку (помилково видали не тому/не ту). Фізичне видалення
@@ -14,7 +15,11 @@ export async function DELETE(request, { params }) {
 
   const { employeeBadgeId } = await params;
   const { employeeId } = await params;
-  await prisma.employeeBadge.delete({ where: { id: Number(employeeBadgeId) } });
-  await audit("badge.revoke", "employee", employeeId, { employeeBadgeId: Number(employeeBadgeId) });
+  const removed = await prisma.employeeBadge.delete({ where: { id: Number(employeeBadgeId) }, select: { badgeId: true } });
+  // Разом із відзнакою зникають і її бали — інакше відкликана відзнака
+  // лишалась би в рейтингу назавжди (RatingEvent на відзнаку посилається
+  // через refType/refId, каскаду нема).
+  await syncBadgeAwards(removed.badgeId);
+  await audit("badge.revoke", "employee", employeeId, { employeeBadgeId: Number(employeeBadgeId), badgeId: removed.badgeId });
   return NextResponse.json({ ok: true });
 }

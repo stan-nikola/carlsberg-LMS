@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
+import { syncEnrollmentEvents } from "@/lib/rating";
 
 const VALID_STATUSES = ["not_started", "in_progress", "completed", "overdue"];
 
@@ -48,8 +49,18 @@ export async function PATCH(request, { params }) {
       course: { select: { title: true } },
     },
   });
-  await audit("enrollment.update", "enrollment", enrollmentId, { course: updated.course.title, ...data });
-  return NextResponse.json(updated);
+  // Бали рейтингу дзеркалять стан enrollment (рішення користувача
+  // 2026-09-19): зарахував курс вручну — бали з'явились, скинув статус —
+  // зникли. Best-effort, як і в /submit: збій нарахування не має
+  // відкочувати саму корекцію.
+  let rating = null;
+  try {
+    rating = await syncEnrollmentEvents(updated.id);
+  } catch (err) {
+    console.warn("[rating] enrollment correction:", err?.message);
+  }
+  await audit("enrollment.update", "enrollment", enrollmentId, { course: updated.course.title, ...data, rating });
+  return NextResponse.json({ ...updated, rating });
 }
 
 // DELETE /api/admin/enrollments/:enrollmentId — зняти призначення з ОДНІЄЇ
@@ -61,6 +72,10 @@ export async function DELETE(request, { params }) {
 
   const { enrollmentId } = await params;
   await prisma.enrollment.delete({ where: { id: Number(enrollmentId) } });
+  // RatingEvent посилається на enrollment через refType/refId, без FK —
+  // каскаду нема, бали за знятий курс прибираємо самі (той самий
+  // синхронізатор: enrollment'а вже нема, тож «бажаних» подій нуль).
+  await syncEnrollmentEvents(Number(enrollmentId));
   await audit("enrollment.delete", "enrollment", enrollmentId);
   return NextResponse.json({ ok: true });
 }

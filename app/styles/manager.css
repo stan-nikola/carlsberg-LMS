@@ -136,8 +136,24 @@ body:has(.manager-shell) {
 .mgr-page-header-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  /* justify-content:space-between на .mgr-page-header вище притискає цей
+     блок до ПРАВОГО краю, лише поки він стоїть в одному ряду з h1. Щойно
+     ряду бракує місця і .mgr-page-header (flex-wrap:wrap) переносить
+     actions на власний рядок — на ньому цей блок лишається САМ, а
+     space-between для єдиного елемента в ряду означає flex-start
+     (специфікація flexbox): кнопки "прилипали" до ЛІВОГО краю під h1
+     замість правого (скарга користувача, 2026-09-19, скріншот /manager
+     на вузькому екрані). margin-left:auto з'їдає весь вільний простір
+     зліва від блока незалежно від того, ділить він рядок з h1 чи стоїть
+     сам — тому притискає до правого краю в обох випадках.
+     flex-wrap на самому блоці — друга лінія оборони: якщо навіть трьом
+     кнопкам не вистачає ширини вьюпорта, вони переносяться між собою,
+     а не вилазять за край (запит "верстка супер резинова"). */
+  justify-content: flex-end;
+  margin-left: auto;
   gap: 8px;
-  flex-shrink: 0;
+  row-gap: 8px;
 }
 .mgr-export-link {
   flex-shrink: 0;
@@ -596,6 +612,15 @@ body:has(.manager-shell) {
 .manager-shell {
   display: flex;
   flex-direction: column;
+  /* Каркас не нижчий за екран — інакше нижній таббар «стрибає»: на довгій
+     сторінці (/manager) sticky тримає його при низу вікна, а на короткій
+     (/manager/profile) він просто закінчувався разом із контентом,
+     лишаючи під собою порожнечу (скарга користувача, 2026-09-19).
+     min-height, а не height, і саме dvh: висота вікна на мобільному
+     «дихає» разом з адресною смугою, а жорстка висота тут уже одного разу
+     робила /manager нескролюваною в портреті (коментар вище про
+     html/body). */
+  min-height: 100dvh;
 }
 
 .mgr-sidebar {
@@ -731,55 +756,18 @@ body:has(.manager-shell) {
   top: 0;
   z-index: 20;
 }
-.mgr-burger-btn {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: var(--iconbtn-md);
-  height: var(--iconbtn-md);
-  flex-shrink: 0;
-  border: var(--border-w) solid var(--line);
-  border-radius: var(--radius-btn);
-  background: var(--surface);
-  cursor: pointer;
-  padding: 0;
-}
-/* :not(.mgr-nav-dot) — бургер-крапка (маркер "нове") теж <span> усередині
-   цієї кнопки; без винятку ця ширша-специфічна пара клас+тег перебивала
-   б власні 8x8px/круглу форму крапки їхніми 16x2px рисками. */
-.mgr-burger-btn span:not(.mgr-nav-dot) {
-  display: block;
-  width: 16px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--ink);
-}
-.mgr-burger-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--cb-focus-ring);
-}
-
-/* Nav-шторка на мобільному — той самий .sheet-overlay/.sheet, що
-   SettingsSheet (globals.css), лише зі списком розділів замість
-   налаштувань шрифту. */
-.mgr-nav-sheet-user {
-  padding-bottom: 12px;
-  margin-bottom: 6px;
-  border-bottom: var(--border-w) solid var(--line);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.mgr-nav-sheet .mgr-nav {
-  gap: 2px;
-  margin-bottom: 10px;
-}
-.mgr-nav-sheet .mgr-nav-link {
-  font-size: 15px;
-  padding: 12px 10px;
+/* Нижній таббар — РІВНО той самий .tabbar/.tab-btn, що в /hub
+   (app/styles/hub.css): у підлеглих і в керівника з телефона має бути та
+   сама навігація (запит користувача, 2026-09-19). Позиція — position:fixed
+   (нижче, разом із компенсацією .mgr-main), не sticky: сторінки /manager
+   скролляться самим вікном, а не внутрішньою карткою, як /hub. */
+/* Маркер «нове» на вкладці — той самий, що в сайдбарі, лише прив'язаний
+   до кута заливки активного/неактивного індикатора (інші top/right, ніж
+   у .mgr-nav-dot за замовчуванням: тут інший padding контейнера). */
+.mgr-tabbar .mgr-nav-dot {
+  position: absolute;
+  top: 2px;
+  right: 8px;
 }
 
 .mgr-main {
@@ -813,19 +801,14 @@ body:has(.manager-shell) {
   .mgr-sidebar {
     display: flex;
   }
-  .mgr-appbar {
-    display: none;
-  }
-  .mgr-nav-sheet-overlay {
-    display: none !important;
-  }
-  /* ≥900px — постійний сайдбар зліва бере на себе навігацію; нижній
-     таббар був частиною коду й раніше, але без цього правила ніколи не
-     ховався на широкому екрані — просто губився в самому низу довгої
-     сторінки, непомітно. */
+  .mgr-appbar,
   .mgr-tabbar {
     display: none;
   }
+  /* Скидає компенсацію висоти зафіксованого .mgr-tabbar (mobile-first
+     правило вище, .mgr-main padding-bottom) — на цій ширині таббар і так
+     display:none (рядок вище), нижній відступ під нього більше не
+     потрібен. */
   .mgr-main {
     padding-bottom: 0;
   }
@@ -862,10 +845,17 @@ body:has(.manager-shell) {
      ліві краї по вертикалі не збігались (запит користувача: розташувати
      як сусідні картки). */
   padding: var(--card-pad-roomy);
-  /* Плитка як елемент гумового ряду вище: базово ~180px, далі ділить
+  /* Плитка як елемент гумового ряду вище: базово ~140px, далі ділить
      вільне місце порівну з рештою. min-width:0 — щоб довгий підпис не
-     розпирав плитку, а вмикав біжучий рядок. */
-  flex: 1 1 min(100%, 180px);
+     розпирав плитку, а вмикав біжучий рядок.
+     Саме 140, а не 180: перенос рядка flex рахує за БАЗОВОЮ шириною, до
+     стиснення, тож при 180px дві плитки (180+14+180=374) не вміщались у
+     355px телефона — і на екрані стояло п'ять майже порожніх плиток на
+     всю ширину одна під одною (скарга користувача, 2026-09-19). При 140
+     на телефон стає дві в ряд, а на найвужчих 320px — усе одно одна.
+     Підпис, якому й після цього тісно, їде біжучим рядком — для того він
+     і MarqueeText. */
+  flex: 1 1 min(100%, 140px);
   min-width: 0;
   /* Число й підпис — ОДНИМ рядком (запит користувача), не стовпчиком.
      align-items:center — по вертикальному центру пари.
@@ -1175,14 +1165,22 @@ body:has(.manager-shell) {
   flex: 2 1 min(100%, 460px);
 }
 .mgr-ring-grid {
-  /* auto-fit, а не жорсткі 2 колонки: відколи ширину картки можна тягнути
-     вручну, вона буває вужчою за два кільця поруч — і сітка вилазила за
-     край картки (скарга користувача). Тепер на вузькій картці кільця
-     стають в один стовпчик. */
+  /* Кілець рівно ЧОТИРИ — це фіксована розмітка, а не сітка за даними,
+     тож колонок може бути лише 2 або 4 (CLAUDE.md, «Верстка»): auto-fit,
+     що стояв тут раніше, сам обирав число колонок і на телефоні давав
+     3 + одне самотнє кільце другим рядком (скарга користувача,
+     2026-09-19, скріншот /manager на телефоні).
+     Поріг — від ширини САМОЇ картки (@container mgr-chart), не вікна:
+     ту саму картку користувач вільно розтягує по ширині дашборда. */
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 86px), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 8px;
   margin-top: 4px;
+}
+@container mgr-chart (min-width: 420px) {
+  .mgr-ring-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 .mgr-ring-item {
   display: flex;

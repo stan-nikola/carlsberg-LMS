@@ -59,38 +59,98 @@ export async function getLevels() {
   return levels;
 }
 
-/** Складено курс — нарахувати те, чого ще нема для цього enrollment. */
-export async function recordCourseCompletion(enrollmentId: number) {
-  const enrollment = await prisma.enrollment.findUnique({
-    where: { id: enrollmentId },
-    include: { course: { select: { points: true, title: true } }, _count: { select: { attempts: true } } },
-  });
-  if (!enrollment) return { created: 0 };
-  const [rules, existing] = await Promise.all([
-    getRules(),
-    prisma.ratingEvent.findMany({
-      where: { employeeId: enrollment.employeeId, refType: "enrollment", refId: enrollmentId },
-      select: { kind: true },
-    }),
-  ]);
-  const events = computeCourseEvents({
-    enrollment,
-    course: enrollment.course,
-    attemptNumber: enrollment._count.attempts,
-    existingKinds: new Set(existing.map((e) => e.kind)),
-    rules,
-  });
-  if (events.length === 0) return { created: 0 };
-  const r = await prisma.ratingEvent.createMany({ data: events, skipDuplicates: true });
-  return { created: r.count, points: events.reduce((s, e) => s + e.points, 0) };
+type StoredEvent = { id: number; employeeId: number; kind: string; points: number; refType: string; refId: number };
+
+const eventKey = (e: { employeeId: number; kind: string; refType: string; refId: number }) =>
+  `${e.employeeId}:${e.kind}:${e.refType}:${e.refId}` as const;
+
+/**
+ * Приводить ЧАСТИНУ журналу (вже вибрані `existing` — усе, що стосується
+ * одного enrollment чи однієї відзнаки) до бажаного стану `wanted`: чого
+ * бракує — створює, що змінилось у ціні — оновлює, чого більше не
+ * заслужено — видаляє.
+ *
+ * Це і є «перерахунок» замість колишнього «дописати, чого нема»: до
+ * 2026-09-19 журнал лише ріс, тож скинутий адміном курс лишав по собі
+ * бали (у SV0036 так висіло 200 балів за курс у статусі not_started), а
+ * правка ціни відзнаки в /admin/badges не доходила до тих, кому її вже
+ * видано (там же «Кращій СВ» коштувала 1000, а в журналі лежало 100).
+ */
+async function syncEvents(existing: StoredEvent[], wanted: RatingEventInput[]) {
+  const wantedByKey = new Map(wanted.map((w) => [eventKey(w), w]));
+  const existingByKey = new Map(existing.map((e) => [eventKey(e), e]));
+  const staleIds = existing.filter((e) => !wantedByKey.has(eventKey(e))).map((e) => e.id);
+  const toCreate = wanted.filter((w) => !existingByKey.has(eventKey(w)));
+  const toUpdate = wanted
+    .map((w) => ({ w, cur: existingByKey.get(eventKey(w)) }))
+    .filter((p): p is { w: RatingEventInput; cur: StoredEvent } => Boolean(p.cur) && p.cur!.points !== p.w.points);
+
+  const ops = [
+    ...(staleIds.length ? [prisma.ratingEvent.deleteMany({ where: { id: { in: staleIds } } })] : []),
+    ...toUpdate.map(({ w, cur }) => prisma.ratingEvent.update({ where: { id: cur.id }, data: { points: w.points } })),
+    ...(toCreate.length ? [prisma.ratingEvent.createMany({ data: toCreate, skipDuplicates: true })] : []),
+  ];
+  if (ops.length > 0) await prisma.$transaction(ops);
+  return { created: toCreate.length, updated: toUpdate.length, removed: staleIds.length };
 }
 
-/** Видано відзнаку — бали за Badge.points (0 = декоративна). */
-export async function recordBadgeAward(employeeId: number, badge: { id: number; points?: number | null }) {
-  const event = computeBadgeEvent(employeeId, badge);
+/**
+ * Синхронізує бали за ОДИН enrollment із його поточним станом. Викликати
+ * після будь-якої зміни результату: складання курсу
+ * (app/api/courses/[slug]/submit) і ручної корекції адміном
+ * (app/api/admin/enrollments/[enrollmentId]) — не лише коли курс щойно
+ * склали.
+ */
+export async function syncEnrollmentEvents(enrollmentId: number) {
+  const [enrollment, existing, rules] = await Promise.all([
+    prisma.enrollment.findUnique({
+      where: { id: enrollmentId },
+      include: { course: { select: { points: true } }, _count: { select: { attempts: true } } },
+    }),
+    prisma.ratingEvent.findMany({ where: { refType: "enrollment", refId: enrollmentId } }),
+    getRules(),
+  ]);
+  const wanted = enrollment
+    ? computeCourseEvents({
+        enrollment,
+        course: enrollment.course,
+        attemptNumber: enrollment._count.attempts,
+        existingKinds: new Set(),
+        rules,
+      })
+    : [];
+  return syncEvents(existing, wanted);
+}
+
+/** Видано відзнаку — бали за відзнаку (0 = декоративна). */
+export async function recordBadgeAward(employeeId: number, badge: { id: number; points?: number | null; kind?: string | null }) {
+  const event = computeBadgeEvent(employeeId, badge, await getRules());
   if (!event) return { created: 0 };
   const r = await prisma.ratingEvent.createMany({ data: [event], skipDuplicates: true });
   return { created: r.count, points: event.points };
+}
+
+/**
+ * Синхронізує бали ВСІХ, кому видано цю відзнаку, з її поточною ціною —
+ * після правки Badge.points у /admin/badges. Ціна відзнаки тут «жива», а
+ * не знімок на момент видачі (рішення користувача 2026-09-19): інакше на
+ * екрані «Досягнення» плашка відзнаки і сума балів показують різні числа
+ * про одне й те саме.
+ */
+export async function syncBadgeAwards(badgeId: number) {
+  const [badge, awards, existing, rules] = await Promise.all([
+    prisma.badge.findUnique({ where: { id: badgeId }, select: { id: true, points: true, kind: true } }),
+    prisma.employeeBadge.findMany({ where: { badgeId }, select: { employeeId: true } }),
+    prisma.ratingEvent.findMany({ where: { refType: "badge", refId: badgeId } }),
+    getRules(),
+  ]);
+  const wanted = badge
+    ? awards.flatMap((a) => {
+        const ev = computeBadgeEvent(a.employeeId, badge, rules);
+        return ev ? [ev] : [];
+      })
+    : [];
+  return syncEvents(existing, wanted);
 }
 
 /** Сума балів по списку людей: [{employeeId, points}] за спаданням. */
@@ -225,22 +285,27 @@ export async function recalculateAll() {
       where: { status: "completed", passed: true },
       include: { course: { select: { points: true } }, _count: { select: { attempts: true } } },
     }),
-    prisma.employeeBadge.findMany({ include: { badge: { select: { id: true, points: true } } } }),
+    prisma.employeeBadge.findMany({ include: { badge: { select: { id: true, points: true, kind: true } } } }),
   ]);
   const events: RatingEventInput[] = [];
   for (const e of enrollments) {
     events.push(
+      // Кількість спроб — як є, БЕЗ Math.max(1, …): курс без жодної
+      // записаної спроби (ручна корекція адміна «зарахував офлайн») не має
+      // отримувати бонус «з першої спроби» — доказу першої спроби просто
+      // нема. Те саме число, що й у живому syncEnrollmentEvents, інакше
+      // «Перерахувати все» міняло б бали там, де нічого не змінилось.
       ...computeCourseEvents({
         enrollment: e,
         course: e.course,
-        attemptNumber: Math.max(1, e._count.attempts),
+        attemptNumber: e._count.attempts,
         existingKinds: new Set(),
         rules,
       })
     );
   }
   for (const a of awards) {
-    const ev = computeBadgeEvent(a.employeeId, a.badge);
+    const ev = computeBadgeEvent(a.employeeId, a.badge, rules);
     if (ev) events.push(ev);
   }
   const [, created] = await prisma.$transaction([
