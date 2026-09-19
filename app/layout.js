@@ -86,21 +86,26 @@ export const metadata = {
     // — iOS обирає точний збіг за media, точної відповідності нема —
     // фолбек усе одно чорний, але для більшості реальних пристроїв тепер
     // брендований сплеш замість пустого екрана.
+    // orientation:portrait в КОЖНОМУ запиті — практично в усіх робочих
+    // прикладах Apple/спільноти воно присутнє поруч із device-width/-height/
+    // -webkit-device-pixel-ratio; без нього перший заход (лише 3 умови,
+    // без orientation) не спрацював на реальному iPhone 17 Pro навіть після
+    // повного видалення й перевстановлення PWA (2026-09-19).
     startupImage: [
       // Лінійка 17 (вийшла 2025-09-19, додано сюди 2026-09-19 — перший
       // список сплешів не міг її знати): iPhone 17 і 17 Pro фізично
       // ідентичні (1206x2622) — одна картинка на обидва.
-      { url: "/splash/iphone17-17pro.png", media: "(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphone17promax.png", media: "(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphoneair.png", media: "(device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphone12-13-14.png", media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphone14pro-15-16.png", media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphone12-13-14promax.png", media: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphone14-15-16promax.png", media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphonex-11pro-12mini.png", media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphonexr-11.png", media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" },
-      { url: "/splash/iphonexsmax-11promax.png", media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" },
-      { url: "/splash/iphonese-6-7-8.png", media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" },
+      { url: "/splash/iphone17-17pro.png", media: "(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" },
+      { url: "/splash/iphone17promax.png", media: "(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" },
+      { url: "/splash/iphoneair.png", media: "(device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" },
+      { url: "/splash/iphone12-13-14.png", media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" },
+      { url: "/splash/iphone14pro-15-16.png", media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" },
+      { url: "/splash/iphone12-13-14promax.png", media: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" },
+      { url: "/splash/iphone14-15-16promax.png", media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" },
+      { url: "/splash/iphonex-11pro-12mini.png", media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" },
+      { url: "/splash/iphonexr-11.png", media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" },
+      { url: "/splash/iphonexsmax-11promax.png", media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" },
+      { url: "/splash/iphonese-6-7-8.png", media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" },
     ],
   },
   // Іконки — файлові конвенції Next: app/favicon.ico, app/icon.png,
