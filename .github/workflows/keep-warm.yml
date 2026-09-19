@@ -1,0 +1,26 @@
+name: Keep warm
+
+# Vercel Hobby-тариф дозволяє cron лише раз на добу — недостатньо, щоб
+# тримати serverless-функцію й Neon-compute живими між заходами
+# (аудит холодного старту PWA, 2026-09-19: щойно "прокинута" функція +
+# щойно розбуджений compute на самому першому запиті давали кілька
+# секунд затримки перед першим пейнтом). GitHub Actions — безкоштовна
+# заміна без прив'язки до тарифу Vercel: б'є в /api/health (уже існуючий
+# роут, реально ходить у базу через prisma.$queryRaw, без побічних
+# ефектів) раз на ~5 хвилин.
+#
+# GitHub НЕ гарантує точний час спрацювання scheduled workflow (може
+# затриматись на кілька хвилин у пікові періоди, дуже рідко пропускає
+# тик) — це прийнятний компроміс для "тримати тепле" (не критичний
+# таймер), а не гарантія нульового холодного старту.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /api/health
+        run: curl -sf -o /dev/null -w "status=%{http_code} time=%{time_total}s\n" https://carls-three.vercel.app/api/health
