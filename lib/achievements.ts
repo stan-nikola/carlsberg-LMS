@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@/app/generated/prisma";
+import { unstable_cache } from "next/cache";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { ensureAutoBadgesExist } from "@/lib/badgeRules";
 import { getRules } from "@/lib/rating";
@@ -27,7 +28,7 @@ export type BadgeView = {
  * ensureAutoBadgesExist() — щоб авто-типи ("Перший вхід" тощо) були видні
  * навіть якщо cron ще жодного разу не прогнав нарахування.
  */
-export async function getEmployeeBadgesView(employeeId: number): Promise<BadgeView[]> {
+async function computeEmployeeBadgesView(employeeId: number): Promise<BadgeView[]> {
   await ensureAutoBadgesExist();
   const [allBadges, awarded, rules] = await Promise.all([
     prisma.badge.findMany({ orderBy: [{ kind: "asc" }, { title: "asc" }] }),
@@ -49,6 +50,19 @@ export async function getEmployeeBadgesView(employeeId: number): Promise<BadgeVi
       earned: awardedByBadgeId.has(b.id),
       awardedAt: awardedByBadgeId.get(b.id) || null,
     }));
+}
+
+// revalidate:60 — той самий проміжок, що вже прийнятий для design-tokens
+// (lib/designSettings.ts) і lib/rating.ts (аудит швидкодії, 2026-09-19):
+// відзнаки нараховуються подіями (щоденний cron, ручна видача), не
+// щосекунди, тож хвилинна затримка на екрані "Досягнення" непомітна.
+const cachedEmployeeBadgesView = unstable_cache(computeEmployeeBadgesView, ["employee-badges"], {
+  revalidate: 60,
+  tags: ["badges"],
+});
+
+export async function getEmployeeBadgesView(employeeId: number): Promise<BadgeView[]> {
+  return cachedEmployeeBadgesView(employeeId);
 }
 
 export type CertificateView = { slug: string; title: string; completedAt: Date; scorePercent: number | null };

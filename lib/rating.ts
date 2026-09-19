@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@/app/generated/prisma";
+import { unstable_cache } from "next/cache";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { getAllSubordinates } from "@/lib/permissions";
 import {
@@ -177,8 +178,7 @@ async function cohortIds(employee: RatedEmployee) {
   return rows.map((r) => r.id);
 }
 
-/** Картка рейтингу людини: бали, «за що», рівень, місце в когорті. */
-export async function getEmployeeRating(employee: RatedEmployee) {
+async function computeEmployeeRating(employee: RatedEmployee) {
   const [events, levels, cohort, badgesCount] = await Promise.all([
     prisma.ratingEvent.findMany({ where: { employeeId: employee.id }, select: { kind: true, points: true } }),
     getLevels(),
@@ -191,15 +191,30 @@ export async function getEmployeeRating(employee: RatedEmployee) {
   return { ...sums, badgesCount, level, ...rankOf(rows, employee.id) };
 }
 
+// unstable_cache бере аргументи виклику як частину ключа кешу (документація
+// Next.js) — тому кешований шар приймає лише ПРИМІТИВИ (employeeId,
+// positionId), не весь об'єкт employee (Date-поля/вкладені зв'язки й так
+// не потрібні computeEmployeeRating, а зайве в ключі лише дробило б кеш).
+// revalidate:60 — той самий проміжок, що вже прийнятий для design-tokens
+// (lib/designSettings.ts) — бали змінюються подіями (склав курс/видали
+// відзнаку), не щосекунди, тож хвилинна затримка показу непомітна, а
+// найважчий запит /manager/achievements (лідерборд по регіону, ~16
+// запитів) перестає рахуватись при КОЖНОМУ відкритті вкладки (аудит
+// швидкодії, 2026-09-19).
+const cachedEmployeeRating = unstable_cache(
+  (employeeId: number, positionId: number | null) => computeEmployeeRating({ id: employeeId, positionId }),
+  ["employee-rating"],
+  { revalidate: 60, tags: ["rating"] }
+);
+
+/** Картка рейтингу людини: бали, «за що», рівень, місце в когорті. */
+export async function getEmployeeRating(employee: RatedEmployee) {
+  return cachedEmployeeRating(employee.id, employee.positionId);
+}
+
 export type LeaderboardScope = "position" | "level" | "region";
 
-/**
- * Лідери. scope:
- *  - "position" — та сама посада (для хаба);
- *  - "level"    — усі посади того самого рівня ієрархії (Position.level);
- *  - "region"   — уся гілка підпорядкування керівника (для RM/кабінету).
- */
-export async function getLeaderboard(employee: RatedEmployee, scope: LeaderboardScope = "position", limit = 5) {
+async function computeLeaderboard(employee: RatedEmployee, scope: LeaderboardScope, limit: number) {
   let ids: number[];
   if (scope === "region") {
     ids = await getAllSubordinates(employee.id);
@@ -258,17 +273,55 @@ export async function getLeaderboard(employee: RatedEmployee, scope: Leaderboard
   }));
 }
 
+// Той самий request-agnostic кеш, що cachedEmployeeRating вище — "region"
+// найдорожчий (getAllSubordinates + подвійний sumPoints + троє
+// employee.findMany, ~16 запитів разом), і саме він на /manager/achievements
+// (аудит швидкодії, 2026-09-19: 3.5-3.9с на сам цей запит у чистому вимірі
+// на проді). positionLevel — примітив, не весь employee.position: об'єкт
+// у ключі кешу unstable_cache серіалізується як є, зайве поле дробило б
+// кеш-хіти без потреби.
+const cachedLeaderboard = unstable_cache(
+  (employeeId: number, positionId: number | null, positionLevel: number | null | undefined, scope: LeaderboardScope, limit: number) =>
+    computeLeaderboard({ id: employeeId, positionId, position: positionLevel != null ? { level: positionLevel } : null }, scope, limit),
+  ["leaderboard"],
+  { revalidate: 60, tags: ["rating"] }
+);
+
+/**
+ * Лідери. scope:
+ *  - "position" — та сама посада (для хаба);
+ *  - "level"    — усі посади того самого рівня ієрархії (Position.level);
+ *  - "region"   — уся гілка підпорядкування керівника (для RM/кабінету).
+ */
+export async function getLeaderboard(employee: RatedEmployee, scope: LeaderboardScope = "position", limit = 5) {
+  return cachedLeaderboard(employee.id, employee.positionId, employee.position?.level, scope, limit);
+}
+
+async function computeTeamRatingForManager(manager: { id: number; positionId: number | null }) {
+  const [people, sums] = await Promise.all([
+    prisma.employee.findMany({ where: { isActive: true }, select: { id: true, managerId: true, positionId: true } }),
+    prisma.ratingEvent.groupBy({ by: ["employeeId"], _sum: { points: true } }),
+  ]);
+  return computeTeamRating(people, new Map(sums.map((s) => [s.employeeId, s._sum.points || 0])), manager);
+}
+
+// Компанія-широкий зріз (усі активні + весь журнал балів) на КОЖЕН заход
+// у /manager — той самий запит, виміряний окремо на проді, важив 3.8с
+// (аудит швидкодії, 2026-09-19). Кеш per-менеджер (employeeId у ключі),
+// бо рахується власне місце серед команд тієї ж посади.
+const cachedTeamRating = unstable_cache(
+  (employeeId: number, positionId: number | null) => computeTeamRatingForManager({ id: employeeId, positionId }),
+  ["team-rating"],
+  { revalidate: 60, tags: ["rating"] }
+);
+
 /**
  * Рейтинг команди для кабінету керівника (/api/manager/overview): бали й %
  * по кожному підлеглому + середнє команди і місце серед команд тієї ж
  * посади. Два запити на всю компанію замість BFS на кожного керівника.
  */
 export async function getTeamRating(manager: RatedEmployee) {
-  const [people, sums] = await Promise.all([
-    prisma.employee.findMany({ where: { isActive: true }, select: { id: true, managerId: true, positionId: true } }),
-    prisma.ratingEvent.groupBy({ by: ["employeeId"], _sum: { points: true } }),
-  ]);
-  return computeTeamRating(people, new Map(sums.map((s) => [s.employeeId, s._sum.points || 0])), manager);
+  return cachedTeamRating(manager.id, manager.positionId);
 }
 
 /**
