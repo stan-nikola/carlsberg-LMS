@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { formatWait, resolveRetryRules, retryGate } from "@/lib/retryPolicy";
+import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
 
 /**
  * POST /api/courses/:slug/module-complete
@@ -97,6 +98,11 @@ export async function POST(request, { params }) {
       console.warn("[question-stats]", err?.message);
     }
   }
+
+  // Модуль складено/не складено — саме те, що показує getEmployeeEnrollments
+  // (/hub, /hub/learn, /manager/courses), інакше людина, що щойно
+  // повернулась зі скороного модуля, до 60с бачила б старий статус.
+  invalidateEmployeeEnrollments();
 
   // Чи відкрита наступна спроба — рахуємо тут, бо саме тут відомий свіжий
   // attemptCount. Плеєр із цієї відповіді вирішує, показати кнопку

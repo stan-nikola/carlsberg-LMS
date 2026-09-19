@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { syncEnrollmentEvents } from "@/lib/rating";
+import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
 
 /**
  * POST /api/courses/:slug/submit
@@ -132,6 +133,8 @@ export async function POST(request, { params }) {
         ]
       : []),
   ]);
+
+  invalidateEmployeeEnrollments();
 
   // Бали рейтингу — best-effort ПІСЛЯ транзакції: результат уже в базі,
   // збій нарахування не має його відкотити (lib/rating.ts).
