@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { getEmployeeRating } from "@/lib/rating";
 import { ProfileCard } from "@/components/ProfileCard";
@@ -11,11 +10,10 @@ import { NotificationSettings } from "@/components/NotificationSettings";
 // замість profile.registeredAt. Рядки деталей — components/ProfileDetailPanel.jsx,
 // той самий блок рендерить і /manager/profile.
 export default async function HubProfilePage() {
-  const sessionUser = await getCurrentUser();
-  const employee = await prisma.employee.findUnique({
-    where: { id: sessionUser.id },
-    include: { manager: true },
-  });
+  // getCurrentUser() уже включає manager (lib/session.js, аудит швидкодії
+  // 2026-09-19) — окремий другий findUnique за тим самим employeeId
+  // тут більше не потрібен.
+  const employee = await getCurrentUser();
   const { level } = await getEmployeeRating(employee);
   const levelLabel = level.label;
 
