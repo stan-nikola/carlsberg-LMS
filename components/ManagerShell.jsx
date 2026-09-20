@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, GearIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
@@ -116,12 +116,20 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   // {children} з першого SSR-заходу (router.refresh() лишається дефолтом,
   // коли clientView===null — там {children} і так справжня поточна
   // сторінка).
-  function handleRefresh() {
+  //
+  // useCallback обов'язковий: usePullToRefresh тримає onRefresh у
+  // залежностях свого ефекту, що вішає touchstart/move/end. Без useCallback
+  // ця функція — нове посилання на КОЖЕН рендер ManagerShell, ефект
+  // перевішувався б і посеред самого жесту протягування — локальні
+  // startY/pulling/currentPull (замикання всередині ефекту) губились, і
+  // спінер "ламався"/картка схлопувалась на півдорозі (скарга користувача,
+  // перевірка на телефоні, 2026-09-20).
+  const handleRefresh = useCallback(() => {
     if (!clientView) return router.refresh();
     clearCachedView(clientView);
     setViewNonce((n) => n + 1);
     return undefined;
-  }
+  }, [clientView, router]);
 
   // Без ref — window-режим (/manager скролляться самим вікном, не
   // внутрішньою карткою, як /hub, див. usePullToRefresh.js).
