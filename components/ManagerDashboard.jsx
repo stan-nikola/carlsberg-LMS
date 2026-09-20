@@ -40,9 +40,17 @@ const DASHBOARD_CARDS_STORAGE_KEY = "carls_manager_dashboard_cards_v1";
 // НЕ-SV/НЕ-ASM керівників (RM, голови HR/маркетингу/виробництва): saме
 // вони дивляться на команду згори, без щоденної роботи з конкретними
 // людьми — той самий "зверху вниз, якість контенту" погляд.
+// peopleStatus прибрано з дефолтів (2026-09-20, аудит "вообще без
+// скелетонов мгновенно") — ця картка спирається на дерево команди
+// (getTeamTree), найважчий за рендер-ціною запит сторінки; лишаючись
+// дефолтною, вона змушувала його рахуватись одразу для більшості
+// керівників (SV/ASM), зводячи нанівець відкладене підвантаження
+// дерева нижче (ensureTeamTree). Керівник, кому вона реально потрібна,
+// вмикає її сам — тоді дерево підвантажується одразу для НЬОГО, а не
+// для всіх за замовчуванням.
 const ROLE_DEFAULT_CARDS = {
-  SV: ["rings", "deadlines", "scoreDist", "peopleStatus"],
-  ASM: ["rings", "deadlines", "scoreDist", "peopleStatus"],
+  SV: ["rings", "deadlines", "scoreDist"],
+  ASM: ["rings", "deadlines", "scoreDist"],
 };
 const FALLBACK_ROLE_DEFAULT_CARDS = [
   "rings",
@@ -606,14 +614,32 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // "Запит уже пішов" — саме ref, а не стан: стан у залежностях ефекту
   // перезапускав би його сам на себе (див. коментар при ефекті нижче).
   const hardestQuestionsRequestedRef = useRef(false);
-  // "Детально по команді" — унизу сторінки, найважчий за DOM блок
-  // (по вузлу на кожного підлеглого, і не кожен керівник долистовує туди
-  // одразу): дані вже прийшли з тим самим /api/manager/overview (їх
-  // потребує й "Статус по людях" вгорі), а сам РЕНДЕР списку відкладено
-  // до наближення секції до вʼюпорта (аудит "легкість застосунку",
-  // 2026-09-19) — IntersectionObserver нижче.
+  // "Детально по команді" — унизу сторінки, найважчий за DOM блок (по
+  // вузлу на кожного підлеглого). Дерево команди (getTeamTree) БІЛЬШЕ НЕ
+  // приходить разом з рештою /api/manager/overview (аудит "вообще без
+  // скелетонов мгновенно", 2026-09-20) — підвантажується окремим
+  // /api/manager/team-tree лише коли ця секція реально потрібна
+  // (ensureTeamTree нижче: IntersectionObserver, або одразу для
+  // peopleStatus/teamCompare, якщо керівник їх увімкнув).
   const [teamTreeVisible, setTeamTreeVisible] = useState(false);
   const teamTreeSectionRef = useRef(null);
+  const [teamTree, setTeamTree] = useState({ loading: false, data: null, error: false });
+  // "Запит уже пішов" — ref, не стан, той самий прийом, що вже є для
+  // hardestQuestions нижче: стан у залежностях перезапускав би ефект сам
+  // на себе.
+  const teamTreeRequestedRef = useRef(false);
+  function ensureTeamTree() {
+    if (teamTreeRequestedRef.current) return;
+    teamTreeRequestedRef.current = true;
+    setTeamTree({ loading: true, data: null, error: false });
+    fetch("/api/manager/team-tree")
+      .then((res) => {
+        if (!res.ok) throw new Error("failed");
+        return res.json();
+      })
+      .then((data) => setTeamTree({ loading: false, data: data.tree, error: false }))
+      .catch(() => setTeamTree({ loading: false, data: null, error: true }));
+  }
   // Перетягування карток (як іконки на iPhone): режим редагування, id
   // картки в руці та її зсув відносно точки захоплення.
   const [storedOrder, setStoredOrder] = useState(readStoredOrder);
@@ -1272,22 +1298,25 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     };
   }, [wantsHardestQuestions]);
 
-  // Дані вже завантажені (той самий /api/manager/overview) — тут лише
-  // ВИДИМІСТЬ секції, щоб не монтувати важкий список заздалегідь.
-  // state.data у залежностях ОБОВ'ЯЗКОВИЙ, не лише teamTreeVisible:
-  // поки state.loading===true, компонент повертає скелетон РАНІШЕ цього
-  // <section ref=...> — ref ще null, ефект виходить без спостерігача.
-  // Без state.data у залежностях повторний рендер (коли дані нарешті
-  // прийшли й ref з'явився) нічого не змінює у [teamTreeVisible] (той
-  // самий false і до, і після) — ефект просто НЕ перезапускається, і
-  // список навіки лишається на скелетоні (знайдено живим тестом скролу,
-  // не лише збіркою, 2026-09-19).
+  // ВИДИМІСТЬ секції, щоб не монтувати важкий список заздалегідь — і
+  // тригер ленивого fetch дерева (ensureTeamTree, ідемпотентний — сам
+  // стежить, щоб не піти в мережу двічі). state.data у залежностях
+  // ОБОВ'ЯЗКОВИЙ, не лише teamTreeVisible: поки state.loading===true,
+  // компонент повертає скелетон РАНІШЕ цього <section ref=...> — ref ще
+  // null, ефект виходить без спостерігача. Без state.data у залежностях
+  // повторний рендер (коли дані нарешті прийшли й ref з'явився) нічого
+  // не змінює у [teamTreeVisible] (той самий false і до, і після) —
+  // ефект просто НЕ перезапускається, і список навіки лишається на
+  // скелетоні (знайдено живим тестом скролу, не лише збіркою, 2026-09-19).
   useEffect(() => {
     const el = teamTreeSectionRef.current;
     if (!el || teamTreeVisible) return undefined;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) setTeamTreeVisible(true);
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setTeamTreeVisible(true);
+          ensureTeamTree();
+        }
       },
       // 600px запасу знизу — монтується, поки керівник ще скролить до
       // секції, а не в момент, коли вона вже впирається в нижній край
@@ -1297,6 +1326,16 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     observer.observe(el);
     return () => observer.disconnect();
   }, [teamTreeVisible, state.data]);
+
+  // peopleStatus/teamCompare (обидві спираються на дерево команди) стоять
+  // ВИЩЕ секції "Детально по команді" — якщо керівник їх увімкнув, чекати
+  // на скрол до нижньої секції не можна, картки просто показали б порожньо.
+  // enabledCards — Set, нова посилання-адреса на кожному рендері, тож
+  // залежність ефекту — похідний boolean (wantsTeamData), не сам Set.
+  const wantsTeamData = enabledCards.has("peopleStatus") || enabledCards.has("teamCompare");
+  useEffect(() => {
+    if (wantsTeamData) ensureTeamTree();
+  }, [wantsTeamData]);
 
   useEffect(() => {
     if (!state.data) return;
@@ -1360,7 +1399,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     cardRectsRef.current = next;
   }, [orderKey, dragId]);
 
-  const flatTeam = useMemo(() => (state.data ? flattenTree(state.data.team.tree) : []), [state.data]);
+  const flatTeam = useMemo(() => (teamTree.data ? flattenTree(teamTree.data) : []), [teamTree.data]);
 
   // "Статус по людях" (нова картка, блок СВ) — кожен НЕ-керівник у видимій
   // команді (в СВ таких зазвичай усі прямі підлеглі; в АСМ — усі польові
@@ -1370,7 +1409,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // на весь екран (той самий компроміс, що вже є в hardestModules/
   // courseBreakdown — top-N, не все підряд).
   const peopleStatus = useMemo(() => {
-    if (!state.data) return { rows: [], hiddenCount: 0 };
+    if (!state.data || !teamTree.data) return { rows: [], hiddenCount: 0 };
     const summaryMap = state.data.team.summaryByEmployeeId;
     const rows = flatTeam
       .filter((n) => !n.children || n.children.length === 0)
@@ -1379,7 +1418,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       .sort((a, b) => b.summary.overdue + b.summary.notStarted - (a.summary.overdue + a.summary.notStarted));
     const PEOPLE_STATUS_LIMIT = 15;
     return { rows: rows.slice(0, PEOPLE_STATUS_LIMIT), hiddenCount: Math.max(0, rows.length - PEOPLE_STATUS_LIMIT) };
-  }, [state.data, flatTeam]);
+  }, [state.data, teamTree.data, flatTeam]);
 
   // "Порівняння команд" (нова картка, блок АСМ) — кожен ПРЯМИЙ підлеглий
   // керівника (для АСМ — його СВ, для СВ — просто кожна людина окремо,
@@ -1387,9 +1426,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // ВСЬОМУ його піддереву (він сам + всі його підлеглі), не лише власними
   // enrollments.
   const teamCompare = useMemo(() => {
-    if (!state.data) return [];
+    if (!state.data || !teamTree.data) return [];
     const summaryMap = state.data.team.summaryByEmployeeId;
-    return state.data.team.tree
+    return teamTree.data
       .map((node) => {
         const subtree = [node, ...flattenTree(node.children || [])];
         let total = 0;
@@ -1406,7 +1445,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       })
       .filter((t) => t.total > 0)
       .sort((a, b) => b.pct - a.pct);
-  }, [state.data]);
+  }, [state.data, teamTree.data]);
 
   const filteredFlat = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -1435,9 +1474,13 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   }
 
   const { me, team } = state.data;
-  const { stats, summaryByEmployeeId, tree, weeklyTrend, rating } = team;
+  const { stats, summaryByEmployeeId, weeklyTrend, rating } = team;
   const trendMax = Math.max(1, ...weeklyTrend.map((w) => w.count));
-  const visibleNodes = sortNodes(filteredFlat ?? tree, sortBy, summaryByEmployeeId, rating.byEmployeeId);
+  // team.tree більше не приходить разом з рештою (ensureTeamTree/teamTree
+  // вище) — БЕЗ фільтра показуємо вкладене дерево (teamTree.data, той
+  // самий формат, що раніше team.tree), З фільтром — пласкі filteredFlat
+  // (уже без children, той самий принцип, що й був).
+  const visibleNodes = sortNodes(filteredFlat ?? teamTree.data ?? [], sortBy, summaryByEmployeeId, rating.byEmployeeId);
   // Для rateColor нижче — 4 показники "Показники команди" ранжуються один
   // відносно одного, не за фіксованим per-метрика кольором.
   const ringValues = [stats.completionRate, stats.passRate, stats.onTimeRate, stats.engagementRate];
@@ -1828,7 +1871,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <PeopleIcon /> Статус по людях
             <ChartHint text="Кожна людина без власних підлеглих у видимій команді — скільки в неї призначень якого статусу. Спочатку ті, в кого найбільше прострочень і ще не розпочатого — кому написати першим." />
           </h2>
-          {peopleStatus.rows.length === 0 ? (
+          {!teamTree.data ? (
+            <LinesSkeleton rows={3} />
+          ) : peopleStatus.rows.length === 0 ? (
             <p className="admin-hint">Немає даних по людях.</p>
           ) : (
             <>
@@ -1867,7 +1912,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <PeopleIcon /> Порівняння команд
             <ChartHint text="Для кожного прямого підлеглого — підсумок по ньому й усіх, хто під ним (не лише його власні призначення). Дозволяє побачити, чия команда відстає, а не лише загальний середній по всіх одразу." />
           </h2>
-          {teamCompare.length === 0 ? (
+          {!teamTree.data ? (
+            <LinesSkeleton rows={3} />
+          ) : teamCompare.length === 0 ? (
             <p className="admin-hint">Немає даних.</p>
           ) : (
             <ul className="mgr-bar-list">
@@ -1969,19 +2016,22 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           </div>
         </div>
 
-        {flatTeam.length === 0 ? (
+        {teamTree.error ? (
+          <p className="admin-hint">Не вдалося завантажити список команди.</p>
+        ) : !teamTree.data ? (
+          // Дерево команди підвантажується ОКРЕМИМ запитом
+          // (/api/manager/team-tree, ensureTeamTree вище) — найважчий за
+          // кількістю DOM-вузлів блок сторінки (по вузлу-компоненту на
+          // кожного підлеглого, з бейджами/MarqueeText/можливими дітьми),
+          // а долистовує сюди не кожен керівник одразу (аудит "вообще без
+          // скелетонов мгновенно", 2026-09-20). IntersectionObserver вище
+          // запускає і видимість, і сам fetch, щойно секція наближається
+          // до вʼюпорта.
+          <LinesSkeleton rows={6} />
+        ) : flatTeam.length === 0 ? (
           <p className="admin-hint">У вас немає підлеглих.</p>
         ) : filteredFlat && filteredFlat.length === 0 ? (
           <p className="admin-hint">Нікого не знайдено.</p>
-        ) : !teamTreeVisible ? (
-          // Дані вже в пам'яті (той самий /api/manager/overview) — тут
-          // відкладено лише сам РЕНДЕР: по вузлу-компоненту на кожного
-          // підлеглого (з бейджами, MarqueeText, можливими дітьми) —
-          // найважчий за кількістю DOM-вузлів блок сторінки, а долистовує
-          // сюди не кожен керівник одразу (аудит "легкість застосунку",
-          // 2026-09-19). IntersectionObserver вище монтує список, щойно
-          // секція наближається до вʼюпорта.
-          <LinesSkeleton rows={6} />
         ) : (
           <ul className="mgr-team-tree">
             {visibleNodes.map((node) => (
