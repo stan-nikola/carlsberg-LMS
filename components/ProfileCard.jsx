@@ -23,6 +23,10 @@ import { CameraIcon, SpinnerIcon, XIcon } from "@/components/icons";
 // сторінки — рівно стільки, скільки треба.
 let avatarFlipPlayed = false;
 
+/**
+ * @param {{ dbName: string, hasEmail: boolean, externalCode: string,
+ *   levelLabel: string, avatarUrl?: string | null, editable?: boolean }} props
+ */
 export function ProfileCard({ dbName, hasEmail, externalCode, levelLabel, avatarUrl = null, editable = false }) {
   const [displayName, setDisplayName] = useState(dbName);
   const cardRef = useRef(null);

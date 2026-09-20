@@ -32,8 +32,16 @@ const RUBBER_BAND = 0.5; // палець їде швидше за індикат
  * слухає touch на document, читає window.scrollY. На десктопі (миша, не
  * тач) touch-події просто ніколи не приходять — природний no-op, окремо
  * вимикати під ширину не треба.
+ *
+ * onRefresh — опційний кастомний "оновити" замість router.refresh()
+ * (ManagerShell.jsx, аудит "вообще без скелетонов мгновенно",
+ * 2026-09-20): коли вкладка показана з клієнтського кешу (ManagerViews/*,
+ * а не справжня Next.js-сторінка), router.refresh() оновив би ЗАСТАРІЛУ
+ * {children} з першого SSR-заходу, не поточну вкладку — ManagerShell сам
+ * вирішує, що саме "оновити" в цьому разі (скинути кеш вкладки й
+ * перезапитати).
  */
-export function usePullToRefresh(scrollRef) {
+export function usePullToRefresh(scrollRef, onRefresh) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [pull, setPull] = useState(0);
@@ -74,7 +82,7 @@ export function usePullToRefresh(scrollRef) {
         // взагалі не реалізує (свідоме обмеження Apple, не наш баг) —
         // просто нічого не станеться, візуальний спіннер лишається.
         if (navigator.vibrate) navigator.vibrate(10);
-        startTransition(() => router.refresh());
+        startTransition(() => (onRefresh ? onRefresh() : router.refresh()));
       }
       currentPull = 0;
     }
@@ -87,7 +95,7 @@ export function usePullToRefresh(scrollRef) {
       target.removeEventListener("touchmove", onTouchMove);
       target.removeEventListener("touchend", onTouchEnd);
     };
-  }, [scrollRef, isPending, router]);
+  }, [scrollRef, isPending, router, onRefresh]);
 
   return { pull: isPending ? THRESHOLD : pull, isPending, threshold: THRESHOLD };
 }
