@@ -602,7 +602,15 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // дефолт із посади (roleDefaultCards) щоразу заново з state.data, а не
   // застигає на дефолті, порахованому до того, як /api/manager/overview
   // взагалі відповів.
-  const [cardOverride, setCardOverride] = useState(readStoredCards);
+  // null (не лінивий useState(readStoredCards)) — цей компонент рендериться
+  // і на сервері (SSR), де localStorage нема: лінивий ініціалізатор читав
+  // би його значення лише в браузері, і перший клієнтський рендер (ще до
+  // ефекту нижче) відрізнявся б від SSR-розмітки — Hydration failed
+  // (спіймано живим тестом, 2026-09-20, на збереженій ручній висоті
+  // картки). Той самий прийом, що вже в ProfileCard.jsx для displayName:
+  // читати ЛИШЕ в ефекті після монтування, коротка мить дефолту замість
+  // збою гідратації.
+  const [cardOverride, setCardOverride] = useState(null);
   const enabledCards = cardOverride ?? roleDefaultCards(state.data?.me?.position?.code);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // "Найскладніші питання" — єдина з нових карток, що рахується окремим
@@ -642,12 +650,33 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   }
   // Перетягування карток (як іконки на iPhone): режим редагування, id
   // картки в руці та її зсув відносно точки захоплення.
-  const [storedOrder, setStoredOrder] = useState(readStoredOrder);
+  // Та сама причина, що й у cardOverride вище — null/{}, не лінивий
+  // ініціалізатор з localStorage, інакше SSR-розмітка (без збереженого
+  // порядку/ширини/висоти) розходиться з першим клієнтським рендером.
+  const [storedOrder, setStoredOrder] = useState(null);
   // Ширини, які керівник сам поставив ручкою (id -> слоти). Поки картки
   // тут нема — діє ширина з розмітки/CSS, тож дашборд у всіх, хто нічого
   // не тягнув, виглядає рівно як раніше.
-  const [cardSpans, setCardSpans] = useState(readStoredSpans);
-  const [cardHeights, setCardHeights] = useState(readStoredHeights);
+  const [cardSpans, setCardSpans] = useState({});
+  const [cardHeights, setCardHeights] = useState({});
+  // Одним ефектом підхоплюємо всі чотири збережені в localStorage
+  // налаштування одразу після монтування на клієнті — до цього моменту
+  // дашборд секунду показує SSR-дефолт (ролевий набір карток, розмітковий
+  // порядок/ширина/висота), потім перемикається на збережений вибір
+  // керівника. setState викликаємо лише для того, що РЕАЛЬНО є в
+  // localStorage — щоб не переписувати дефолт порожнім значенням там, де
+  // керівник іще нічого не налаштовував.
+  useEffect(() => {
+    const storedCards = readStoredCards();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- одноразове читання localStorage після монтування, не синхронізація зі стейтом React
+    if (storedCards) setCardOverride(storedCards);
+    const order = readStoredOrder();
+    if (order) setStoredOrder(order);
+    const spans = readStoredSpans();
+    if (Object.keys(spans).length > 0) setCardSpans(spans);
+    const heights = readStoredHeights();
+    if (Object.keys(heights).length > 0) setCardHeights(heights);
+  }, []);
   const [resizeId, setResizeId] = useState(null);
   const resizeRef = useRef(null);
   // Картки, у яких вміст НЕ доходить до низу (є куди тягнути висоту).
@@ -1334,14 +1363,50 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   }, [teamTreeVisible, state.data]);
 
   // peopleStatus/teamCompare (обидві спираються на дерево команди) стоять
-  // ВИЩЕ секції "Детально по команді" — якщо керівник їх увімкнув, чекати
-  // на скрол до нижньої секції не можна, картки просто показали б порожньо.
-  // enabledCards — Set, нова посилання-адреса на кожному рендері, тож
-  // залежність ефекту — похідний boolean (wantsTeamData), не сам Set.
-  const wantsTeamData = enabledCards.has("peopleStatus") || enabledCards.has("teamCompare");
+  // ВИЩЕ секції "Детально по команді" — раніше при увімкненій картці
+  // дерево тягнулось одразу на монтуванні, навіть коли сама картка ще не
+  // в екрані (скарга користувача, 2026-09-20: "на телефоні на старте не
+  // видно, на десктопі теж якщо не прокручувати" — увімкнена картка не
+  // означає видима). Тепер у кожної своя IntersectionObserver-підв'язка
+  // до її ж DOM-вузла (ref нижче на самій картці), той самий rootMargin,
+  // що в "Детально по команді" — ensureTeamTree() ідемпотентний, тож
+  // байдуже, яка з трьох секцій підвантажить дерево першою.
+  const peopleStatusWanted = enabledCards.has("peopleStatus");
+  const teamCompareWanted = enabledCards.has("teamCompare");
+  const peopleStatusSectionRef = useRef(null);
+  const teamCompareSectionRef = useRef(null);
   useEffect(() => {
-    if (wantsTeamData) ensureTeamTree();
-  }, [wantsTeamData]);
+    if (!peopleStatusWanted) return undefined;
+    const el = peopleStatusSectionRef.current;
+    if (!el) return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          ensureTeamTree();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "150px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [peopleStatusWanted, state.data]);
+  useEffect(() => {
+    if (!teamCompareWanted) return undefined;
+    const el = teamCompareSectionRef.current;
+    if (!el) return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          ensureTeamTree();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "150px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [teamCompareWanted, state.data]);
 
   useEffect(() => {
     if (!state.data) return;
@@ -1872,13 +1937,16 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             людині без керівних підлеглих, а не агрегат: СВ щодня цікавить
             саме "хто ще не почав/прострочив", а не середнє по команді. */
           ["peopleStatus", enabledCards.has("peopleStatus") && (
-        <div className="mgr-chart-card mgr-chart-card-wide">
+        <div className="mgr-chart-card mgr-chart-card-wide" ref={peopleStatusSectionRef}>
           <h2>
             <PeopleIcon /> Статус по людях
             <ChartHint text="Кожна людина без власних підлеглих у видимій команді — скільки в неї призначень якого статусу. Спочатку ті, в кого найбільше прострочень і ще не розпочатого — кому написати першим." />
           </h2>
           {!teamTree.data ? (
-            <LinesSkeleton rows={3} />
+            // rows=5, не 3 — картка тримає до 15 рядків людей, і закороткий
+            // скелетон лишав видиму "дірку" знизу до появи реальних даних
+            // (той самий компроміс, що вже привів PageSkeleton до cards=9).
+            <LinesSkeleton rows={5} />
           ) : peopleStatus.rows.length === 0 ? (
             <p className="admin-hint">Немає даних по людях.</p>
           ) : (
@@ -1913,13 +1981,13 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             окремо (для АСМ — кожен СВ зі своєю командою), а не одним
             числом на всіх: порівняння команд одна з одною, не людей. */
           ["teamCompare", enabledCards.has("teamCompare") && (
-        <div className="mgr-chart-card mgr-chart-card-wide">
+        <div className="mgr-chart-card mgr-chart-card-wide" ref={teamCompareSectionRef}>
           <h2>
             <PeopleIcon /> Порівняння команд
             <ChartHint text="Для кожного прямого підлеглого — підсумок по ньому й усіх, хто під ним (не лише його власні призначення). Дозволяє побачити, чия команда відстає, а не лише загальний середній по всіх одразу." />
           </h2>
           {!teamTree.data ? (
-            <LinesSkeleton rows={3} />
+            <LinesSkeleton rows={5} />
           ) : teamCompare.length === 0 ? (
             <p className="admin-hint">Немає даних.</p>
           ) : (
