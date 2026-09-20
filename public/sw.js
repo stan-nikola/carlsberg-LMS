@@ -5,8 +5,9 @@
 //     сповіщення; клік відкриває/фокусує застосунок на потрібному екрані;
 //  3. офлайн: ДВІ стратегії кешу для same-origin GET, залежно від типу
 //     (аудит швидкодії, 2026-09-19):
-//     - сторінки/RSC-пейлоади (переходи між екранами) — і далі network-first,
-//       онлайн поведінка не міняється (завжди свіже, HMR на dev не страждає);
+//     - сторінки/RSC-пейлоади ПОВНОГО завантаження (адресний рядок, F5) —
+//       і далі network-first, онлайн поведінка не міняється (завжди свіже,
+//       HMR на dev не страждає);
 //     - /_next/static/* (JS/CSS/шрифти — хешовані у назві файла, тому
 //       ІМУТАБЕЛЬНІ: зміна вмісту завжди дає нову назву) і /_next/image
 //       (фото курсів) — stale-while-revalidate: віддаємо закешоване
@@ -18,6 +19,23 @@
 //     Відкритий курс плеєр досилає повідомленням {type:"precache", urls}
 //     (сторінка + фото всіх екранів), щоб ТП у полі без зв'язку міг
 //     пройти курс до кінця; відповіді копить lib/offlineOutbox.js.
+//
+//     RSC-фетчі КЛІЄНТСЬКОЇ навігації (Link-клік між екранами, query-рядок
+//     несе "_rsc=<hash>") тут НЕ перехоплюються взагалі — SW навмисно
+//     пропускає їх мимо (return, без respondWith). Знайдено живою
+//     перевіркою на проді (2026-09-20): navigator.serviceWorker перехоплює
+//     ЦІ фетчі так само, як звичайну сторінку, і networkFirst() ЗАВЖДИ йде
+//     в мережу першою — навіть коли клієнтський Router Cache Next.js уже
+//     мав готову відповідь ("use cache"/"use cache: private" із
+//     lib/employeeProgress.js, lib/managerOverview.js). На localhost цього
+//     не видно (мережа — loopback, мілісекунди), а на реальному Vercel
+//     кожен перехід між екранами SW змушував ЗНОВУ чекати на реальний
+//     round-trip — той самий "скелетони між екранами" баг, який
+//     виглядав як проблема кешування даних, а насправді SW перехоплював
+//     і зводив кеш нанівець. Повне завантаження сторінки (адресний рядок,
+//     F5) — це запит БЕЗ "_rsc" у query, він і далі йде через
+//     networkFirst() нижче: офлайн-фолбек і "завжди свіже на F5" не
+//     постраждали.
 //
 // Payload — JSON із lib/webPush.js: { title, body, url, tag, category }.
 // iOS (16.4+, лише встановлена PWA) вимагає, щоб КОЖЕН push показував
@@ -49,6 +67,10 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+  // RSC-навігація (клієнтський Link-клік) — не перехоплюємо: нехай браузер
+  // сам вирішує з власного Router Cache, без вимушеного мережевого
+  // round-trip щоразу. Див. великий коментар на початку файла.
+  if (url.searchParams.has("_rsc")) return;
   const isStatic = STATIC_ASSET.test(url.pathname) || url.pathname === "/_next/image";
   event.respondWith(isStatic ? staleWhileRevalidate(event, req, url) : networkFirst(req, url));
 });
