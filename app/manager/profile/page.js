@@ -3,6 +3,7 @@ import { getEmployeeRating } from "@/lib/rating";
 import { ProfileCard } from "@/components/ProfileCard";
 import { ProfileDetailPanel } from "@/components/ProfileDetailPanel";
 import { NotificationSettings } from "@/components/NotificationSettings";
+import { SeedViewCache } from "@/components/SeedViewCache";
 
 // "Профіль" керівника — той самий ProfileCard + ProfileDetailPanel, що й
 // app/hub/profile/page.js. Керівник теж має managerId вгору по ієрархії
@@ -19,6 +20,18 @@ export default async function ManagerProfilePage() {
     // Mobile-first: один стовпчик; від 900px — дві колонки (картка + дані
     // зліва, сповіщення справа), див. .mgr-profile у manager.css.
     <div className="manager-page manager-profile-page">
+      <SeedViewCache
+        viewKey="/manager/profile"
+        data={{
+          dbName: employee.name,
+          hasEmail: Boolean(employee.email),
+          externalCode: employee.externalCode,
+          levelLabel,
+          avatarUrl: employee.avatarUrl,
+          managerEmail: employee.manager?.email ?? null,
+          firstLoginAt: employee.firstLoginAt,
+        }}
+      />
       <div className="greeting">ОСОБИСТИЙ КАБІНЕТ</div>
       <h1 className="hub-h1">Профіль</h1>
 

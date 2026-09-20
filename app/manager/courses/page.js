@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getEmployeeEnrollments } from "@/lib/employeeProgress";
 import { sortByUrgency } from "@/lib/progress";
 import { CourseTile } from "@/components/CourseTile";
+import { SeedViewCache } from "@/components/SeedViewCache";
 
 // "Курси" керівника — його ВЛАСНІ призначені курси (керівник теж Employee
 // зі своїми enrollments), той самий CourseTile, що й app/hub/learn/page.js
@@ -20,6 +21,7 @@ export default async function ManagerCoursesPage() {
 
   return (
     <div className="manager-page">
+      <SeedViewCache viewKey="/manager/courses" data={{ enrollments, hasEmail: Boolean(employee.email) }} />
       <div className="greeting">МОЇ КУРСИ</div>
       <h1 className="hub-h1">Курси</h1>
 

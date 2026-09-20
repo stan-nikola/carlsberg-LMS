@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getEmployeeBadgesView, getEmployeeCertificates } from "@/lib/achievements";
 import { getEmployeeRating, getLeaderboard } from "@/lib/rating";
 import { AchievementsPanel } from "@/components/AchievementsPanel";
+import { SeedViewCache } from "@/components/SeedViewCache";
 
 // «Досягнення» керівника — та сама панель, що й app/hub/achievements/page.js,
 // але лідерборд — уся гілка підпорядкування (усі посади регіону), а не
@@ -15,8 +16,14 @@ export default async function ManagerAchievementsPage() {
     getLeaderboard(employee, "region", 10),
   ]);
 
+  const cohortLabel = employee.position ? `на посаді ${employee.position.code}` : "колег";
+
   return (
     <div className="manager-page manager-achievements-page">
+      <SeedViewCache
+        viewKey="/manager/achievements"
+        data={{ rating, badges, certificates, leaderboard, cohortLabel, currentEmployeeId: employee.id, hasEmail: Boolean(employee.email) }}
+      />
       <div className="greeting">ВАШ ПРОГРЕС</div>
       <h1 className="hub-h1">Досягнення</h1>
       <AchievementsPanel
@@ -25,7 +32,7 @@ export default async function ManagerAchievementsPage() {
         certificates={certificates}
         leaderboard={leaderboard}
         leaderboardTitle="Лідери вашої команди (% від найкращого у своїй посаді)"
-        cohortLabel={employee.position ? `на посаді ${employee.position.code}` : "колег"}
+        cohortLabel={cohortLabel}
         currentEmployeeId={employee.id}
         hasEmail={Boolean(employee.email)}
       />

@@ -17,6 +17,8 @@ import { categoryMeta, formatRelativeTime } from "@/lib/notificationTypes";
  * що вже виправлений для /manager, аудит "вообще без скелетонов
  * мгновенно", 2026-09-20). load(after) лишається клієнтським — це
  * пагінація "Показати ще" по кліку, не первинне завантаження.
+ *
+ * @param {{ initialItems?: any[], initialCursor?: number | null, initialUnreadCount?: number }} props
  */
 export function NotificationCenter({ initialItems = [], initialCursor = null, initialUnreadCount = 0 }) {
   const [items, setItems] = useState(initialItems);

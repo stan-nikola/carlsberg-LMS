@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/session";
 import { getNotificationFeed } from "@/lib/notificationFeed";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { SeedViewCache } from "@/components/SeedViewCache";
 
 // Server Component + кешована стрічка (lib/notificationFeed.js) замість
 // клієнтського fetch() на монтуванні NotificationCenter.jsx — той самий
@@ -12,6 +13,7 @@ export default async function ManagerNotificationsPage() {
 
   return (
     <div className="manager-page manager-notifications-page">
+      <SeedViewCache viewKey="/manager/notifications" data={{ items: feed.items, nextCursor: feed.nextCursor, unreadCount: feed.unreadCount }} />
       <div className="greeting">КАБІНЕТ КЕРІВНИКА</div>
       <h1 className="hub-h1">Сповіщення</h1>
       <NotificationCenter initialItems={feed.items} initialCursor={feed.nextCursor} initialUnreadCount={feed.unreadCount} />
