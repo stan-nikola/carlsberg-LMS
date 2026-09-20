@@ -559,8 +559,29 @@ function flattenTree(nodes, out = []) {
  * конкретної людини — лише при розкритті її картки
  * (/api/manager/employees/[id]).
  */
-export function ManagerDashboard() {
-  const [state, setState] = useState({ loading: true, data: null, error: false });
+export function ManagerDashboard({ initialData = null, initialError = false }) {
+  // Дані вже прийшли з сервера (app/manager/page.js, lib/managerOverview.js)
+  // — loading:false одразу, без окремого клієнтського fetch() і
+  // скелетон-спалаху на кожному монтуванні (раніше тут стояв fetch(
+  // "/api/manager/overview") в ефекті нижче; той JSON-роут не брав участі
+  // в client Router Cache, тож екран лишався найважчим навіть після
+  // кешування enrollments — аудит "быстродействия не почувствовал",
+  // 2026-09-19).
+  const [state, setState] = useState({ loading: false, data: initialData, error: initialError });
+  // Синхронізація з новими пропсами ПІД ЧАС рендеру (офіційний React-
+  // патерн "adjusting state when a prop changes"), не в ефекті: ефект із
+  // setState всередині — це завжди зайвий цикл рендер→commit→ефект→ще
+  // один рендер, і react-hooks/set-state-in-effect справедливо на це
+  // лається. Порівняння з попереднім прочитаним пропом — щоб оновлювати
+  // state лише коли сервер РЕАЛЬНО прислав нові дані (після
+  // router.refresh() у pull-to-refresh), а не на кожному рендері.
+  const [prevInitialData, setPrevInitialData] = useState(initialData);
+  const [prevInitialError, setPrevInitialError] = useState(initialError);
+  if (initialData !== prevInitialData || initialError !== prevInitialError) {
+    setPrevInitialData(initialData);
+    setPrevInitialError(initialError);
+    setState({ loading: false, data: initialData, error: initialError });
+  }
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("overdue");
@@ -1058,7 +1079,16 @@ export function ManagerDashboard() {
       clearTimeout(timer);
     };
   }, []);
-  useLayoutEffect(() => {
+  // useEffect, НЕ useLayoutEffect: цей замір проходить по ВСІХ картках
+  // ДВІЧІ (offsetHeight зі стиснутим і з повним кільцем — форсований
+  // reflow щоразу) — на layout-ефекті це синхронно блокує ПЕРШИЙ пейнт
+  // після монтування, і саме воно тримало скелетон на екрані ~1с навіть
+  // коли дані вже прийшли з кешу (аудит "скелетони між екранами", 2026-
+  // 09-19; підтверджено заміром DOM: .sk-card лишався в дереві ще ~1040мс
+  // після появи реальних карток). Ціна — рідкісний одно-кадровий "стрибок"
+  // для того, хто вручну розтягував картку (нижче, коментар про зняття
+  // ручної висоти) замість гарантованого блокування пейнту щоразу.
+  useEffect(() => {
     // Рахуємо ЗАВЖДИ, не лише в режимі редагування: збережена висота могла
     // стати замалою після зміни ширини вікна чи набору карток — тоді вміст
     // вивалюється за картку (скарга користувача: рядок "100%" у "Розподілі
@@ -1174,8 +1204,10 @@ export function ManagerDashboard() {
 
   // Стеля кільця залежить від висоти картки, тож перераховуємо її не лише
   // в режимі редагування, а й просто при завантаженні зі збереженими
-  // висотами чи після зміни складу/порядку карток.
-  useLayoutEffect(() => {
+  // висотами чи після зміни складу/порядку карток. useEffect (не
+  // useLayoutEffect) — той самий привід, що й у ефекті вище: ще один
+  // прохід offsetHeight по всіх картках не повинен блокувати пейнт.
+  useEffect(() => {
     applyRingCaps();
   }, [heightsKey, spansKey, orderKey, enabledCards, state.data]);
 
@@ -1265,23 +1297,6 @@ export function ManagerDashboard() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [teamTreeVisible, state.data]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/manager/overview");
-        if (!res.ok) throw new Error("failed");
-        const data = await res.json();
-        if (!cancelled) setState({ loading: false, data, error: false });
-      } catch {
-        if (!cancelled) setState({ loading: false, data: null, error: true });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!state.data) return;

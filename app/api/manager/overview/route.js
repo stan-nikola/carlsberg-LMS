@@ -1,39 +1,22 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
-import { isManagerTier, getAllSubordinates } from "@/lib/permissions";
-import { getTeamTree, getTeamSummary, getDashboardStats, getWeeklyTrend } from "@/lib/managerDashboard";
-import { getEmployeeEnrollments } from "@/lib/employeeProgress";
-import { getEmployeeRating, getTeamRating } from "@/lib/rating";
+import { isManagerTier } from "@/lib/permissions";
+import { getManagerOverview } from "@/lib/managerOverview";
 
-// GET /api/manager/overview — початкове завантаження /manager одним
-// round-trip: дерево команди, легкий підсумок по кожній людині (без
-// історії спроб — та тягнеться окремо, лише при розкритті конкретної
-// картки, див. /api/manager/employees/[id]), агрегати для KPI/графіків, і
-// власні enrollments керівника ("Мої курси"). Дерево лишається тут (не
-// окремим лінивим запитом) — "Статус по людях" (peopleStatus, дефолтна
-// картка для SV/ASM) читає його вже вгорі сторінки, тож відкладати
-// завантаження до скролу до "Детально по команді" не можна (аудит
-// "легкість застосунку", 2026-09-19) — там відкладено лише сам РЕНДЕР
-// важкого списку, дивись teamTreeVisible у ManagerDashboard.jsx.
+// GET /api/manager/overview — той самий агрегат, що тепер рахується
+// напряму в app/manager/page.js (Server Component, кешований через
+// lib/managerOverview.js). Роут лишається окремо як стабільний JSON-
+// ендпоінт про всяк випадок (зовнішні інтеграції, ручна перевірка) — сам
+// ManagerDashboard.jsx більше НЕ ходить сюди на монтуванні (аудит
+// "быстродействия не почувствовал", 2026-09-19: fetch() з клієнта в
+// Route Handler не бере участі в client Router Cache, тож головний екран
+// лишався найважчим навіть після кешування enrollments).
 export async function GET() {
   const employee = await getCurrentUser();
   if (!employee) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isManagerTier(employee)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const [subordinateIds, tree, myEnrollments] = await Promise.all([
-    getAllSubordinates(employee.id),
-    getTeamTree(employee.id),
-    getEmployeeEnrollments(employee.id),
-  ]);
-
-  const [summaryMap, stats, weeklyTrend] = await Promise.all([
-    getTeamSummary(subordinateIds),
-    getDashboardStats(subordinateIds),
-    getWeeklyTrend(subordinateIds),
-  ]);
-  const [{ level }, rating] = await Promise.all([getEmployeeRating(employee), getTeamRating(employee)]);
-  const levelLabel = level.label;
-
+  const overview = await getManagerOverview(employee.id, employee.positionId);
   return NextResponse.json({
     me: {
       id: employee.id,
@@ -41,20 +24,10 @@ export async function GET() {
       externalCode: employee.externalCode,
       hasEmail: Boolean(employee.email),
       avatarUrl: employee.avatarUrl,
-      levelLabel,
+      levelLabel: overview.levelLabel,
       position: employee.position,
-      enrollments: myEnrollments,
+      enrollments: overview.enrollments,
     },
-    team: {
-      tree,
-      // Map не серіалізується в JSON напряму — переганяємо в звичайний
-      // об'єкт {employeeId: summary}, клієнт читає по id.
-      summaryByEmployeeId: Object.fromEntries(summaryMap),
-      stats,
-      weeklyTrend,
-      // Рейтинг: бали/% кожного підлеглого + середнє команди і місце серед
-      // команд тієї ж посади (lib/rating.ts getTeamRating).
-      rating,
-    },
+    team: overview.team,
   });
 }
