@@ -167,6 +167,16 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   // "Команда") без переписування розмітки.
   const navBadges = { "/manager/courses": hasNewCourses };
 
+  // prefetch={false} на обох таббарах нижче (десктопний сайдбар і мобільний
+  // низ) — handleShellClick вище перехоплює клік на КОЖЕН із цих маршрутів
+  // через preventDefault і сам робить pushState/клієнтський рендер
+  // (SPA-диспетчер, PR #68); справжній Next.js Link-перехід із цих <Link>
+  // НІКОЛИ не відбувається, тож і його автопрефетч RSC-пейлоаду (за
+  // замовчуванням — щойно посилання в'їжджає у viewport) — мертвий
+  // вантаж. Заміряно на прод-збірці (2026-09-22): один заход на /manager
+  // давав 8 префетч-запитів — по 4 маршрути × 2, бо сайдбар і таббар
+  // рендеряться ОБИДВА (перемикає їх лише CSS), і кожен запит іде на
+  // сервер зі своєю порцією запитів до Neon паралельно з головним.
   const navLinks = (
     <nav className="mgr-nav">
       {NAV_ITEMS.map(({ href, label, Icon }) => {
@@ -175,6 +185,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
           <Link
             key={href}
             href={href}
+            prefetch={false}
             className={`mgr-nav-link${isActive ? " active" : ""}`}
             aria-current={isActive ? "page" : undefined}
             title={label}
@@ -281,6 +292,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
             <Link
               key={href}
               href={href}
+              prefetch={false}
               className={`tab-btn${isActive ? " active" : ""}`}
               role="tab"
               aria-label={navBadges[href] ? `${label} (є нові)` : label}
