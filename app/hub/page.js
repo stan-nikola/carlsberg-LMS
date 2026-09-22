@@ -1,9 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
-import { getEmployeeEnrollments } from "@/lib/employeeProgress";
-import { pickContinueEnrollments } from "@/lib/progress";
-import { mandatoryProgress } from "@/lib/ratingLogic";
+import { getHubHomeData } from "@/lib/employeeProgress";
 import { getEmployeeRating } from "@/lib/rating";
-import { getTimeBasedGreeting } from "@/lib/greeting";
 import { CourseTile } from "@/components/CourseTile";
 import { ProfileCard } from "@/components/ProfileCard";
 import { GreetingHeading } from "@/components/GreetingHeading";
@@ -15,19 +12,16 @@ import { RatingCard, MandatoryCard } from "@/components/RatingBlocks";
 
 export default async function HubHomePage() {
   const employee = await getCurrentUser();
-  const enrollments = await getEmployeeEnrollments(employee.id);
-
-  // Рейтинг (бали за реальні заслуги, lib/rating.ts) замість колишнього
-  // «Прогрес адаптації 200/200 XP», який упирався в стелю після двох курсів.
-  const rating = await getEmployeeRating(employee);
-  const mandatory = mandatoryProgress(enrollments);
+  // mandatory / continueEnrollments / greet рахуються всередині кеш-межі
+  // (lib/employeeProgress.js getHubHomeData) — див. коментар там.
+  const [{ enrollments, mandatory, continueEnrollments, greet }, rating] = await Promise.all([
+    getHubHomeData(employee.id),
+    // Рейтинг (бали за реальні заслуги, lib/rating.ts) замість колишнього
+    // «Прогрес адаптації 200/200 XP», який упирався в стелю після двох курсів.
+    getEmployeeRating(employee),
+  ]);
   const completedCount = enrollments.filter((e) => e.status === "completed").length;
   const lastCompleted = [...enrollments].reverse().find((e) => e.status === "completed");
-  // До 3 незавершених призначень — раніше показувалось лише одне
-  // ("найстаріше з непройдених"), тепер видно все, чим варто зайнятись.
-  const continueEnrollments = pickContinueEnrollments(enrollments, 3);
-
-  const greet = getTimeBasedGreeting();
 
   return (
     <section className="hub-screen">

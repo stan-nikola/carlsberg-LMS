@@ -1,6 +1,5 @@
 import { getCurrentUser } from "@/lib/session";
-import { getEmployeeEnrollments } from "@/lib/employeeProgress";
-import { groupLearning } from "@/lib/progress";
+import { getHubLearnData } from "@/lib/employeeProgress";
 import { CourseTile } from "@/components/CourseTile";
 
 // Портовано з .hub-screen[data-tab="learning"] в legacy index.html.
@@ -10,8 +9,9 @@ import { CourseTile } from "@/components/CourseTile";
 // з найближчим дедлайном → рекомендовані → пройдені.
 export default async function HubLearnPage() {
   const employee = await getCurrentUser();
-  const enrollments = await getEmployeeEnrollments(employee.id);
-  const groups = groupLearning(enrollments);
+  // groupLearning рахується всередині кеш-межі (lib/employeeProgress.js
+  // getHubLearnData) — `new Date()` поза кешем зупиняв App Shell.
+  const { enrollments, groups } = await getHubLearnData(employee.id);
   const sections = [
     ["Обов'язково", groups.mandatory],
     ["Рекомендовано", groups.optional],
