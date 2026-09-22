@@ -361,7 +361,7 @@
 .cp-lead {
   font-size: calc(14.5px * var(--fs-scale));
   color: var(--ink-soft);
-  margin-bottom: 14px;
+  margin-bottom: 0;
 }
 .cp-body p {
   font-size: calc(13.6px * var(--fs-scale));
@@ -416,9 +416,7 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  /* 12px саме маржином, padding обнулено — інакше відступ складався б із
-     двох джерел і в інспекторі показував інше число, ніж задано. */
-  margin-top: 12px;
+  margin-top: 0;
   padding-top: 0;
 }
 /* .cp-intro-stats (екранів/питань/хв) прибрано 2026-09-17: три плашки над
@@ -1607,16 +1605,37 @@
 .cp-cert-btn {
   margin-top: 6px;
 }
+/* Підказка для тих, хто склав, але не на 100% — пояснює, чому блоку
+   сертифіката вище нема, і що до нього лишилось небагато. */
+.cp-cert-hint {
+  margin-top: 14px;
+  font-size: calc(12.5px * var(--fs-scale));
+  line-height: 1.4;
+  color: var(--ink-soft);
+  text-align: center;
+}
 .cp-cert-btn svg {
   width: 20px;
   height: 20px;
 }
 /* Друга дорога з екрана результату/чекпоінта («На головну» під «До плану
-   курсу», «До плану — покращити результат» під сертифікатом): та сама
-   ширина, що й головна кнопка, лише тихіша. */
+   курсу», «До плану — покращити результат» під сертифікатом, «На головну»
+   під планом курсу в methodичці/CourseReview): на телефоні та сама
+   ширина, що й головна кнопка, лише тихіша; на десктопі — вужча й
+   центрована, інакше на широкій картці (@container cp-card, до 1400px)
+   розтягувалась на всю ширину незалежно від решти вмісту (запит
+   користувача, 2026-09-22). */
 .cp-complete-secondary {
   width: 100%;
-  margin-top: 10px;
+  margin-top: 20px;
+}
+@container cp-card (min-width: 640px) {
+  .cp-complete-secondary {
+    display: block;
+    width: 50%;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 /* Конфеті на весь екран (components/ScreenComponents.jsx ConfettiBurst) —

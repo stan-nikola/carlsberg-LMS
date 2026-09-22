@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CheckIcon, LockIcon, ClockIcon, CalendarIcon, CertificateIcon, PlayIcon, AlertIcon, XIcon } from "@/components/icons";
+import { CheckIcon, LockIcon, ClockIcon, PlayIcon, AlertIcon, XIcon } from "@/components/icons";
 import { MorphRevealIcon } from "@/components/MorphRevealIcon";
 import type { CoursePlanView, PlanModuleStatus } from "@/lib/coursePlan";
 import { buildProgressPath, buildSnakePath, type SnakePoint } from "@/lib/snakePath";
@@ -217,53 +217,21 @@ export function CoursePlanPanel({
 
   return (
     <div className="cp-plan">
-      {!preview && (
+      {/* Призначено/Дедлайн/Складено модулів прибрано з плашок (2026-09-22,
+          запит користувача): дата призначення й дедлайн і так звучать у
+          scheduleLabel/paceLabel нижче, а "N з M складено" дублює сам
+          план — кожна картка внизу вже показує свій статус. Сертифікат
+          переїхав у cp-note (CourseReview.jsx) — короткий текстовий
+          рядок замість окремої картки. */}
+      {!preview && plan.remainingCount === 0 && (
         <ul className="cp-plan-facts">
-          {plan.assignedAtLabel && (
-            <li>
-              <CalendarIcon />
-              <span>
-                <b>{plan.assignedAtLabel}</b>
-                Призначено
-              </span>
-            </li>
-          )}
-          {plan.dueDateLabel && (
-            <li className={plan.overdue ? "is-overdue" : undefined}>
-              <CalendarIcon />
-              <span>
-                <b>{plan.dueDateLabel}</b>
-                Дедлайн
-              </span>
-            </li>
-          )}
           <li>
-            <CheckIcon />
+            <ClockIcon />
             <span>
-              <b>
-                {plan.passedCount} з {plan.moduleCount}
-              </b>
-              Складено модулів
+              <b>{plan.totalTimeLabel}</b>
+              Весь курс
             </span>
           </li>
-          {plan.remainingCount === 0 && (
-            <li>
-              <ClockIcon />
-              <span>
-                <b>{plan.totalTimeLabel}</b>
-                Весь курс
-              </span>
-            </li>
-          )}
-          {plan.certificateLabel && (
-            <li className={plan.certificateEarned ? "is-earned" : undefined}>
-              <CertificateIcon />
-              <span>
-                <b>{plan.certificateLabel}</b>
-                Сертифікат
-              </span>
-            </li>
-          )}
         </ul>
       )}
 

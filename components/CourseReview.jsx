@@ -41,7 +41,24 @@ import { isScored } from "@/lib/componentTypes";
  * рейку — повернули); десктоп — горизонтальна панель ЗНИЗУ, список
  * модулів по центру, кнопка "нагору" — справа.
  */
-export function CourseReview({ course, modules, plan = null, scorePercent, backHref = "/hub/learn", lockedNotice = null }) {
+export function CourseReview({
+  course,
+  modules,
+  plan = null,
+  scorePercent,
+  backHref = "/hub/learn",
+  lockedNotice = null,
+  // Курс ЩЕ не закінчено (попереду нескладений модуль під паузою, або
+  // складений нижче 100% модуль чекає на перескладання) — показуємо
+  // ЛИШЕ план курсу (дати, статуси), без матеріалу модулів і якірної
+  // рейки: обидва мовчки натякали "курс закінчено, ось довідник", хоча
+  // насправді залишалось ще щось зробити (скарга користувача,
+  // 2026-09-22: Механіка 10 з одним замкненим модулем і Механіка 5 з
+  // модулем на перескладанні відкривались нею самою, що й Механіка 15,
+  // складена на 100%). true лише коли courseSlug/page.js уже визначив
+  // "не perfectAndComplete" — тут просто вимикаємо зайве.
+  planOnly = false,
+}) {
   const router = useRouter();
   const [zoomImage, setZoomImage] = useState(null);
   const viewportRef = useRef(null);
@@ -201,7 +218,7 @@ export function CourseReview({ course, modules, plan = null, scorePercent, backH
               </span>
             </button>
             <div style={{ flex: 1 }} />
-            <span className="cp-step-count">Методичка</span>
+            <span className="cp-step-count">{planOnly ? "План курсу" : "Методичка"}</span>
           </div>
 
           <div className="mr-body">
@@ -210,19 +227,34 @@ export function CourseReview({ course, modules, plan = null, scorePercent, backH
                 <h1 className="cp-h1">{course.title}</h1>
                 {course.description && <p className="cp-lead">{course.description}</p>}
                 <p className="cp-note">
-                  {plan && plan.remainingCount > 0
-                    ? `${lockedNotice ? `${lockedNotice} ` : "Наступний модуль ще закритий. "}Нижче — план курсу і матеріал уже складених модулів для повторення.`
+                  {planOnly
+                    ? plan && plan.remainingCount > 0
+                      ? (lockedNotice ? `${lockedNotice} Нижче — повний план курсу.` : "Наступний модуль ще закритий. Нижче — повний план курсу.")
+                      : "Курс складено, але результат можна покращити. Нижче — повний план курсу з датою, коли відкриється перескладання."
                     : scorePercent === 100
                       ? "Курс складено на 100% — тут лише матеріал для повторення, без тестів і обмежень."
                       : "Усі модулі курсу вже складено — нижче матеріал для повторення, без тестів і обмежень. Слабший модуль можна перепройти з тестами зі сторінки курсу."}
+                  {/* Сертифікат переїхав сюди з окремої картки cp-plan-facts
+                      (2026-09-22, запит користувача) — один короткий рядок
+                      замість плашки. Лише в planOnly: у "справжній"
+                      методичці (100%) сертифікат і так уже отримано, окремо
+                      про нього тут нагадувати нема сенсу. */}
+                  {planOnly && plan?.certificateLabel && (
+                    <> · Сертифікат: {plan.certificateEarned ? "отримано" : "за складений на 100% курс"}</>
+                  )}
                 </p>
-                {/* Курс ще не дійшов до кінця (наступний модуль під паузою або
-                    гальмом перескладання): план із датами відкриття — саме
+                {/* planOnly: план із датами відкриття/перескладання — саме
                     та відповідь на «а що далі й коли», якої тут не було
                     (стенд механіки, 2026-09-22: людина після чекпоінта
-                    потрапляла в методичку без жодної дати). Для СКЛАДЕНОГО
-                    курсу план і далі не показується (рішення 2026-09-18). */}
-                {plan && plan.remainingCount > 0 && (
+                    потрапляла в методичку без жодної дати; складений
+                    нижче 100% курс так само мовчки ставав методичкою,
+                    хоча перескладання чекало на конкретну дату). Показуємо
+                    ЗАВЖДИ в цьому режимі — і коли є нескладений модуль
+                    (remainingCount>0), і коли всі "passed", але щось можна
+                    покращити (Module.canRetake/retakeLabel далі в плані).
+                    Для СПРАВЖНЬОГО 100%-завершення (planOnly=false) план і
+                    далі не показується (рішення 2026-09-18). */}
+                {planOnly && plan && (
                   <>
                     <CoursePlanPanel plan={plan} slug={course.slug} />
                     <button type="button" className="btn btn-primary cp-complete-secondary" onClick={() => router.push("/hub")}>
@@ -232,16 +264,17 @@ export function CourseReview({ course, modules, plan = null, scorePercent, backH
                 )}
               </div>
 
-              {moduleGroups.map((group) => (
-                <div key={group.id} id={`cp-module-${group.id}`} className="cp-screen">
-                  <h2 className="cp-h2">{group.title}</h2>
-                  {group.reviewComponents.map(({ component, stepNumber }) => (
-                    <div className="screen-component" key={component.id}>
-                      <ComponentScreen component={component} screenNumber={stepNumber} onZoomImage={setZoomImage} readOnly />
-                    </div>
-                  ))}
-                </div>
-              ))}
+              {!planOnly &&
+                moduleGroups.map((group) => (
+                  <div key={group.id} id={`cp-module-${group.id}`} className="cp-screen">
+                    <h2 className="cp-h2">{group.title}</h2>
+                    {group.reviewComponents.map(({ component, stepNumber }) => (
+                      <div className="screen-component" key={component.id}>
+                        <ComponentScreen component={component} screenNumber={stepNumber} onZoomImage={setZoomImage} readOnly />
+                      </div>
+                    ))}
+                  </div>
+                ))}
             </div>
 
             {/* Порядок DOM навмисний: спершу список, тоді кнопка "нагору" —
@@ -253,7 +286,7 @@ export function CourseReview({ course, modules, plan = null, scorePercent, backH
                 мобільному) — .mr-body нижче лише розвертає РЯДОК/КОЛОНКУ
                 на @container-порозі, положення кнопки в межах панелі не
                 чіпає. */}
-            {moduleGroups.length > 1 && (
+            {!planOnly && moduleGroups.length > 1 && (
               <nav className="mr-tabbar" aria-label="Модулі курсу">
                 <div className="mr-tabbar-list" ref={tabListRef}>
                   {moduleGroups.map((group, i) => (

@@ -114,10 +114,9 @@ function buildCertificatePdf({ employeeName, courseTitle, completedAt, scorePerc
       .fillColor(BRAND_GREEN)
       .text(courseTitle, 60, 293, { align: "center", width: width - 120 });
 
-    // Реальний бал, а не константа "100%": з 2026-09-19 сертифікат
-    // видається за СКЛАДЕНИЙ курс (прохідний бал), тож надрукований
-    // результат — те, що робить нижчу планку чесною. Ідеальний результат
-    // лишається окремим формулюванням, він того вартий.
+    // scorePercent тут завжди 100 (єдина умова видачі, перевірена вище,
+    // 2026-09-22) — гілка з реальним балом лишена на випадок, якщо планку
+    // колись знову опустять, щоб не забути прибрати саме тут.
     doc
       .font("bold")
       .fontSize(16)
@@ -134,13 +133,12 @@ function buildCertificatePdf({ employeeName, courseTitle, completedAt, scorePerc
   });
 }
 
-// GET /api/courses/:slug/certificate — PDF-сертифікат за СКЛАДЕНИЙ курс
-// (Enrollment.passed — кожен модуль ≥ Course.passThreshold). До 2026-09-19
-// поріг був рівно 100%, і сертифікатів у людини практично не з'являлось
-// (скарга користувача: «Сертифікати должно быть больше») — рішення
-// користувача: планка = складений курс, а реальний бал друкується в самому
-// PDF, тож ідеальний результат усе одно видно. Той самий критерій, що в
-// lib/achievements.ts і в статусі сертифіката в плані курсу.
+// GET /api/courses/:slug/certificate — PDF-сертифікат ЛИШЕ за курс, складений
+// рівно на 100% (Enrollment.scorePercent === 100). 2026-09-19 планку
+// опускали до простого "складений курс" (Enrollment.passed) — 2026-09-22
+// користувач повернув назад: "Сертификат только 100% пройденый курс". Той
+// самий критерій, що в lib/achievements.ts і в статусі сертифіката в плані
+// курсу (lib/coursePlan.ts).
 export async function GET(request, { params }) {
   const { slug } = await params;
   const employee = await getCurrentUser();
@@ -172,8 +170,8 @@ export async function GET(request, { params }) {
   const enrollment = await prisma.enrollment.findUnique({
     where: { employeeId_courseId: { employeeId: employee.id, courseId: course.id } },
   });
-  if (!enrollment || enrollment.status !== "completed" || !enrollment.passed) {
-    return new Response(JSON.stringify({ error: "Сертифікат доступний лише за складений курс" }), {
+  if (!enrollment || enrollment.status !== "completed" || enrollment.scorePercent !== 100) {
+    return new Response(JSON.stringify({ error: "Сертифікат доступний лише за курс, складений на 100%" }), {
       status: 403,
     });
   }
