@@ -52,7 +52,18 @@ export function InstallGuideModal({ open, onClose }: { open: boolean; onClose: (
 
   if (!open) return null;
   return (
-    <div className="install-guide-overlay" role="dialog" aria-modal="true" aria-label="Як встановити CarLS">
+    <div
+      className="install-guide-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Як встановити CarLS"
+      // Клік по затемненню (не по самій рамці) закриває модалку — той
+      // самий паттерн, що й в інших оверлеях проєкту (ImageLightbox,
+      // AdminCourseEditor preview). e.target===e.currentTarget: клік по
+      // iframe не спливає в батьківський document взагалі (межа фрейма),
+      // тож перевірка тут лише для симетрії з рештою оверлеїв.
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <iframe className="install-guide-frame" src={GUIDE_URL} title="Як встановити CarLS на пристрій" />
     </div>
   );

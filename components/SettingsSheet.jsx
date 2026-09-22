@@ -20,6 +20,12 @@ export function SettingsSheet({ open, onClose, onLogout }) {
   // «Встановити застосунок» — лише коли відкрито в браузері, не з іконки;
   // визначається після монтування (SSR не знає display-mode).
   const [canInstall, setCanInstall] = useState(false);
+  // "Як це зробити" сам закриває шторку в тому ж кліку (нижче) — гайд
+  // відкривається вже НЕ поверх шторки, а замість неї. Ефект, що скидав
+  // guideOpen на кожне закриття шторки, прибрано: він спрацьовував і на
+  // ЦЕЙ клік теж (шторка щойно закрилась) і миттєво закривав гайд, який
+  // сам тільки-но відкрився — скарга користувача, 2026-09-22 ("не
+  // закривається на кнопку, всеодно є").
   const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
@@ -52,73 +58,91 @@ export function SettingsSheet({ open, onClose, onLogout }) {
   }
 
   return (
-    <div
-      className={`sheet-overlay${open ? " open" : ""}`}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div className="sheet">
-        <div className="sheet-handle" />
-        <h3>Налаштування</h3>
-        <p className="lead">Підлаштуйте розмір тексту під себе.</p>
-        <div className="settings-block">
-          <div className="settings-row">
-            <div className="settings-label">
-              <span className="settings-ico">
-                <SettingsGearIcon />
-              </span>
-              <div>
-                <div className="settings-t">Розмір тексту</div>
-                <div className="settings-d">Збільшіть шрифт, якщо текст замалий</div>
-              </div>
-            </div>
-            <div className="fs-slider-wrap">
-              <span className="fs-a">A</span>
-              <input
-                id="fsSlider"
-                type="range"
-                min="0"
-                max="3"
-                step="1"
-                value={fsStep}
-                onChange={handleSliderChange}
-                aria-label="Розмір тексту"
-              />
-              <span className="fs-a big">A</span>
-            </div>
-          </div>
-        </div>
-        {canInstall && (
+    <>
+      <div
+        className={`sheet-overlay${open ? " open" : ""}`}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) onClose();
+        }}
+      >
+        <div className="sheet">
+          <div className="sheet-handle" />
+          <h3>Налаштування</h3>
+          <p className="lead">Підлаштуйте розмір тексту під себе.</p>
           <div className="settings-block">
             <div className="settings-row">
               <div className="settings-label">
                 <span className="settings-ico">
-                  <DownloadIcon />
+                  <SettingsGearIcon />
                 </span>
                 <div>
-                  <div className="settings-t">Встановити застосунок</div>
-                  <div className="settings-d">Іконка на екрані, повний екран, push-сповіщення</div>
+                  <div className="settings-t">Розмір тексту</div>
+                  <div className="settings-d">Збільшіть шрифт, якщо текст замалий</div>
                 </div>
               </div>
-              <button type="button" className="admin-btn ntf-row-btn" onClick={() => setGuideOpen(true)}>
-                Як це зробити
-              </button>
+              <div className="fs-slider-wrap">
+                <span className="fs-a">A</span>
+                <input
+                  id="fsSlider"
+                  type="range"
+                  min="0"
+                  max="3"
+                  step="1"
+                  value={fsStep}
+                  onChange={handleSliderChange}
+                  aria-label="Розмір тексту"
+                />
+                <span className="fs-a big">A</span>
+              </div>
             </div>
           </div>
-        )}
-        <p className="footnote">
-          Налаштування зберігаються лише на цьому пристрої й не впливають на результат тесту.
-        </p>
+          {canInstall && (
+            <div className="settings-block">
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span className="settings-ico">
+                    <DownloadIcon />
+                  </span>
+                  <div>
+                    <div className="settings-t">Встановити застосунок</div>
+                    <div className="settings-d">Іконка на екрані, повний екран, push-сповіщення</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="admin-btn ntf-row-btn"
+                  onClick={() => {
+                    // Гайд раніше лежав У ПІДДЕРЕВІ шторки: opacity шторки
+                    // (transition закриття) множився на opacity гайда, тож
+                    // гайд неможливо було показати "замість" шторки — лише
+                    // ПОВЕРХ уже відкритої (шторка "не закривається, все одно
+                    // є" — скарга користувача, 2026-09-22). Тепер гайд —
+                    // сестринський елемент (рендериться нижче, поза
+                    // .sheet-overlay), і відкриття явно закриває шторку.
+                    onClose();
+                    setGuideOpen(true);
+                  }}
+                >
+                  Як це зробити
+                </button>
+              </div>
+            </div>
+          )}
+          <p className="footnote">
+            Налаштування зберігаються лише на цьому пристрої й не впливають на результат тесту.
+          </p>
 
-        {onLogout && (
-          <button className="logout-row" onClick={onLogout}>
-            <LogoutIcon />
-            <span>Вийти з акаунту</span>
-          </button>
-        )}
+          {onLogout && (
+            <button className="logout-row" onClick={onLogout}>
+              <LogoutIcon />
+              <span>Вийти з акаунту</span>
+            </button>
+          )}
+        </div>
       </div>
+      {/* Сестринський елемент, не дитина .sheet-overlay вище — інакше
+          transition закриття шторки (opacity) тягнув би за собою й гайд. */}
       <InstallGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
-    </div>
+    </>
   );
 }

@@ -413,12 +413,27 @@ export default function RegisterPage() {
             <Link className="iconbtn iconbtn-bare" aria-label="Адмін-панель" href="/admin">
               <LockIcon />
             </Link>
-            <button className="iconbtn iconbtn-bare" aria-label="Налаштування" onClick={() => setSettingsOpen(true)}>
+            <button
+              className="iconbtn iconbtn-bare"
+              aria-label="Налаштування"
+              onClick={() => {
+                setCodeHintOpen(false);
+                setSettingsOpen(true);
+              }}
+            >
               <GearIcon />
             </button>
           </div>
 
-          <div className="reg-viewport">
+          {/* reg-onboard-enter — той самий плавний fade, що й у WelcomeScreen/
+              StandaloneIntroScreen нижче (лише opacity, без translateY —
+              бренд-блок з лого вже стоїть на цьому самому місці зі
+              стартового кадру null, зсув знову змусив би лого "стрибнути").
+              Без цього класу перехід null→"form" (повторний візит, коли
+              welcome вже бачили) показував порожній бейдж, а тоді ввесь
+              вміст форми миттєво "вискакував" під ним — помітний ривок
+              (скарга користувача, 2026-09-22). */}
+          <div className="reg-viewport reg-onboard-enter">
             <div className="reg-badge">
               <PlatformBrand size="xl" stacked />
             </div>
@@ -499,7 +514,10 @@ export default function RegisterPage() {
                       type="button"
                       className="reg-info-btn"
                       aria-label="Де знайти код"
-                      onClick={() => setCodeHintOpen(true)}
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        setCodeHintOpen(true);
+                      }}
                     >
                       i
                     </button>
