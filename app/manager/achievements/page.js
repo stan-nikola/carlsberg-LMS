@@ -2,7 +2,6 @@ import { getCurrentUser } from "@/lib/session";
 import { getEmployeeBadgesView, getEmployeeCertificates } from "@/lib/achievements";
 import { getEmployeeRating, getLeaderboard } from "@/lib/rating";
 import { AchievementsPanel } from "@/components/AchievementsPanel";
-import { SeedViewCache } from "@/components/SeedViewCache";
 
 // «Досягнення» керівника — та сама панель, що й app/hub/achievements/page.js,
 // але лідерборд — уся гілка підпорядкування (усі посади регіону), а не
@@ -20,10 +19,6 @@ export default async function ManagerAchievementsPage() {
 
   return (
     <div className="manager-page manager-achievements-page">
-      <SeedViewCache
-        viewKey="/manager/achievements"
-        data={{ rating, badges, certificates, leaderboard, cohortLabel, currentEmployeeId: employee.id, hasEmail: Boolean(employee.email) }}
-      />
       <div className="greeting">ВАШ ПРОГРЕС</div>
       <h1 className="hub-h1">Досягнення</h1>
       <AchievementsPanel
