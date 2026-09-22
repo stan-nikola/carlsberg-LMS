@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, GearIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
@@ -8,12 +8,6 @@ import { PlatformBrand } from "@/components/PlatformBrand";
 import { NotificationBell } from "@/components/NotificationBell";
 import { SettingsSheet } from "@/components/SettingsSheet";
 import { usePullToRefresh } from "@/components/usePullToRefresh";
-import { clearCachedView } from "@/lib/clientViewCache";
-import { TeamView } from "@/components/ManagerViews/TeamView";
-import { CoursesView } from "@/components/ManagerViews/CoursesView";
-import { AchievementsView } from "@/components/ManagerViews/AchievementsView";
-import { ProfileView } from "@/components/ManagerViews/ProfileView";
-import { NotificationsView } from "@/components/ManagerViews/NotificationsView";
 
 // Згорнутий сайдбар — особиста зручність, localStorage (як в AdminShell).
 const SIDEBAR_COLLAPSED_KEY = "manager-sidebar-collapsed";
@@ -25,23 +19,16 @@ const NAV_ITEMS = [
   { href: "/manager/profile", label: "Профіль", Icon: ProfileIcon },
 ];
 
-// Клієнтський диспетчер вкладок (аудит "вообще без скелетонов мгновенно",
-// 2026-09-20): на реальному Vercel повторна Next.js-навігація на /manager/*
-// однаково йшла на сервер щоразу (живий замір DOM-поллінгом на проді
-// показав ~1.3-1.5с скелетона на РЕПІТ-переході, попри "use cache: private"
-// — задокументована поведінка директиви на практиці не підтвердилась).
-// Ці 5 маршрутів перехоплюються тут і рендеряться клієнтським компонентом
-// із власного кешу (lib/clientViewCache.js) замість справжнього переходу
-// Next.js — перше відвідування кожного цього сеансу все одно йде в мережу
-// (SeedViewCache у відповідному page.js), повторне — миттєво з кешу.
-// Усі ІНШІ посилання (плеєр курсу, картка людини тощо) не займаються.
-const VIEW_COMPONENTS = {
-  "/manager": TeamView,
-  "/manager/courses": CoursesView,
-  "/manager/achievements": AchievementsView,
-  "/manager/profile": ProfileView,
-  "/manager/notifications": NotificationsView,
-};
+// Навігація між вкладками — штатна Next.js (2026-09-22). Раніше тут стояв
+// власний SPA-диспетчер (PR #68: перехоплення кліків, pushState, рендер
+// ManagerViews/* із lib/clientViewCache) — бо повторний перехід на
+// реальному Vercel показував ~1.3с скелетона попри "use cache: private".
+// Справжня причина виявилась не в директиві: (1) не був увімкнений парний
+// прапорець partialPrefetching (#73), і (2) getCurrentUser() починався з
+// `await connection()` — динамічне читання першим рядком кожного page.js,
+// на якому App Shell зупинявся (#74). Після цих двох правок штатна
+// навігація в /hub дала 17-45мс без скелетона навіть на ПЕРШИЙ захід у
+// вкладку (живий замір на Vercel) — диспетчер став зайвим і прибраний.
 
 /**
  * Каркас /manager — та сама 4-вкладкова структура, що в /hub (Команда ~
@@ -76,64 +63,12 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   const tabbarRef = useRef(null);
   const pillRef = useRef(null);
   const tabRefs = useRef(new Map());
-  // null — показуємо справжню {children} (SSR-заход/F5 на поточний
-  // pathname). Непорожнє — клієнтський перехід: рендеримо відповідний
-  // ManagerViews/* із власного кешу, URL міняємо самі (pushState), Next.js
-  // Router про цю "навігацію" не знає навмисно.
-  const [clientView, setClientView] = useState(null);
-  // Форсує ремонт View-компонента при pull-to-refresh (нижче) — інакше
-  // useViewData не переопитає дані, побачивши, що кеш просто зник.
-  const [viewNonce, setViewNonce] = useState(0);
-  const activePath = clientView ?? pathname;
-
-  useEffect(() => {
-    function onPopState() {
-      const p = window.location.pathname;
-      setClientView(VIEW_COMPONENTS[p] ? p : null);
-    }
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
-
-  function handleShellClick(e) {
-    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.defaultPrevented) return;
-    const anchor = e.target.closest("a[href]");
-    if (!anchor) return;
-    let url;
-    try {
-      url = new URL(anchor.href, window.location.origin);
-    } catch {
-      return;
-    }
-    if (url.origin !== window.location.origin || !VIEW_COMPONENTS[url.pathname]) return;
-    e.preventDefault();
-    if (url.pathname === activePath) return;
-    window.history.pushState(null, "", url.pathname + url.search);
-    setClientView(url.pathname);
-  }
-
-  // pull-to-refresh на клієнтській вкладці мав би оновити ЇЇ, не застарілу
-  // {children} з першого SSR-заходу (router.refresh() лишається дефолтом,
-  // коли clientView===null — там {children} і так справжня поточна
-  // сторінка).
-  //
-  // useCallback обов'язковий: usePullToRefresh тримає onRefresh у
-  // залежностях свого ефекту, що вішає touchstart/move/end. Без useCallback
-  // ця функція — нове посилання на КОЖЕН рендер ManagerShell, ефект
-  // перевішувався б і посеред самого жесту протягування — локальні
-  // startY/pulling/currentPull (замикання всередині ефекту) губились, і
-  // спінер "ламався"/картка схлопувалась на півдорозі (скарга користувача,
-  // перевірка на телефоні, 2026-09-20).
-  const handleRefresh = useCallback(() => {
-    if (!clientView) return router.refresh();
-    clearCachedView(clientView);
-    setViewNonce((n) => n + 1);
-    return undefined;
-  }, [clientView, router]);
 
   // Без ref — window-режим (/manager скролляться самим вікном, не
-  // внутрішньою карткою, як /hub, див. usePullToRefresh.js).
-  const { pull, threshold } = usePullToRefresh(undefined, handleRefresh);
+  // внутрішньою карткою, як /hub, див. usePullToRefresh.js). Оновлення —
+  // дефолтний router.refresh(): {children} тепер завжди справжня поточна
+  // сторінка.
+  const { pull, threshold } = usePullToRefresh();
 
   useLayoutEffect(() => {
     try {
@@ -167,25 +102,19 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   // "Команда") без переписування розмітки.
   const navBadges = { "/manager/courses": hasNewCourses };
 
-  // prefetch={false} на обох таббарах нижче (десктопний сайдбар і мобільний
-  // низ) — handleShellClick вище перехоплює клік на КОЖЕН із цих маршрутів
-  // через preventDefault і сам робить pushState/клієнтський рендер
-  // (SPA-диспетчер, PR #68); справжній Next.js Link-перехід із цих <Link>
-  // НІКОЛИ не відбувається, тож і його автопрефетч RSC-пейлоаду (за
-  // замовчуванням — щойно посилання в'їжджає у viewport) — мертвий
-  // вантаж. Заміряно на прод-збірці (2026-09-22): один заход на /manager
-  // давав 8 префетч-запитів — по 4 маршрути × 2, бо сайдбар і таббар
-  // рендеряться ОБИДВА (перемикає їх лише CSS), і кожен запит іде на
-  // сервер зі своєю порцією запитів до Neon паралельно з головним.
+  // Дефолтний prefetch на <Link> нижче — навмисно: під partialPrefetching
+  // це один спільний App Shell на маршрут (не повний пререндер на кожне
+  // посилання), і саме він робить перехід миттєвим. prefetch={false} з #72
+  // мав сенс лише поки кліки перехоплював SPA-диспетчер — зараз він би
+  // вимкнув механізм, на який навігація спирається.
   const navLinks = (
     <nav className="mgr-nav">
       {NAV_ITEMS.map(({ href, label, Icon }) => {
-        const isActive = activePath === href;
+        const isActive = pathname === href;
         return (
           <Link
             key={href}
             href={href}
-            prefetch={false}
             className={`mgr-nav-link${isActive ? " active" : ""}`}
             aria-current={isActive ? "page" : undefined}
             title={label}
@@ -213,7 +142,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   // баг на прототипі, той самий підводний камінь для будь-якого
   // абсолютно спозиціонованого елемента у flex-контейнері).
   useLayoutEffect(() => {
-    const activeHref = NAV_ITEMS.find((t) => activePath === t.href)?.href ?? NAV_ITEMS[0].href;
+    const activeHref = NAV_ITEMS.find((t) => pathname === t.href)?.href ?? NAV_ITEMS[0].href;
     const activeEl = tabRefs.current.get(activeHref);
     const pill = pillRef.current;
     const bar = tabbarRef.current;
@@ -228,12 +157,10 @@ export function ManagerShell({ hasNewCourses = false, children }) {
     move();
     window.addEventListener("resize", move);
     return () => window.removeEventListener("resize", move);
-  }, [activePath]);
-
-  const ClientViewComponent = clientView ? VIEW_COMPONENTS[clientView] : null;
+  }, [pathname]);
 
   return (
-    <div className="manager-shell" onClickCapture={handleShellClick}>
+    <div className="manager-shell">
       {/* ---- Десктоп/планшет (≥900px): постійний сайдбар зліва ---- */}
       {/* Згортається до іконок, як адмін-панель (користувач, 2026-09-15);
           блок «ім’я · посада» знизу прибрано — він і так у профілі. */}
@@ -280,19 +207,18 @@ export function ManagerShell({ hasNewCourses = false, children }) {
         <div className="ptr-indicator" style={{ height: pull, opacity: Math.min(1, pull / threshold) }} aria-hidden="true">
           <SpinnerIcon />
         </div>
-        {ClientViewComponent ? <ClientViewComponent key={viewNonce} /> : children}
+        {children}
       </main>
 
       {/* ---- Мобільний (<900px): нижній таббар, той самий, що в /hub ---- */}
       <nav className="tabbar mgr-tabbar" role="tablist" ref={tabbarRef}>
         <span className="tab-pill" ref={pillRef} aria-hidden="true" />
         {NAV_ITEMS.map(({ href, label, Icon }) => {
-          const isActive = activePath === href;
+          const isActive = pathname === href;
           return (
             <Link
               key={href}
               href={href}
-              prefetch={false}
               className={`tab-btn${isActive ? " active" : ""}`}
               role="tab"
               aria-label={navBadges[href] ? `${label} (є нові)` : label}

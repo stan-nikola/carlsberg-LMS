@@ -1,8 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
-import { getEmployeeEnrollments } from "@/lib/employeeProgress";
-import { sortByUrgency } from "@/lib/progress";
+import { getManagerCoursesData } from "@/lib/employeeProgress";
 import { CourseTile } from "@/components/CourseTile";
-import { SeedViewCache } from "@/components/SeedViewCache";
 
 // "Курси" керівника — його ВЛАСНІ призначені курси (керівник теж Employee
 // зі своїми enrollments), той самий CourseTile, що й app/hub/learn/page.js
@@ -16,12 +14,13 @@ import { SeedViewCache } from "@/components/SeedViewCache";
 // для Досягнень/Профілю, які справді сверстані під вузьку картку).
 export default async function ManagerCoursesPage() {
   const employee = await getCurrentUser();
-  // Прострочені → нові/не складені → пройдені (lib/progress.js sortByUrgency).
-  const enrollments = sortByUrgency(await getEmployeeEnrollments(employee.id));
+  // Прострочені → нові/не складені → пройдені (sortByUrgency) — усередині
+  // кеш-межі (lib/employeeProgress.js getManagerCoursesData): `new Date()`
+  // поза кешем зупиняв App Shell на кожній навігації.
+  const enrollments = await getManagerCoursesData(employee.id);
 
   return (
     <div className="manager-page">
-      <SeedViewCache viewKey="/manager/courses" data={{ enrollments, hasEmail: Boolean(employee.email) }} />
       <div className="greeting">МОЇ КУРСИ</div>
       <h1 className="hub-h1">Курси</h1>
 
