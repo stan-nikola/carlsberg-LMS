@@ -84,7 +84,11 @@ export function retryGate(
     return { canRetryNow: true, attemptsLeft: null, nextAttemptAt: null, attemptsMade: made };
   }
 
-  const left = Math.max(0, rules.freeAttempts - made);
+  // attemptCount рахує і ПЕРШУ (провалену) спробу, а freeAttempts — це
+  // повтори ПІСЛЯ неї. Без «- 1» retryFreeAttempts:1 давав нуль вільних
+  // повторів («Вільні спроби вичерпано» одразу після першого провалу), а
+  // 0 і 1 поводились однаково (знайдено стендом механіки, 2026-09-22).
+  const left = Math.max(0, rules.freeAttempts - (made - 1));
   if (left > 0) {
     return { canRetryNow: true, attemptsLeft: left, nextAttemptAt: null, attemptsMade: made };
   }

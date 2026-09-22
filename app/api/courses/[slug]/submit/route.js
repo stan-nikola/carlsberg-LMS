@@ -118,6 +118,11 @@ export async function POST(request, { params }) {
               scoreRaw: lastModule.scoreRaw,
               scoreMax: lastModule.scoreMax,
               completedAt: new Date(completedAt),
+              // Той самий лічильник, що й у module-complete: без нього
+              // перескладання ОСТАННЬОГО модуля (воно йде через /submit, а
+              // не через module-complete) лишало attemptCount=1 — і гальмо
+              // перескладання на ньому не спрацьовувало ніколи.
+              attemptCount: { increment: 1 },
             },
             create: {
               enrollmentId: enrollment.id,

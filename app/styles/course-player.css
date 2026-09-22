@@ -1611,14 +1611,12 @@
   width: 20px;
   height: 20px;
 }
-/* Підказка для тих, хто склав, але не на 100% — пояснює, що сертифікат
-   узагалі існує, і що до нього лишилось небагато. */
-.cp-cert-hint {
-  margin: 14px 0 2px;
-  font-size: calc(12.5px * var(--fs-scale));
-  line-height: 1.4;
-  color: var(--ink-soft);
-  text-align: center;
+/* Друга дорога з екрана результату/чекпоінта («На головну» під «До плану
+   курсу», «До плану — покращити результат» під сертифікатом): та сама
+   ширина, що й головна кнопка, лише тихіша. */
+.cp-complete-secondary {
+  width: 100%;
+  margin-top: 10px;
 }
 
 /* Конфеті на весь екран (components/ScreenComponents.jsx ConfettiBurst) —
