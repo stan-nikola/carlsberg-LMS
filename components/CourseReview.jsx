@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronIcon } from "@/components/icons";
 import { ComponentScreen } from "@/components/CoursePlayer";
+import { CoursePlanPanel } from "@/components/CoursePlan";
 import { ImageLightbox } from "@/components/ScreenComponents";
 import { isScored } from "@/lib/componentTypes";
 
@@ -40,7 +41,7 @@ import { isScored } from "@/lib/componentTypes";
  * рейку — повернули); десктоп — горизонтальна панель ЗНИЗУ, список
  * модулів по центру, кнопка "нагору" — справа.
  */
-export function CourseReview({ course, modules, plan = null, scorePercent, backHref = "/hub/learn" }) {
+export function CourseReview({ course, modules, plan = null, scorePercent, backHref = "/hub/learn", lockedNotice = null }) {
   const router = useRouter();
   const [zoomImage, setZoomImage] = useState(null);
   const viewportRef = useRef(null);
@@ -210,11 +211,25 @@ export function CourseReview({ course, modules, plan = null, scorePercent, backH
                 {course.description && <p className="cp-lead">{course.description}</p>}
                 <p className="cp-note">
                   {plan && plan.remainingCount > 0
-                    ? "Наступний модуль ще закритий. Тут лише матеріал уже складених модулів для повторення."
+                    ? `${lockedNotice ? `${lockedNotice} ` : "Наступний модуль ще закритий. "}Нижче — план курсу і матеріал уже складених модулів для повторення.`
                     : scorePercent === 100
                       ? "Курс складено на 100% — тут лише матеріал для повторення, без тестів і обмежень."
                       : "Усі модулі курсу вже складено — нижче матеріал для повторення, без тестів і обмежень. Слабший модуль можна перепройти з тестами зі сторінки курсу."}
                 </p>
+                {/* Курс ще не дійшов до кінця (наступний модуль під паузою або
+                    гальмом перескладання): план із датами відкриття — саме
+                    та відповідь на «а що далі й коли», якої тут не було
+                    (стенд механіки, 2026-09-22: людина після чекпоінта
+                    потрапляла в методичку без жодної дати). Для СКЛАДЕНОГО
+                    курсу план і далі не показується (рішення 2026-09-18). */}
+                {plan && plan.remainingCount > 0 && (
+                  <>
+                    <CoursePlanPanel plan={plan} slug={course.slug} />
+                    <button type="button" className="btn btn-primary cp-complete-secondary" onClick={() => router.push("/hub")}>
+                      На головну
+                    </button>
+                  </>
+                )}
               </div>
 
               {moduleGroups.map((group) => (

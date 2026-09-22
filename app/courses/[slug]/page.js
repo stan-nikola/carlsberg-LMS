@@ -1,4 +1,5 @@
 import { redirect, notFound } from "next/navigation";
+import { connection } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
@@ -35,6 +36,11 @@ export default async function CoursePage({ params, searchParams }) {
   // (components/CoursePlan.tsx). Раніше вибору не було взагалі: плеєр
   // мовчки вирішував, з чого почати (скарга користувача, 2026-09-17).
   const requestedModuleId = Number((await searchParams)?.module) || null;
+  // Сторінка рахує доступність модулів від «зараз» (new Date() у
+  // getSessionModules/buildCoursePlan) — це запит-час, а не пререндер;
+  // без явного connection() валідатор Cache Components лічив це за
+  // блокування пререндера (blocking-prerender-current-time).
+  await connection();
   const employee = await getCurrentUser();
   if (!employee) redirect("/register");
   // Керівний шар (SV і вище) не бачить /hub взагалі — app/hub/layout.js
@@ -139,6 +145,21 @@ export default async function CoursePage({ params, searchParams }) {
     enrollment.scorePercent === 100 &&
     course.modules.every((m) => completionsByModuleId.has(m.id));
 
+  // Повідомлення про наступний недоступний модуль (якщо є) — у порядку
+  // проходження. Стосується лише прогресивного гейта (ще не складено
+  // попередній) — модулі, пропущені через паузу ПЕРЕПРОХОДЖЕННЯ, просто
+  // тихо пропускаються (вони вже складені, пояснювати нічого не треба).
+  let lockedNotice = null;
+  if (nextLocked) {
+    const { module: nl, reason, unlocksAt } = nextLocked;
+    lockedNotice =
+      reason === "cooldown"
+        ? `Модуль «${nl.title}» відкриється ${unlocksAt.toLocaleDateString("uk-UA")}.`
+        : reason === "pause"
+          ? `Модуль «${nl.title}» відкриється через ${moduleCooldownDays(course, nl)} дн. після складання попереднього.`
+          : `Модуль «${nl.title}» відкриється після того, як ви складете попередній модуль.`;
+  }
+
   // Немає жодного модуля, який зараз варто (пере)проходити, але щось уже
   // реально складено — курс повністю пройдено, і всі паузи перепроходження
   // ще діють. Замість плеєра — курс-методичка (тільки контент, без
@@ -148,6 +169,7 @@ export default async function CoursePage({ params, searchParams }) {
       <CourseReview
         course={course}
         backHref={backHref}
+        lockedNotice={lockedNotice}
         // Поки курс не пройдено до кінця, для повторення відкриті лише
         // СКЛАДЕНІ модулі: інакше після першого модуля людина читала б
         // матеріал усіх наступних ще до того, як пауза їх відкрила, — і
@@ -158,10 +180,11 @@ export default async function CoursePage({ params, searchParams }) {
             : course.modules
         }
         scorePercent={enrollment.scorePercent}
-        // План тут не показується (2026-09-18: прибрано разом із
-        // сертифікатом — обидва вже є на картці курсу), потрібен лише
-        // remainingCount для вступного підпису ("наступний модуль ще
-        // закритий" проти "усі модулі складено").
+        // Для СКЛАДЕНОГО курсу план не показується (2026-09-18: прибрано
+        // разом із сертифікатом — обидва вже є на картці курсу). Поки курс
+        // не дійшов до кінця (наступний модуль під паузою) — план і є
+        // головна відповідь на «а що далі й коли», тож CourseReview
+        // рендерить його сам за plan.remainingCount > 0.
         plan={planView}
       />
     );
@@ -225,23 +248,12 @@ export default async function CoursePage({ params, searchParams }) {
     components: screen.components,
   }));
 
-  // Повідомлення про наступний недоступний модуль (якщо є) — у порядку
-  // проходження. Стосується лише прогресивного гейта (ще не складено
-  // попередній) — модулі, пропущені через паузу ПЕРЕПРОХОДЖЕННЯ, просто
-  // тихо пропускаються (вони вже складені, пояснювати нічого не треба).
-  let lockedNotice = null;
-  if (nextLocked) {
-    const { module: nl, reason, unlocksAt } = nextLocked;
-    lockedNotice =
-      reason === "cooldown"
-        ? `Модуль «${nl.title}» відкриється ${unlocksAt.toLocaleDateString("uk-UA")}.`
-        : reason === "pause"
-          ? `Модуль «${nl.title}» відкриється через ${moduleCooldownDays(course, nl)} дн. після складання попереднього.`
-          : `Модуль «${nl.title}» відкриється після того, як ви складете попередній модуль.`;
-  }
   // Сесія не доходить до кінця курсу (попереду модуль під паузою) —
   // плеєр після останнього модуля сесії показує чекпоінт і НЕ відправляє
-  // /submit (курс ще не пройдено).
+  // /submit (курс ще не пройдено). pauseDays/moduleTitle — щоб чекпоінт
+  // назвав ДАТУ відкриття: сервер її не знає (пауза рахується від
+  // складання, яке станеться лише в плеєрі), а «через 3 дн.» без дати
+  // людина мусила рахувати сама.
   //
   // Окремо обраний модуль: курс завершується лише тоді, коли після нього
   // запис про складання буде в КОЖНОГО модуля курсу. Саме це дає
@@ -250,7 +262,14 @@ export default async function CoursePage({ params, searchParams }) {
   // останній результат перекриває попередній (рішення користувача,
   // 2026-09-17). Якщо ж попереду ще є нескладені модулі, /submit не
   // відправляється: курс не можна «закрити» одним обраним модулем.
-  let afterSession = nextLocked ? { moreModules: true, notice: lockedNotice } : null;
+  let afterSession = nextLocked
+    ? {
+        moreModules: true,
+        notice: lockedNotice,
+        moduleTitle: nextLocked.module.title,
+        pauseDays: nextLocked.reason === "pause" ? moduleCooldownDays(course, nextLocked.module) : null,
+      }
+    : null;
   if (singleModule) {
     const completesCourse = course.modules.every(
       (m) => completionsByModuleId.has(m.id) || m.id === singleModule.id
@@ -277,6 +296,12 @@ export default async function CoursePage({ params, searchParams }) {
         description: course.description,
         streakMessages: course.streakMessages,
         certificateEnabled: course.certificateEnabled,
+        // Без цього поля плеєр падав на `?? 80` і будь-який курс з іншим
+        // порогом (стенд «Механіка 5», поріг 50: модуль на 1/2 = 50% →
+        // «не складено») поводився як 80% — а сервер (module-complete)
+        // просто вірить присланому passed (знайдено стендом механіки,
+        // 2026-09-22).
+        passThreshold: course.passThreshold,
       }}
       screens={screens}
       enrollmentId={enrollment.id}

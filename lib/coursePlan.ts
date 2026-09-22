@@ -473,6 +473,10 @@ function lockInfo(m: PlanModule): { label: string; kind: LockKind } | null {
   if (m.canPlay) return null;
   if (m.status === "passed") return null; // складений на 100% — не «замок», просто нічого покращувати
   if (m.unlocksAt) return { label: `Відкриється ${formatDate(m.unlocksAt)}`, kind: "date" };
+  // Провалений під паузою перескладання: без цього рядка на картці не було
+  // ЖОДНОЇ причини (повний текст жив лише в десктопному тултипі, якого на
+  // телефоні не існує) — стенд механіки, 2026-09-22.
+  if (m.retryBlockedUntil) return { label: `Наступна спроба через ${formatWait(m.retryBlockedUntil)}`, kind: "date" };
   if (m.unlockAfterDays) {
     return { label: `Через ${m.unlockAfterDays} ${pluralDays(m.unlockAfterDays)} після попереднього`, kind: "days" };
   }

@@ -42,19 +42,28 @@ import { getLocalDisplayName } from "@/lib/localName";
 
 const STORAGE_PREFIX = "course_progress_";
 
-function loadProgress(slug) {
+// sessionKey — підпис набору екранів цієї сесії. idx — позиція у ПОТОЧНІЙ
+// сесії; після складання модулів наступна сесія починається з інших
+// модулів, і старий idx показував би в чуже питання (стенд механіки,
+// 2026-09-22: діалог «продовжити?» після вже складеної сесії стрибав у
+// середину наступного модуля). Чужий підпис = продовжувати нічого.
+function loadProgress(slug, sessionKey) {
   try {
     const raw = localStorage.getItem(STORAGE_PREFIX + slug);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (saved?.key === sessionKey) return saved;
+      localStorage.removeItem(STORAGE_PREFIX + slug);
+    }
   } catch {
     // localStorage недоступний — просто починаємо спочатку
   }
   return null;
 }
 
-function saveProgress(slug, idx, answers) {
+function saveProgress(slug, idx, answers, sessionKey) {
   try {
-    localStorage.setItem(STORAGE_PREFIX + slug, JSON.stringify({ idx, answers }));
+    localStorage.setItem(STORAGE_PREFIX + slug, JSON.stringify({ idx, answers, key: sessionKey }));
   } catch {
     // ігноруємо — прогрес просто не відновиться після перезавантаження
   }
@@ -436,8 +445,8 @@ function ScreenComponentBlock({
  * модуля. При провалі (не склав тести модуля) пропонує перепройти саме цей
  * модуль, не весь курс — не плутати з CompleteScreen (той для всього курсу).
  */
-function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
-  const { moduleTitle, scorePercent, scoreRaw, scoreMax, passed, saving, saveError, note, sessionEnd, retry } = checkpoint;
+function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry, onPlan }) {
+  const { moduleTitle, scorePercent, scoreRaw, scoreMax, passed, saving, saveError, queued, note, sessionEnd, retry } = checkpoint;
   // «М'яке гальмо» перескладання: перші спроби підряд вільні, далі коротка
   // пауза. Поки результат зберігається, кнопку не міняємо — інакше вона
   // блимала б із «спробувати» на «зачекайте» і назад.
@@ -455,7 +464,7 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
       <p className="lead">
         {passed
           ? sessionEnd
-            ? "Результат збережено. Наступний модуль відкриється після паузи — ми нагадаємо."
+            ? "Наступний модуль відкриється після паузи — ми нагадаємо."
             : "Можна переходити до наступного модуля."
           : "Перегляньте матеріал модуля ще раз і спробуйте пройти тести знову."}
       </p>
@@ -475,6 +484,15 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
           Зберігаємо результат…
         </p>
       )}
+      {/* Без мережі запит іде в чергу (lib/offlineOutbox.js) — це не
+          помилка, а «долетить пізніше»; раніше тут одночасно стояли
+          «Результат збережено» і «Не вдалося зберегти: Failed to fetch»
+          (стенд механіки, 2026-09-22). */}
+      {queued && (
+        <p className="cp-save-status cp-save-queued">
+          Немає зв&apos;язку — результат збережено на пристрої й відправиться автоматично, щойно з&apos;явиться мережа.
+        </p>
+      )}
       {saveError && <p className="cp-save-status cp-save-error">Не вдалося зберегти результат: {saveError}</p>}
 
       {retryBlocked && (
@@ -487,20 +505,29 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry }) {
         <p className="cp-note">Спроб підряд без паузи лишилось: {attemptsLeft}.</p>
       )}
 
-      <button
-        type="button"
-        className="btn-primary-full"
-        onClick={passed ? onContinue : retryBlocked ? onContinue : onRetry}
-      >
-        <span className="btn-label">
-          {passed ? (sessionEnd ? "На головну" : "Продовжити") : retryBlocked ? "На головну" : "Спробувати модуль ще раз"}
-        </span>
-      </button>
+      {/* Сесія на цьому закінчується (пауза або гальмо перескладання) —
+          дві дороги, обидві названі: план курсу (там дата відкриття і
+          решта модулів) і головна. Раніше була лише «На головну», і людина
+          не знала, де подивитись, коли їй повертатись. */}
+      {(sessionEnd && passed) || retryBlocked ? (
+        <>
+          <button type="button" className="btn-primary-full" onClick={onPlan}>
+            <span className="btn-label">До плану курсу</span>
+          </button>
+          <button type="button" className="btn btn-ghost cp-complete-secondary" onClick={onContinue}>
+            На головну
+          </button>
+        </>
+      ) : (
+        <button type="button" className="btn-primary-full" onClick={passed ? onContinue : onRetry}>
+          <span className="btn-label">{passed ? "Продовжити" : "Спробувати модуль ще раз"}</span>
+        </button>
+      )}
     </div>
   );
 }
 
-function CompleteScreen({ result, onRetake, course, hasEmail, previewMode }) {
+function CompleteScreen({ result, onRetake, onPlan, course, hasEmail, previewMode }) {
   // Ім'я для сертифіката: у співробітників без email Employee.name —
   // заглушка з посади, справжнє ім'я живе лише в localStorage пристрою
   // (див. lib/localName.js). Той самий підхід, що і в картці курсу.
@@ -536,12 +563,14 @@ function CompleteScreen({ result, onRetake, course, hasEmail, previewMode }) {
   if (!result) return null;
   const { scorePercent, scoreRaw, scoreMax, passed, submitting, submitError, queued } = result;
 
-  // Сертифікат — лише за РІВНО 100% і лише якщо він увімкнений для цього
-  // курсу (Course.certificateEnabled). Прохідний бал тут ні до чого: він
-  // дає "залік", сертифікат — свідомо вища планка.
+  // Сертифікат = СКЛАДЕНИЙ курс (Enrollment.passed) — той самий критерій,
+  // що в «Досягненнях», PDF-роуті й плані курсу (CLAUDE.md, 2026-09-19).
+  // До 2026-09-22 тут лишалась стара планка «рівно 100%»: план показував
+  // «Сертифікат: отримано», а цей екран казав «видається за 100%» і кнопки
+  // не давав (стенд механіки).
   const certificateAllowed = course?.certificateEnabled !== false;
   const isPerfect = scorePercent === 100;
-  const showCertificate = isPerfect && certificateAllowed;
+  const showCertificate = passed && certificateAllowed;
   // Кнопку тримаємо неактивною, поки результат не долетів до сервера:
   // роут сертифіката перевіряє саме збережений Enrollment і до того
   // моменту відповів би 403.
@@ -610,21 +639,18 @@ function CompleteScreen({ result, onRetake, course, hasEmail, previewMode }) {
         </div>
       )}
 
-      {/* Склав, але не бездоганно — кажемо, що сертифікат узагалі існує і
-          що до нього лишилось небагато. Без цього людина просто не знає
-          про таку можливість. */}
-      {passed && !isPerfect && certificateAllowed && (
-        <p className="cp-cert-hint">
-          Сертифікат видається за 100% — вам лишилось зовсім небагато.
-        </p>
-      )}
-
-      {/* При 100% перепроходити нічого — кнопки в блоці немає взагалі.
-          Внизу в навігації в цьому випадку стоїть «Перейти на головну»
-          (див. navbar), тож двох однакових дій на екрані більше немає. */}
-      {!isPerfect && (
+      {/* Не склав — перескласти весь курс (сесія з нескладених модулів).
+          Склав, але не на 100% — покращувати варто ОКРЕМИЙ слабший модуль
+          із плану, не весь курс заново. Внизу в навігації в обох випадках
+          стоїть «Перейти на головну» (див. navbar). */}
+      {!passed && (
         <button type="button" className="btn-primary-full" onClick={onRetake}>
           <span className="btn-label">Пройти ще раз</span>
+        </button>
+      )}
+      {passed && !isPerfect && !previewMode && (
+        <button type="button" className="btn btn-ghost cp-complete-secondary" onClick={onPlan}>
+          До плану курсу — покращити результат
         </button>
       )}
     </div>
@@ -644,8 +670,8 @@ function ResumePrompt({ onResume, onRestart }) {
       <div className="resume-prompt" role="alertdialog" aria-modal="true" aria-label="Продовжити курс">
         <p className="resume-prompt-title">Продовжити з того самого місця?</p>
         <p className="resume-prompt-text">
-          Ви вже починали цей курс і не завершили його. Можна продовжити з того місця, де зупинились, або пройти
-          курс спочатку.
+          Ви вже починали цей курс і не завершили його. Можна продовжити з того місця, де зупинились, або почати
+          заново — з першого ще не складеного модуля.
         </p>
         <div className="resume-prompt-actions">
           <button type="button" className="btn btn-ghost" onClick={onRestart}>
@@ -793,11 +819,6 @@ export function CoursePlayer({
   // компонент і спитати в lib/componentTypes.js, чи його гейт уже
   // задоволений (для плавної прокрутки до наступного).
   const allComponents = useMemo(() => screens.flatMap((s) => s.components), [screens]);
-
-  // Бездоганне проходження міняє нижню навігацію фінального екрана:
-  // «Назад» ховається, а замість «Пройти ще раз» лишається вихід на
-  // головну.
-  const isPerfectResult = result?.scorePercent === 100;
 
   /**
    * Ідеальне завершення "модуля питань" — реального Course Module курсу, а
@@ -948,12 +969,13 @@ export function CoursePlayer({
   // саме "почали й одразу закрили на вступі" не рахується (немає різниці,
   // з чого починати).
   const [resumePrompt, setResumePrompt] = useState(null);
+  const sessionKey = screens.map((s) => s.id).join("-");
   useEffect(() => {
     // Одиночний модуль (?module=N) збережений прогрес не читає: у
     // localStorage лежить idx ПОВНОЇ сесії курсу, і в сесії з одного
     // модуля він показує в порожнечу або одразу на екран завершення.
     if (previewMode || singleModuleTitle) return;
-    const saved = loadProgress(course.slug);
+    const saved = loadProgress(course.slug, sessionKey);
     if (saved && typeof saved.idx === "number" && saved.idx > introIdx) {
       setResumePrompt(saved);
     }
@@ -990,8 +1012,13 @@ export function CoursePlayer({
     // …і не пише його: інакше індекси одномодульної сесії отруїли б
     // відновлення повної (той самий ключ у localStorage). Модуль короткий —
     // якщо вийшли посередині, він просто починається заново.
-    if (!previewMode && !singleModuleTitle && idx !== completeIdx) saveProgress(course.slug, idx, answers);
-  }, [idx, answers, course.slug, completeIdx, singleModuleTitle]);
+    // idx > introIdx: на вступі зберігати нічого, а запис {idx:0} затирав
+    // би справжній збережений прогрес, поки діалог «продовжити?» ще
+    // відкритий (у dev StrictMode ефект спрацьовує двічі — стенд, 2026-09-22).
+    if (!previewMode && !singleModuleTitle && idx > introIdx && idx !== completeIdx) {
+      saveProgress(course.slug, idx, answers, sessionKey);
+    }
+  }, [idx, answers, course.slug, completeIdx, singleModuleTitle, sessionKey]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1074,17 +1101,20 @@ export function CoursePlayer({
     };
     try {
       const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      // 5xx раніше мовчки читалось як «збережено» (res.ok не перевірявся).
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       // Сервер повертає стан «гальма» перескладання (lib/retryPolicy.ts) —
       // саме він вирішує, показати кнопку повтору чи «наступна спроба
       // через …»; на клієнті це рахувати не можна, там немає лічильника
       // спроб і його легко підмінити.
       const data = await res.json().catch(() => null);
-      return { error: null, retry: data?.retry || null };
+      return { error: null, queued: false, retry: data?.retry || null };
     } catch (err) {
-      // Немає мережі — у чергу (lib/offlineOutbox.js), досилається
-      // автоматично; порядок «модуль → курс» черга зберігає.
+      // Немає мережі (fetch кидає TypeError) або сервер упав — у чергу
+      // (lib/offlineOutbox.js), досилається автоматично; порядок
+      // «модуль → курс» черга зберігає, 4xx вона сама викидає.
       enqueue(url, body);
-      return { error: err.message, retry: null };
+      return { error: err instanceof TypeError ? null : err.message, queued: true, retry: null };
     }
   }
 
@@ -1226,8 +1256,14 @@ export function CoursePlayer({
       const score = { ...scoreForSegment(segment), durationSeconds };
       const nextSegment = moduleSegments[moduleSegments.indexOf(segment) + 1];
       const pauseDays = nextSegment && moduleCooldowns ? moduleCooldowns[nextSegment.moduleId] : 0;
+      // Пауза рахується від складання, яке щойно сталось — тож дата
+      // відкриття відома саме тут, і саме її людина хоче бачити, а не
+      // «через 3 дн.» для самостійного підрахунку.
+      const opensOn = (days) => new Date(Date.now() + days * 86400000).toLocaleDateString("uk-UA");
       const note = sessionEnd
-        ? afterSession.notice
+        ? afterSession.pauseDays
+          ? `Модуль «${afterSession.moduleTitle}» відкриється ${opensOn(afterSession.pauseDays)} (через ${afterSession.pauseDays} дн. після складання цього).`
+          : afterSession.notice
         : pauseDays > 0
           ? `У реальному проходженні тут пауза: модуль «${nextSegment.moduleTitle}» відкриється через ${pauseDays} дн. після складання цього. У прев’ю можна йти далі одразу.`
           : null;
@@ -1242,8 +1278,8 @@ export function CoursePlayer({
         sessionEnd,
       });
       if (!previewMode) {
-        const { error: saveError, retry } = await postModuleCompletion(segment.moduleId, score);
-        setModuleCheckpoint((c) => (c ? { ...c, saving: false, saveError, retry } : c));
+        const { error: saveError, queued, retry } = await postModuleCompletion(segment.moduleId, score);
+        setModuleCheckpoint((c) => (c ? { ...c, saving: false, saveError, queued, retry } : c));
       }
       return;
     }
@@ -1308,6 +1344,18 @@ export function CoursePlayer({
     activeSecondsRef.current = 0;
     setNavDirection("back");
     setIdx(introIdx);
+    // План на вступі — серверний пропс з моменту відкриття сторінки; без
+    // refresh після сесії він показував уже складені модулі як «0%,
+    // скласти ще раз» (стенд механіки, 2026-09-22).
+    if (!previewMode) router.refresh();
+  }
+
+  /** Вийти з плеєра на план курсу (сторінка курсу без ?module=): сервер
+   *  сам вирішить, показати план із датами відкриття чи наступну сесію. */
+  function goToPlan() {
+    if (!previewMode) clearProgress(course.slug);
+    router.push(`/courses/${course.slug}`);
+    router.refresh();
   }
 
   const progressPct = Math.round((idx / (totalSteps - 1)) * 100);
@@ -1385,6 +1433,7 @@ export function CoursePlayer({
                 checkpoint={moduleCheckpoint}
                 onContinue={handleModuleContinue}
                 onRetry={handleModuleRetry}
+                onPlan={goToPlan}
               />
             ) : (
               <>
@@ -1412,7 +1461,7 @@ export function CoursePlayer({
                 )}
 
                 {idx === completeIdx && (
-                  <CompleteScreen result={result} onRetake={handleRetake} course={course} hasEmail={hasEmail} previewMode={previewMode} />
+                  <CompleteScreen result={result} onRetake={handleRetake} onPlan={goToPlan} course={course} hasEmail={hasEmail} previewMode={previewMode} />
                 )}
               </>
             )}
@@ -1432,29 +1481,24 @@ export function CoursePlayer({
                   </div>
                 );
               })()}
-              <div className={`navbar${isPerfectResult ? " navbar--solo" : ""}`}>
-                {/* Після бездоганного проходження повертатись нікуди: «Назад»
-                    не рендериться взагалі (не visibility:hidden — той лишав
-                    би порожні 80px зліва), і єдина кнопка «Перейти на головну»
-                    розтягується на всю ширину (.navbar--solo). На вступному
-                    екрані «Назад» лише ховається, щоб «Далі» стояла на тому ж
-                    місці, що й на всіх наступних екранах. */}
-                {!isPerfectResult && (
+              <div className={`navbar${idx === completeIdx ? " navbar--solo" : ""}`}>
+                {/* На фінальному екрані повертатись нікуди: «Назад» не
+                    рендериться взагалі (не visibility:hidden — той лишав би
+                    порожні 80px зліва), і єдина кнопка «Перейти на головну»
+                    розтягується на всю ширину (.navbar--solo). «Пройти ще
+                    раз» живе в самому екрані результату (CompleteScreen) —
+                    раніше вона стояла ще й тут, двічі на одному екрані. На
+                    вступному екрані «Назад» лише ховається, щоб «Далі»
+                    стояла на тому ж місці, що й на всіх наступних екранах. */}
+                {idx !== completeIdx && (
                   <button className="btn btn-ghost" onClick={goBack} style={{ visibility: idx === introIdx ? "hidden" : "visible" }}>
                     Назад
                   </button>
                 )}
                 {idx === completeIdx ? (
-                  isPerfectResult ? (
-                    // 100% — єдина осмислена дія далі це піти з курсу.
-                    <button className="btn btn-primary" onClick={() => (previewMode ? handleRetake() : router.push("/hub"))}>
-                      {previewMode ? "Пройти прев'ю ще раз" : "Перейти на головну"}
-                    </button>
-                  ) : (
-                    <button className="btn btn-primary" onClick={handleRetake}>
-                      Пройти ще раз
-                    </button>
-                  )
+                  <button className="btn btn-primary" onClick={() => (previewMode ? handleRetake() : router.push("/hub"))}>
+                    {previewMode ? "Пройти прев'ю ще раз" : "Перейти на головну"}
+                  </button>
                 ) : (
                   <button className="btn btn-primary" onClick={goNext} disabled={!currentScreenAllowsNext()}>
                     {idx === completeIdx - 1 ? "Завершити" : "Далі"}

@@ -99,6 +99,14 @@ export async function POST(request, { params }) {
     }
   }
 
+  // Перший результат по курсу = курс «в процесі». Ніде більше статус із
+  // not_started не рухався: курс із сімома складеними модулями лишався
+  // «новим» на картці і не потрапляв у фільтр «В процесі» керівника.
+  // overdue не чіпаємо — його виставляє cron і він важливіший.
+  if (enrollment.status === "not_started") {
+    await prisma.enrollment.update({ where: { id: enrollment.id }, data: { status: "in_progress" } });
+  }
+
   // Модуль складено/не складено — саме те, що показує getEmployeeEnrollments
   // (/hub, /hub/learn, /manager/courses), інакше людина, що щойно
   // повернулась зі скороного модуля, до 60с бачила б старий статус.

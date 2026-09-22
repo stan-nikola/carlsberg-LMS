@@ -42,22 +42,40 @@ describe("retryGate — м'яке гальмо", () => {
     expect(g.canRetryNow).toBe(true);
   });
 
-  it("після першої невдалої спроби лишається ще одна вільна", () => {
+  it("після першої невдалої спроби всі вільні повтори ще попереду", () => {
     const g = retryGate(failed({ attemptCount: 1 }), RULES, NOW);
     expect(g.canRetryNow).toBe(true);
-    expect(g.attemptsLeft).toBe(1);
+    expect(g.attemptsLeft).toBe(2);
     expect(g.nextAttemptAt).toBeNull();
   });
 
-  it("вільні спроби вичерпано — пауза, з датою наступної спроби", () => {
+  it("другий провал з'їдає один вільний повтор", () => {
     const g = retryGate(failed({ attemptCount: 2 }), RULES, NOW);
+    expect(g.canRetryNow).toBe(true);
+    expect(g.attemptsLeft).toBe(1);
+  });
+
+  it("вільні спроби вичерпано — пауза, з датою наступної спроби", () => {
+    const g = retryGate(failed({ attemptCount: 3 }), RULES, NOW);
     expect(g.canRetryNow).toBe(false);
     expect(g.attemptsLeft).toBe(0);
     expect(g.nextAttemptAt).toEqual(new Date("2026-09-17T13:00:00Z"));
   });
 
+  it("один вільний повтор — це саме один повтор після провалу, не нуль", () => {
+    const rules = { freeAttempts: 1, cooldownHours: 24 };
+    expect(retryGate(failed({ attemptCount: 1 }), rules, NOW).canRetryNow).toBe(true);
+    expect(retryGate(failed({ attemptCount: 2 }), rules, NOW).canRetryNow).toBe(false);
+  });
+
+  it("нуль вільних повторів — пауза одразу після першого провалу", () => {
+    const g = retryGate(failed({ attemptCount: 1 }), { freeAttempts: 0, cooldownHours: 1 }, NOW);
+    expect(g.canRetryNow).toBe(false);
+    expect(g.nextAttemptAt).toEqual(new Date("2026-09-17T13:00:00Z"));
+  });
+
   it("пауза минула — спроба знову відкрита", () => {
-    const g = retryGate(failed({ attemptCount: 2, completedAt: new Date("2026-09-17T10:00:00Z") }), RULES, NOW);
+    const g = retryGate(failed({ attemptCount: 3, completedAt: new Date("2026-09-17T10:00:00Z") }), RULES, NOW);
     expect(g.canRetryNow).toBe(true);
     expect(g.nextAttemptAt).toBeNull();
   });
