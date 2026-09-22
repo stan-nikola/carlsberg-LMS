@@ -1,10 +1,26 @@
 /* ===================== Рейтинг (components/RatingBlocks.jsx,
    AchievementsPanel.jsx, CertificateList.jsx). Лише токени tokens.css. */
 
+/* Сіра лінія-роздільник між секціями "Досягнень" (2026-09-22, рішення
+   користувача: "щоб було видно, що це різні блоки"). .ach-badges/
+   .ach-certs — завжди одна під одною в .ach-col, лінія скрізь. .ach-lb —
+   на мобільному (та в базовому одноколонковому показі) йде відразу під
+   .ach-certs у тому самому потоці, тож теж отримує лінію (друга правка,
+   2026-09-22); на десктопі (@container ach, 640px) вона переїжджає в
+   ДРУГУ колонку сама по собі — там лінія над нею прибирається нижче,
+   інакше виглядала б відірваною від нічого. */
+.ach-badges,
+.ach-certs,
+.ach-lb {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: var(--border-w) solid var(--line);
+}
+
 .rt-card {
   display: block;
   padding: var(--card-pad);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface-1);
@@ -18,6 +34,29 @@ a.rt-card:focus-visible {
 @media (hover: hover) {
   a.rt-card:hover {
     background: var(--cb-overlay-10);
+  }
+}
+/* Підсвітка при переході із клікабельної зеленої картки на Home
+   (?highlight=rating, 2026-09-22) — ОДИН спалах золотої (--gold, той
+   самий акцент, що й зірка рівня/xp-fill) рамки, що "розпухає" (кільце
+   розширюється від краю картки назовні, як ріпл) і водночас плавно
+   гасне — рішення користувача, ні пульсації в кілька циклів, ні
+   постійного outline після не лишається. Без scrollIntoView
+   (RatingBlocks.jsx) — лише сама рамка. */
+.rt-card-highlight {
+  animation: rt-highlight-flash 1.4s ease-out 1 both;
+}
+@keyframes rt-highlight-flash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 65%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 16px color-mix(in srgb, var(--gold) 0%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rt-card-highlight {
+    animation: none;
   }
 }
 .rt-top {
@@ -73,7 +112,20 @@ a.rt-card:focus-visible {
   color: var(--ink-soft);
 }
 
-/* «За що» — три плашки на екрані досягнень (той самий .stats-row). */
+/* «За що» — три плашки на екрані досягнень (той самий .stats-row).
+   Висота -~50% (2026-09-22, скарга користувача — за замовчуванням
+   .stat-pill (hub.css) стосований стос "число зверху, підпис знизу", тут
+   натомість рядок "число + підпис поруч" — читабельно і вдвічі нижче. */
+.rt-breakdown .stat-pill {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 6px;
+}
+.rt-breakdown .stat-pill b {
+  font-size: calc(14px * var(--fs-scale));
+}
 .rt-breakdown .stat-pill span {
   text-transform: none;
   letter-spacing: 0;
@@ -155,6 +207,13 @@ a.rt-card:focus-visible {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0 28px;
     align-items: start;
+  }
+  /* .ach-lb тут — перший (і єдиний) блок ДРУГОЇ колонки, лінія над нею
+     нічого б не відділяла. */
+  .ach-lb {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
   }
   .ach-badges .badge-grid {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 104px), 1fr));

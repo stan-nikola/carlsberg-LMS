@@ -4,8 +4,10 @@ import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckIcon, LockIcon, ClockIcon, PlayIcon, AlertIcon, XIcon } from "@/components/icons";
 import { MorphRevealIcon } from "@/components/MorphRevealIcon";
-import type { CoursePlanView, PlanModuleStatus } from "@/lib/coursePlan";
+import { pickPlanFocusModuleId, type CoursePlanView, type PlanModuleStatus } from "@/lib/coursePlan";
 import { buildProgressPath, buildSnakePath, type SnakePoint } from "@/lib/snakePath";
+import { smoothScrollElementIntoView } from "@/lib/smoothScrollTo";
+import { cubicBezierTimeAtProgress } from "@/lib/cubicBezier";
 
 /**
  * План курсу — перше, що людина бачить, відкривши курс: склад курсу,
@@ -67,11 +69,9 @@ import { buildProgressPath, buildSnakePath, type SnakePoint } from "@/lib/snakeP
  * прийом — той самий, що в CompletionRing.tsx.
  */
 
-const STATUS_ICON: Record<PlanModuleStatus, React.ReactNode> = {
-  // Морф-анімація появи (MorphRevealIcon, запит користувача, 2026-09-19) —
-  // єдиний вузол дороги, для якого це має сенс: "складено" — кінцевий,
-  // радісний стан, решта (available/locked/failed) статичні за задумом.
-  passed: <MorphRevealIcon shape="check" label="Складено" size={14} />,
+// passed рендериться окремо (нижче, inline) — йому потрібна ЖИВА затримка
+// на вузол (staggerMs), а не статичний елемент один на всі картки.
+const STATUS_ICON: Partial<Record<PlanModuleStatus, React.ReactNode>> = {
   failed: <AlertIcon />,
   available: <PlayIcon />,
   locked: <LockIcon />,
@@ -80,11 +80,22 @@ const STATUS_ICON: Record<PlanModuleStatus, React.ReactNode> = {
 /** Радіус заокруглення кутів дороги на переносі рядка — px. */
 const ROAD_CORNER_RADIUS = 14;
 
-/** Тривалість протяжки зеленого шляху — МАЄ збігатись із
- *  `--road-draw-duration` у app/styles/course-player.css (0.9s база × 1.2
- *  = 1.08s, "на 20% довше"). Звідси ж рахується затримка сплеску
- *  масштабу на кожному пройденому вузлі, щоб вона встигала за лінією. */
-const ROAD_DRAW_MS = 1080;
+/** Тривалість протяжки зеленого шляху — МАЄ збігатись із transition на
+ *  `.cp-plan-road-progress.is-mounted` в app/styles/course-player.css.
+ *  1.08s × 3 = 3.24s (2026-09-22, рішення користувача: "в три раза
+ *  медленнее" — і скрол, і сама лінія мають встигати читатись оком, не
+ *  бути миттєвими). Звідси ж рахується затримка сплеску масштабу на
+ *  кожному пройденому вузлі, щоб вона встигала за лінією, і тривалість
+ *  синхронного скролу до потрібного модуля (lib/smoothScrollTo.ts). */
+const ROAD_DRAW_MS = 3240;
+
+/** МАЄ збігатись із --ease-premium (app/styles/tokens.css) — та сама
+ *  крива, якою CSS анімує stroke-dashoffset лінії. Потрібна тут окремо
+ *  (не лише в CSS), щоб порахувати РЕАЛЬНИЙ момент часу, коли лінія
+ *  візуально доходить до вузла i (нижче, cubicBezierTimeAtProgress) —
+ *  крива не лінійна (швидко на старті, гальмує в кінці), тож "вузол i з
+ *  N" проходиться не в момент `i/N * ROAD_DRAW_MS`. */
+const EASE_PREMIUM: [number, number, number, number] = [0.2, 0.8, 0.2, 1];
 
 type ModuleFact = { icon?: React.ReactNode; text: string; className?: string };
 
@@ -169,9 +180,13 @@ export function CoursePlanPanel({
   const [path, setPath] = useState<{ base: string; progress: string }>({ base: "", progress: "" });
   const [mounted, setMounted] = useState(false);
 
-  const stopIndex = plan.nextModuleId
-    ? plan.modules.findIndex((m) => m.id === plan.nextModuleId)
-    : plan.modules.length - 1;
+  // focusModuleId — той самий модуль, куди й плавно скролить ефект нижче
+  // (lib/coursePlan.ts pickPlanFocusModuleId, 2026-09-22): лінія прогресу
+  // зупиняється РІВНО там, а не завжди на останньому модулі — інакше вона
+  // "перестрибувала" б повз заблокований чи покращуваний модуль до кінця.
+  const focusModuleId = pickPlanFocusModuleId(plan);
+  const stopIndex =
+    focusModuleId != null ? plan.modules.findIndex((m) => m.id === focusModuleId) : plan.modules.length - 1;
 
   // Вимірюємо позиції вузлів щоразу, як сітка реально змінює розмір —
   // кількість карток у ряду (десктоп, flex-wrap за контентом) чи сам
@@ -211,9 +226,21 @@ export function CoursePlanPanel({
   }, [plan.modules.length, stopIndex]);
 
   useLayoutEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true));
+    const id = requestAnimationFrame(() => {
+      setMounted(true);
+      // Скрол стартує в ТІЙ САМІЙ анімаційній рамці, що й заливка лінії
+      // (клас "is-mounted" щойно застосувався), і триває ту саму
+      // ROAD_DRAW_MS — обидва закінчуються одночасно (рішення користувача,
+      // 2026-09-22: "линия должна ползти вниз вместе со скроллом"). Не в
+      // preview (конструктор): там немає реального прогресу, який варто
+      // доганяти скролом.
+      if (!preview && stopIndex >= 0) {
+        const cell = cellRefs.current[stopIndex];
+        if (cell) smoothScrollElementIntoView(cell, ROAD_DRAW_MS);
+      }
+    });
     return () => cancelAnimationFrame(id);
-  }, []);
+  }, [stopIndex, preview]);
 
   return (
     <div className="cp-plan">
@@ -222,19 +249,10 @@ export function CoursePlanPanel({
           scheduleLabel/paceLabel нижче, а "N з M складено" дублює сам
           план — кожна картка внизу вже показує свій статус. Сертифікат
           переїхав у cp-note (CourseReview.jsx) — короткий текстовий
-          рядок замість окремої картки. */}
-      {!preview && plan.remainingCount === 0 && (
-        <ul className="cp-plan-facts">
-          <li>
-            <ClockIcon />
-            <span>
-              <b>{plan.totalTimeLabel}</b>
-              Весь курс
-            </span>
-          </li>
-        </ul>
-      )}
-
+          рядок замість окремої картки. Плашка "Весь курс: N хв" (показ на
+          повністю пройденому курсі) прибрана зовсім тим самим днем —
+          другорядне число, яке нічого не додавало на екрані вже
+          завершеного курсу. */}
       {plan.scheduleLabel && (
         <p className={`cp-plan-pace is-${plan.scheduleStatus}`}>{plan.scheduleLabel}</p>
       )}
@@ -267,14 +285,32 @@ export function CoursePlanPanel({
             const facts = moduleFacts(m);
             const showAction = m.canPlay && !preview && m.actionLabel;
             // "Пройдений" зеленою лінією вузол — той самий stopIndex, що
-            // зупиняє сам SVG-шлях (buildProgressPath). Сплеск масштабу
-            // на такому вузлі запізнюється пропорційно його місцю в
-            // послідовності, щоб відчувалось як рух ЗА лінією, а не
-            // одночасний спалах усього.
+            // зупиняє сам SVG-шлях (buildProgressPath). Сплеск масштабу на
+            // такому вузлі спрацьовує РІВНО в момент, коли лінія візуально
+            // заїжджає в його кружечок — не пропорційно індексу картки
+            // (2026-09-22, рішення користувача): --ease-premium НЕ лінійна
+            // (швидко на старті, гальмує в кінці), тож вузол i з N
+            // насправді проходиться в інший момент часу, ніж
+            // `i/N * ROAD_DRAW_MS`. cubicBezierTimeAtProgress рахує
+            // РЕАЛЬНИЙ момент за тією самою кривою, плюс фіксоване
+            // відставання 100ms — картка "наздоганяє" лінію з невеликим
+            // запізненням, а не спалахує одночасно з нею. Та сама
+            // staggerMs іде і в MorphRevealIcon (галочка "складено" нижче) —
+            // щоб вона промальовувалась СИНХРОННО зі сплеском, картка за
+            // карткою, а не вся одразу.
             const isReached = stopIndex >= 0 && i <= stopIndex;
-            const popStyle = isReached
-              ? ({ animationDelay: `${(ROAD_DRAW_MS * i) / Math.max(stopIndex, 1)}ms` } as React.CSSProperties)
-              : undefined;
+            const lineDelayMs = isReached
+              ? cubicBezierTimeAtProgress(...EASE_PREMIUM, i / Math.max(stopIndex, 1)) * ROAD_DRAW_MS
+              : 0;
+            const staggerMs = isReached ? lineDelayMs + 100 : 0;
+            const popStyle = isReached ? ({ animationDelay: `${staggerMs}ms` } as React.CSSProperties) : undefined;
+            // Цільовий вузол — саме той, де зупиняється лінія/скрол
+            // (lib/coursePlan.ts pickPlanFocusModuleId): на відміну від
+            // решти пройдених вузлів, його сплеск масштабу лишається
+            // трохи збільшеним і ПІСЛЯ анімації (2026-09-22, рішення
+            // користувача: "оставь этот апскейл, чтобы он был выделен
+            // среди остальных") — .cp-plan-cell.is-target нижче в CSS.
+            const isTarget = isReached && i === stopIndex;
 
             const cardBody = (
               <>
@@ -299,7 +335,13 @@ export function CoursePlanPanel({
                 ref={(el) => {
                   cellRefs.current[i] = el;
                 }}
-                className={["cp-plan-cell", `is-${m.status}`, m.isNext ? "is-next" : "", isReached ? "is-reached" : ""]
+                className={[
+                  "cp-plan-cell",
+                  `is-${m.status}`,
+                  m.isNext ? "is-next" : "",
+                  isReached ? "is-reached" : "",
+                  isTarget ? "is-target" : "",
+                ]
                   .filter(Boolean)
                   .join(" ")}
               >
@@ -312,7 +354,11 @@ export function CoursePlanPanel({
                 />
                 <span className="cp-plan-stem" aria-hidden="true" />
                 <span className="cp-plan-badge" aria-hidden="true" style={popStyle}>
-                  {STATUS_ICON[m.status]}
+                  {m.status === "passed" ? (
+                    <MorphRevealIcon shape="check" label="Складено" size={14} delay={staggerMs} />
+                  ) : (
+                    STATUS_ICON[m.status]
+                  )}
                 </span>
                 {m.canPlay && !preview ? (
                   <Link href={`/courses/${slug}?module=${m.id}`} className="cp-plan-square" style={popStyle}>

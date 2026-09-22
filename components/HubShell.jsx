@@ -33,6 +33,16 @@ export function HubShell({ children, isAdmin = false }) {
   const pathname = usePathname();
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Прокрутка шестерні на клік (2026-09-22, рішення користувача) — той
+  // самий "спалахнути й повернутись" прийом, що й .ntf-bell.is-ringing.
+  const [gearSpinning, setGearSpinning] = useState(false);
+  const gearSpinTimeoutRef = useRef(null);
+  function spinGear() {
+    setSettingsOpen(true);
+    setGearSpinning(true);
+    clearTimeout(gearSpinTimeoutRef.current);
+    gearSpinTimeoutRef.current = setTimeout(() => setGearSpinning(false), 500);
+  }
   const viewportRef = useRef(null);
   const tabbarRef = useRef(null);
   const pillRef = useRef(null);
@@ -51,11 +61,21 @@ export function HubShell({ children, isAdmin = false }) {
   // indicator мав завжди: фірмовий прямокутний язик Malty (задокументовано
   // нижче в CSS), лише тепер механіка "їде", а не "з'являється на місці".
   useLayoutEffect(() => {
-    const activeHref = TABS.find((t) => pathname === t.href)?.href ?? TABS[0].href;
-    const activeEl = tabRefs.current.get(activeHref);
+    // pathname поза TABS (напр. /hub/notifications — дзвоник у appbar веде
+    // туди, це не вкладка таббару) раніше "?? TABS[0].href" тихо підставляв
+    // Home, і капсула лишалась зеленою під Home, хоч користувач фактично на
+    // екрані сповіщень — сховати капсулу зовсім, а не вдавати активну вкладку.
+    const activeTab = TABS.find((t) => pathname === t.href);
     const pill = pillRef.current;
     const bar = tabbarRef.current;
-    if (!activeEl || !pill || !bar) return;
+    if (!pill || !bar) return;
+    if (!activeTab) {
+      pill.style.opacity = "0";
+      return;
+    }
+    pill.style.opacity = "1";
+    const activeEl = tabRefs.current.get(activeTab.href);
+    if (!activeEl) return;
     const move = () => {
       const barRect = bar.getBoundingClientRect();
       const elRect = activeEl.getBoundingClientRect();
@@ -78,6 +98,8 @@ export function HubShell({ children, isAdmin = false }) {
     viewportRef.current?.scrollTo({ top: 0 });
   }, [pathname]);
 
+  useEffect(() => () => clearTimeout(gearSpinTimeoutRef.current), []);
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/register");
@@ -96,7 +118,11 @@ export function HubShell({ children, isAdmin = false }) {
               </Link>
             )}
             <NotificationBell href="/hub/notifications" />
-            <button className="iconbtn" aria-label="Налаштування" onClick={() => setSettingsOpen(true)}>
+            <button
+              className={`iconbtn${gearSpinning ? " is-spinning" : ""}`}
+              aria-label="Налаштування"
+              onClick={spinGear}
+            >
               <GearIcon />
             </button>
           </div>

@@ -12,8 +12,7 @@ export default async function HubNotificationsPage() {
 
   return (
     <section className="hub-screen">
-      <div className="greeting">ОСОБИСТИЙ КАБІНЕТ</div>
-      <h1 className="hub-h1">Сповіщення</h1>
+      <h1 className="greeting hub-greeting-h1">СПОВІЩЕННЯ</h1>
       <NotificationCenter initialItems={feed.items} initialCursor={feed.nextCursor} initialUnreadCount={feed.unreadCount} />
     </section>
   );

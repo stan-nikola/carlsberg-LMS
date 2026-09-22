@@ -1,5 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { connection } from "next/server";
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
@@ -15,6 +16,7 @@ import { isScored } from "@/lib/componentTypes";
 import { isManagerTier } from "@/lib/permissions";
 import { CoursePlayer } from "@/components/CoursePlayer";
 import { CourseReview } from "@/components/CourseReview";
+import { XIcon } from "@/components/icons";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -57,16 +59,29 @@ export default async function CoursePage({ params, searchParams }) {
 
   const enrollment = await getEnrollmentForCourse(employee.id, course.id);
   if (!enrollment) {
+    // Досяжно, напр., зі старого сповіщення (курс, з якого людину вже
+    // зняли, лист лишився в центрі сповіщень) — раніше цей фолбек не мав
+    // ЖОДНОЇ навігації, просто текст на порожньому екрані без виходу
+    // (реальна скарга користувача, 2026-09-22). Той самий appbar/кнопка
+    // "На головну", що й у CourseReview.jsx/CoursePlayer.jsx.
     return (
-      <div className="stage">
+      <div className="stage stage--course-player">
         <div className="course-col">
           <div className="course-card">
+            <div className="appbar">
+              <Link className="iconbtn" aria-label="Закрити" href={backHref}>
+                <XIcon />
+              </Link>
+            </div>
             <div className="cp-viewport">
               <div className="cp-screen">
                 <h2 className="cp-h2">Курс ще не призначено</h2>
                 <p className="cp-lead">
                   Цей курс вам поки не призначено. Зверніться до вашого керівника або адміністратора.
                 </p>
+                <Link className="btn btn-primary cp-complete-secondary" href="/hub">
+                  На головну
+                </Link>
               </div>
             </div>
           </div>

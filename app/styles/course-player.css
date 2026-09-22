@@ -785,6 +785,7 @@
   padding: 0 var(--btn-px-md);
   font-weight: 600;
   font-size: calc(14.5px * var(--fs-scale));
+  text-decoration: none;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2220,67 +2221,25 @@
 /* Факти про курс: призначено / дедлайн / час / складено. Дві колонки на
    телефоні — по одному рядку на факт було б удвічі довше за сам список
    модулів, заради якого сюди і заходять. */
-.cp-plan-facts {
-  list-style: none;
-  margin: 0 0 12px;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-@container cp-card (min-width: 640px) {
-  .cp-plan-facts {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-.cp-plan-facts li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--surface-1);
-  border: var(--border-w) solid var(--line);
-  border-radius: var(--radius-card);
-  padding: var(--card-pad-compact);
-  min-width: 0;
-}
-.cp-plan-facts li svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  color: var(--ink-soft);
-}
-.cp-plan-facts li span {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  font-size: calc(10.5px * var(--fs-scale));
-  color: var(--ink-soft);
-}
-.cp-plan-facts li b {
-  font-family: var(--font-display);
-  font-size: calc(14px * var(--fs-scale));
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-/* Прострочений дедлайн — єдине місце тут, де колір несе сенс, а не
-   оформлення: решта фактів навмисно нейтральні, інакше картка почне
-   «кричати» вся одразу. */
-.cp-plan-facts li.is-overdue svg,
-.cp-plan-facts li.is-overdue b {
-  color: var(--cb-fail);
-}
-/* Отриманий сертифікат — другий (і останній) факт, де колір несе сенс. */
-.cp-plan-facts li.is-earned svg,
-.cp-plan-facts li.is-earned b {
-  color: var(--cb-success);
-}
 .cp-plan-pace {
-  margin: 0 0 12px;
+  /* Ширина по контенту, не на всю ширину контейнера, і сам чіп
+     відцентрований (2026-09-22, рішення користувача) — раніше плашка
+     розтягувалась на всю ширину з текстом по лівому краю, хоч це
+     короткий орієнтир, не таблиця даних. width:fit-content саме собою тут
+     не досить: якщо текст все одно не влазить в один рядок, fit-content
+     "стискається" аж до 100% контейнера (max-content ширший за доступний
+     простір). max-width у ch — типографський орієнтир ширини рядка
+     (~45 символів), який і змушує текст перенестись вужче, і дає
+     плашці реально "стиснутись" під той перенесений вміст. */
+  width: fit-content;
+  max-width: min(46ch, 85%);
+  margin: 0 auto 12px;
   padding: var(--card-pad-compact);
   border-radius: var(--radius-card);
   background: var(--cb-secondary-tint);
   font-size: calc(12px * var(--fs-scale));
   color: var(--ink);
+  text-align: center;
 }
 .cp-plan-pace.is-overdue {
   background: var(--cb-fail-light);
@@ -2323,11 +2282,13 @@
 }
 .cp-plan-road-progress.is-mounted {
   stroke-dashoffset: 0;
-  /* 1.08s = 0.9s база × 1.2 ("на 20% довше", 2026-09-17) — МАЄ збігатись
-     із ROAD_DRAW_MS у components/CoursePlan.tsx: звідти рахується
-     затримка сплеску масштабу на кожному вузлі, щоб він встигав за
-     лінією. */
-  transition: stroke-dashoffset 1.08s var(--ease-premium);
+  /* 3.24s = 1.08s база × 3 ("в три рази повільніше", 2026-09-22, скарга
+     користувача — попередня швидкість була занадто миттєвою, щоб встигати
+     стежити оком за скролом) — МАЄ збігатись із ROAD_DRAW_MS у
+     components/CoursePlan.tsx: звідти рахується і затримка сплеску
+     масштабу на кожному вузлі, і тривалість синхронного скролу до
+     потрібного модуля. */
+  transition: stroke-dashoffset 3.24s var(--ease-premium);
 }
 @media (prefers-reduced-motion: reduce) {
   .cp-plan-road-progress {
@@ -2507,9 +2468,44 @@
 .cp-plan-grid.is-mounted .cp-plan-cell.is-reached .cp-plan-square {
   animation: cp-plan-pop-card 0.5s var(--ease-premium) both;
 }
+/* Цільовий вузол (де зупиняється лінія/скрол, CoursePlan.tsx isTarget) —
+   той самий спалах, але лишається трохи збільшеним і ПІСЛЯ анімації
+   (2026-09-22, рішення користувача), щоб виділятись серед решти
+   пройдених вузлів, які повертаються до звичайного розміру. Джерело
+   ПІСЛЯ .is-reached вище — та сама специфічність, перемагає порядком. */
+@keyframes cp-plan-pop-badge-target {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  45% {
+    transform: translate(-50%, -50%) scale(1.22);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+@keyframes cp-plan-pop-card-target {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.035);
+  }
+  100% {
+    transform: scale(1.02);
+  }
+}
+.cp-plan-grid.is-mounted .cp-plan-cell.is-target .cp-plan-badge {
+  animation: cp-plan-pop-badge-target 0.5s var(--ease-premium) both;
+}
+.cp-plan-grid.is-mounted .cp-plan-cell.is-target .cp-plan-square {
+  animation: cp-plan-pop-card-target 0.5s var(--ease-premium) both;
+}
 @media (prefers-reduced-motion: reduce) {
   .cp-plan-grid.is-mounted .cp-plan-cell.is-reached .cp-plan-badge,
-  .cp-plan-grid.is-mounted .cp-plan-cell.is-reached .cp-plan-square {
+  .cp-plan-grid.is-mounted .cp-plan-cell.is-reached .cp-plan-square,
+  .cp-plan-grid.is-mounted .cp-plan-cell.is-target .cp-plan-badge,
+  .cp-plan-grid.is-mounted .cp-plan-cell.is-target .cp-plan-square {
     animation: none;
   }
 }

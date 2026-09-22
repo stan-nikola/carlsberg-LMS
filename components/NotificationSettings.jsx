@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { NOTIFICATION_CATEGORIES, telegramCategoryKey } from "@/lib/notificationTypes";
 import { getPushState, subscribeToPush, unsubscribeFromPush } from "@/lib/pushClient";
 import { BellIcon, ChevronIcon, TelegramIcon, SpinnerIcon } from "@/components/icons";
@@ -19,11 +20,16 @@ const STATE_TEXT = {
 
 /**
  * Push на цьому пристрої + категорії. variant="card" — м'яка картка на
- * головній хаба: лише кнопка «Увімкнути», ховається на 14 днів після
- * «Пізніше» і зовсім — після підписки. variant="full" — блок у профілі з
- * перемикачами категорій.
+ * головній хаба: не вмикає push сама (виклик native permission-prompt
+ * просто на головній ганяв viewport на iOS — address bar
+ * ховається/показується, .course-card на 100dvh «стрибав» разом із
+ * appbar/tabbar, 2026-09-22), лише веде на «Профіль», де й живе реальне
+ * керування (push і Telegram) — ховається на 14 днів після «Пізніше» і
+ * зовсім — після підписки. variant="full" — блок у профілі з
+ * перемикачами категорій; highlighted — прийшли з картки головної,
+ * підсвітити блок і проскролити до нього.
  */
-export function NotificationSettings({ variant = "full" }) {
+export function NotificationSettings({ variant = "full", highlighted = false }) {
   const [state, setState] = useState("loading");
   const [busy, setBusy] = useState(false);
   const [prefs, setPrefs] = useState(null);
@@ -41,6 +47,7 @@ export function NotificationSettings({ variant = "full" }) {
   const [tg, setTg] = useState(null);
   const [tgWaiting, setTgWaiting] = useState(false);
   const tgPoll = useRef(null);
+  const highlightRef = useRef(null);
 
   async function loadTelegram() {
     try {
@@ -75,6 +82,10 @@ export function NotificationSettings({ variant = "full" }) {
   useEffect(() => () => stopTgPoll(), []);
 
   useEffect(() => {
+    if (highlighted) highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [highlighted]);
+
+  useEffect(() => {
     getPushState().then(setState);
     if (variant === "card") {
       let until = 0;
@@ -85,6 +96,10 @@ export function NotificationSettings({ variant = "full" }) {
       }
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHidden(Date.now() < until);
+      // Картка тепер зважає й на Telegram (2026-09-22, рішення
+      // користувача): ховається лише коли УВІМКНЕНО хоч один канал, не
+      // лише push — без цього виклику вона не знала про tg взагалі.
+      loadTelegram();
     } else {
       fetch("/api/notifications/preferences")
         .then((r) => r.json())
@@ -128,21 +143,25 @@ export function NotificationSettings({ variant = "full" }) {
   }
 
   if (variant === "card") {
-    if (hidden || state === "loading" || state === "subscribed" || state === "unsupported") return null;
+    // Ховається лише коли ХОЧ ОДИН канал увімкнено (push АБО Telegram) —
+    // не лише push, як раніше (2026-09-22, рішення користувача). tg===null
+    // — Telegram ще не завантажено — той самий "не блимати" принцип, що й
+    // "loading" для push: чекаємо обидва джерела, перш ніж вирішувати.
+    const tgLoaded = tg !== null;
+    const anyChannelOn = state === "subscribed" || Boolean(tg?.link);
+    if (hidden || state === "loading" || !tgLoaded || anyChannelOn) return null;
     return (
       <div className="ntf-card">
         <span className="settings-ico">
           <BellIcon />
         </span>
         <div className="ntf-card-body">
-          <b>Отримуйте сповіщення</b>
-          <span>{STATE_TEXT[state] || "Нові курси, дедлайни та відзнаки — одразу на цей пристрій."}</span>
+          <b>Налаштуйте сповіщення</b>
+          <span>Push і Telegram — нові курси, дедлайни та відзнаки одразу на цей пристрій.</span>
           <div className="ntf-card-actions">
-            {state === "not-subscribed" && (
-              <button type="button" className="btn-primary-full" onClick={enable} disabled={busy}>
-                Увімкнути
-              </button>
-            )}
+            <Link href="/hub/profile?highlight=notifications#notifications" className="btn-primary-full" onClick={dismiss}>
+              Налаштувати
+            </Link>
             <button type="button" className="btn-secondary-full" onClick={dismiss}>
               Пізніше
             </button>
@@ -156,7 +175,7 @@ export function NotificationSettings({ variant = "full" }) {
   const tgOnCount = prefs ? NOTIFICATION_CATEGORIES.filter((c) => prefs[telegramCategoryKey(c.key)] !== false).length : 0;
 
   return (
-    <div className="settings-block ntf-settings">
+    <div id="notifications" ref={highlightRef} className={`settings-block ntf-settings${highlighted ? " ntf-highlight" : ""}`}>
       {/* Push і Telegram — два ОДНАКОВІ блоки: рядок каналу (іконка, назва,
           стан, кнопка Увімкнути/Вимкнути однакової ширини) сам є кнопкою-
           шевроном, що розгортає СВІЙ окремий список тих самих 5 категорій
@@ -194,17 +213,19 @@ export function NotificationSettings({ variant = "full" }) {
           </button>
         )}
       </div>
-      {prefs && pushPrefsOpen && (
-        <div className="ntf-prefs">
-          {NOTIFICATION_CATEGORIES.map((c) => (
-            <label key={c.key} className="ntf-pref">
-              <input type="checkbox" checked={prefs[c.key] !== false} onChange={(e) => toggle(c.key, e.target.checked)} />
-              <span className="ntf-pref-ico" aria-hidden="true">
-                {c.icon}
-              </span>
-              <span className="ntf-pref-label">{c.label}</span>
-            </label>
-          ))}
+      {prefs && (
+        <div className={`ntf-prefs-wrap${pushPrefsOpen ? " open" : ""}`}>
+          <div className="ntf-prefs">
+            {NOTIFICATION_CATEGORIES.map((c) => (
+              <label key={c.key} className="ntf-pref">
+                <input type="checkbox" checked={prefs[c.key] !== false} onChange={(e) => toggle(c.key, e.target.checked)} />
+                <span className="ntf-pref-ico" aria-hidden="true">
+                  {c.icon}
+                </span>
+                <span className="ntf-pref-label">{c.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
       )}
 
@@ -250,20 +271,22 @@ export function NotificationSettings({ variant = "full" }) {
               </button>
             )}
           </div>
-          {prefs && tgPrefsOpen && (
-            <div className="ntf-prefs">
-              {NOTIFICATION_CATEGORIES.map((c) => {
-                const key = telegramCategoryKey(c.key);
-                return (
-                  <label key={key} className="ntf-pref">
-                    <input type="checkbox" checked={prefs[key] !== false} onChange={(e) => toggle(key, e.target.checked)} />
-                    <span className="ntf-pref-ico" aria-hidden="true">
-                      {c.icon}
-                    </span>
-                    <span className="ntf-pref-label">{c.label}</span>
-                  </label>
-                );
-              })}
+          {prefs && (
+            <div className={`ntf-prefs-wrap${tgPrefsOpen ? " open" : ""}`}>
+              <div className="ntf-prefs">
+                {NOTIFICATION_CATEGORIES.map((c) => {
+                  const key = telegramCategoryKey(c.key);
+                  return (
+                    <label key={key} className="ntf-pref">
+                      <input type="checkbox" checked={prefs[key] !== false} onChange={(e) => toggle(key, e.target.checked)} />
+                      <span className="ntf-pref-ico" aria-hidden="true">
+                        {c.icon}
+                      </span>
+                      <span className="ntf-pref-label">{c.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           )}
         </>

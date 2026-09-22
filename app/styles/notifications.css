@@ -5,6 +5,20 @@
 .ntf-bell {
   position: relative;
 }
+/* "Активна" на /hub/notifications (2026-09-22) — той самий заповнений
+   стан, що й .tab-btn.active у таббарі: суцільний --cb-primary, іконка
+   білим. Раніше "ви тут" помилково показувала зелена капсула таббару
+   (HubShell.jsx) — тепер саме ця кнопка, бо саме вона сюди й веде. */
+.ntf-bell.is-active {
+  background: var(--cb-primary);
+  border-color: var(--cb-primary);
+  color: var(--cb-white);
+}
+@media (hover: hover) {
+  .ntf-bell.is-active:hover {
+    background: var(--cb-primary);
+  }
+}
 /* Тряска дзвоника на нове сповіщення (components/NotificationBell.jsx,
    запит користувача 2026-09-19 — той самий рух, що вже перевірений в
    артефакті Morph Playground: ±22°, 720ms, синхронний сплеск масштабу
@@ -135,7 +149,7 @@ a.ntf-item:focus-visible {
   display: flex;
   gap: 12px;
   padding: var(--card-pad);
-  margin-bottom: 14px;
+  margin-bottom: 9px;
   border: 1px solid var(--cb-secondary);
   border-radius: var(--radius-card);
   background: var(--green-tint);
@@ -163,6 +177,31 @@ a.ntf-item:focus-visible {
 
 .ntf-settings {
   margin-top: 14px;
+}
+/* Підсвітка при переході з картки головної (?highlight=notifications) —
+   той самий прийом, що й .rt-card-highlight (rating.css, картка рейтингу
+   на "Досягнення"): ОДИН спалах, що сам плавно гасне, без outline/
+   padding-компенсації, що раніше давали "некрасивий" результат — box-
+   shadow-кільце на padding/margin-хаку виходило обрізаним об
+   overflow:hidden .course-card (2026-09-22, скарга користувача). Чистий
+   box-shadow на самому блоці (не впливає на layout, тому й не потребує
+   компенсації) видно у всьому вьюпорті. */
+.ntf-highlight {
+  border-radius: var(--radius-card);
+  animation: ntf-highlight-flash 1.4s ease-out 1 both;
+}
+@keyframes ntf-highlight-flash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--cb-notification) 65%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 16px color-mix(in srgb, var(--cb-notification) 0%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ntf-highlight {
+    animation: none;
+  }
 }
 /* Увесь рядок «Push на цьому пристрої» (крім кнопки праворуч) — кнопка,
    що розгортає категорії; шеврон дивиться праворуч, у відкритому стані —
@@ -203,7 +242,9 @@ a.ntf-item:focus-visible {
 .ntf-expand svg {
   width: 16px;
   height: 16px;
-  transition: transform var(--dur-fast) var(--ease-premium);
+  /* --dur-base (не --dur-fast) — синхронно з .ntf-prefs-wrap нижче: раніше
+     шеврон крутився швидше за саме розгортання списку і "обганяв" його. */
+  transition: transform var(--dur-base) var(--ease-premium);
 }
 .ntf-row-toggle.open .ntf-expand svg {
   transform: rotate(90deg);
@@ -214,9 +255,29 @@ a.ntf-item:focus-visible {
   min-width: 108px;
   flex-shrink: 0;
 }
+/* Плавне розгортання/згортання (2026-09-22, рішення користувача — раніше
+   список просто з'являвся/зникав миттєво): grid-template-rows 0fr->1fr —
+   анімує "авто"-висоту без вимірювання її в JS. Внутрішній .ntf-prefs
+   ОБОВ'ЯЗКОВО overflow:hidden + min-height:0 — це і ховає вміст під час
+   стиснення, і дає grid-track дозвіл стиснутись нижче за контент. */
+.ntf-prefs-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-base) var(--ease-premium);
+}
+.ntf-prefs-wrap.open {
+  grid-template-rows: 1fr;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ntf-prefs-wrap {
+    transition: none;
+  }
+}
 /* Розгорнутий список: підпис одним дрібним рядком + компактні рядки
    «чекбокс · іконка · назва», без підказок — це другорядне налаштування. */
 .ntf-prefs {
+  overflow: hidden;
+  min-height: 0;
   padding: 4px 0 8px 26px;
 }
 .ntf-pref {

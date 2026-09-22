@@ -20,8 +20,7 @@ export default async function HubLearnPage() {
 
   return (
     <section className="hub-screen">
-      <div className="greeting">РОЗДІЛИ НАВЧАННЯ</div>
-      <h1 className="hub-h1">Навчання</h1>
+      <h1 className="greeting hub-greeting-h1">НАВЧАННЯ</h1>
 
       {enrollments.length === 0 && <p className="hub-empty-note">Вам ще не призначено жодного курсу.</p>}
       {sections.map(([title, list]) => (

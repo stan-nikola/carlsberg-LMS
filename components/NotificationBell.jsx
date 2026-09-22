@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BellIcon } from "@/components/icons";
 
 /**
@@ -19,10 +20,24 @@ import { BellIcon } from "@/components/icons";
  * не трясе — немає "попереднього", з чим порівнювати.
  */
 export function NotificationBell({ href }) {
+  // Активний стан — та сама роль, яку раніше (помилково) відігравала
+  // зелена капсула таббару на /hub/notifications (не своя вкладка, тому
+  // капсула тепер ховається там зовсім, HubShell.jsx) — тепер саме дзвоник
+  // показує "ви тут", як і належить кнопці appbar, що сюди й веде.
+  const isActive = usePathname() === href;
   const [unread, setUnread] = useState(0);
   const [ringing, setRinging] = useState(false);
   const prevUnreadRef = useRef(null);
   const ringTimeoutRef = useRef(null);
+
+  // Спільний тригер — і на нове сповіщення (нижче), і на сам клік по
+  // дзвонику (2026-09-22, рішення користувача): той самий рух, просто
+  // інший привід.
+  function ring() {
+    setRinging(true);
+    clearTimeout(ringTimeoutRef.current);
+    ringTimeoutRef.current = setTimeout(() => setRinging(false), 720);
+  }
 
   useEffect(() => {
     let alive = true;
@@ -32,11 +47,7 @@ export function NotificationBell({ href }) {
         .then((d) => {
           if (!alive || !d) return;
           const next = d.unreadCount;
-          if (prevUnreadRef.current != null && next > prevUnreadRef.current) {
-            setRinging(true);
-            clearTimeout(ringTimeoutRef.current);
-            ringTimeoutRef.current = setTimeout(() => alive && setRinging(false), 720);
-          }
+          if (prevUnreadRef.current != null && next > prevUnreadRef.current) ring();
           prevUnreadRef.current = next;
           setUnread(next);
         })
@@ -60,8 +71,10 @@ export function NotificationBell({ href }) {
 
   return (
     <Link
-      className={`iconbtn ntf-bell${ringing ? " is-ringing" : ""}`}
+      className={`iconbtn ntf-bell${ringing ? " is-ringing" : ""}${isActive ? " is-active" : ""}`}
       href={href}
+      onClick={ring}
+      aria-current={isActive || undefined}
       aria-label={unread ? `Сповіщення, непрочитаних: ${unread}` : "Сповіщення"}
     >
       <BellIcon />

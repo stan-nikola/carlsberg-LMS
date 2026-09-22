@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { getLocalDisplayName } from "@/lib/localName";
 import { MarqueeText } from "@/components/MarqueeText";
 import { Avatar } from "@/components/Avatar";
@@ -24,10 +25,16 @@ import { CameraIcon, SpinnerIcon, XIcon } from "@/components/icons";
 let avatarFlipPlayed = false;
 
 /**
- * @param {{ dbName: string, hasEmail: boolean, externalCode: string,
- *   levelLabel: string, avatarUrl?: string | null, editable?: boolean }} props
+ * @param {{ dbName: string, hasEmail: boolean, levelLabel: string,
+ *   avatarUrl?: string | null, editable?: boolean, href?: string }} props
+ * `href` (лише на Home, `/hub/achievements?highlight=rating`) — уся
+ * картка стає посиланням туди; лише коли не `editable` — усередині
+ * editable-картки вже є власна кнопка (аватар), вкладений `<a>` навколо
+ * `<button>` невалідний. Рядок "Ще N балів..." під карткою (був тут
+ * 2026-09-22) прибрано зовсім третьою ітерацією того самого дня —
+ * повна картка рейтингу вже є на "Досягнення", куди клік і веде.
  */
-export function ProfileCard({ dbName, hasEmail, externalCode, levelLabel, avatarUrl = null, editable = false }) {
+export function ProfileCard({ dbName, hasEmail, levelLabel, avatarUrl = null, editable = false, href }) {
   const [displayName, setDisplayName] = useState(dbName);
   const cardRef = useRef(null);
 
@@ -96,59 +103,62 @@ export function ProfileCard({ dbName, hasEmail, externalCode, levelLabel, avatar
     }
   }, [hasEmail]);
 
+  const CardTag = href ? Link : "div";
+
   return (
-    <div className="profile-card" ref={cardRef}>
-      {editable ? (
-        <div className="avatar-edit">
-          {/* Тап по кружку — вибрати/замінити фото. Значок у куті: без фото —
-              камера (підказка, тапається наскрізь), з фото — «×» прибрати
-              (окрема кнопка, бо кнопка в кнопці — невалідно). Режими не
-              змішуються: щоб замінити фото, тапають сам кружок. */}
-          <button
-            type="button"
-            className="avatar-edit-btn"
-            onClick={() => fileRef.current?.click()}
-            disabled={busy}
-            aria-label={avatar ? "Змінити фото профілю" : "Додати фото профілю"}
-            title={avatar ? "Змінити фото" : "Додати фото"}
-          >
-            <Avatar name={displayName} src={avatar} />
-          </button>
-          {busy ? (
-            <span className="avatar-edit-badge" aria-hidden="true"><SpinnerIcon /></span>
-          ) : avatar ? (
-            <button type="button" className="avatar-edit-badge is-remove" onClick={removeAvatar} aria-label="Прибрати фото" title="Прибрати фото">
-              <XIcon />
+    <CardTag className={`profile-card${href ? " profile-card-link" : ""}`} href={href} ref={cardRef}>
+      <div className="profile-card-top">
+        {editable ? (
+          <div className="avatar-edit">
+            {/* Тап по кружку — вибрати/замінити фото. Значок у куті: без фото —
+                камера (підказка, тапається наскрізь), з фото — «×» прибрати
+                (окрема кнопка, бо кнопка в кнопці — невалідно). Режими не
+                змішуються: щоб замінити фото, тапають сам кружок. */}
+            <button
+              type="button"
+              className="avatar-edit-btn"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy}
+              aria-label={avatar ? "Змінити фото профілю" : "Додати фото профілю"}
+              title={avatar ? "Змінити фото" : "Додати фото"}
+            >
+              <Avatar name={displayName} src={avatar} />
             </button>
-          ) : (
-            <span className="avatar-edit-badge" aria-hidden="true"><CameraIcon /></span>
-          )}
-          {/* accept="image/*" БЕЗ capture — тоді iOS показує нативний лист
-              «Зробити фото / Медіатека / Файли», Android — «Камера / Галерея /
-              Файли». capture="user" забрав би галерею на iPhone. */}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => uploadAvatar(e.target.files?.[0])}
-          />
+            {busy ? (
+              <span className="avatar-edit-badge" aria-hidden="true"><SpinnerIcon /></span>
+            ) : avatar ? (
+              <button type="button" className="avatar-edit-badge is-remove" onClick={removeAvatar} aria-label="Прибрати фото" title="Прибрати фото">
+                <XIcon />
+              </button>
+            ) : (
+              <span className="avatar-edit-badge" aria-hidden="true"><CameraIcon /></span>
+            )}
+            {/* accept="image/*" БЕЗ capture — тоді iOS показує нативний лист
+                «Зробити фото / Медіатека / Файли», Android — «Камера / Галерея /
+                Файли». capture="user" забрав би галерею на iPhone. */}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => uploadAvatar(e.target.files?.[0])}
+            />
+          </div>
+        ) : (
+          <Avatar name={displayName} src={avatar} />
+        )}
+        <div className="profile-info">
+          <MarqueeText as="div" className="profile-name">
+            {displayName || "—"}
+          </MarqueeText>
+          <div className="profile-level">
+            <span className="lv-star">★</span>
+            <span>{levelLabel}</span>
+          </div>
+          {editable && !avatar && !busy && !avatarError && <div className="profile-avatar-hint">Торкніться кружка, щоб додати фото</div>}
+          {avatarError && <div className="profile-avatar-hint is-error">{avatarError}</div>}
         </div>
-      ) : (
-        <Avatar name={displayName} src={avatar} />
-      )}
-      <div className="profile-info">
-        <MarqueeText as="div" className="profile-name">
-          {displayName || "—"}
-        </MarqueeText>
-        <div className="profile-meta">{(externalCode || "").toUpperCase()}</div>
-        <div className="profile-level">
-          <span className="lv-star">★</span>
-          <span>{levelLabel}</span>
-        </div>
-        {editable && !avatar && !busy && !avatarError && <div className="profile-avatar-hint">Торкніться кружка, щоб додати фото</div>}
-        {avatarError && <div className="profile-avatar-hint is-error">{avatarError}</div>}
       </div>
-    </div>
+    </CardTag>
   );
 }

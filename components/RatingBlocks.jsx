@@ -3,16 +3,25 @@ import Link from "next/link";
 /**
  * Два блоки головної хаба замість «Прогрес адаптації 200/200 XP» (той
  * упирався в стелю після двох курсів і далі нічого не значив):
- *  - RatingCard — бали, рівень, місце в когорті (та сама посада);
- *  - MandatoryCard — обов'язкові курси: пройдено / прострочено / дедлайн.
- * Серверні компоненти без стану — дані приходять готовими з
- * lib/rating.ts getEmployeeRating і lib/ratingLogic.ts mandatoryProgress.
+ *  - RatingCard — повна картка рейтингу (бали, рівень, місце, прогрес) на
+ *    "Досягнення"; на Home лишився лише короткий рядок "ще N балів" у
+ *    самій ProfileCard (2026-09-22, друга ітерація) — цей компонент там
+ *    більше не рендериться;
+ *  - MandatoryCard — обов'язкові курси: пройдено / прострочено / дедлайн,
+ *    на Home клікабельна (веде на "Навчання", 2026-09-22).
+ * `highlighted` (RatingCard) — прийшли з клікабельної зеленої картки
+ * Home (?highlight=rating): один спалах синьої рамки, що сам плавно
+ * гасне (rt-card-highlight, rating.css) — без scrollIntoView: картка й
+ * так перший блок під заголовком "Ваш прогрес", а скрол відносно
+ * СВОГО контейнера (.hub-viewport) зсував сам заголовок за верхній
+ * край екрана (скарга користувача, 2026-09-22).
  */
-export function RatingCard({ rating, cohortLabel, href = "/hub/achievements" }) {
+export function RatingCard({ rating, cohortLabel, href = "/hub/achievements", highlighted = false }) {
   const { total, level, rank, size } = rating;
   const toNext = level.next ? level.next.threshold - total : 0;
+
   return (
-    <Link href={href} className="rt-card">
+    <Link href={href} className={`rt-card${highlighted ? " rt-card-highlight" : ""}`}>
       <div className="rt-top">
         <div>
           <div className="rt-points">
@@ -39,12 +48,13 @@ export function RatingCard({ rating, cohortLabel, href = "/hub/achievements" }) 
   );
 }
 
-export function MandatoryCard({ progress }) {
+export function MandatoryCard({ progress, href }) {
   const { total, completed, overdue, nextDue } = progress;
   if (total === 0) return null;
   const pct = Math.round((completed / total) * 100);
+  const Tag = href ? Link : "div";
   return (
-    <div className="rt-card rt-mandatory">
+    <Tag href={href} className="rt-card rt-mandatory">
       <div className="rt-top">
         <div>
           <div className="rt-points">
@@ -69,6 +79,6 @@ export function MandatoryCard({ progress }) {
       <div className="xp-track">
         <div className="xp-fill" style={{ width: `${pct}%` }} />
       </div>
-    </div>
+    </Tag>
   );
 }
