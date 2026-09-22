@@ -19,8 +19,7 @@ export default async function ManagerProfilePage() {
     // Mobile-first: один стовпчик; від 900px — дві колонки (картка + дані
     // зліва, сповіщення справа), див. .mgr-profile у manager.css.
     <div className="manager-page manager-profile-page">
-      <div className="greeting">ОСОБИСТИЙ КАБІНЕТ</div>
-      <h1 className="hub-h1">Профіль</h1>
+      <h1 className="greeting hub-greeting-h1">ОСОБИСТИЙ КАБІНЕТ</h1>
 
       <div className="mgr-profile">
         <div className="mgr-profile-main">

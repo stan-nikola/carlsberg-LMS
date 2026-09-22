@@ -1567,10 +1567,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   return (
     <div className="admin-page manager-page">
       <div className="mgr-page-header">
-        <div>
-          <div className="greeting">КАБІНЕТ КЕРІВНИКА</div>
-          <h1 className="hub-h1">Команда</h1>
-        </div>
+        <h1 className="greeting hub-greeting-h1">КАБІНЕТ КЕРІВНИКА</h1>
         <div className="mgr-page-header-actions">
           {/* Прямий лінк на /api/manager/export — браузер сам ініціює
               завантаження по Content-Disposition:attachment, без fetch+blob. */}
@@ -1620,7 +1617,18 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         />
       )}
 
-      <ProfileCard dbName={me.name} hasEmail={me.hasEmail} externalCode={me.externalCode} levelLabel={me.levelLabel} avatarUrl={me.avatarUrl} />
+      {/* Клікабельна → "Досягнення" з підсвіткою картки рейтингу, той самий
+          підхід, що й на /hub (2026-09-22, рішення користувача:
+          "унифицировать подходы"). externalCode прибрано — ProfileCard.jsx
+          більше не приймає й не показує цей пропс (той самий фікс, що вже
+          був на /hub). */}
+      <ProfileCard
+        dbName={me.name}
+        hasEmail={me.hasEmail}
+        levelLabel={me.levelLabel}
+        avatarUrl={me.avatarUrl}
+        href="/manager/achievements?highlight=rating"
+      />
 
       <div className="mgr-kpi-row">
         <div className="mgr-kpi-tile">

@@ -21,8 +21,7 @@ export default async function ManagerCoursesPage() {
 
   return (
     <div className="manager-page">
-      <div className="greeting">МОЇ КУРСИ</div>
-      <h1 className="hub-h1">Курси</h1>
+      <h1 className="greeting hub-greeting-h1">МОЇ КУРСИ</h1>
 
       {enrollments.length > 0 ? (
         <div className="card-grid mgr-course-grid">

@@ -6,7 +6,7 @@ import { AchievementsPanel } from "@/components/AchievementsPanel";
 // «Досягнення» керівника — та сама панель, що й app/hub/achievements/page.js,
 // але лідерборд — уся гілка підпорядкування (усі посади регіону), а не
 // лише колеги по посаді: керівнику цікаво, хто в команді попереду.
-export default async function ManagerAchievementsPage() {
+export default async function ManagerAchievementsPage({ searchParams }) {
   const employee = await getCurrentUser();
   const [rating, badges, certificates, leaderboard] = await Promise.all([
     getEmployeeRating(employee),
@@ -16,11 +16,16 @@ export default async function ManagerAchievementsPage() {
   ]);
 
   const cohortLabel = employee.position ? `на посаді ${employee.position.code}` : "колег";
+  // ?highlight=rating — з клікабельної картки профілю на /manager
+  // (components/ManagerDashboard.jsx). ?highlight=badge&badgeId=N — зі
+  // сповіщення "Нова відзнака" (той самий підхід, що й /hub/achievements).
+  const sp = await searchParams;
+  const highlightRating = sp?.highlight === "rating";
+  const highlightBadgeId = sp?.highlight === "badge" ? Number(sp?.badgeId) || null : null;
 
   return (
     <div className="manager-page manager-achievements-page">
-      <div className="greeting">ВАШ ПРОГРЕС</div>
-      <h1 className="hub-h1">Досягнення</h1>
+      <h1 className="greeting hub-greeting-h1">ВАШ ПРОГРЕС</h1>
       <AchievementsPanel
         rating={rating}
         badges={badges}
@@ -30,6 +35,8 @@ export default async function ManagerAchievementsPage() {
         cohortLabel={cohortLabel}
         currentEmployeeId={employee.id}
         hasEmail={Boolean(employee.email)}
+        highlightRating={highlightRating}
+        highlightBadgeId={highlightBadgeId}
       />
     </div>
   );

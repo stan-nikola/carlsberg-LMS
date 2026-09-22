@@ -2,6 +2,13 @@ import { getCurrentUser } from "@/lib/session";
 import { getManagerOverview } from "@/lib/managerOverview";
 import { ManagerDashboard } from "@/components/ManagerDashboard";
 
+// TODO: Cache Components adoption. Той самий опт-аут, що вже стоїть на
+// app/hub/page.js (2026-09-22): без нього /hub ловив "uncached data during
+// render" і в dev іноді лишав ОБИДВА дерева (Suspense-фолбек і реальний
+// контент) змонтованими одночасно — той самий клас маршруту (Server
+// Component з getCurrentUser()/сесією), тож про всяк випадок і тут.
+export const instant = false;
+
 // Дані рахуються тут (Server Component), не в ManagerDashboard.jsx через
 // клієнтський fetch — інакше екран щоразу монтувався з порожнім станом і
 // власним скелетоном, повз кеш getManagerOverview (аудит "быстродействия
