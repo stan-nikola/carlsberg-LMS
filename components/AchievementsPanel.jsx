@@ -1,5 +1,6 @@
 import { LockIcon } from "@/components/icons";
 import { RatingCard } from "@/components/RatingBlocks";
+import { BadgeGrid } from "@/components/BadgeGrid";
 import { CertificateList } from "@/components/CertificateList";
 import { LocalName } from "@/components/LocalName";
 import { Avatar } from "@/components/Avatar";
@@ -12,7 +13,18 @@ import { Avatar } from "@/components/Avatar";
  *  4. лідери когорти — реальний топ по балах журналу (lib/rating.ts).
  * Раніше тут був лідерборд по середньому балу території поверх XP-стелі.
  */
-export function AchievementsPanel({ rating, badges, certificates, leaderboard, leaderboardTitle, currentEmployeeId, hasEmail, cohortLabel }) {
+export function AchievementsPanel({
+  rating,
+  badges,
+  certificates,
+  leaderboard,
+  leaderboardTitle,
+  currentEmployeeId,
+  hasEmail,
+  cohortLabel,
+  highlightRating = false,
+  highlightBadgeId = null,
+}) {
   return (
     // Один компонент і в телефонній рамці /hub, і на десктопі /manager —
     // тому розкладка адаптується @container (ach), не @media (CLAUDE.md,
@@ -23,7 +35,12 @@ export function AchievementsPanel({ rating, badges, certificates, leaderboard, l
       <div className="ach-grid">
       <div className="ach-col">
       <section className="ach-rating">
-      <RatingCard rating={rating} cohortLabel={cohortLabel} href="#rating" />
+      {/* Клік по картці — скрол до лідерів СВОЄЇ когорти нижче на тій самій
+          сторінці (2026-09-22, рішення користувача): картка вже показує
+          "№1 з N на посаді X", природно веде подивитись повний список.
+          Той самий #leaderboard і на /manager/achievements — та сама
+          розмітка AchievementsPanel. */}
+      <RatingCard rating={rating} cohortLabel={cohortLabel} href="#leaderboard" highlighted={highlightRating} />
       <div className="stats-row rt-breakdown">
         <div className="stat-pill">
           <b>{rating.courses}</b>
@@ -44,19 +61,7 @@ export function AchievementsPanel({ rating, badges, certificates, leaderboard, l
       <div className="hub-sec-title">
         <h3>Відзнаки</h3>
       </div>
-      {badges.length === 0 ? (
-        <p className="hub-empty-note">Відзнак поки не заведено.</p>
-      ) : (
-        <div className="badge-grid">
-          {badges.map((b) => (
-            <div key={b.id} className={`badge-item${b.earned ? "" : " locked"}`} title={b.description || ""}>
-              <div className="badge-ico">{b.icon || "⭐"}</div>
-              <span>{b.title}</span>
-              {b.points > 0 && <span className="badge-points">+{b.points}</span>}
-            </div>
-          ))}
-        </div>
-      )}
+      <BadgeGrid badges={badges} highlightBadgeId={highlightBadgeId} />
 
       </section>
 
@@ -69,7 +74,7 @@ export function AchievementsPanel({ rating, badges, certificates, leaderboard, l
       </div>
 
       <div className="ach-col">
-      <section className="ach-lb">
+      <section className="ach-lb" id="leaderboard">
       <div className="hub-sec-title">
         <h3>{leaderboardTitle}</h3>
       </div>

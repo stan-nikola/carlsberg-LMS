@@ -9,23 +9,24 @@ import { NotificationSettings } from "@/components/NotificationSettings";
 // плаского profile.svEmail; pdRegisteredAt — employee.firstLoginAt
 // замість profile.registeredAt. Рядки деталей — components/ProfileDetailPanel.jsx,
 // той самий блок рендерить і /manager/profile.
-export default async function HubProfilePage() {
+export default async function HubProfilePage({ searchParams }) {
   // getCurrentUser() уже включає manager (lib/session.js, аудит швидкодії
   // 2026-09-19) — окремий другий findUnique за тим самим employeeId
   // тут більше не потрібен.
   const employee = await getCurrentUser();
   const { level } = await getEmployeeRating(employee);
   const levelLabel = level.label;
+  // ?highlight=notifications — прийшли з картки «Налаштуйте сповіщення» на
+  // головній (components/NotificationSettings.jsx variant="card").
+  const highlightNotifications = (await searchParams)?.highlight === "notifications";
 
   return (
     <section className="hub-screen">
-      <div className="greeting">ОСОБИСТИЙ КАБІНЕТ</div>
-      <h1 className="hub-h1">Профіль</h1>
+      <h1 className="greeting hub-greeting-h1">ПРОФІЛЬ</h1>
 
       <ProfileCard
         dbName={employee.name}
         hasEmail={Boolean(employee.email)}
-        externalCode={employee.externalCode}
         levelLabel={levelLabel}
         avatarUrl={employee.avatarUrl}
         editable
@@ -37,7 +38,7 @@ export default async function HubProfilePage() {
         firstLoginAt={employee.firstLoginAt}
       />
 
-      <NotificationSettings />
+      <NotificationSettings highlighted={highlightNotifications} />
     </section>
   );
 }

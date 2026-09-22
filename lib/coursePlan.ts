@@ -573,6 +573,28 @@ function scheduleLabel(plan: CoursePlan): string | null {
   return `Ви йдете за графіком — рекомендовано ${step}`;
 }
 
+/**
+ * Який модуль підсвітити й проскролити до нього, коли людина відкриває
+ * план курсу (2026-09-22, рішення користувача) — три пріоритети, у
+ * порядку спадання, кожен наступний лише якщо попередній не знайшов
+ * кандидата:
+ *  1. `nextModuleId` — доступний, ще не складений, АБО провалений модуль
+ *     (те саме, на чому вже зупиняється зелена лінія прогресу за
+ *     замовчуванням).
+ *  2. Перший ЗАБЛОКОВАНИЙ модуль (чекає паузи чи попереднього) — щоб
+ *     людина побачила, коли саме він відкриється.
+ *  3. Перший СКЛАДЕНИЙ, але не рівно на 100% модуль — є що покращити.
+ * `null` — усе складено рівно на 100%: підсвічувати/чекати нічого,
+ * лінія й так домальовується до кінця.
+ */
+export function pickPlanFocusModuleId(plan: CoursePlanView): number | null {
+  if (plan.nextModuleId) return plan.nextModuleId;
+  const locked = plan.modules.find((m) => m.status === "locked");
+  if (locked) return locked.id;
+  const improvable = plan.modules.find((m) => m.status === "passed" && m.scorePercent != null && m.scorePercent < 100);
+  return improvable ? improvable.id : null;
+}
+
 export function toPlanView(plan: CoursePlan, certificateEnabled = true): CoursePlanView {
   const cert = certificateStatus(plan, certificateEnabled);
   return {

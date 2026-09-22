@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CourseIcon, ChevronIcon, CertificateIcon, SpinnerIcon } from "@/components/icons";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -23,6 +24,7 @@ import { downloadCertificate } from "@/lib/downloadCertificate";
  * дією нижче.
  */
 export function CourseTile({ course, enrollment, description, inProgressDescription, hasEmail = true }) {
+  const router = useRouter();
   // Сертифікат генерується на сервері (route.js, pdfkit) з Employee.name —
   // для співробітників без email це заглушка з посади/території (див.
   // lib/localName.js), а справжнє ім'я лежить лише в localStorage цього
@@ -126,7 +128,12 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
   const hasCertificate = certificateAllowed && enrollment?.scorePercent === 100;
 
   return (
-    <div className="course-tile">
+    // Уся картка веде в курс (2026-09-22, рішення користувача) — окремий
+    // onClick на div, не <Link> навколо всього: .ct-cert-square нижче теж
+    // <button>, а вкладати інтерактивний елемент в <a> той самий "кнопка в
+    // кнопці" клас проблем, що вже описаний біля .ct-toggle. .ct-enter-link
+    // лишається справжнім <a> для клавіатури/читалок екрана.
+    <div className="course-tile" onClick={() => router.push(`/courses/${course.slug}`)}>
       {/* Шапка картки — вертикальний стос: теги верхнім рівнем, під ними
           назва курсу, кількість модулів і опис на всю ширину картки, і
           нижче — підсумок пройденого курсу разом із сертифікатом.
@@ -243,7 +250,10 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
                   <>
                     <button
                       type="button"
-                      onClick={handleDownloadCertificate}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadCertificate();
+                      }}
                       disabled={certDownloading}
                       className="ct-cert-square"
                       aria-label="Завантажити сертифікат"

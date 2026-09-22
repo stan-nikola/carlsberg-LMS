@@ -188,7 +188,10 @@ html:has(.adm-shell) {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 14px 10px;
+  /* Низ -30% (10px -> 7px, 2026-09-22, скарга на завеликий відступ між
+     брендом CarLS і вмістом під ним на /hub) — той самий принцип, що й
+     зменшення .rt-card/.course-tile нижче. */
+  padding: 16px 14px 7px;
   flex-shrink: 0;
 }
 /* components/PlatformBrand.jsx — спільна бренд-мітка (хмелевий трилисток +
@@ -260,6 +263,7 @@ html:has(.adm-shell) {
   align-items: center;
   justify-content: center;
   color: var(--ink);
+  text-decoration: none;
   cursor: pointer;
   flex-shrink: 0;
   transition: transform var(--dur-fast) var(--ease-premium), background var(--dur-fast) var(--ease-premium);
@@ -275,6 +279,25 @@ html:has(.adm-shell) {
 .iconbtn:focus-visible {
   outline: none;
   box-shadow: var(--cb-focus-ring);
+}
+/* Шестерня прокручується на клік (2026-09-22, рішення користувача) —
+   той самий "спалахнути й повернутись" клас, що .ntf-bell.is-ringing
+   (notifications.css), лише обертання, не хитання. */
+.iconbtn.is-spinning svg {
+  animation: iconbtn-spin 500ms var(--ease-premium);
+}
+@keyframes iconbtn-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(180deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .iconbtn.is-spinning svg {
+    animation: none;
+  }
 }
 .iconbtn svg {
   width: 16px;
@@ -479,6 +502,11 @@ html:has(.adm-shell) {
   width: 100%;
   min-height: var(--btn-h-lg);
   border: none;
+  /* Клас писаний під <button> (без підкреслення за замовчуванням), але
+     сьогодні кілька разів пішов і на <Link> (NotificationSettings.jsx
+     "Налаштувати", app/courses/[slug]/page.js "На головну") — там
+     браузер підкреслює текст, доки не сказано інакше. */
+  text-decoration: none;
   border-radius: var(--radius-btn);
   padding: 12px var(--btn-px-lg);
   font-weight: 700;
@@ -723,6 +751,9 @@ html:has(.adm-shell) {
   }
   .marquee.is-overflowing .marquee-inner {
     animation: none;
+  }
+  .hub-viewport {
+    scroll-behavior: auto;
   }
 }
 

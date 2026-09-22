@@ -5,10 +5,19 @@ import { CourseTile } from "@/components/CourseTile";
 import { ProfileCard } from "@/components/ProfileCard";
 import { GreetingHeading } from "@/components/GreetingHeading";
 import { NotificationSettings } from "@/components/NotificationSettings";
-import { RatingCard, MandatoryCard } from "@/components/RatingBlocks";
+import { MandatoryCard } from "@/components/RatingBlocks";
 
 // Портовано з .hub-screen[data-tab="home"] в legacy index.html +
 // js/cabinet.js. Дані — з БД (Enrollment) замість localStorage.
+
+// TODO: Cache Components adoption. Route "/hub" ловило "uncached data
+// during render" (blocking-prerender-dynamic) у dev — Next у такому стані
+// іноді лишав ОБИДВА дерева (Suspense-фолбек HubShellSkeleton і реальний
+// контент) змонтованими одночасно (2026-09-22, живий баг: NotificationSettings
+// variant="card" рахував правильний стан у консолі, але видимий DOM
+// лишався тим, застарілим деревом). Прибрати опт-аут можна, коли весь
+// маршрут пройде через next-dev-loop/Cache Components adoption.
+export const instant = false;
 
 export default async function HubHomePage() {
   const employee = await getCurrentUser();
@@ -20,46 +29,22 @@ export default async function HubHomePage() {
     // «Прогрес адаптації 200/200 XP», який упирався в стелю після двох курсів.
     getEmployeeRating(employee),
   ]);
-  const completedCount = enrollments.filter((e) => e.status === "completed").length;
-  const lastCompleted = [...enrollments].reverse().find((e) => e.status === "completed");
 
   return (
     <section className="hub-screen">
-      {/* Раніше тут був окремий kicker {greet.toUpperCase()} над заголовком
-          — прибрано разом із "Вітаємо" в GreetingHeading: заголовок сам
-          містить і привітання, і ім'я, окремий рядок над ним лише
-          дублював той самий текст. */}
-      <GreetingHeading dbName={employee.name} hasEmail={Boolean(employee.email)} greet={greet} />
+      <GreetingHeading greet={greet} />
 
       <ProfileCard
         dbName={employee.name}
         hasEmail={Boolean(employee.email)}
-        externalCode={employee.externalCode}
         levelLabel={rating.level.label}
         avatarUrl={employee.avatarUrl}
+        href="/hub/achievements?highlight=rating"
       />
 
       <NotificationSettings variant="card" />
 
-      <RatingCard rating={rating} cohortLabel={employee.position?.name ? `на посаді ${employee.position.code}` : "колег"} />
-      <MandatoryCard progress={mandatory} />
-
-      <div className="stats-row">
-        <div className="stat-pill">
-          <b>
-            {completedCount}/{enrollments.length}
-          </b>
-          <span>Курсів</span>
-        </div>
-        <div className="stat-pill">
-          <b>{lastCompleted ? `${lastCompleted.scorePercent}%` : "—"}</b>
-          <span>Останній бал</span>
-        </div>
-        <div className="stat-pill">
-          <b>{rating.badgesCount}</b>
-          <span>Відзнак</span>
-        </div>
-      </div>
+      <MandatoryCard progress={mandatory} href="/hub/learn" />
 
       <div className="hub-sec-title">
         <h3>Продовжити навчання</h3>

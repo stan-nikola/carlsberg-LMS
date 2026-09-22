@@ -31,19 +31,25 @@ export function MorphRevealIcon({
   size = 24,
   strokeWidth = 2.4,
   className,
+  /** Затримка перед морфом, мс — 0 скрізь, крім плану курсу
+   *  (components/CoursePlan.tsx): там галочка кожного складеного модуля
+   *  має "промальовуватись" синхронно з тим самим сплеском масштабу
+   *  вузла (2026-09-22, рішення користувача), а не вся одразу на 60мс. */
+  delay = 0,
 }: {
   shape: MorphRevealShape;
   label?: string;
   size?: number | string;
   strokeWidth?: number | string;
   className?: string;
+  delay?: number;
 }) {
   const [icon, setIcon] = useState<string>(NEUTRAL);
 
   useEffect(() => {
-    const t = setTimeout(() => setIcon(SHAPES[shape]), 60);
+    const t = setTimeout(() => setIcon(SHAPES[shape]), 60 + delay);
     return () => clearTimeout(t);
-  }, [shape]);
+  }, [shape, delay]);
 
   return (
     <MorphIcon

@@ -11,7 +11,19 @@
 
 .hub-viewport {
   flex: 1;
+  /* min-height:0 — без нього flex-контейнер (Safari особливо) рахує
+     "автоматичний мінімум" по вмісту й росте понад свій flex-basis, коли
+     контент вищий за долю в .course-card (напр. картка сповіщень на
+     головній щойно змонтувалась клієнтським ефектом) — .hub-viewport тоді
+     штовхає appbar/tabbar замість того, щоб скролитись усередині себе. */
+  min-height: 0;
   overflow-y: auto;
+  /* Плавний скрол для будь-якого #hash-переходу всередині (напр. клік по
+     картці рейтингу -> #leaderboard на "Досягнення", 2026-09-22) — без
+     цього анкор-навігація в межах кастомного скрол-контейнера стрибає
+     миттєво, CSS scroll-behavior тут єдиний спосіб отримати плавність без
+     ручного JS scrollIntoView. */
+  scroll-behavior: smooth;
   position: relative;
 }
 /* "Потягнути, щоб оновити" (components/usePullToRefresh.js, 2026-09-19) —
@@ -33,8 +45,12 @@
   height: 20px;
 }
 .hub-screen {
-  /* Бокові поля -30% від початкових 18px (~12.6, округлено до 13px). */
-  padding: 16px 13px 18px;
+  /* Бокові поля -30% від початкових 18px (~12.6, округлено до 13px).
+     Верх -1/3 (16px -> 8px, 2026-09-22): відступ від шапки CarLS до
+     заголовка екрана (kicker/вітання) на всіх 4 вкладках хаба — разом із
+     paddiing-bottom .appbar (globals.css, уже зменшений тим самим
+     принципом) сумарний "повітряний" зазор під брендом був завеликий. */
+  padding: 8px 13px 18px;
 }
 
 .greeting {
@@ -51,15 +67,13 @@
   margin-bottom: 16px;
   line-height: 1.25;
 }
-/* Привітання на окремому, трохи меншому рядку над іменем (2 рядки:
-   "Доброго вечора" / "Stanislav!") — щоб саме ім'я лишалось найбільшим
-   і найважчим елементом заголовка, а не змагалось з привітанням за
-   увагу. Carlsberg Sans реально має лише 300/700/900 — тут саме 700. */
-.hub-h1-greet {
-  display: block;
-  font-size: calc(15px * var(--fs-scale));
-  font-weight: 700;
-  margin-bottom: 2px;
+/* Єдиний заголовок вкладки хаба (Home/Навчання/Досягнення/Профіль,
+   2026-09-22) — один kicker-рядок (.greeting: мono, uppercase, зелений)
+   замість попередньої пари "маленький підпис + великий hub-h1". Більший
+   margin-bottom, ніж у .greeting за замовчуванням (4px) — тут він сам за
+   себе весь заголовок екрана, а не підпис НАД чимось іншим. */
+.hub-greeting-h1 {
+  margin-bottom: 10px;
 }
 .hub-empty-note {
   font-size: calc(11.6px * var(--fs-scale));
@@ -70,16 +84,41 @@
 
 .profile-card {
   display: flex;
-  align-items: center;
-  gap: 13px;
+  flex-direction: column;
+  gap: 12px;
   background: linear-gradient(150deg, var(--green-700), var(--green-900));
   color: var(--cb-white);
   border-radius: var(--radius-card);
   padding: 16px;
-  margin-bottom: 14px;
+  margin-bottom: 9px;
   box-shadow: 0 14px 30px -16px var(--cb-primary-shadow);
   position: relative;
   overflow: hidden;
+}
+/* Home передає `href` (лінк на /hub/achievements, 2026-09-22) — уся картка
+   стає клікабельною замість окремої RatingCard під нею (бали/місце/
+   прогрес перенесені плашками всередину, .profile-rating нижче). На
+   /hub/profile (editable) `href` немає — усередині вже своя кнопка
+   аватара, вкладений `<a>` довкола `<button>` невалідний. */
+a.profile-card-link {
+  /* НЕ color:inherit — той селектор специфічніший за .profile-card (тег +
+     2 класи проти 1 класу) і перебивав би var(--cb-white) звідти,
+     успадковуючи натомість темний .ink від сторінки (реальний баг,
+     знайдено живим скріншотом: текст на зеленому ставав ледь видимим). */
+  text-decoration: none;
+  transition: transform var(--dur-fast) var(--ease-premium);
+}
+a.profile-card-link:active {
+  transform: scale(0.99);
+}
+a.profile-card-link:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.profile-card-top {
+  display: flex;
+  align-items: center;
+  gap: 13px;
 }
 /* Офіційний фірмовий графічний елемент (crafted hops leaf, білий варіант
    — public/assets/brand/README.md) замість голого декоративного кола.
@@ -98,6 +137,9 @@
   opacity: 0.2;
 }
 .avatar {
+  /* Базовий розмір — фактично ніколи не рендериться сам: Avatar.tsx завжди
+     додає ще й .avatar-sm/-md, які й задають реальний width/height (нижче,
+     той самий принцип, що вже описаний біля .avatar-sm). */
   width: 54px;
   height: 54px;
   border-radius: 50%;
@@ -116,6 +158,16 @@
   z-index: 1;
 }
 .profile-info {
+  /* flex column, не просто блок — .profile-name несе .marquee
+     (globals.css), а той display:inline-block, тож без flex наступний
+     .profile-level (inline-flex) міг лягати В ОДИН РЯДОК з іменем замість
+     під ним (реальний баг: щойно прибрали .profile-meta між ними —
+     раніше саме той звичайний block-рядок і розділяв їх на окремі рядки).
+     Рішення користувача, 2026-09-22: бейдж "Стажер" — під іменем, як і
+     було. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
   position: relative;
   z-index: 1;
@@ -127,16 +179,11 @@
   font-weight: 700;
   font-size: calc(15.5px * var(--fs-scale));
 }
-.profile-meta {
-  font-size: calc(11.5px * var(--fs-scale));
-  opacity: 0.85;
-  margin-top: 2px;
-}
 .profile-level {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-top: 7px;
+  margin-top: 5px;
   background: var(--cb-white-overlay-10);
   border-radius: var(--radius-pill);
   padding: 3px 10px 3px 4px;
@@ -217,7 +264,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 4px 0 10px;
+  margin: 3px 0 7px;
 }
 .hub-sec-title h3 {
   font-size: calc(13.5px * var(--fs-scale));
@@ -238,9 +285,10 @@
   border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   padding: var(--card-pad);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   transition: box-shadow var(--dur-base) var(--ease-premium);
   box-shadow: var(--card-shadow);
+  cursor: pointer;
 }
 .course-tile:hover {
   box-shadow: var(--shadow-hovered);
@@ -670,8 +718,10 @@
 
 .badge-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  /* 4 в ряд, менші відступи (2026-09-22, рішення користувача) — було 3 по
+     10px. */
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
   margin-bottom: 18px;
 }
 .badge-item {
@@ -697,6 +747,29 @@
   box-shadow: none;
   filter: grayscale(1);
   opacity: 0.6;
+}
+/* Підсвітка відзнаки зі сповіщення "Нова відзнака" (BadgeGrid.jsx,
+   ?highlight=badge&badgeId=N) — той самий прийом, що й .rt-card-highlight
+   (rating.css) на картці рейтингу: один золотий спалах, що сам гасне.
+   БЕЗ "both"/forwards — .badge-ico вже має власний статичний box-shadow
+   (drop-shadow вище), forwards назавжди перебив би його останнім кадром
+   анімації (прозорим кільцем); без fill-mode анімація просто віддає
+   властивість назад звичайному каскаду, щойно закінчиться. */
+.badge-highlight {
+  animation: badge-highlight-flash 1.4s ease-out 1;
+}
+@keyframes badge-highlight-flash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 65%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 16px color-mix(in srgb, var(--gold) 0%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge-highlight {
+    animation: none;
+  }
 }
 .badge-item span {
   font-size: calc(10px * var(--fs-scale));
@@ -868,9 +941,11 @@
   /* Симетрично зверху/знизу — асиметричний варіант (більше зверху) на
      реальному iPhone робив саму смугу таббару вищою й лишав помітний
      порожній проміжок між лінією-розділювачем і іконками. Менше, ніж
-     раніше (13px) — той самий principe, що зменшення іконок нижче (за
-     проханням користувача, таббар був явно вищий за решту UI). */
-  padding: 9px 2px;
+     раніше (13px, потім 9px) — користувач порівняв з нативним таббаром
+     Instagram на iPhone (2026-09-22): наш рядок іконок (57.6px) помітно
+     вищий за стандартний iOS HIG tab-bar content height (49pt) — разом із
+     .tab-btn-indicator padding нижче тепер ≈49.6px, той самий орієнтир. */
+  padding: 7px 2px;
   border: none;
   background: transparent;
   color: var(--ink-soft);
@@ -924,7 +999,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 18px;
+  padding: 4px 18px;
   border-radius: var(--radius-btn);
   transition: color var(--dur-fast) var(--ease-premium);
 }
@@ -1067,9 +1142,10 @@
   padding: 12px 16px;
 }
 .profile-card .avatar-md {
-  width: 76px;
-  height: 76px;
-  font-size: calc(24px * var(--fs-scale));
+  /* +10% на всі боки (2026-09-22, рішення користувача): 76px -> 83.6px. */
+  width: 83.6px;
+  height: 83.6px;
+  font-size: calc(26.4px * var(--fs-scale));
   /* Легкий фліп при заході на сторінку (запит користувача) робить
      components/ProfileCard.jsx через Web Animations API, а не CSS-анімація
      на цьому класі: клас спрацьовував на КОЖНЕ монтування, і в dev

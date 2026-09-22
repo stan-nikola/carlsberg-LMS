@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildCoursePlan, formatMinutes, pluralDays, toPlanView, type PlanCompletion, type PlanModuleInput } from "./coursePlan";
+import {
+  buildCoursePlan,
+  formatMinutes,
+  pickPlanFocusModuleId,
+  pluralDays,
+  toPlanView,
+  type PlanCompletion,
+  type PlanModuleInput,
+} from "./coursePlan";
 
 const NOW = new Date("2026-09-17T09:00:00Z");
 
@@ -529,5 +537,36 @@ describe("toPlanView — реальний час замінює оцінку, м
     expect(view.modules[1].medalTier).toBe("silver");
     expect(view.modules[2].medalTier).toBe("bronze");
     expect(view.modules[3].medalTier).toBeNull();
+  });
+});
+
+describe("pickPlanFocusModuleId — куди скролити/підсвітити при вході в план", () => {
+  it("пріоритет 1: nextModuleId, коли є доступний або провалений модуль", () => {
+    const view = toPlanView(buildCoursePlan([mod({ id: 1 }), mod({ id: 2 })], [], NO_DATES, NOW));
+    expect(pickPlanFocusModuleId(view)).toBe(1);
+  });
+
+  it("пріоритет 2: перший заблокований модуль, коли nextModuleId немає", () => {
+    const view = toPlanView(
+      buildCoursePlan(
+        [mod({ id: 1 }), mod({ id: 2, cooldownDays: 3 })],
+        [done({ moduleId: 1, completedAt: new Date("2026-09-16T09:00:00Z") })],
+        NO_DATES,
+        NOW
+      )
+    );
+    expect(view.nextModuleId).toBeNull();
+    expect(pickPlanFocusModuleId(view)).toBe(2);
+  });
+
+  it("пріоритет 3: перший складений-не-на-100% модуль, коли немає ні наступного, ні заблокованого", () => {
+    const view = toPlanView(buildCoursePlan([mod({ id: 1 })], [done({ moduleId: 1, scorePercent: 85 })], NO_DATES, NOW));
+    expect(view.nextModuleId).toBeNull();
+    expect(pickPlanFocusModuleId(view)).toBe(1);
+  });
+
+  it("null, коли все складено рівно на 100% — покращувати/чекати нічого", () => {
+    const view = toPlanView(buildCoursePlan([mod({ id: 1 })], [done({ moduleId: 1, scorePercent: 100 })], NO_DATES, NOW));
+    expect(pickPlanFocusModuleId(view)).toBeNull();
   });
 });

@@ -21,21 +21,6 @@ export function HubHomeSkeleton() {
       <CardSkeleton />
       <CardSkeleton />
 
-      <div className="stats-row">
-        <div className="stat-pill">
-          <Skeleton className="sk-line" style={{ width: "50%", height: 17, margin: "0 auto 4px" }} />
-          <Skeleton className="sk-line" style={{ width: "70%", height: 10, margin: "0 auto" }} />
-        </div>
-        <div className="stat-pill">
-          <Skeleton className="sk-line" style={{ width: "50%", height: 17, margin: "0 auto 4px" }} />
-          <Skeleton className="sk-line" style={{ width: "70%", height: 10, margin: "0 auto" }} />
-        </div>
-        <div className="stat-pill">
-          <Skeleton className="sk-line" style={{ width: "50%", height: 17, margin: "0 auto 4px" }} />
-          <Skeleton className="sk-line" style={{ width: "70%", height: 10, margin: "0 auto" }} />
-        </div>
-      </div>
-
       <div className="hub-sec-title">
         <Skeleton className="sk-line" style={{ width: 140, height: 13 }} />
       </div>
