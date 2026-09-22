@@ -563,14 +563,16 @@ function CompleteScreen({ result, onRetake, onPlan, course, hasEmail, previewMod
   if (!result) return null;
   const { scorePercent, scoreRaw, scoreMax, passed, submitting, submitError, queued } = result;
 
-  // Сертифікат = СКЛАДЕНИЙ курс (Enrollment.passed) — той самий критерій,
-  // що в «Досягненнях», PDF-роуті й плані курсу (CLAUDE.md, 2026-09-19).
-  // До 2026-09-22 тут лишалась стара планка «рівно 100%»: план показував
-  // «Сертифікат: отримано», а цей екран казав «видається за 100%» і кнопки
-  // не давав (стенд механіки).
+  // Сертифікат = РІВНО 100% (не просто складений курс) — рішення
+  // користувача, 2026-09-22: "Сертификат только 100% пройденый курс",
+  // повернення до планки, що діяла до 2026-09-19. Той самий критерій
+  // тепер знову скрізь: «Досягнення» (lib/achievements.ts), PDF-роут
+  // (app/api/courses/[slug]/certificate) і статус у плані курсу
+  // (lib/coursePlan.ts certificateStatus) — новий поріг лише в усі місця
+  // одночасно, як і раніше.
   const certificateAllowed = course?.certificateEnabled !== false;
   const isPerfect = scorePercent === 100;
-  const showCertificate = passed && certificateAllowed;
+  const showCertificate = isPerfect && certificateAllowed;
   // Кнопку тримаємо неактивною, поки результат не долетів до сервера:
   // роут сертифіката перевіряє саме збережений Enrollment і до того
   // моменту відповів би 403.
@@ -647,6 +649,13 @@ function CompleteScreen({ result, onRetake, onPlan, course, hasEmail, previewMod
         <button type="button" className="btn-primary-full" onClick={onRetake}>
           <span className="btn-label">Пройти ще раз</span>
         </button>
+      )}
+      {/* Склав, але не на 100% — кажемо прямо, що сертифікат саме за це й
+          не виданий (щоб мовчазна відсутність блоку вище не читалась як
+          збій), а покращувати варто ОКРЕМИЙ слабший модуль із плану, не
+          весь курс заново. */}
+      {passed && !isPerfect && certificateAllowed && (
+        <p className="cp-cert-hint">Сертифікат видається за 100% — вам лишилось зовсім небагато.</p>
       )}
       {passed && !isPerfect && !previewMode && (
         <button type="button" className="btn btn-ghost cp-complete-secondary" onClick={onPlan}>

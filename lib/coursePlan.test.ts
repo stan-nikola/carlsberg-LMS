@@ -410,10 +410,11 @@ describe("toPlanView — статус сертифіката (замінює б�
     expect(view.certificateEarned).toBe(true);
   });
 
-  // Один критерій сертифіката на весь застосунок (2026-09-19): складений
-  // курс, а не «кожен модуль рівно на 100%» — саме тут раніше розходились
-  // план курсу і список «Досягнення».
-  it("усе складено, хоч і не на 100% — отримано", () => {
+  // Один критерій сертифіката на весь застосунок (2026-09-22, повернуто
+  // після реверсу рішення 2026-09-19): КОЖЕН модуль рівно на 100%, а не
+  // просто складений курс — складений, але не ідеальний результат
+  // сертифіката не дає.
+  it("усе складено, але не на 100% — ще не отримано", () => {
     const plan = buildCoursePlan(
       [mod({ id: 1 }), mod({ id: 2 })],
       [done({ moduleId: 1, scorePercent: 100 }), done({ moduleId: 2, scorePercent: 90 })],
@@ -421,8 +422,8 @@ describe("toPlanView — статус сертифіката (замінює б�
       NOW
     );
     const view = toPlanView(plan);
-    expect(view.certificateLabel).toBe("Отримано");
-    expect(view.certificateEarned).toBe(true);
+    expect(view.certificateLabel).toBe("За складений курс");
+    expect(view.certificateEarned).toBe(false);
   });
 
   it("провалений модуль — курс ще не складено, сертифіката немає", () => {

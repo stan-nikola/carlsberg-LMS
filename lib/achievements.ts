@@ -68,17 +68,16 @@ export async function getEmployeeBadgesView(employeeId: number): Promise<BadgeVi
 export type CertificateView = { slug: string; title: string; completedAt: Date; scorePercent: number | null };
 
 /**
- * Сертифікати — СКЛАДЕНІ курси (Enrollment.passed, прохідний бал 80%+) з
+ * Сертифікати — курси, СКЛАДЕНІ РІВНО НА 100% (scorePercent: 100), з
  * увімкненим сертифікатом. Той самий поріг, що й у
  * app/api/courses/[slug]/certificate і у статусі сертифіката в плані курсу
- * (lib/coursePlan.ts) — до 2026-09-19 тут стояло рівно 100%, і в людини зі
- * складеними курсами секція лишалась майже порожньою (скарга користувача:
- * «Сертифікати должно быть больше»). Бал друкується в самому PDF, тож
- * нижчий поріг сертифікат не знецінює.
+ * (lib/coursePlan.ts). 2026-09-19 планку опускали до простого "складений
+ * курс" (Enrollment.passed) — 2026-09-22 користувач повернув назад: "Сертификат
+ * только 100% пройденый курс". Новий поріг — знову скрізь одночасно.
  */
 async function computeEmployeeCertificates(employeeId: number): Promise<CertificateView[]> {
   const rows = await prisma.enrollment.findMany({
-    where: { employeeId, status: "completed", passed: true, course: { certificateEnabled: true } },
+    where: { employeeId, status: "completed", scorePercent: 100, course: { certificateEnabled: true } },
     orderBy: { completedAt: "desc" },
     select: { completedAt: true, scorePercent: true, course: { select: { slug: true, title: true } } },
   });
