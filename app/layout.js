@@ -53,6 +53,13 @@ const carlsbergSans = localFont({
 const montserrat = Montserrat({
   subsets: ["latin", "cyrillic"],
   weight: ["400", "500", "600", "700"],
+  // Курсив — справжнім накресленням, а не синтетичним нахилом. Автор
+  // курсу може поставити курсив кнопкою в конструкторі (lib/richText.jsx),
+  // і без italic-фейса браузер просто перекошував звичайний Montserrat:
+  // на iOS такий «нахил» особливо помітно відрізняється від справжнього
+  // курсиву. 700 у списку вище — так само причина, чому жирний уже
+  // виглядав правильно.
+  style: ["normal", "italic"],
   variable: "--font-montserrat",
 });
 const ibmPlexMono = IBM_Plex_Mono({

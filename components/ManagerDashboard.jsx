@@ -536,19 +536,31 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // Розміри в юнітах сітки, які керівник сам поставив ручками (id ->
   // {w, h}). Поки картки тут нема — діє DEFAULT_CARD_SIZE.
   const [cardLayout, setCardLayout] = useState({});
+  // Перший рендер після відновлення збереженої розкладки НЕ анімуємо:
+  // SSR малює канонічний порядок, і FLIP нижче чесно возив би картки з
+  // нього в збережений — на кожному оновленні сторінки було видно, як
+  // вони «переїжджають» (скарга користувача, 2026-09-23).
+  const skipNextFlipRef = useRef(false);
   // Одним ефектом підхоплюємо всі збережені в localStorage налаштування
-  // одразу після монтування на клієнті — до цього моменту дашборд секунду
-  // показує SSR-дефолт (ролевий набір карток, розмітковий порядок/розмір),
-  // потім перемикається на збережений вибір керівника. setState викликаємо
-  // лише для того, що РЕАЛЬНО є в localStorage — щоб не переписувати
-  // дефолт порожнім значенням там, де керівник іще нічого не налаштовував.
-  useEffect(() => {
+  // одразу після монтування на клієнті — до цього моменту дашборд показує
+  // SSR-дефолт (ролевий набір карток, розмітковий порядок/розмір), потім
+  // перемикається на збережений вибір керівника. setState викликаємо лише
+  // для того, що РЕАЛЬНО є в localStorage — щоб не переписувати дефолт
+  // порожнім значенням там, де керівник іще нічого не налаштовував.
+  //
+  // useLayoutEffect, а НЕ useEffect: читання й підстановка встигають до
+  // першої промальовки, тож кадру з канонічною розкладкою на екрані вже
+  // немає. Робота тут — лише читання localStorage і setState, важких
+  // замірів DOM немає (на відміну від ефекту авто-висоти нижче, який
+  // свідомо лишається звичайним useEffect).
+  useLayoutEffect(() => {
     const storedCards = readStoredCards();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- одноразове читання localStorage після монтування, не синхронізація зі стейтом React
     if (storedCards) setCardOverride(storedCards);
     const order = readStoredOrder();
-    if (order) setStoredOrder(order);
     const layout = readStoredLayout();
+    if (order || Object.keys(layout).length > 0) skipNextFlipRef.current = true;
+    if (order) setStoredOrder(order);
     if (Object.keys(layout).length > 0) setCardLayout(layout);
   }, []);
   const [resizeId, setResizeId] = useState(null);
@@ -1108,8 +1120,17 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // тобто зі зсувом, який мала до перестановки (видно як "картка поїхала
     // за край"). Позиції все одно перезаписуємо — щоб після повернення на
     // вкладку наступний FLIP рахувався від актуальних координат.
+    // skipNextFlipRef — перший рендер після відновлення збереженої
+    // розкладки з localStorage: позиції змінились не тому, що керівник
+    // щось перетягнув, а тому що застосувався його ж збережений вибір.
+    // Возити картки з канонічного порядку в збережений на кожному
+    // оновленні сторінки — саме те, що виглядало як «картки переїжджають».
+    const restoring = skipNextFlipRef.current;
+    skipNextFlipRef.current = false;
     const reduced =
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || document.visibilityState !== "visible";
+      restoring ||
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ||
+      document.visibilityState !== "visible";
     for (const node of document.querySelectorAll("[data-card-id]")) {
       const id = node.getAttribute("data-card-id");
       // offsetLeft/Top, а НЕ getBoundingClientRect: у картки в руці на
@@ -1315,7 +1336,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <span className="admin-hint mgr-card-note">
               {team.statusBar.total} {pluralPeople(team.statusBar.total)} із призначеннями
             </span>
-            <ChartHint text="Кожна людина рівно в ОДНОМУ сегменті — за найгіршим своїм станом (прострочено → відстає → не почала → неактивна → на графіку). Число в сегменті — люди; друге число поруч у легенді — скільки призначень команди в цьому стані. Клік відкриває список саме цих людей." />
+            <ChartHint text="Кожна людина рівно в ОДНОМУ сегменті — за найгіршим своїм станом (прострочено → відстає → не почала → неактивна → за графіком). Число в сегменті — люди; друге число поруч у легенді — скільки призначень команди в цьому стані. Клік відкриває список саме цих людей." />
           </h2>
           <TeamStatusBar data={team.statusBar} />
         </div>

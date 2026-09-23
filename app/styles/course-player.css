@@ -602,11 +602,11 @@
   background: var(--danger);
   border-color: var(--danger);
 }
-/* Галочка малюється повернутим кутом рамки — той самий прийом, що в
-   legacy, без окремої іконки. */
-.opt.selected .opt-mark.chk::after,
-.opt.correct .opt-mark.chk::after,
-.opt.wrong .opt-mark.chk::after {
+/* Галочка вибору (ще ДО перевірки, лише для «кількох правильних»):
+   малюється повернутим кутом рамки — той самий прийом, що в legacy, без
+   окремої іконки. Після відповіді її змінює промальована іконка нижче,
+   тож тут лишився тільки стан «обрано». */
+.opt.selected .opt-mark.chk::after {
   content: "";
   position: absolute;
   left: 4px;
@@ -616,6 +616,19 @@
   border: solid var(--cb-white);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
+}
+/* Підсумок усередині маркера після відповіді (2026-09-23): галочка в
+   зеленому кружечку, хрестик — у червоному. Іконку малює
+   MorphRevealIcon (CoursePlayer.jsx), тут лише центрування й колір. */
+.opt-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.opt-mark-ico {
+  color: var(--cb-white);
+  /* Щоб штрих не «витікав» за межі 17px кружечка на тонких екранах. */
+  display: block;
 }
 /* Легка реакція на розкриття відповіді: правильний варіант коротко
    «дихає», щоб погляд одразу знайшов його серед решти. */
@@ -989,6 +1002,11 @@
   width: 14px;
   height: 14px;
 }
+/* Галочка (MorphRevealIcon) — блок, щоб не ловити baseline-зазор інлайна
+   й стояти рівно в центрі квадратика; колір бере з .check-item.done нижче. */
+.check-mark {
+  display: block;
+}
 .check-item.done .check-box {
   background: var(--cb-secondary);
   border-color: var(--cb-secondary);
@@ -1271,11 +1289,36 @@
   width: 2px;
   flex: 1;
   min-height: 20px;
-  background: var(--line);
-  transition: background var(--dur-base) var(--ease-premium);
+  /* Лінія не просто перефарбовується — вона ЗАПОВНЮЄТЬСЯ згори вниз, від
+     щойно відкритого кроку до наступного (прохання користувача
+     2026-09-23: той самий жест, що й дорога між модулями в плані курсу,
+     .cp-plan-road-progress нижче).
+     Сіра доріжка — background-color, зелене — окремий шар-градієнт, у
+     якого анімується ВИСОТА (background-size). Саме так, а не через
+     висоту/scaleY власного елемента: .tl-line розтягнутий flex:1 і
+     змінює висоту разом із розгорнутим текстом кроку, тож прив'язуватись
+     до конкретних пікселів не можна. Відсоток тут рахується від
+     фактичної висоти доріжки в кожен момент, і заливка завжди доходить
+     рівно до наступного кружечка.
+     Затримка 0.15s: спершу зеленіє кружечок кроку, і вже ВІД нього
+     тягнеться лінія — ланцюг читається як такий, що малює сам себе. */
+  background-color: var(--line);
+  background-image: linear-gradient(var(--cb-secondary), var(--cb-secondary));
+  background-repeat: no-repeat;
+  background-position: top center;
+  background-size: 100% 0%;
+  transition: background-size 0.6s var(--ease-premium) 0.15s;
 }
 .tl-item.seen .tl-line {
-  background: var(--cb-secondary);
+  background-size: 100% 100%;
+}
+/* Перехід не запускається на першому рендері, тож у методичці (readOnly,
+   усі кроки одразу .seen) лінії просто стоять зеленими, без сплеску
+   анімацій на весь екран. Окремо глушимо рух для тих, хто його вимкнув. */
+@media (prefers-reduced-motion: reduce) {
+  .tl-line {
+    transition: none;
+  }
 }
 .tl-body {
   flex: 1;
@@ -1969,10 +2012,25 @@
     left: 50%;
     width: 100%;
     height: 2px;
-    background: var(--line);
+    /* Той самий жест заповнення, що й у вертикальної .tl-line вище, лише
+       напрямок інший — ЗЛІВА НАПРАВО, услід за ланцюжком кроків. Тут теж
+       сіра доріжка — background-color, а зелене — шар-градієнт зі
+       змінною ШИРИНОЮ (конектор розтягнутий на всю відстань між
+       кружечками, тобто ширина плаває разом із шириною картки). */
+    background-color: var(--line);
+    background-image: linear-gradient(var(--cb-secondary), var(--cb-secondary));
+    background-repeat: no-repeat;
+    background-position: left center;
+    background-size: 0% 100%;
+    transition: background-size 0.6s var(--ease-premium) 0.15s;
   }
   .tl-item.seen:not(:last-child)::after {
-    background: var(--cb-secondary);
+    background-size: 100% 100%;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tl-item:not(:last-child)::after {
+      transition: none;
+    }
   }
   .tl-rail {
     flex-direction: row;
@@ -2037,11 +2095,19 @@
   position: absolute;
   z-index: 2;
   transform: translate(-50%, -50%);
-  border-radius: 50%;
   border: 2px solid var(--cb-secondary);
   background: var(--cb-secondary-tint);
   pointer-events: none;
   animation: hsZoneIn var(--dur-base) var(--ease-premium) both;
+}
+/* Форма зони — вибір автора курсу (lib/hotspotZones.ts): прямокутник чи
+   овал. Заокруглення саме тут, а не в .hs-zone: старі зони приходять без
+   shape і читаються як овал, тобто виглядають рівно як раніше. */
+.hs-zone.is-ellipse {
+  border-radius: 50%;
+}
+.hs-zone.is-rect {
+  border-radius: var(--radius-xs);
 }
 @keyframes hsZoneIn {
   from {

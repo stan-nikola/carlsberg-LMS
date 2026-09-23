@@ -13,6 +13,8 @@ import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, RETIRED_COMPONENT_TYPES, defaul
 import { ListRowControls, useListOps } from "@/components/ListEditor";
 import { HintDot } from "@/components/HintDot";
 import { numberComponents } from "@/lib/coursePlayerLogic";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
+import { HANDLES, boxFromDrag, moveBox, resizeBox, tapBox, toBox, zoneShapeClass, zoneStyle } from "@/lib/hotspotZones";
 
 // Десктопний редактор контенту курсу.
 //
@@ -128,7 +130,7 @@ function ImagePicker({ image, index, total, onChange, onMove, onRemove, onUpload
   );
 }
 
-function ImageListEditor({ images, onChange, onUploadingChange }) {
+function ImageListEditor({ images, onChange, onUploadingChange, max = MAX_IMAGES, limitHint }) {
   // Скільки фото зараз вантажиться (за індексом) — Save блокується, поки
   // не 0, інакше можна зберегти екран з порожнім url (лист заповнення ще
   // не встиг прийти) — саме так з'являвся варнінг next/image про
@@ -145,12 +147,12 @@ function ImageListEditor({ images, onChange, onUploadingChange }) {
   function updateImage(index, next) {
     onChange(images.map((img, i) => (i === index ? next : img)));
   }
-  const atLimit = images.length >= MAX_IMAGES;
+  const atLimit = images.length >= max;
 
   return (
     <div className="admin-field">
       <label className="admin-label">
-        Зображення <span className="admin-hint">— до {MAX_IMAGES}, порядок задають стрілки</span>
+        Зображення <span className="admin-hint">{max === 1 ? "— одне на це питання" : `— до ${max}, порядок задають стрілки`}</span>
       </label>
       {images.map((img, i) => (
         <ImagePicker
@@ -165,7 +167,7 @@ function ImageListEditor({ images, onChange, onUploadingChange }) {
         />
       ))}
       {atLimit ? (
-        <p className="admin-hint">Більше {MAX_IMAGES} фото на один екран не додати — заберіть зайве, щоб додати інше.</p>
+        <p className="admin-hint">{limitHint || `Більше ${max} фото на один екран не додати — заберіть зайве, щоб додати інше.`}</p>
       ) : (
         <button type="button" onClick={() => ops.add({ url: "", caption: "" })} className="admin-btn-link" title="Додати ще один слот під фото">
           + Додати зображення
@@ -260,15 +262,23 @@ const RICH_MARKS = [
  * знімає розмітку — інакше єдиним способом прибрати жирний було б
  * стирати зірочки руками.
  *
+ * `paragraphs={false}` — для полів, які плеєр малює всередині рядкового
+ * контейнера (вступний рядок, пояснення, репліка діалогу): там працюють
+ * накреслення, але порожній рядок абзацу НЕ створює (lib/richText.jsx
+ * renderRichMarks), тому й підказки про абзац там нема.
+ *
  * Виділення відновлюється в useEffect по зміні value, а НЕ в
  * requestAnimationFrame одразу після onChange: rAF не прив'язаний до
  * коміту React і встигав спрацювати ще на старому значенні — курсор
  * після цього стрибав у кінець тексту (перевірено на живій сторінці).
  * Ефект же гарантовано йде після того, як textarea вже перемальована.
  */
-function RichTextArea({ value, onChange, rows = 5, className = "admin-textarea" }) {
+function RichTextArea({ value, onChange, rows = 5, className = "admin-textarea", placeholder, paragraphs = true }) {
   const ref = useRef(null);
   const pendingSelection = useRef(null);
+  // Частина полів приходить як undefined (контент старих компонентів) —
+  // без цього перше ж натискання кнопки падало б на value.slice.
+  const text = value || "";
 
   useEffect(() => {
     const el = ref.current;
@@ -284,13 +294,13 @@ function RichTextArea({ value, onChange, rows = 5, className = "admin-textarea" 
     if (!el) return;
     const start = el.selectionStart;
     const end = el.selectionEnd;
-    const selected = value.slice(start, end);
+    const selected = text.slice(start, end);
     const wrapped = selected.length > mark.length * 2 && selected.startsWith(mark) && selected.endsWith(mark);
 
     const inner = wrapped ? selected.slice(mark.length, -mark.length) : selected;
     const next = wrapped
-      ? value.slice(0, start) + inner + value.slice(end)
-      : value.slice(0, start) + mark + selected + mark + value.slice(end);
+      ? text.slice(0, start) + inner + text.slice(end)
+      : text.slice(0, start) + mark + selected + mark + text.slice(end);
     const selStart = wrapped ? start : start + mark.length;
     pendingSelection.current = [selStart, selStart + inner.length];
     onChange(next);
@@ -312,9 +322,16 @@ function RichTextArea({ value, onChange, rows = 5, className = "admin-textarea" 
             {m.label}
           </button>
         ))}
-        <span className="admin-hint admin-richtext-hint">порожній рядок = новий абзац</span>
+        {paragraphs && <span className="admin-hint admin-richtext-hint">порожній рядок = новий абзац</span>}
       </div>
-      <textarea ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rows={rows} className={className} />
+      <textarea
+        ref={ref}
+        value={text}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        placeholder={placeholder}
+        className={className}
+      />
     </>
   );
 }
@@ -331,7 +348,7 @@ function InfoFields({ content, onChange, onUploadingChange }) {
       </div>
       <div className="admin-field">
         <label className="admin-label">Вступний рядок (lead)</label>
-        <textarea value={c.lead} onChange={(e) => set("lead")(e.target.value)} rows={2} className="admin-textarea" />
+        <RichTextArea value={c.lead} onChange={set("lead")} rows={2} paragraphs={false} />
       </div>
       {/* Зображення ПЕРЕД текстом екрану — рівно в тому порядку, в якому
           блок збирається на самому екрані (components/CoursePlayer.jsx
@@ -351,7 +368,7 @@ function InfoFields({ content, onChange, onUploadingChange }) {
         <label className="admin-label">
           Підказка «Варто знати» <span className="admin-hint">— розгортається по кліку (акордеон), не видима одразу</span>
         </label>
-        <textarea value={c.note} onChange={(e) => set("note")(e.target.value)} rows={2} className="admin-textarea" />
+        <RichTextArea value={c.note} onChange={set("note")} rows={2} />
       </div>
     </>
   );
@@ -401,12 +418,12 @@ function QuizFields({ content, onChange, radioGroupName, onUploadingChange }) {
           Пояснення до відповіді{" "}
           <span className="admin-hint">— показується ПІСЛЯ відповіді, і правильної теж</span>
         </label>
-        <textarea
-          value={c.explanation || ""}
-          onChange={(e) => set("explanation")(e.target.value)}
+        <RichTextArea
+          value={c.explanation}
+          onChange={set("explanation")}
           rows={2}
+          paragraphs={false}
           placeholder="Чому саме так — коротко, одним-двома реченнями"
-          className="admin-textarea"
         />
       </div>
     </>
@@ -420,7 +437,7 @@ function QuizFields({ content, onChange, radioGroupName, onUploadingChange }) {
    переставити/видалити, плюс необов'язковий текст-підказка гейта. */
 
 /** Спільні поля-шапка (рубрика/вступ) — щоб не дублювати в кожному типі. */
-function ScreenHeaderFields({ c, set, onUploadingChange }) {
+function ScreenHeaderFields({ c, set, onUploadingChange, maxImages, imagesLimitHint }) {
   return (
     <>
       <div className="admin-field">
@@ -434,13 +451,13 @@ function ScreenHeaderFields({ c, set, onUploadingChange }) {
       </div>
       <div className="admin-field">
         <label className="admin-label">Вступний рядок (lead)</label>
-        <textarea value={c.lead || ""} onChange={(e) => set("lead")(e.target.value)} rows={2} className="admin-textarea" />
+        <RichTextArea value={c.lead} onChange={set("lead")} rows={2} paragraphs={false} />
       </div>
       {/* Фото доступне КОЖНОМУ типу компонента, не лише інфо-блоку та
           "фото". Стоїть одразу після вступного рядка — там само, де в
           інфо-блоці, і там само, де плеєр його малює: порядок полів у
           конструкторі збігається з порядком на екрані. */}
-      <ImageListEditor images={c.images || []} onChange={set("images")} onUploadingChange={onUploadingChange} />
+      <ImageListEditor images={c.images || []} onChange={set("images")} onUploadingChange={onUploadingChange} max={maxImages} limitHint={imagesLimitHint} />
     </>
   );
 }
@@ -491,12 +508,11 @@ function AccordionFields({ content, onChange, onUploadingChange }) {
               />
               <ListRowControls index={i} total={c.items.length} onMove={ops.move} onRemove={ops.remove} label="картку" />
             </div>
-            <textarea
-              value={item.body || ""}
-              onChange={(e) => ops.update(i, "body", e.target.value)}
+            <RichTextArea
+              value={item.body}
+              onChange={(v) => ops.update(i, "body", v)}
               rows={2}
               placeholder="Текст, який розкриється по кліку"
-              className="admin-textarea"
             />
           </div>
         ))}
@@ -591,12 +607,12 @@ function ScriptFields({ content, onChange, onUploadingChange }) {
               />
               <ListRowControls index={i} total={c.bubbles.length} onMove={ops.move} onRemove={ops.remove} label="репліку" />
             </div>
-            <textarea
-              value={b.text || ""}
-              onChange={(e) => ops.update(i, "text", e.target.value)}
+            <RichTextArea
+              value={b.text}
+              onChange={(v) => ops.update(i, "text", v)}
               rows={2}
+              paragraphs={false}
               placeholder={`Текст репліки ${i + 1}`}
-              className="admin-textarea"
             />
           </div>
         ))}
@@ -632,12 +648,11 @@ function TimelineFields({ content, onChange, onUploadingChange }) {
               />
               <ListRowControls index={i} total={c.steps.length} onMove={ops.move} onRemove={ops.remove} label="крок" />
             </div>
-            <textarea
-              value={step.detail || ""}
-              onChange={(e) => ops.update(i, "detail", e.target.value)}
+            <RichTextArea
+              value={step.detail}
+              onChange={(v) => ops.update(i, "detail", v)}
               rows={2}
               placeholder="Суть кроку — розкриється по кліку"
-              className="admin-textarea"
             />
           </div>
         ))}
@@ -681,80 +696,213 @@ function PhotoFields({ content, onChange, onUploadingChange }) {
 
 /** Поле "довільний ввід" — лише підпис/плейсхолдер, значення ніде не
  * зберігається (гейт "щось введено", перевіряється в плеєрі). */
+const HOTSPOT_SHAPES = [
+  { value: "rect", label: "Прямокутник", title: "Прямокутник або квадрат — обвести полицю, цінник, half кадру" },
+  { value: "ellipse", label: "Овал", title: "Овал або коло — обвести пляшку, кегу, логотип" },
+];
+
 /**
- * Гаряча точка на фото. Зони задаються КЛІКОМ прямо по зображенню —
- * набирати координати числами було б знущанням, а drag-and-drop погано
- * працює на тач-екранах, з яких цю адмінку теж відкривають.
+ * Гаряча точка на фото. Зона малюється ПРОТЯЖКОЮ прямо по зображенню, як
+ * у будь-якому графічному редакторі (той самий жест, що в Storyline і
+ * H5P): протягнув — з'явилась рамка, потягнув за кут — змінив розмір, за
+ * середину — посунув. Форма рамки ("прямокутник" чи "овал") дає всі
+ * чотири потрібні фігури, включно з квадратом і колом.
  *
- * Координати й радіус — у відсотках від ширини фото: те саме зображення
- * показується співробітнику на телефоні й на ноутбуці різного розміру,
- * піксельні значення там розійшлися б.
+ * Жести — на Pointer Events, тобто однакові для миші й пальця; touch-action
+ * на канві вимкнено, інакше протяжка гортала б сторінку замість малювання.
+ * Просто тап (без руху) ставить зону типового розміру — щоб не змушувати
+ * «малювати» там, де досить ткнути.
+ *
+ * Уся математика — lib/hotspotZones.ts (з тестами): нею ж плеєр показує
+ * зони й зараховує влучання, тож розійтись вони не можуть.
+ *
+ * Координати й розміри — у ВІДСОТКАХ (ширина від ширини кадру, висота від
+ * висоти): те саме фото показується на телефоні й на ноутбуці різного
+ * розміру, піксельні значення там розійшлися б.
  */
 function HotspotFields({ content, onChange, onUploadingChange }) {
   const c = { kicker: "", lead: "", explanation: "", ...content, images: content.images || [], zones: content.zones || [] };
   const set = (field) => (value) => onChange({ ...c, [field]: value });
-  const [radius, setRadius] = useState(8);
+  const [shape, setShape] = useState("rect");
+  const [selected, setSelected] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const canvasRef = useRef(null);
+  const dragRef = useRef(null);
   const image = c.images.find((img) => img.url);
 
-  function addZoneAt(e) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    set("zones")([...c.zones, { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)), r: radius }]);
+  /** Точка події у відсотках кадру + пропорції самого кадру. */
+  function readPointer(e) {
+    const rect = canvasRef.current.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    return {
+      at: { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 },
+      aspect: rect.height / rect.width,
+    };
+  }
+
+  const replaceZone = (index, zone) => set("zones")(c.zones.map((z, i) => (i === index ? zone : z)));
+
+  function onPointerDown(e) {
+    if (e.button > 0) return;
+    const read = readPointer(e);
+    if (!read) return;
+    const handle = e.target.dataset?.handle;
+    const zoneAttr = e.target.closest?.("[data-zone]")?.dataset?.zone;
+    canvasRef.current.setPointerCapture(e.pointerId);
+
+    if (handle && selected != null) {
+      // Стару круглу зону переводимо в рамку рівно в мить, коли автор сам
+      // узявся її правити — мовчазної масової міграції не робимо.
+      dragRef.current = { mode: "resize", handle, origin: toBox(c.zones[selected], read.aspect) };
+    } else if (zoneAttr != null) {
+      const index = Number(zoneAttr);
+      setSelected(index);
+      dragRef.current = { mode: "move", start: read.at, origin: toBox(c.zones[index], read.aspect), index };
+    } else {
+      setSelected(null);
+      dragRef.current = { mode: "draw", start: read.at, aspect: read.aspect, moved: false };
+    }
+  }
+
+  function onPointerMove(e) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const read = readPointer(e);
+    if (!read) return;
+    if (drag.mode === "draw") {
+      // Поріг у 1%: інакше звичайний тап тремтячою рукою малював би
+      // зону-ниточку замість зони типового розміру.
+      drag.moved = drag.moved || Math.abs(read.at.x - drag.start.x) > 1 || Math.abs(read.at.y - drag.start.y) > 1;
+      if (drag.moved) setDraft(boxFromDrag(drag.start, read.at, shape));
+    } else if (drag.mode === "move") {
+      replaceZone(drag.index, moveBox(drag.origin, read.at.x - drag.start.x, read.at.y - drag.start.y));
+    } else if (drag.mode === "resize") {
+      replaceZone(selected, resizeBox(drag.origin, drag.handle, read.at));
+    }
+  }
+
+  function onPointerUp(e) {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    setDraft(null);
+    if (drag?.mode !== "draw") return;
+    const read = readPointer(e);
+    if (!read) return;
+    const zone = drag.moved ? boxFromDrag(drag.start, read.at, shape) : tapBox(drag.start, shape, drag.aspect);
+    set("zones")([...c.zones, zone]);
+    setSelected(c.zones.length);
+  }
+
+  /** Перемикач форми правит і ОБРАНУ зону, і задає форму для наступних. */
+  function chooseShape(value) {
+    setShape(value);
+    if (selected == null || !c.zones[selected]) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const aspect = rect?.width ? rect.height / rect.width : 1;
+    replaceZone(selected, { ...toBox(c.zones[selected], aspect), shape: value });
   }
 
   return (
     <>
-      <ScreenHeaderFields c={c} set={set} onUploadingChange={onUploadingChange} />
+      {/* РІВНО одне фото на питання — як у H5P Find the Hotspot і в
+          хотспоті Storyline. Друге зображення тут було мертвим вантажем:
+          зони ставились лише по першому, і плеєр теж показував лише його,
+          тобто автор витрачав час на фото, якого ніхто не побачить
+          (скарга користувача 2026-09-23). Потрібно два таких питання —
+          це два блоки «гаряча точка», і їх можна покласти на ОДИН екран,
+          другий екран заводити не треба. */}
+      <ScreenHeaderFields
+        c={c}
+        set={set}
+        onUploadingChange={onUploadingChange}
+        maxImages={1}
+        imagesLimitHint="Одне фото на питання: зони ставляться саме по ньому. Потрібне друге фото — додайте ще один блок «гаряча точка» на цей самий екран."
+      />
       <div className="admin-field">
         <label className="admin-label">
           Правильні зони{" "}
-          <span className="admin-hint">— натисніть по фото, щоб додати зону; влучанням вважається будь-яка з них</span>
+          <span className="admin-hint">— проведіть по фото, щоб обвести місце; влучанням вважається будь-яка зона</span>
         </label>
         {!image ? (
-          <p className="admin-hint">Спочатку додайте фото вище — зони ставляться прямо по ньому.</p>
+          <p className="admin-hint">Спочатку додайте фото вище — зони малюються прямо по ньому.</p>
         ) : (
           <>
-            <div className="admin-row">
-              <label className="admin-label" style={{ margin: 0 }}>
-                Радіус зони, % ширини
-              </label>
-              <input
-                type="number"
-                min="2"
-                max="40"
-                value={radius}
-                onChange={(e) => setRadius(Number(e.target.value) || 8)}
-                className="admin-input-flex"
-                style={{ maxWidth: 90 }}
-              />
+            <div className="admin-row adm-hotspot-tools">
+              <span className="admin-hint">Форма:</span>
+              {HOTSPOT_SHAPES.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  className={`adm-hotspot-shape${shape === s.value ? " is-on" : ""}`}
+                  onClick={() => chooseShape(s.value)}
+                  title={s.title}
+                  aria-pressed={shape === s.value}
+                >
+                  <span className={`adm-hotspot-shape-ico is-${s.value}`} aria-hidden="true" />
+                  {s.label}
+                </button>
+              ))}
+              <div style={{ flex: 1 }} />
               <button
                 type="button"
                 className="admin-btn-link"
-                onClick={() => set("zones")([])}
+                onClick={() => {
+                  set("zones")(c.zones.filter((_, i) => i !== selected));
+                  setSelected(null);
+                }}
+                disabled={selected == null}
+              >
+                Видалити обрану
+              </button>
+              <button
+                type="button"
+                className="admin-btn-link"
+                onClick={() => {
+                  set("zones")([]);
+                  setSelected(null);
+                }}
                 disabled={c.zones.length === 0}
               >
                 Очистити зони
               </button>
             </div>
             {/* Звичайний <img>, а не next/image: тут важлива рівно та
-                геометрія, по якій рахуються відсоткові координати кліку,
-                без будь-якого ресайзу під капотом. */}
-            <div className="adm-hotspot-canvas" onClick={addZoneAt} role="presentation">
+                геометрія, по якій рахуються відсоткові координати, без
+                будь-якого ресайзу під капотом. */}
+            <div
+              ref={canvasRef}
+              className="adm-hotspot-canvas"
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+              role="presentation"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image.url} alt="" />
+              <img src={image.url} alt="" draggable={false} />
               {c.zones.map((z, i) => (
                 <span
                   key={i}
-                  className="adm-hotspot-zone"
-                  style={{ left: `${z.x}%`, top: `${z.y}%`, width: `${(z.r || 8) * 2}%` }}
+                  data-zone={i}
+                  className={`adm-hotspot-zone ${zoneShapeClass(z)}${selected === i ? " is-selected" : ""}`}
+                  style={zoneStyle(z)}
                 >
-                  {i + 1}
+                  <b className="adm-hotspot-num">{i + 1}</b>
+                  {selected === i &&
+                    HANDLES.map((h) => <i key={h} data-handle={h} className={`adm-hotspot-handle is-${h}`} />)}
                 </span>
               ))}
+              {draft && (
+                <span
+                  className={`adm-hotspot-zone is-draft ${draft.shape === "rect" ? "is-rect" : "is-ellipse"}`}
+                  style={zoneStyle(draft)}
+                />
+              )}
             </div>
             <p className="admin-hint">
-              {c.zones.length === 0 ? "Жодної зони — питання поки не має правильної відповіді." : `Зон: ${c.zones.length}`}
+              {c.zones.length === 0
+                ? "Жодної зони — питання поки не має правильної відповіді."
+                : `Зон: ${c.zones.length}. Натисніть на зону, щоб обрати: далі її можна посунути або потягнути за кут.`}
             </p>
           </>
         )}
@@ -763,12 +911,12 @@ function HotspotFields({ content, onChange, onUploadingChange }) {
         <label className="admin-label">
           Пояснення до відповіді <span className="admin-hint">— показується ПІСЛЯ відповіді, і правильної теж</span>
         </label>
-        <textarea
-          value={c.explanation || ""}
-          onChange={(e) => set("explanation")(e.target.value)}
+        <RichTextArea
+          value={c.explanation}
+          onChange={set("explanation")}
           rows={2}
+          paragraphs={false}
           placeholder="Чому саме це місце — коротко"
-          className="admin-textarea"
         />
       </div>
     </>
@@ -837,7 +985,7 @@ function OrderingFields({ content, onChange, onUploadingChange }) {
         <label className="admin-label">
           Пояснення <span className="admin-hint">— показується після відповіді</span>
         </label>
-        <textarea value={c.explanation} onChange={(e) => set("explanation")(e.target.value)} rows={2} className="admin-textarea" placeholder="Чому саме такий порядок" />
+        <RichTextArea value={c.explanation} onChange={set("explanation")} rows={2} paragraphs={false} placeholder="Чому саме такий порядок" />
       </div>
     </>
   );
@@ -889,7 +1037,7 @@ function MatchingFields({ content, onChange, onUploadingChange }) {
         <label className="admin-label">
           Пояснення <span className="admin-hint">— показується після відповіді</span>
         </label>
-        <textarea value={c.explanation} onChange={(e) => set("explanation")(e.target.value)} rows={2} className="admin-textarea" placeholder="Що тут головне запам'ятати" />
+        <RichTextArea value={c.explanation} onChange={set("explanation")} rows={2} paragraphs={false} placeholder="Що тут головне запам'ятати" />
       </div>
     </>
   );
@@ -1250,6 +1398,71 @@ function LaptopDeviceIcon() {
   );
 }
 
+/** Логічна ширина екрана, яку емулюють ОБИДВА телефонних прев'ю —
+ *  справжній iPhone Pro Max (440×956 CSS px). Рішення користувача
+ *  2026-09-23: докнуте прев'ю й модалка мають показувати ОДНУ І ТУ САМУ
+ *  верстку з однаковими переносами рядків, і саме ту, яку побачить
+ *  співробітник; відрізнятись вони можуть лише фізичним розміром картинки. */
+const PHONE_SCREEN_W = 440;
+
+/**
+ * Зум, при якому екран усередині рамки має рівно PHONE_SCREEN_W логічних
+ * пікселів — хай якого фізичного розміру вийшла сама рамка.
+ *
+ * Чому не фіксоване число в CSS (було zoom:0.7 у докнутому і 1 у модалці):
+ * рамка масштабується під доступне місце (ширина колонки / висота вікна),
+ * тож при СТАЛОМУ зумі логічна ширина екрана "плаває" разом з нею — на
+ * одному й тому ж проєкті виходило 513px у докнутому прев'ю й 356px у
+ * модалці, і жодне з них не дорівнювало справжньому телефону (скарга
+ * користувача: контент у модалці влазить зовсім не так, як у прев'ю).
+ * CSS порахувати це не може: потрібне ділення довжини на довжину.
+ *
+ * Міряємо елемент, на якому САМЕ І СТОЇТЬ зум, і множимо його offsetWidth
+ * на вже застосований зум (читаємо з DOM, а не зі стейту — так значення
+ * гарантовано узгоджені між собою): offsetWidth у зумленого елемента вже
+ * поділений на його зум, тож добуток — це справжня ширина в координатах
+ * розкладки. Вимірювання не зациклюється: щойно зум правильний, добуток
+ * перестає мінятись.
+ */
+function usePhoneScreenZoom(mockupRef, selector, enabled) {
+  const [zoom, setZoom] = useState(null);
+  useEffect(() => {
+    const el = enabled ? mockupRef.current?.querySelector(selector) : null;
+    if (!el) return undefined;
+    const measure = () => {
+      const applied = parseFloat(getComputedStyle(el).zoom) || 1;
+      const real = el.offsetWidth * applied;
+      if (real <= 0) return;
+      const next = real / PHONE_SCREEN_W;
+      // Мертва зона обов'язкова: offsetWidth цілочисельний, тож добуток
+      // щоразу гуляє на ±1px, новий зум трохи інший — і ResizeObserver
+      // будив би сам себе нескінченно (перевірено на замірах: 0.709 →
+      // 0.707 → …). 0.5% — дрібніше за півпікселя на екрані.
+      setZoom((prev) => (prev && Math.abs(prev - next) < 0.005 ? prev : next));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [mockupRef, selector, enabled]);
+  return zoom;
+}
+
+/**
+ * Клік по сірому тлу модалки закриває прев'ю, клік по самому пристрою — ні.
+ *
+ * Перевіряємо саме "чи це всередині рамки", а НЕ `e.target === e.currentTarget`
+ * (як було): оверлей повністю перекритий двома розтягнутими на 100%
+ * обгортками (.admin-preview-modal → -body), тож ціллю кліку по сірому
+ * завжди була одна з НИХ, а не сам оверлей — і закриття не спрацьовувало
+ * ніколи (скарга користувача 2026-09-23). Селектор по мокапу, а не по
+ * .course-card: рамка пристрою й плашка прев'ю — теж "сам пристрій",
+ * випадковий клік по них не має закривати вікно.
+ */
+const closeOnBackdrop = (onClose) => (e) => {
+  if (!e.target.closest(".iphone-mockup, .laptop-mockup")) onClose();
+};
+
 /**
  * Сам вміст мокапу — .course-card (шапка/прогрес/контент/навігація) +
  * SVG-рамка, спільні для ДОКНУТОГО телефонного прев'ю (завжди на екрані,
@@ -1259,7 +1472,7 @@ function LaptopDeviceIcon() {
  * пропси екрана (components/stepNumber/onBack/...) не залежать від
  * пристрою.
  */
-function DeviceMockup({ device, components, componentNumbers, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, inModal }) {
+function DeviceMockup({ device, components, componentNumbers, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, inModal, onClose }) {
   const hasScreen = components && components.length > 0;
   // Той самий скрол-контейнер, що й у реальному плеєрі (.cp-viewport) — той
   // самий фікс: без явного скидання наступний екран у прев'ю відкривався
@@ -1277,8 +1490,18 @@ function DeviceMockup({ device, components, componentNumbers, stepNumber, totalS
   // Модифікатор-клас (.iphone-mockup--modal), а не інший формула прямо тут,
   // щоб .cp-zoom-wrap-щільність (app/styles/admin.css) лишалась спільною.
   const mockupClass = isLaptop ? "laptop-mockup" : inModal ? "iphone-mockup iphone-mockup--modal" : "iphone-mockup";
+  const mockupRef = useRef(null);
+  const screenZoom = usePhoneScreenZoom(mockupRef, ".cp-zoom-wrap", !isLaptop);
   return (
-    <div className={mockupClass}>
+    <div className={mockupClass} ref={mockupRef} style={screenZoom ? { "--cp-zoom": screenZoom } : undefined}>
+      {/* Хрестик — ДИТИНА мокапа, а не модалки: лише так він стоїть біля
+          самої рамки пристрою (мокап центрований і має власну ширину, тож
+          кут модалки від нього за сотні пікселів). */}
+      {onClose && (
+        <button type="button" className="iconbtn admin-preview-modal-close" onClick={onClose} aria-label="Закрити прев'ю" title="Закрити">
+          <XIcon />
+        </button>
+      )}
       <div className="course-card">
         {/* Окрема обгортка, а не zoom напряму на .course-card — .course-card
             сам позиціонується через position:absolute+inset% відносно
@@ -1388,6 +1611,10 @@ function DeviceMockup({ device, components, componentNumbers, stepNumber, totalS
  * всередині нього тихо стискаються.
  */
 function CourseRunPreview({ course, onClose }) {
+  // Компонент монтується лише коли прев'ю відкрите, тож лок безумовний.
+  useBodyScrollLock(true);
+  const mockupRef = useRef(null);
+  const screenZoom = usePhoneScreenZoom(mockupRef, ".course-card", course.previewDevice !== "laptop");
   useEffect(() => {
     function onKey(e) {
       if (e.key === "Escape") onClose();
@@ -1409,13 +1636,23 @@ function CourseRunPreview({ course, onClose }) {
   );
 
   return createPortal(
-    <div className="admin-preview-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="admin-preview-modal-overlay" onClick={closeOnBackdrop(onClose)}>
       <div className="admin-preview-modal">
-        <button type="button" className="iconbtn admin-preview-modal-close" onClick={onClose} aria-label="Закрити прев'ю" title="Закрити">
-          <XIcon />
-        </button>
         <div className="admin-preview-modal-body">
-          <div className={`${course.previewDevice === "laptop" ? "laptop-mockup" : "iphone-mockup"} iphone-mockup--modal adm-run-preview`}>
+          {/* Тут зум стоїть на самій .course-card (її приносить CoursePlayer,
+              власної обгортки-зума в нього нема) — перевірено, що zoom на
+              абсолютно позиціонованій картці НЕ ламає ні її розмір, ні
+              положення в рамці: відсотки inset резолвляться до зуму. */}
+          <div
+            ref={mockupRef}
+            style={screenZoom ? { "--cp-zoom": screenZoom } : undefined}
+            className={`${course.previewDevice === "laptop" ? "laptop-mockup" : "iphone-mockup"} iphone-mockup--modal adm-run-preview`}
+          >
+            {/* Хрестик усередині мокапа — біля самої рамки, не в куті екрана
+                (те саме, що й у DeviceMockup вище). */}
+            <button type="button" className="iconbtn admin-preview-modal-close" onClick={onClose} aria-label="Закрити прев'ю" title="Закрити">
+              <XIcon />
+            </button>
             <div className="adm-run-preview-badge">Прев&apos;ю — результати не зберігаються</div>
             {screens.length === 0 ? (
               <p className="admin-hint" style={{ padding: 20 }}>У курсі ще немає жодного екрана.</p>
@@ -1450,6 +1687,8 @@ function CourseRunPreview({ course, onClose }) {
 function ComponentPreview({ components, componentNumbers, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, previewDevice, onRunCourse }) {
   const [modalOpen, setModalOpen] = useState(false);
   const isLaptop = previewDevice === "laptop";
+  // Сторінка редактора під модалкою не скролиться, поки вона відкрита.
+  useBodyScrollLock(modalOpen);
 
   // Було: авто-відкриття модалки одразу, щойно isLaptop===true — за
   // словами користувача, це означало, що модалка вилазила ВІДРАЗУ при
@@ -1525,19 +1764,10 @@ function ComponentPreview({ components, componentNumbers, stepNumber, totalSteps
           усередині — це справді 100vh. */}
       {modalOpen &&
         createPortal(
-          <div className="admin-preview-modal-overlay" onClick={(e) => e.target === e.currentTarget && setModalOpen(false)}>
+          <div className="admin-preview-modal-overlay" onClick={closeOnBackdrop(() => setModalOpen(false))}>
             <div className="admin-preview-modal">
-              <button
-                type="button"
-                className="iconbtn admin-preview-modal-close"
-                onClick={() => setModalOpen(false)}
-                aria-label="Закрити прев'ю"
-                title="Закрити"
-              >
-                <XIcon />
-              </button>
               <div className="admin-preview-modal-body">
-                <DeviceMockup device={previewDevice} inModal {...previewProps} />
+                <DeviceMockup device={previewDevice} inModal onClose={() => setModalOpen(false)} {...previewProps} />
               </div>
             </div>
           </div>,

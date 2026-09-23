@@ -6,6 +6,10 @@ import { ChevronIcon, CheckIcon } from "@/components/icons";
 import { isHotspotHit } from "@/lib/componentTypes";
 import { peekScrollTo, scrollToEnd } from "@/lib/scrollHints";
 import { nextTimelineTarget } from "@/lib/coursePlayerLogic";
+import { renderRichText, renderRichMarks } from "@/lib/richText";
+import { MorphRevealIcon } from "@/components/MorphRevealIcon";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
+import { zoneShapeClass, zoneStyle } from "@/lib/hotspotZones";
 
 /**
  * Інтерактивні компоненти екрана, портовані з попередньої vanilla-JS
@@ -146,7 +150,7 @@ function Kicker({ screenNumber, text }) {
   return (
     <div className="cp-kicker">
       <span className="cp-kicker-num">{screenNumber}</span>
-      <span>{text}</span>
+      <span>{renderRichMarks(text)}</span>
     </div>
   );
 }
@@ -189,7 +193,7 @@ export function ScreenMedia({ images, title, onZoomImage }) {
             }
           >
             <CourseImage src={img.url} alt={alt} zoomable={zoomable} />
-            {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
+            {img.caption && <div className="cp-photo-caption">{renderRichMarks(img.caption)}</div>}
           </div>
         );
       })}
@@ -240,8 +244,8 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="acc-list" ref={listRef}>
         {items.map((item, i) => (
@@ -249,7 +253,7 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
             {/* У методичці заголовок — не кнопка: нічого не розгортати. */}
             {readOnly ? (
               <div className="acc-head acc-head--static">
-                <span className="acc-title">{item.title || `Картка ${i + 1}`}</span>
+                <span className="acc-title">{renderRichMarks(item.title) || `Картка ${i + 1}`}</span>
               </div>
             ) : (
               <button
@@ -258,13 +262,13 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
                 onClick={() => toggle(i)}
                 aria-expanded={everOpened.has(i)}
               >
-                <span className="acc-title">{item.title || `Картка ${i + 1}`}</span>
+                <span className="acc-title">{renderRichMarks(item.title) || `Картка ${i + 1}`}</span>
                 <span className="acc-chevron">
                   <ChevronIcon />
                 </span>
               </button>
             )}
-            {isOpen(i) && <div className="acc-body">{item.body}</div>}
+            {isOpen(i) && <div className="acc-body">{renderRichText(item.body)}</div>}
           </div>
         ))}
       </div>
@@ -295,8 +299,8 @@ export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoo
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="check-list">
         {items.map((item, i) =>
@@ -306,7 +310,7 @@ export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoo
               <span className="check-box">
                 <CheckIcon />
               </span>
-              <span className="check-text">{item.text}</span>
+              <span className="check-text">{renderRichMarks(item.text)}</span>
             </div>
           ) : (
             <button
@@ -316,10 +320,18 @@ export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoo
               onClick={() => toggle(i)}
               aria-pressed={checked.has(i)}
             >
+              {/* Галочка з'являється тим самим морфом, що й у варіантах
+                  відповіді (components/CoursePlayer.jsx) — один почерк на
+                  весь застосунок. Рендериться ЛИШЕ коли пункт відмічено:
+                  MorphRevealIcon промальовується на монтуванні, тож
+                  постійно присутня й лише пофарбована в прозоре іконка
+                  (як було) анімації не дала б узагалі.
+                  Без label — стан уже озвучено через aria-pressed самої
+                  кнопки, друга озвучка була б дублем. */}
               <span className="check-box">
-                <CheckIcon />
+                {checked.has(i) && <MorphRevealIcon shape="check" size={14} strokeWidth={3} className="check-mark" />}
               </span>
-              <span className="check-text">{item.text}</span>
+              <span className="check-text">{renderRichMarks(item.text)}</span>
             </button>
           )
         )}
@@ -349,6 +361,7 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
   const [typing, setTyping] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const advanceRef = useRef(null);
+  const wrapRef = useRef(null);
   const timerRef = useRef(null);
 
   useEffect(() => {
@@ -363,6 +376,38 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
     return () => clearInterval(timerRef.current);
   }, [readOnly]);
 
+  /**
+   * Після кожної нової репліки кнопка «Наступна репліка» має лишатись на
+   * екрані — трохи вище нижнього краю (там, одразу під в'юпортом, стоїть
+   * сіра смуга .navwrap із підказкою гейта й кнопкою «Далі»). Інакше
+   * діалог доводиться догортувати руками після КОЖНОЇ репліки.
+   *
+   * Чому ефект, а не requestAnimationFrame одразу після setRevealed (як
+   * було): на останній репліці кнопка ЗНИКАЄ, і в rAF ref міг вказувати
+   * ще на неї або вже на null — залежно від того, чи встиг React
+   * закомітити. Ефект гарантовано йде після коміту, тож розгалуження
+   * «є кнопка / вже нема» завжди правильне.
+   *
+   * І чому не scrollIntoView({block:"nearest"}), що стояв тут раніше:
+   * по-перше, "nearest" підводить елемент рівно до краю — кнопка
+   * опинялась впритул до сірої смуги; по-друге, scrollIntoView крутить
+   * УСІХ прокручуваних предків, тобто разом із в'юпортом плеєра смикав і
+   * сторінку під ним (той самий дефект уже ловили в методичці). Наш
+   * peekScrollTo знаходить саме .cp-viewport і скролить лише його.
+   */
+  useEffect(() => {
+    if (readOnly || revealed === 0) return;
+    if (advanceRef.current) {
+      // minShift:4 — тут потрібна саме повна видимість кнопки: типова
+      // мертва зона в 24px лишала б її зрізаною знизу.
+      peekScrollTo(null, { keepVisible: advanceRef.current, minShift: 4 });
+    } else {
+      // Репліки скінчились, кнопки більше нема — показуємо низ діалогу
+      // разом із підказкою, що екран дочитано.
+      scrollToEnd(wrapRef.current);
+    }
+  }, [revealed, readOnly]);
+
   function revealNext() {
     if (typing || revealed >= bubbles.length) return;
     setTyping(true);
@@ -371,13 +416,6 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
     setTimeout(() => {
       setTyping(false);
       setRevealed((n) => n + 1);
-      requestAnimationFrame(() => {
-        try {
-          advanceRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        } catch {
-          /* старі браузери без smooth-скролу — не критично */
-        }
-      });
     }, 620);
   }
 
@@ -388,11 +426,11 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
 
-      <div className="script-wrap">
+      <div className="script-wrap" ref={wrapRef}>
         <div className="call-bar">
           <span className="call-dot" />
           <span className="call-label">{callLabel || "Дзвінок із клієнтом"}</span>
@@ -410,8 +448,8 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
 
         {bubbles.slice(0, revealed).map((b, i) => (
           <div key={i} className={`bubble ${b.role || "me"}`}>
-            {(b.label || BUBBLE_LABELS[b.role]) && <span className="bubble-label">{b.label || BUBBLE_LABELS[b.role]}</span>}
-            <span>{b.text}</span>
+            {(b.label || BUBBLE_LABELS[b.role]) && <span className="bubble-label">{renderRichMarks(b.label) || BUBBLE_LABELS[b.role]}</span>}
+            <span>{renderRichMarks(b.text)}</span>
           </div>
         ))}
 
@@ -494,8 +532,8 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="timeline" ref={listRef}>
         {steps.map((step, i) => (
@@ -517,7 +555,7 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
             <div className="tl-body">
               {readOnly ? (
                 <div className="tl-head tl-head--static">
-                  <span className="tl-title">{step.title || `Крок ${i + 1}`}</span>
+                  <span className="tl-title">{renderRichMarks(step.title) || `Крок ${i + 1}`}</span>
                 </div>
               ) : (
                 <button
@@ -526,10 +564,10 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
                   onClick={() => toggle(i)}
                   aria-expanded={openSet.has(i)}
                 >
-                  <span className="tl-title">{step.title || `Крок ${i + 1}`}</span>
+                  <span className="tl-title">{renderRichMarks(step.title) || `Крок ${i + 1}`}</span>
                 </button>
               )}
-              {isOpen(i) && step.detail && <div className="tl-detail">{step.detail}</div>}
+              {isOpen(i) && step.detail && <div className="tl-detail">{renderRichText(step.detail)}</div>}
             </div>
           </div>
         ))}
@@ -544,7 +582,7 @@ export function PhotoScreen({ component, screenNumber, onZoomImage }) {
   const { images = [] } = component.content || {};
   return (
     <>
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
       {images
         .filter((img) => img.url)
         .map((img, i) => {
@@ -569,7 +607,7 @@ export function PhotoScreen({ component, screenNumber, onZoomImage }) {
               }
             >
               <CourseImage src={img.url} alt={alt} />
-              {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
+              {img.caption && <div className="cp-photo-caption">{renderRichMarks(img.caption)}</div>}
             </div>
           );
         })}
@@ -600,7 +638,7 @@ export function InputScreen({ component, screenNumber, onGateProgress }) {
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
       {label && <label className="cp-input-label">{label}</label>}
       <Field
         className="cp-input-field"
@@ -776,7 +814,7 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
     return (
       <>
         <Kicker screenNumber={screenNumber} text={kicker} />
-        {component.title && <h2 className="cp-h2">{component.title}</h2>}
+        {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
         <p className="cp-lead">Для цього питання ще не додано фото.</p>
       </>
     );
@@ -785,8 +823,8 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
 
       <div
         className={`hs-frame${isAnswered ? " answered" : ""}${imgReady ? "" : " loading"}`}
@@ -800,24 +838,18 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
         {/* Правильні зони показуємо ЛИШЕ після відповіді — інакше питання
             не мало б сенсу. */}
         {isAnswered &&
-          zones.map((z, i) => (
-            <span
-              key={i}
-              className="hs-zone"
-              style={{ left: `${z.x}%`, top: `${z.y}%`, width: `${(z.r || 8) * 2}%`, aspectRatio: "1" }}
-            />
-          ))}
+          zones.map((z, i) => <span key={i} className={`hs-zone ${zoneShapeClass(z)}`} style={zoneStyle(z)} />)}
 
         {click && (
           <span className={`hs-pin${answer ? " ok" : " bad"}`} style={{ left: `${click.x}%`, top: `${click.y}%` }} />
         )}
       </div>
-      {image.caption && <div className="cp-photo-caption">{image.caption}</div>}
+      {image.caption && <div className="cp-photo-caption">{renderRichMarks(image.caption)}</div>}
 
       {isAnswered && (
         <div className={`q-fb show ${answer ? "ok" : "bad"}`}>
           <b className="q-fb-verdict">{answer ? "Влучно!" : "Не те місце — правильне обведено зеленим."}</b>
-          {explanation && <span className="q-fb-explain">{explanation}</span>}
+          {explanation && <span className="q-fb-explain">{renderRichMarks(explanation)}</span>}
         </div>
       )}
     </>
@@ -832,17 +864,13 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
  * поверх усього, закривається по фону/Esc/кнопці.
  */
 export function ImageLightbox({ src, alt, onClose }) {
+  useBodyScrollLock(Boolean(src));
   useEffect(() => {
     function onKey(e) {
       if (e.key === "Escape") onClose();
     }
     document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   if (!src) return null;

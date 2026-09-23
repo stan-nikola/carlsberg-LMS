@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LinesSkeleton } from "@/components/Skeleton";
-import { categoryMeta, formatRelativeTime } from "@/lib/notificationTypes";
+import { categoryMeta, formatRelativeTime, toManagerUrl } from "@/lib/notificationTypes";
 
 /**
  * Стрічка сповіщень (центр). Відкрили — усе позначається прочитаним
@@ -18,9 +18,16 @@ import { categoryMeta, formatRelativeTime } from "@/lib/notificationTypes";
  * мгновенно", 2026-09-20). load(after) лишається клієнтським — це
  * пагінація "Показати ще" по кліку, не первинне завантаження.
  *
- * @param {{ initialItems?: any[], initialCursor?: number | null, initialUnreadCount?: number }} props
+ * `managerMode` — центр відкрито в кабінеті керівника. Свіжі сповіщення
+ * уже приходять із правильною адресою (lib/notifications.js розводить
+ * адресатів), але в базі лишились СТАРІ рядки з `/hub/...`, створені до
+ * цього: клік по них відкривав голий /manager замість відзнаки (скарга
+ * користувача, 2026-09-23). Підміняємо адресу на показі — так нічого не
+ * треба переписувати в базі.
+ *
+ * @param {{ initialItems?: any[], initialCursor?: number | null, initialUnreadCount?: number, managerMode?: boolean }} props
  */
-export function NotificationCenter({ initialItems = [], initialCursor = null, initialUnreadCount = 0 }) {
+export function NotificationCenter({ initialItems = [], initialCursor = null, initialUnreadCount = 0, managerMode = false }) {
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialCursor);
   const [loading, setLoading] = useState(false);
@@ -79,8 +86,9 @@ export function NotificationCenter({ initialItems = [], initialCursor = null, in
           </>
         );
         const cls = `ntf-item${n.isRead ? "" : " unread"}`;
-        return n.url ? (
-          <Link key={n.id} href={n.url} className={cls}>
+        const href = managerMode ? toManagerUrl(n.url) : n.url;
+        return href ? (
+          <Link key={n.id} href={href} className={cls}>
             {body}
           </Link>
         ) : (

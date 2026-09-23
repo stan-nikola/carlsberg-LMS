@@ -1123,12 +1123,26 @@
      не приблизне min(1400px,96vh) — той самий фікс, що вже зробили для
      .laptop-mockup (наближення лишало помітний запас зверху/знизу, видно
      на скріншоті користувача: рамка не діставала до країв модалки).
-     Стеля 600px (не вище) — навмисна межа: .course-card усередині
-     (inset 2.33% з кожного боку, нижче) при 600px рамки виходить ~572px,
-     з запасом ПІД 640px-поріг @container cp-card (course-player.css) —
-     телефон-мокап, хай і в модалці, має лишатись мобільним, не раптово
-     "перемкнутись" на десктопний reflow лише тому, що дозволили йому
-     вирости завеликим. */
+
+     Стеля 600px — це межа ФІЗИЧНОГО розміру картинки, а не розміру екрана:
+     скільки логічних пікселів усередині, вирішує --cp-zoom (нижче), і це
+     завжди рівно 440 — ширина справжнього iPhone Pro Max. Тобто рамка
+     вільно заповнює висоту модалки, а верстка всередині лишається
+     телефонною; більша рамка — просто крупніша картинка того самого екрана.
+
+     Чому саме 600: .course-card усередині (inset 2.33% з кожного боку,
+     нижче) виходить ~572px, з запасом ПІД 640px-поріг @container cp-card
+     (course-player.css). Поріг рахується по РЕАЛЬНІЙ ширині картки в
+     докнутому прев'ю (там зум живе всередині картки), тож давати рамці
+     рости далі не можна — телефон-мокап раптом перемкнувся б на
+     десктопний reflow лише тому, що йому дозволили стати завеликим.
+
+     Проміжна спроба зробити тут 462px (щоб картка вийшла рівно 440 і без
+     жодного зуму) не вижила: на вікні нижче ~1060px заввишки стеля просто
+     не досягається — рамку ріже друга частина min(), і екран виходив
+     356px, тобто ще далі від реального телефону, ніж було (скарга
+     користувача 2026-09-23). Зум за виміром тримає 440 при БУДЬ-ЯКІЙ
+     висоті вікна, тому стеля знову про фізичний розмір. */
   max-width: min(600px, calc((100vh - 60px) * 9 / 19.5));
 }
 .iphone-mockup .course-card {
@@ -1199,9 +1213,24 @@
   flex-direction: column;
   height: 100%;
 }
+/* Зум рахує JS (components/AdminCourseEditor.jsx usePhoneScreenZoom) і
+   кладе його в --cp-zoom на сам мокап: тільки так екран усередині рамки
+   має РІВНО 440 логічних px — ширину справжнього iPhone Pro Max — при
+   будь-якому фізичному розмірі рамки. Стале число тут працювати не може:
+   рамка масштабується під вільне місце, і з фіксованим зумом логічна
+   ширина екрана їде разом з нею (було 513px у докнутому прев'ю проти
+   356px у модалці — той самий курс верстався по-різному в двох вікнах).
+   0.7 лишається запасним значенням на єдиний кадр до першого виміру. */
 .iphone-mockup .cp-zoom-wrap {
-  /* -30% за проханням користувача ("розмір блоків на 30% менше"). */
-  zoom: 0.7;
+  zoom: var(--cp-zoom, 0.7);
+}
+/* Прев'ю повного проходження (CourseRunPreview) приносить свою .course-card
+   від CoursePlayer, обгортки-зума в ній нема — тож зум стоїть на самій
+   картці. Це безпечно: відсоткові inset/border-radius резолвляться ДО
+   власного зуму елемента, тож і розмір картки, і її положення у вирізі
+   рамки лишаються ті самі — міняється лише логічний розмір усередині. */
+.adm-run-preview.iphone-mockup .course-card {
+  zoom: var(--cp-zoom, 1);
 }
 .laptop-mockup .cp-zoom-wrap {
   /* Було 0.56 — за словами користувача, це "сильно зменшило" контент і
@@ -1346,19 +1375,39 @@
   justify-content: center;
 }
 .admin-preview-modal-close {
-  /* Було position:absolute; top:-48px відносно .admin-preview-modal — коли
-     оверлей мав великий padding, кнопка "виїжджала" вище нього й на 1/3
-     ховалась під сайдбаром/шапкою сторінки позаду (реальний баг
-     користувача). Зафіксовано відносно ВЬЮПОРТУ (не модалки), у
-     safe-контрольованому куті — більше не залежить від розміру самої
-     модалки. */
-  position: fixed;
-  top: 16px;
-  right: 16px;
+  /* Кнопка тепер ДИТИНА мокапа (components/AdminCourseEditor.jsx), тож
+     absolute рахується від самої рамки пристрою — хрестик стоїть упритул
+     до неї, а не в куті екрана за сотні пікселів від того, що закриває
+     (прохання користувача 2026-09-23).
+
+     Історія: спершу тут було absolute+top:-48px відносно .admin-preview-modal
+     — кнопка виїжджала над оверлеєм і ховалась під шапкою сторінки позаду;
+     тоді її прибили до вьюпорта (position:fixed, кут екрана) — це полагодило
+     перекриття, але віддалило кнопку від модалки. Прив'язка до мокапа
+     вирішує обидві проблеми одразу.
+
+     right, а не top: над телефоном у модалці висить плашка «Прев'ю —
+     результати не зберігаються» (.adm-run-preview-badge, top:-30px на всю
+     ширину мокапа), і кнопка над рамкою налізла б саме на неї. Праворуч
+     при top:0 вона стоїть нижче плашки й нічого не перекриває. */
+  position: absolute;
+  top: 0;
+  right: calc(-1 * (var(--iconbtn-md) + 11px));
   z-index: 60;
   background: var(--surface);
   border-color: var(--line);
   box-shadow: var(--shadow-md);
+}
+/* Телефонна рамка вузька (462px), місце праворуч є на будь-якому десктопі.
+   Ноутбучна ж на невисокому/вузькому вікні розтягується майже на всю
+   ширину оверлея — там кнопці поруч просто нема куди стати, тож для неї
+   лишаємо старий, гарантовано видимий кут вьюпорта. */
+@media (max-width: 1700px) {
+  .laptop-mockup > .admin-preview-modal-close {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+  }
 }
 .admin-preview-modal-body {
   width: 100%;
@@ -1499,6 +1548,24 @@
   padding-left: 12px;
   border-left: 2px solid var(--line);
 }
+/* Екрани модуля — щільний список із роздільниками (прохання користувача
+   2026-09-23: "зменш відстань і прокресли сіру лінію між").
+   Було 32px порожнечі між рядками (.admin-module вгорі файлу) — око
+   мусило перестрибувати провалля, а вертикальні рейки сусідніх рядків
+   виглядали як розсипані риски. Прибираємо відступ: рейки зливаються в
+   ОДНУ суцільну лінію (вона й показує вкладеність екранів у модуль), а
+   межу між самими рядками тримає тонка горизонтальна лінія.
+   Лінія лишається й під останнім рядком — вона ж відрізає список від
+   кнопки «+ Додати екран» під ним. */
+.admin-accordion-body > .admin-module {
+  margin-bottom: 0;
+  border-bottom: var(--border-w) solid var(--line);
+}
+/* Розгорнутий екран: повітря знизу, щоб його вміст не впирався в
+   роздільник наступного рядка. */
+.admin-module > .admin-accordion-body {
+  padding-bottom: 12px;
+}
 
 /* ---- Дашборд /admin: курси -> блоки (components/AdminDashboard.jsx) ---- */
 .admin-course-row {
@@ -1619,8 +1686,20 @@
   cursor: pointer;
   flex-wrap: wrap;
 }
+/* Рядок екрана — саме РЯДОК СПИСКУ, а не заголовок з повітрям навколо:
+   клікабельна смуга на всю ширину з власним ховером. Ховер обов'язковий —
+   уся смуга клікабельна (розгортає екран), і без підсвітки це видно лише
+   по курсору. Горизонтальний padding — щоб підсвітка не обрізалась
+   впритул до тексту. */
 .admin-accordion-header-sub {
-  padding: 6px 0;
+  padding: 9px 8px;
+  border-radius: var(--radius-btn);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+@media (hover: hover) {
+  .admin-accordion-header-sub:hover {
+    background: var(--surface-2);
+  }
 }
 .admin-accordion-header-sub h3 {
   /* flex:1 1 auto + min-width:0 — довгу назву екрана переносить сама на
@@ -1719,6 +1798,14 @@
   color: var(--ink);
   text-decoration: none;
   flex-shrink: 0;
+  /* Тепер це <button> (відкриває бічну картку), а не <a> — скидаємо
+     кнопкові дефолти, щоб рядок виглядав так само, як раніше. */
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
 }
 .emp-tree-name:hover {
   text-decoration: underline;
@@ -1745,6 +1832,70 @@
   color: var(--ink-soft);
   font-size: 12.5px;
   text-align: center;
+}
+
+/* ---- Швидкі дії в рядку дерева (2026-09-23) ----
+   З'являються лише при наведенні/фокусі: у дереві понад 1600 рядків, і
+   постійно видимі кнопки перетворили б його на стіну тексту. Фокус із
+   клавіатури (:focus-within) відкриває їх так само — інакше дії були б
+   недосяжні без миші. */
+.emp-tree-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.emp-tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.emp-tree-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 12px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.emp-tree-row:hover .emp-tree-actions,
+.emp-tree-row:focus-within .emp-tree-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  /* Дотик: ховера немає — показуємо завжди, інакше дії недосяжні. */
+  .emp-tree-actions {
+    opacity: 1;
+  }
+}
+.emp-tree-actions .admin-btn-link {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.emp-tree-actions svg {
+  width: 14px;
+  height: 14px;
+}
+.emp-tree-rename {
+  max-width: 260px;
+}
+.emp-tree-add {
+  padding: 8px 8px 10px;
+}
+.emp-tree-add-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.emp-tree-add-fields .admin-input-flex {
+  max-width: 200px;
 }
 
 /* ---- Таблиця типів ачивок (AdminBadges.jsx, Фаза C) — той самий стиль,
@@ -2061,9 +2212,11 @@
   font-size: 13px;
 }
 
-/* Кнопки накреслень над "Текстом екрану" (components/AdminCourseEditor.jsx
-   RichTextArea). Ж/К/П — звичні підписи з текстових редакторів; сам знак
-   розмітки лишається в title, бо текст можна правити й руками. */
+/* Кнопки накреслень над КОЖНИМ багаторядковим полем конструктора
+   (components/AdminCourseEditor.jsx RichTextArea — текст екрану, картки,
+   кроки таймлайну, репліки, пояснення, вступні рядки). Ж/К/П — звичні
+   підписи з текстових редакторів; сам знак розмітки лишається в title, бо
+   текст можна правити й руками. */
 .admin-richtext-toolbar {
   display: flex;
   align-items: center;
@@ -2191,27 +2344,132 @@
   border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   overflow: hidden;
+  /* Без цього протяжка пальцем гортала б сторінку замість малювання зони —
+     браузер віддає жест скролу раніше, ніж ми встигаємо його перехопити. */
+  touch-action: none;
+  /* Довге натискання на фото в мобільному браузері інакше відкриває
+     системне меню «зберегти зображення» просто посеред малювання. */
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 .adm-hotspot-canvas img {
   display: block;
   max-width: 100%;
   height: auto;
+  pointer-events: none;
 }
+/* Зона — РАМКА (lib/hotspotZones.ts): і прямокутник, і овал — це та сама
+   коробка, різниця лише в заокругленні. Старі круглі зони приходять із
+   width + aspect-ratio в inline-стилі, нові — з width і height. */
 .adm-hotspot-zone {
   position: absolute;
   transform: translate(-50%, -50%);
-  aspect-ratio: 1;
-  border-radius: 50%;
   border: 2px solid var(--cb-secondary);
   background: var(--cb-secondary-tint);
-  color: var(--green-900);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  /* Зону треба вміти вхопити — на відміну від плеєра, де вона суто
+     декоративна. Курсор одразу каже, що її можна посунути. */
+  pointer-events: auto;
+  cursor: move;
+}
+.adm-hotspot-zone.is-ellipse {
+  border-radius: 50%;
+}
+.adm-hotspot-zone.is-rect {
+  border-radius: var(--radius-xs);
+}
+.adm-hotspot-zone.is-selected {
+  border-color: var(--cb-notification);
+  box-shadow: 0 0 0 1px var(--cb-notification);
+}
+/* Рамка, яку зараз тягнуть: пунктир і жодних кліків — щоб не перехоплювала
+   події в себе ж посеред жесту. */
+.adm-hotspot-zone.is-draft {
+  border-style: dashed;
   pointer-events: none;
+}
+.adm-hotspot-num {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  background: var(--cb-secondary);
+  color: var(--cb-white);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.4;
+  pointer-events: none;
+}
+/* Маркери кутів — лише в обраної зони. 14px замість «математичних» 8:
+   пальцем у менший не влучити, а миші великий не заважає. */
+.adm-hotspot-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--cb-notification);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+}
+.adm-hotspot-handle.is-nw {
+  top: -7px;
+  left: -7px;
+  cursor: nwse-resize;
+}
+.adm-hotspot-handle.is-ne {
+  top: -7px;
+  right: -7px;
+  cursor: nesw-resize;
+}
+.adm-hotspot-handle.is-sw {
+  bottom: -7px;
+  left: -7px;
+  cursor: nesw-resize;
+}
+.adm-hotspot-handle.is-se {
+  bottom: -7px;
+  right: -7px;
+  cursor: nwse-resize;
+}
+/* Перемикач форми: не select, а два видимі варіанти з мініатюрою самої
+   фігури — вибір із двох, ховати його під випадайку немає сенсу. */
+.adm-hotspot-tools {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.adm-hotspot-shape {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--btn-h-sm);
+  padding: 0 var(--btn-px-sm);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-btn);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.adm-hotspot-shape.is-on {
+  border-color: var(--cb-secondary);
+  background: var(--cb-secondary-tint);
+  color: var(--green-900);
+}
+.adm-hotspot-shape:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.adm-hotspot-shape-ico {
+  width: 13px;
+  height: 13px;
+  border: 2px solid currentColor;
+}
+.adm-hotspot-shape-ico.is-rect {
+  border-radius: 2px;
+}
+.adm-hotspot-shape-ico.is-ellipse {
+  border-radius: 50%;
 }
 
 /* Кнопки під мокапом прев'ю: розгорнути один екран і пройти курс цілком. */
@@ -2242,8 +2500,14 @@
   height: auto;
   border: none;
 }
+/* Заокруглення — РІВНО те саме, що в звичайного мокапа вище (51/286 по X,
+   51/636 по Y — виріз у SVG-рамці IPhoneFrame): картка тут позиціонується
+   тим самим inset, отже й кути мусять збігатися з тим самим вирізом.
+   Було 8%/3.7% — удвічі менше за виріз, і кути картки лишались надто
+   квадратними: по краях рамки з-під неї стирчали білі "вушка" (скарга
+   користувача 2026-09-23). Тримати в парі з .iphone-mockup .course-card. */
 .adm-run-preview.iphone-mockup .course-card {
-  border-radius: 8%/3.7%;
+  border-radius: 17.83% / 8.02%;
 }
 /* Постійна плашка «це прев'ю» — щоб автор ніколи не переплутав пробіг із
    реальним проходженням і не чекав, що бал кудись запишеться. */
@@ -3309,6 +3573,14 @@
 }
 .admin-option-explain {
   margin-left: 26px;
+  /* width:auto ОБОВ'ЯЗКОВО перекриває width:100% з .admin-input-flex:
+     100% рахується від .admin-option-block, і разом із відступом зліва
+     поле вилазило рівно на ці 26px за правий край блока — далі за кнопку
+     «✕» і за всі поля вище (скарга користувача 2026-09-23). У колонковому
+     flex-контейнері auto + стандартний align-items:stretch дають саме те,
+     що треба: поле тягнеться до правого краю блока, лишаючи відступ зліва
+     як ознаку вкладеності у свій варіант. */
+  width: auto;
   font-size: 13px;
 }
 

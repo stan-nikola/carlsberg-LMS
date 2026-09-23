@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { put, del } from "@vercel/blob";
 import type { PrismaClient } from "@/app/generated/prisma";
 import { prisma as prismaUntyped } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentUser, revalidateSession } from "@/lib/session";
 
 const prisma = prismaUntyped as PrismaClient;
 
@@ -50,6 +50,10 @@ export async function POST(request: Request) {
     });
     const previous = employee.avatarUrl;
     await prisma.employee.update({ where: { id: employee.id }, data: { avatarUrl: blob.url } });
+    // Інакше нове фото видно лише на самій сторінці профілю (вона тримає
+    // його в локальному стані), а головна/кабінет показують старе доти,
+    // доки не спливе кеш сесії або людина не перезайде.
+    revalidateSession();
     if (previous) del(previous, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(() => {});
     return NextResponse.json({ url: blob.url });
   } catch (err) {
@@ -63,6 +67,7 @@ export async function DELETE() {
   if (!employee) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const previous = employee.avatarUrl;
   await prisma.employee.update({ where: { id: employee.id }, data: { avatarUrl: null } });
+  revalidateSession();
   if (previous && process.env.BLOB_READ_WRITE_TOKEN) del(previous, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(() => {});
   return NextResponse.json({ ok: true });
 }

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { enqueue } from "@/lib/offlineOutbox";
 import { useRouter } from "next/navigation";
 import Image, { getImageProps } from "next/image";
-import { renderRichText } from "@/lib/richText";
+import { renderRichText, renderRichMarks } from "@/lib/richText";
 import { ChevronIcon, CertificateIcon, SpinnerIcon, QuestionIcon } from "@/components/icons";
 import { MorphRevealIcon } from "@/components/MorphRevealIcon";
 import { CoursePlanPanel } from "@/components/CoursePlan";
@@ -174,8 +174,8 @@ export function InfoScreen({ component, screenNumber, onZoomImage }) {
           <span>{kicker}</span>
         </div>
       )}
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       {mediaNode}
       {textNode}
     </>
@@ -204,7 +204,7 @@ function NoteAccordion({ note }) {
           <ChevronIcon />
         </span>
       </button>
-      {open && <div className="cp-note-body">{note}</div>}
+      {open && <div className="cp-note-body">{renderRichText(note)}</div>}
     </div>
   );
 }
@@ -282,19 +282,19 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
         <span className="quiz-banner-ico" aria-hidden="true">
           <QuestionIcon />
         </span>
+        {/* Тип відповіді живе САМЕ тут (2026-09-23, рішення користувача):
+            окрема зелена пілюля «Один варіант / Кілька правильних» над
+            питанням прибрана, бо казала те саме, що й ця плашка, лише
+            іншими словами й кольором. */}
         <span className="quiz-banner-txt">
           <b>Блок питань</b>
-          {questionNumber && questionTotal ? (
-            <span>
-              Питання {questionNumber} з {questionTotal}
-            </span>
-          ) : (
-            <span>Оберіть відповідь</span>
-          )}
+          <span>
+            {questionNumber && questionTotal ? `Питання ${questionNumber} з ${questionTotal} · ` : ""}
+            {questionType === "multi" ? "декілька правильних відповідей" : "одна правильна відповідь"}
+          </span>
         </span>
       </div>
-      <span className="q-type-tag">{questionType === "multi" ? "Кілька правильних" : "Один варіант"}</span>
-      <h2 className="cp-h2">{component.title}</h2>
+      <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>
       {/* Фото між питанням і варіантами — питання може спиратись саме на
           зображення ("що не так на цій викладці?"). */}
       <ScreenMedia images={component.content?.images} title={component.title} onZoomImage={onZoomImage} />
@@ -310,9 +310,23 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
             {/* Маркер вибору — кружечок для одного варіанта, квадратик із
                 галочкою для кількох. Повернуто з legacy-курсу: без нього
                 по варіанту не видно, що він взагалі вибирається, поки не
-                натиснеш. */}
-            <span className={`opt-mark${questionType === "multi" ? " chk" : ""}`} aria-hidden="true" />
-            <span className="opt-text">{opt.text}</span>
+                натиснеш.
+                ПІСЛЯ відповіді всередину малюється підсумок (рішення
+                користувача, 2026-09-23): зелений кружечок — галочка,
+                червоний — хрестик, обидві «промальовуються» тим самим
+                MorphRevealIcon, що вже є в плані курсу й у статус-бейджі. */}
+            <span className={`opt-mark${questionType === "multi" ? " chk" : ""}`} aria-hidden={!isAnswered}>
+              {isAnswered && (opt.correct || selected.includes(index)) && (
+                <MorphRevealIcon
+                  shape={opt.correct ? "check" : "x"}
+                  label={opt.correct ? "Правильно" : "Неправильно"}
+                  size={12}
+                  strokeWidth={3}
+                  className="opt-mark-ico"
+                />
+              )}
+            </span>
+            <span className="opt-text">{renderRichMarks(opt.text)}</span>
           </button>
         ))}
       </div>
@@ -345,13 +359,13 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
             <ul className="q-fb-options">
               {optionFeedback.map((o) => (
                 <li key={o.index} className={o.kind}>
-                  <b>{o.text}</b>
-                  <span>{o.explanation}</span>
+                  <b>{renderRichMarks(o.text)}</b>
+                  <span>{renderRichMarks(o.explanation)}</span>
                 </li>
               ))}
             </ul>
           )}
-          {explanation && <span className="q-fb-explain">{explanation}</span>}
+          {explanation && <span className="q-fb-explain">{renderRichMarks(explanation)}</span>}
         </div>
       )}
     </>

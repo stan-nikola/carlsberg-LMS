@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { toManagerUrl } from "./notificationTypes";
 import type { RawCourse, RawEmployee, RawEnrollment, TeamRaw } from "./teamEnrollments";
 import {
   applyTeamFilters,
@@ -118,6 +119,18 @@ describe("сегмент людини — worst-wins", () => {
     expect(overdue.courses).toBe(2);
     // «Неактивні» — властивість людини, курсів там не буває.
     expect(bar.segments.find((s) => s.key === "inactive")?.courses).toBeNull();
+  });
+
+  it("посилання «для хаба» ведуть у відповідний розділ кабінету керівника", () => {
+    expect(toManagerUrl("/hub/achievements?highlight=badge&badgeId=7")).toBe("/manager/achievements?highlight=badge&badgeId=7");
+    expect(toManagerUrl("/hub/learn")).toBe("/manager/courses");
+    expect(toManagerUrl("/hub")).toBe("/manager");
+    // Невідомий /hub-шлях — на дашборд, але query зберігається.
+    expect(toManagerUrl("/hub/whatever?x=1")).toBe("/manager?x=1");
+    // Спільні для обох кабінетів шляхи не чіпаємо.
+    expect(toManagerUrl("/courses/carls-znaiomstvo-z-platformoiu")).toBe("/courses/carls-znaiomstvo-z-platformoiu");
+    expect(toManagerUrl("/hubbub")).toBe("/hubbub");
+    expect(toManagerUrl(null)).toBeNull();
   });
 
   it("підпис причини завжди називає одиницю", () => {

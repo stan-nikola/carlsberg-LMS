@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { GUIDE_URL } from "@/lib/installGuide";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 /** «pwa-guide-close» (кнопки Зрозуміло/✕ всередині install.html) або
  *  Escape — спільний сигнал для обох способів показу інструкції нижче.
@@ -41,14 +42,7 @@ export function InstallGuideEmbed({ onDone }: { onDone: () => void }) {
  */
 export function InstallGuideModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   useGuideCloseSignal(onClose, open);
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
+  useBodyScrollLock(open);
 
   if (!open) return null;
   return (

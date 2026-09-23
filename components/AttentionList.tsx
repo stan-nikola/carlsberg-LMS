@@ -22,7 +22,7 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
   return (
     <>
       {items.length === 0 ? (
-        <p className="admin-hint">Усі на графіку — нагадувати нікому.</p>
+        <p className="admin-hint">Усі за графіком — нагадувати нікому.</p>
       ) : (
         <ul className="mgr-attention-list">
           {items.map(({ person, reasons }) => {

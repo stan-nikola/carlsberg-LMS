@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { QuestionIcon, ChevronIcon, CheckIcon, XIcon } from "@/components/icons";
 import { ScreenMedia } from "@/components/ScreenComponents";
 import { shuffleArray } from "@/lib/coursePlayerLogic";
+import { renderRichMarks } from "@/lib/richText";
 
 type Img = { url: string; caption?: string };
 type QuestionProps = {
@@ -76,8 +77,8 @@ function QuestionHeader({
         </span>
       </div>
       <span className="q-type-tag">{typeLabel}</span>
-      {title && <h2 className="cp-h2">{title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {title && <h2 className="cp-h2">{renderRichMarks(title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       <ScreenMedia images={images} title={title} onZoomImage={onZoomImage} />
     </>
   );
@@ -135,7 +136,7 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
           return (
             <li key={itemIndex} className={`q-order-row${isAnswered ? (correctHere ? " is-correct" : " is-wrong") : ""}`}>
               <span className="q-order-num">{pos + 1}</span>
-              <span className="q-order-text">{items[itemIndex]?.text}</span>
+              <span className="q-order-text">{renderRichMarks(items[itemIndex]?.text)}</span>
               {!isAnswered && (
                 <span className="q-order-moves">
                   <button type="button" onClick={() => move(pos, pos - 1)} disabled={pos === 0} aria-label="Вище">
@@ -170,7 +171,7 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
               Правильна послідовність: {items.map((it) => it.text).filter(Boolean).join(" → ")}
             </span>
           )}
-          {explanation && <span className="q-fb-explain">{explanation}</span>}
+          {explanation && <span className="q-fb-explain">{renderRichMarks(explanation)}</span>}
         </div>
       )}
     </>
@@ -272,7 +273,7 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
                   onClick={() => pickLeft(i)}
                   disabled={isAnswered}
                 >
-                  <span>{p.left}</span>
+                  <span>{renderRichMarks(p.left)}</span>
                   {linked && <b className="q-match-badge">{badgeFor(i)}</b>}
                 </button>
               </li>
@@ -291,7 +292,7 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
                   onClick={() => pickRight(rightIndex)}
                   disabled={isAnswered || activeLeft === null}
                 >
-                  <span>{pairs[rightIndex]?.right}</span>
+                  <span>{renderRichMarks(pairs[rightIndex]?.right)}</span>
                   {linked && <b className="q-match-badge">{badgeFor(Number(ownerLeft))}</b>}
                 </button>
               </li>
@@ -313,13 +314,13 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
             <ul className="q-fb-options">
               {pairs.map((p, i) => (
                 <li key={i} className={links[i] === i ? "is-correct" : "is-wrong"}>
-                  <b>{p.left}</b>
-                  <span>{p.right}</span>
+                  <b>{renderRichMarks(p.left)}</b>
+                  <span>{renderRichMarks(p.right)}</span>
                 </li>
               ))}
             </ul>
           )}
-          {explanation && <span className="q-fb-explain">{explanation}</span>}
+          {explanation && <span className="q-fb-explain">{renderRichMarks(explanation)}</span>}
         </div>
       )}
     </>
