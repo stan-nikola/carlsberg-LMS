@@ -186,6 +186,12 @@
   color: var(--danger);
   font-size: 12.5px;
 }
+/* Не помилка, а «зроблено, але подивись»: бурштиновий, не червоний —
+   червоний тут читався б як «не завантажилось», хоча файл уже на місці. */
+.admin-warning {
+  color: var(--gold);
+  font-size: 12.5px;
+}
 .admin-unsaved-badge {
   color: var(--gold);
   font-weight: 600;
@@ -310,6 +316,79 @@
 .admin-icon-btn:hover:not(:disabled) {
   background: var(--cb-fail-light);
   border-color: var(--danger);
+}
+/* Стрілки «вище/нижче» — НЕ червоні: червоний у цьому ряду означає рівно
+   одну дію, видалення, і поки стрілка виглядала так само, як «✕» поруч,
+   рука тягнулась не туди. Синій — акцентний колір системи (той самий
+   --cb-notification, що позначає «доступно/наступне» в плані курсу).
+   Кегль більший за базові 13px: гліфи ↑↓ малюються помітно дрібнішими за
+   ✕, і в однаковій кнопці виглядали меншими за сусідню (прохання
+   користувача 2026-09-23). Сама кнопка того ж розміру — --iconbtn-sm. */
+.admin-icon-btn--move {
+  /* flex-центрування, а не покладання на line-height: гліфи ↑↓ сидять у
+     рядку вище оптичного центру, і в кружку кнопки виглядали зсунутими
+     вгору (скарга користувача 2026-09-23). Кегль піднято з 16 до 19px —
+     стрілка має важити в кнопці стільки ж, скільки ✕ поруч. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cb-notification);
+  padding: 0;
+}
+/* Стрілка — SVG-шеврон, повернутий на чверть оберту, а не текстовий гліф
+   «↑»: гліф сидить вище оптичного центру (виміряно: 1.8px згори проти
+   3.2px знизу), і паддингом це не лікується — залежить від метрики
+   шрифту. У SVG центр — це справді центр. Заодно товщина ліній така сама,
+   як у решти іконок поруч. */
+.admin-move-ico {
+  display: inline-flex;
+}
+.admin-move-ico svg {
+  width: 20px;
+  height: 20px;
+}
+.admin-move-ico.is-up {
+  transform: rotate(-90deg);
+}
+.admin-move-ico.is-down {
+  transform: rotate(90deg);
+}
+/* Пара «вище/нижче» — свій проміжок: без нього кнопки стояли впритул і
+   читались як один елемент, у який ще треба прицілитись. */
+.admin-accordion-moves {
+  display: inline-flex;
+  gap: 4px;
+}
+/* Олівець перейменування — теж не червоний: червоне в цьому ряду означає
+   лише видалення. Рамки немає, щоб п'ята кнопка в рядку екрана не робила
+   його схожим на панель інструментів. */
+.admin-icon-btn--edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: transparent;
+  background: none;
+  /* Синій, як і стрілки: у цьому ряду червоне означає рівно одну дію —
+     видалення, і олівець не має її нагадувати навіть кольором. */
+  color: var(--cb-notification);
+}
+/* Ховер — КРУГЛИЙ (прохання користувача 2026-09-23): олівець стоїть
+   впритул до назви екрана, і квадратна підсвітка читалась як ще одне
+   поле поруч із заголовком. */
+.admin-icon-btn--edit {
+  border-radius: 50%;
+}
+.admin-icon-btn--edit svg {
+  width: 16px;
+  height: 16px;
+}
+.admin-icon-btn--edit:hover:not(:disabled) {
+  background: var(--cb-notification-light);
+  border-color: transparent;
+}
+.admin-icon-btn--move:hover:not(:disabled) {
+  background: var(--cb-notification-light);
+  border-color: var(--cb-notification);
 }
 .admin-icon-btn:focus-visible {
   outline: none;
@@ -1526,6 +1605,17 @@
    ФОТО ЦІЛКОМ, щоб розуміти, що саме він завантажив — cover обрізав краї
    й показував лише центр. Поля з боків (letterbox) на власному тлі —
    це не порожнеча, а межі кадру. */
+/* Прев'ю ролика в конструкторі — така сама висота, як у фото-прев'ю поруч,
+   щоб рядок медіа не стрибав, коли автор міняє фото на відео. */
+.admin-video-preview {
+  width: 100%;
+  max-width: 300px;
+  height: 170px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: #000;
+  display: block;
+}
 .admin-image-preview {
   width: 100%;
   max-width: 300px;
@@ -1557,9 +1647,22 @@
    межу між самими рядками тримає тонка горизонтальна лінія.
    Лінія лишається й під останнім рядком — вона ж відрізає список від
    кнопки «+ Додати екран» під ним. */
-.admin-accordion-body > .admin-module {
+.admin-screen-list > .admin-module {
   margin-bottom: 0;
   border-bottom: var(--border-w) solid var(--line);
+}
+/* Карточка екрана тягнеться лише за ручку, тож «хапальний» курсор — на
+   ній, а не на всьому рядку (успадкований .admin-drag-row дав би grab
+   навіть над заголовком, обіцяючи те, чого там нема). */
+.admin-module.admin-drag-row {
+  cursor: default;
+  touch-action: auto;
+}
+/* …а заборона нативного скролу — навпаки, лише на ручці: без неї палець
+   на ній гортав би сторінку замість перетягування. На решті рядка скрол
+   має лишатись звичайним. */
+.admin-module.admin-drag-row .admin-drag-handle {
+  touch-action: none;
 }
 /* Розгорнутий екран: повітря знизу, щоб його вміст не впирався в
    роздільник наступного рядка. */
@@ -1658,6 +1761,15 @@
   flex: 1;
 }
 .admin-drag-handle {
+  /* Стилі спільні для ДВОХ різних механізмів драгу під однаковим
+     виглядом: <span draggable> нативного HTML5 dnd (ComponentNavList,
+     ModuleHeader — перетягування екранів/модулів) і <button> хука
+     lib/useDragReorder.ts (OrderingFields нижче — перетягування кроків).
+     border/background/font — скидання UA-стилів кнопки: <span> їх ніколи
+     не мав, тож нуль на нуль тут не шкодить. */
+  border: none;
+  background: none;
+  font: inherit;
   cursor: grab;
   color: var(--ink-soft);
   padding: 0 2px;
@@ -1665,6 +1777,9 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
+  /* Лише для варіанту-кнопки: без цього дотик на планшеті встигав би
+     розпочати скрол сторінки раніше, ніж drag перехопить керування. */
+  touch-action: none;
 }
 .admin-drag-handle svg {
   width: 16px;
@@ -1673,9 +1788,36 @@
 .admin-drag-handle:active {
   cursor: grabbing;
 }
+.admin-drag-handle:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+  border-radius: var(--radius-btn);
+}
 .admin-drag-over {
   outline: 2px dashed var(--green-700);
   outline-offset: 2px;
+}
+/* Рядок кроку "Порядку" — тягнути можна за будь-яке місце картки, не
+   лише за ручку (прохання користувача 2026-09-23); курсор і блокування
+   нативного скролу тому стоять на всьому рядку. lib/useDragReorder.ts
+   сам виключає з драгу текстове поле й кнопку видалення всередині. */
+.admin-drag-row {
+  cursor: grab;
+  touch-action: none;
+}
+.admin-drag-row:active {
+  cursor: grabbing;
+}
+/* Рядок кроку "Порядку" в руці (lib/useDragReorder.ts) — піднятий над
+   рештою й не заважає власним pointer-подіям бачити, що під ним. */
+.admin-drag-row.is-dragging {
+  position: relative;
+  z-index: 3;
+  pointer-events: none;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-card);
+  transition: none;
 }
 
 /* ---- Акордеон Блок -> Модуль у редакторі курсу ---- */
@@ -1691,10 +1833,27 @@
    уся смуга клікабельна (розгортає екран), і без підсвітки це видно лише
    по курсору. Горизонтальний padding — щоб підсвітка не обрізалась
    впритул до тексту. */
-.admin-accordion-header-sub {
+.admin-accordion-header.admin-accordion-header-sub {
   padding: 9px 8px;
   border-radius: var(--radius-btn);
   transition: background var(--dur-fast) var(--ease-out);
+  /* Рядок екрана НЕ переноситься. Спільний .admin-accordion-header має
+     flex-wrap:wrap заради модуля, у якого в рядку ціла панель числових
+     полів; тут же переніс означав, що при довгій назві («Picture
+     Hotspot») олівець і стрілки їхали на другий рядок і висіли збоку
+     (скарга користувача 2026-09-23). Тепер стискається сама назва. */
+  flex-wrap: nowrap;
+}
+/* min-width:0 перекриває спільні 140px: інакше заголовок відмовляється
+   стискатись і виштовхує кнопки з рядка. Довга назва переноситься
+   всередині себе (word-break уже стоїть), кнопки лишаються на місці. */
+.admin-accordion-header.admin-accordion-header-sub h3 {
+  min-width: 0;
+}
+/* Лічильник і група кнопок не стискаються — стискається лише назва. */
+.admin-accordion-header-sub .admin-accordion-summary,
+.admin-accordion-header-sub .admin-accordion-moves {
+  flex-shrink: 0;
 }
 @media (hover: hover) {
   .admin-accordion-header-sub:hover {
@@ -1732,8 +1891,13 @@
 .admin-accordion-caret.open svg {
   transform: rotate(90deg);
 }
+/* «1 компонент» — службова дрібниця, а не частина назви екрана: помітно
+   дрібніший кегль (прохання користувача 2026-09-23). Буквально вдвічі
+   менше (близько 6px) було б уже нечитабельно, тож 10px — межа, на якій
+   напис ще читається, але не сперечається із заголовком поруч. */
 .admin-accordion-summary {
   white-space: nowrap;
+  font-size: 10px;
 }
 .admin-accordion-body {
   padding: 10px 0 0 22px;
@@ -2431,6 +2595,75 @@
   right: -7px;
   cursor: nwse-resize;
 }
+/* Точка на фото в конструкторі «фото з точками». Та сама канва, що й у
+   зон hotspot (.adm-hotspot-canvas), але тут точка — саме точка: підпис
+   до неї живе в списку нижче, а не поверх знімка, який вона пояснює. */
+.adm-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Ширина приходить інлайном у % кадру (одна на всі точки), висоту тримає
+     aspect-ratio — рівно так само, як у плеєрі (.pin), тож автор бачить
+     справжній розмір маркера, а не приблизний. */
+  aspect-ratio: 1;
+  min-width: 18px;
+  border: 2px solid var(--cb-white);
+  /* Той самий зелений, що й у плеєрі (.pin-num у course-player.css):
+     автор має бачити рівно те, що побачить співробітник — синій маркер у
+     конструкторі проти зеленого в прев'ю збивав з пантелику (скарга
+     користувача 2026-09-23). */
+  background: var(--cb-secondary);
+  color: var(--cb-white);
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 42cqw, 20px);
+  line-height: 1;
+  box-shadow: var(--shadow-sm);
+  /* Точку треба вміти вхопити пальцем і пересунути; touch-action вимикає
+     нативний скрол саме на ній, щоб перетягування не гортало сторінку. */
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  container-type: inline-size;
+}
+.adm-pin:active {
+  cursor: grabbing;
+}
+.adm-pin.is-circle {
+  border-radius: 50%;
+}
+.adm-pin.is-square {
+  border-radius: var(--radius-xs);
+}
+/* Обрана точка — темніша, а не іншого кольору: колір тут означає «це
+   маркер», і міняти його між конструктором і плеєром не можна. */
+.adm-pin.is-selected {
+  background: var(--green-700);
+  box-shadow: 0 0 0 3px var(--cb-secondary-tint), var(--shadow-sm);
+}
+/* Повзунок розміру маркера — у тому ж ряду, що й вибір форми. */
+.adm-pin-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.adm-pin-size input[type="range"] {
+  width: 110px;
+  accent-color: var(--cb-secondary);
+}
+.adm-pin-size b {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+/* Підсвічування рядка, чия точка зараз в роботі — щоб не шукати, який із
+   підписів належить якій точці (номери збігаються, але око однаково
+   шукає підтвердження). */
+.admin-lesson-card.is-selected {
+  border-color: var(--cb-secondary);
+}
+
 /* Перемикач форми: не select, а два видимі варіанти з мініатюрою самої
    фігури — вибір із двох, ховати його під випадайку немає сенсу. */
 .adm-hotspot-tools {

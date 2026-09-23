@@ -14,10 +14,13 @@ import {
   ChecklistScreen,
   ScriptScreen,
   TimelineScreen,
+  ImagePinsScreen,
+  BeforeAfterScreen,
   PhotoScreen,
   InputScreen,
   ImageLightbox,
   ScreenMedia,
+  NoteAccordion,
   CourseImage,
   ConfettiBurst,
   HotspotScreen,
@@ -27,6 +30,7 @@ import { isGateSatisfied, gateTotal, gateHint, isScored } from "@/lib/componentT
 import { courseStreakMessages, pickStreakMessage, resolveStreakSub, isScheduledStreak } from "@/lib/streakMessages";
 import { numberComponents, shuffleArray } from "@/lib/coursePlayerLogic";
 import { peekScrollTo } from "@/lib/scrollHints";
+import { isVideoUrl } from "@/lib/videoEmbed";
 import { downloadCertificate } from "@/lib/downloadCertificate";
 import { getLocalDisplayName } from "@/lib/localName";
 
@@ -104,6 +108,10 @@ export function ComponentScreen({ component, screenNumber, onGateProgress, onZoo
       return <ScriptScreen {...common} />;
     case "timeline":
       return <TimelineScreen {...common} />;
+    case "imagepins":
+      return <ImagePinsScreen {...common} />;
+    case "beforeafter":
+      return <BeforeAfterScreen {...common} />;
     case "photo":
       return <PhotoScreen component={component} screenNumber={screenNumber} onZoomImage={onZoomImage} />;
     case "input":
@@ -179,33 +187,6 @@ export function InfoScreen({ component, screenNumber, onZoomImage }) {
       {mediaNode}
       {textNode}
     </>
-  );
-}
-
-/** "Підказка" (Component.content.info.note) — розгортається по кліку, а не
- * видима завжди: щоб не перевантажувати екран текстом одразу і трохи
- * заохотити самому подумати перед тим, як підглянути відповідь/деталь. */
-function NoteAccordion({ note }) {
-  const [open, setOpen] = useState(false);
-  const boxRef = useRef(null);
-  function toggle() {
-    const opening = !open;
-    setOpen(opening);
-    // Той самий патерн, що в акордеоні/таймлайні: розкрили — розкритий
-    // текст має лишитись на екрані, а не піти під нижній край
-    // (користувач, 2026-09-15: «Варто знати не скролить по паттерну»).
-    if (opening) requestAnimationFrame(() => peekScrollTo(null, { keepVisible: boxRef.current }));
-  }
-  return (
-    <div className={`cp-note-accordion${open ? " open" : ""}`} ref={boxRef}>
-      <button type="button" className="cp-note-toggle" onClick={toggle} aria-expanded={open}>
-        <b>Варто знати</b>
-        <span className="cp-note-chevron">
-          <ChevronIcon />
-        </span>
-      </button>
-      {open && <div className="cp-note-body">{renderRichText(note)}</div>}
-    </div>
   );
 }
 
@@ -290,7 +271,7 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
           <b>Блок питань</b>
           <span>
             {questionNumber && questionTotal ? `Питання ${questionNumber} з ${questionTotal} · ` : ""}
-            {questionType === "multi" ? "декілька правильних відповідей" : "одна правильна відповідь"}
+            {questionType === "multi" ? "оберіть декілька правильних відповідей" : "оберіть одну правильну відповідь"}
           </span>
         </span>
       </div>
@@ -779,7 +760,11 @@ export function CoursePlayer({
       if (!screen) continue;
       for (const component of screen.components) {
         for (const img of component.content?.images ?? []) {
-          if (img?.url) urls.add(img.url);
+          // Посилання на ролик тут не місце: це не файл зображення, і
+          // next/image на чужому хості одразу кидає «hostname is not
+          // configured». Плеєр YouTube/Vimeo гріти нема чим — він тягне
+          // своє сам, коли доходить черга (lib/videoEmbed.ts).
+          if (img?.url && !isVideoUrl(img.url)) urls.add(img.url);
         }
       }
     }
@@ -933,7 +918,11 @@ export function CoursePlayer({
   // без зв'язку. Усі http(s)-посилання в контенті екранів — це фото.
   useEffect(() => {
     if (previewMode || !("serviceWorker" in navigator)) return;
-    const urls = [location.pathname, ...new Set(JSON.stringify(screens).match(/https?:\/\/[^"\\]+/g) || [])];
+    // Посилання на відео пропускаємо: ролик лежить на YouTube/Vimeo, його
+    // плеєр офлайн усе одно не запуститься, а качати сторінку сервісу в
+    // кеш — марно витрачений мобільний трафік співробітника.
+    const found = (JSON.stringify(screens).match(/https?:\/\/[^"\\]+/g) || []).filter((u) => !isVideoUrl(u));
+    const urls = [location.pathname, ...new Set(found)];
     navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage({ type: "precache", urls })).catch(() => {});
   }, [screens, previewMode]);
   const activeSecondsRef = useRef(0);

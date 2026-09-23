@@ -7,14 +7,16 @@ import Link from "next/link";
 import { ComponentScreen, QuizScreen, CoursePlayer } from "@/components/CoursePlayer";
 import { HotspotScreen } from "@/components/ScreenComponents";
 import { OrderingScreen, MatchingScreen } from "@/components/QuestionScreens";
-import { ChevronIcon, GripIcon, SpinnerIcon, XIcon } from "@/components/icons";
+import { ChevronIcon, GripIcon, PencilIcon, SpinnerIcon, XIcon } from "@/components/icons";
 import { pluralize } from "@/lib/pluralize";
 import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, RETIRED_COMPONENT_TYPES, defaultContentForType, isScored } from "@/lib/componentTypes";
 import { ListRowControls, useListOps } from "@/components/ListEditor";
 import { HintDot } from "@/components/HintDot";
 import { numberComponents } from "@/lib/coursePlayerLogic";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
+import { useDragReorder } from "@/lib/useDragReorder";
 import { HANDLES, boxFromDrag, moveBox, resizeBox, tapBox, toBox, zoneShapeClass, zoneStyle } from "@/lib/hotspotZones";
+import { parseVideoEmbed } from "@/lib/videoEmbed";
 
 // Десктопний редактор контенту курсу.
 //
@@ -44,10 +46,15 @@ const emptyContent = {
 // нескінченну стрічку, крізь яку треба гортати до тексту.
 const MAX_IMAGES = 3;
 
-function ImagePicker({ image, index, total, onChange, onMove, onRemove, onUploadingChange }) {
+function ImagePicker({ image, index, total, onChange, onMove, onRemove, onUploadingChange, allowVideo }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  // Відео — це посилання, а не файл (lib/videoEmbed.ts): те саме поле
+  // приймає і шлях до фото, і адресу ролика, тож тип визначаємо з самого
+  // значення, а не окремою кнопкою.
+  const embed = allowVideo ? parseVideoEmbed(image.url || "") : null;
+  const linkNotRecognized = allowVideo && !embed && /youtu|vimeo|tiktok|facebook|instagram|rutube/i.test(image.url || "");
 
   async function handleFilePicked(event) {
     const file = event.target.files?.[0];
@@ -76,7 +83,9 @@ function ImagePicker({ image, index, total, onChange, onMove, onRemove, onUpload
             : data.error || `Сервер не відповів (HTTP ${res.status})`
         );
       }
-      onChange({ ...image, url: data.url });
+      // kind/poster скидаємо явно: слот міг бути відео, і без цього на
+      // екрані лишився б плеєр зі старим постером поверх нового фото.
+      onChange({ ...image, url: data.url, kind: "photo", poster: "" });
     } catch (err) {
       setUploadError(err.message);
     } finally {
@@ -87,7 +96,18 @@ function ImagePicker({ image, index, total, onChange, onMove, onRemove, onUpload
 
   return (
     <div className="admin-image-picker">
-      {image.url && <img src={image.url} alt="" className="admin-image-preview" />}
+      {image.url &&
+        (embed ? (
+          <iframe
+            src={embed.src}
+            title={embed.title}
+            className="admin-video-preview"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        ) : (
+          <img src={image.url} alt="" className="admin-image-preview" />
+        ))}
       <div className="admin-row">
         <input
           type="file"
@@ -107,7 +127,7 @@ function ImagePicker({ image, index, total, onChange, onMove, onRemove, onUpload
           {uploading ? "Завантаження…" : "Обрати фото…"}
         </button>
         <input
-          placeholder="або встав URL /assets/…"
+          placeholder={allowVideo ? "або посилання на YouTube / Vimeo" : "або встав URL /assets/…"}
           value={image.url}
           onChange={(e) => onChange({ ...image, url: e.target.value })}
           className="admin-input-flex admin-input-mono"
@@ -118,7 +138,10 @@ function ImagePicker({ image, index, total, onChange, onMove, onRemove, onUpload
             переставляти треба прямо тут, а не перезавантажувати файли. */}
         <ListRowControls index={index} total={total} onMove={onMove} onRemove={() => onRemove(index)} label="зображення" />
       </div>
-      <p className="admin-hint">Формати: JPEG, PNG, WebP, GIF · до 8 МБ.</p>
+      <p className="admin-hint">
+        Формати: JPEG, PNG, WebP, GIF · до 8 МБ.
+        {allowVideo && " Відео — вставте посилання на YouTube або Vimeo в те саме поле; плеєр з'явиться просто на екрані."}
+      </p>
       <input
         placeholder="підпис (необов'язково)"
         value={image.caption}
@@ -126,11 +149,20 @@ function ImagePicker({ image, index, total, onChange, onMove, onRemove, onUpload
         className="admin-input-flex"
       />
       {uploadError && <p className="admin-error">{uploadError}</p>}
+      {/* Мовчазний провал розпізнавання — найгірше, що тут може бути:
+          автор вставив посилання, побачив порожньо і не знає, чому. Тому
+          на адресу з відеосервісу, яку не змогли розібрати, кажемо прямо. */}
+      {linkNotRecognized && (
+        <p className="admin-warning">
+          Не вдалося розпізнати посилання. Підтримуються YouTube і Vimeo — скопіюйте адресу зі сторінки ролика
+          (youtube.com/watch?v=… , youtu.be/… , vimeo.com/…).
+        </p>
+      )}
     </div>
   );
 }
 
-function ImageListEditor({ images, onChange, onUploadingChange, max = MAX_IMAGES, limitHint }) {
+function ImageListEditor({ images, onChange, onUploadingChange, max = MAX_IMAGES, limitHint, allowVideo }) {
   // Скільки фото зараз вантажиться (за індексом) — Save блокується, поки
   // не 0, інакше можна зберегти екран з порожнім url (лист заповнення ще
   // не встиг прийти) — саме так з'являвся варнінг next/image про
@@ -152,7 +184,8 @@ function ImageListEditor({ images, onChange, onUploadingChange, max = MAX_IMAGES
   return (
     <div className="admin-field">
       <label className="admin-label">
-        Зображення <span className="admin-hint">{max === 1 ? "— одне на це питання" : `— до ${max}, порядок задають стрілки`}</span>
+        {allowVideo ? "Фото та відео" : "Зображення"}{" "}
+        <span className="admin-hint">{max === 1 ? "— одне на це питання" : `— до ${max}, порядок задають стрілки`}</span>
       </label>
       {images.map((img, i) => (
         <ImagePicker
@@ -164,13 +197,14 @@ function ImageListEditor({ images, onChange, onUploadingChange, max = MAX_IMAGES
           onMove={ops.move}
           onRemove={ops.remove}
           onUploadingChange={(isUploading) => reportUploading(i, isUploading)}
+          allowVideo={allowVideo}
         />
       ))}
       {atLimit ? (
         <p className="admin-hint">{limitHint || `Більше ${max} фото на один екран не додати — заберіть зайве, щоб додати інше.`}</p>
       ) : (
         <button type="button" onClick={() => ops.add({ url: "", caption: "" })} className="admin-btn-link" title="Додати ще один слот під фото">
-          + Додати зображення
+          {allowVideo ? "+ Додати фото або відео" : "+ Додати зображення"}
         </button>
       )}
     </div>
@@ -688,10 +722,38 @@ function TimelineFields({ content, onChange, onUploadingChange }) {
   );
 }
 
-/** Поле "самостійне фото" — просто ImageListEditor без решти info-полів. */
+/** Екран "фото та відео" — ті самі текстові поля, що в info (рубрика,
+ *  вступний рядок, «Варто знати»), але без «Тексту екрану»: довга стаття
+ *  під фото — це вже інфо-екран, а не показ одного знімка чи ролика.
+ *  Порядок полів збігається з порядком на екрані співробітника.
+ *
+ *  Відео дозволене ЛИШЕ тут: у питанні (quiz, hotspot, ordering) ролик
+ *  означав би, що відповідь треба спершу додивитись, а гейта «переглянув»
+ *  у системі немає. */
 function PhotoFields({ content, onChange, onUploadingChange }) {
-  const c = { images: [], ...content, images: content.images || [] };
-  return <ImageListEditor images={c.images} onChange={(images) => onChange({ ...c, images })} onUploadingChange={onUploadingChange} />;
+  const c = { kicker: "", lead: "", note: "", ...content, images: content.images || [] };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+  return (
+    <>
+      <div className="admin-field">
+        <label className="admin-label">Рубрика (kicker)</label>
+        <input value={c.kicker} onChange={(e) => set("kicker")(e.target.value)} placeholder="Наприклад: ЯК ЦЕ ВИГЛЯДАЄ" className="admin-input-flex" />
+      </div>
+      <div className="admin-field">
+        <label className="admin-label">
+          Вступний рядок (lead) <span className="admin-hint">— що саме показано і на що дивитись</span>
+        </label>
+        <RichTextArea value={c.lead} onChange={set("lead")} rows={2} paragraphs={false} />
+      </div>
+      <ImageListEditor images={c.images} onChange={set("images")} onUploadingChange={onUploadingChange} allowVideo />
+      <div className="admin-field">
+        <label className="admin-label">
+          Підказка «Варто знати» <span className="admin-hint">— розгортається по кліку (акордеон), не видима одразу</span>
+        </label>
+        <RichTextArea value={c.note} onChange={set("note")} rows={2} />
+      </div>
+    </>
+  );
 }
 
 /** Поле "довільний ввід" — лише підпис/плейсхолдер, значення ніде не
@@ -923,21 +985,290 @@ function HotspotFields({ content, onChange, onUploadingChange }) {
   );
 }
 
+/**
+ * «Фото з точками» — пояснялка, не питання. Точка ставиться тапом прямо
+ * по фото (як зони hotspot), підпис до неї — у списку нижче: поле для
+ * тексту поверх самого знімка перекривало б те, що автор пояснює.
+ *
+ * Номер точки в списку збігається з номером на фото, тож зіставляти
+ * «третій рядок — третя точка» не треба; обрана точка підсвічується з
+ * обох боків одразу.
+ */
+function ImagePinsFields({ content, onChange, onUploadingChange }) {
+  const c = {
+    kicker: "",
+    lead: "",
+    pinShape: "circle",
+    pinSize: 8,
+    ...content,
+    images: content.images || [],
+    pins: content.pins || [],
+  };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+  const [selected, setSelected] = useState(null);
+  const canvasRef = useRef(null);
+  const dragRef = useRef(null);
+  // Чи щойно тягнули точку: браузер шле click ПІСЛЯ pointerup, і без цього
+  // прапорця перетягування закінчувалось би появою зайвої точки під пальцем.
+  const justDraggedRef = useRef(false);
+  const image = c.images.find((img) => img.url);
+  const setPin = (i, field, value) => set("pins")(c.pins.map((p, j) => (j === i ? { ...p, [field]: value } : p)));
+
+  /** Координати події у відсотках кадру, обрізані по його межах. */
+  function pctFromEvent(e) {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect?.width || !rect.height) return null;
+    const clamp = (v) => Math.min(100, Math.max(0, v));
+    return {
+      x: Number(clamp(((e.clientX - rect.left) / rect.width) * 100).toFixed(1)),
+      y: Number(clamp(((e.clientY - rect.top) / rect.height) * 100).toFixed(1)),
+    };
+  }
+
+  function addPin(at) {
+    // Нова точка зі списку (кнопкою) стає не рівно в центр, а сходинкою:
+    // інакше друга й третя лягли б одна на одну, і автор бачив би лише
+    // верхню.
+    const step = (c.pins.length % 5) * 6;
+    set("pins")([...c.pins, { x: at?.x ?? 42 + step, y: at?.y ?? 42 + step, title: "", text: "" }]);
+    setSelected(c.pins.length);
+  }
+
+  function onCanvasPointerDown(e) {
+    const idx = e.target.dataset?.pin;
+    if (idx == null) return;
+    // Тягнемо точку — клік по фото (додати нову) при цьому не спрацює:
+    // його гасить перевірка dragRef у onCanvasClick.
+    e.preventDefault();
+    canvasRef.current.setPointerCapture(e.pointerId);
+    dragRef.current = { index: Number(idx), moved: false };
+    setSelected(Number(idx));
+  }
+
+  function onCanvasPointerMove(e) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const at = pctFromEvent(e);
+    if (!at) return;
+    drag.moved = true;
+    set("pins")(c.pins.map((p, j) => (j === drag.index ? { ...p, x: at.x, y: at.y } : p)));
+  }
+
+  function onCanvasPointerUp() {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    // Прапорець живе до наступного кліку: браузер шле click ПІСЛЯ
+    // pointerup, і без цього перетягування закінчувалось би ще й появою
+    // зайвої точки під пальцем.
+    justDraggedRef.current = Boolean(drag?.moved);
+  }
+
+  function onCanvasClick(e) {
+    if (justDraggedRef.current) {
+      justDraggedRef.current = false;
+      return;
+    }
+    if (e.target.dataset?.pin != null) return;
+    const at = pctFromEvent(e);
+    if (at) addPin(at);
+  }
+
+  return (
+    <>
+      <ScreenHeaderFields
+        c={c}
+        set={set}
+        onUploadingChange={onUploadingChange}
+        maxImages={1}
+        imagesLimitHint="Одне фото на екран: точки ставляться саме по ньому."
+      />
+      <div className="admin-field">
+        <label className="admin-label">
+          Точки на фото <span className="admin-hint">— натисніть по фото, щоб додати; «Далі» відкриється, коли співробітник відкриє ВСІ</span>
+        </label>
+        {!image ? (
+          <p className="admin-hint">Спочатку додайте фото вище — точки ставляться прямо по ньому.</p>
+        ) : (
+          <>
+            {/* Форма й розмір — над самим фото, щоб зміну було видно
+                одразу на всіх маркерах (рішення користувача 2026-09-23:
+                головне, щоб на знімку вони були ОДНАКОВІ, тож налаштування
+                одне на компонент, а не в кожної точки). */}
+            <div className="admin-row adm-hotspot-tools">
+              <span className="admin-hint">Маркер:</span>
+              {[
+                { value: "circle", label: "Коло" },
+                { value: "square", label: "Квадрат" },
+              ].map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  className={`adm-hotspot-shape${c.pinShape === s.value ? " is-on" : ""}`}
+                  onClick={() => set("pinShape")(s.value)}
+                  aria-pressed={c.pinShape === s.value}
+                >
+                  <span className={`adm-hotspot-shape-ico is-${s.value === "circle" ? "ellipse" : "rect"}`} aria-hidden="true" />
+                  {s.label}
+                </button>
+              ))}
+              <label className="admin-hint adm-pin-size">
+                Розмір
+                <input
+                  type="range"
+                  min="4"
+                  max="30"
+                  step="1"
+                  value={c.pinSize}
+                  onChange={(e) => set("pinSize")(Number(e.target.value))}
+                  aria-label="Розмір маркера, % ширини фото"
+                />
+                <b>{c.pinSize}%</b>
+              </label>
+            </div>
+            <div
+              ref={canvasRef}
+              className="adm-hotspot-canvas"
+              onClick={onCanvasClick}
+              onPointerDown={onCanvasPointerDown}
+              onPointerMove={onCanvasPointerMove}
+              onPointerUp={onCanvasPointerUp}
+              onPointerCancel={onCanvasPointerUp}
+              role="presentation"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={image.url} alt="" draggable={false} />
+              {c.pins.map((pin, i) => (
+                <span
+                  key={i}
+                  data-pin={i}
+                  className={`adm-pin is-${c.pinShape === "square" ? "square" : "circle"}${selected === i ? " is-selected" : ""}`}
+                  style={{ left: `${pin.x}%`, top: `${pin.y}%`, width: `${c.pinSize}%` }}
+                  title="Перетягніть, щоб пересунути"
+                >
+                  {i + 1}
+                </span>
+              ))}
+            </div>
+            <p className="admin-hint">Натисніть по фото, щоб додати точку, або перетягніть наявну на нове місце.</p>
+            {c.pins.length === 0 ? (
+              <p className="admin-hint">Жодної точки — екран поки нічого не пояснює.</p>
+            ) : (
+              c.pins.map((pin, i) => (
+                <div
+                  className={`admin-lesson-card${selected === i ? " is-selected" : ""}`}
+                  key={i}
+                  onFocusCapture={() => setSelected(i)}
+                >
+                  <div className="admin-row">
+                    <span className="admin-hint" style={{ minWidth: 18 }}>
+                      {i + 1}
+                    </span>
+                    <input
+                      value={pin.title || ""}
+                      onChange={(e) => setPin(i, "title", e.target.value)}
+                      placeholder={`Заголовок точки ${i + 1}`}
+                      className="admin-input-flex admin-title-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        set("pins")(c.pins.filter((_, j) => j !== i));
+                        setSelected(null);
+                      }}
+                      className="admin-icon-btn"
+                      aria-label="Видалити точку"
+                      title="Видалити цю точку"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <RichTextArea
+                    value={pin.text}
+                    onChange={(v) => setPin(i, "text", v)}
+                    rows={2}
+                    paragraphs={false}
+                    placeholder="Що тут пояснюємо"
+                  />
+                </div>
+              ))
+            )}
+            {/* Кнопка внизу списку, як і в решти списків конструктора: тап
+                по фото лишається, але його треба спершу здогадатись —
+                кнопка ж просто є (прохання користувача 2026-09-23).
+                Нова точка з'являється в кадрі, далі її перетягують. */}
+            <button type="button" onClick={() => addPin(null)} className="admin-btn-link" title="Додати ще одну точку на фото">
+              + Додати точку
+            </button>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+/**
+ * «До / після» — рівно два фото: перше «до», друге «після». Порядок
+ * задають ті самі стрілки, що й у будь-якому списку фото, тому окремих
+ * полів «оберіть фото до» тут немає.
+ */
+function BeforeAfterFields({ content, onChange, onUploadingChange }) {
+  const c = { kicker: "", lead: "", beforeLabel: "Було", afterLabel: "Стало", ...content, images: content.images || [] };
+  const set = (field) => (value) => onChange({ ...c, [field]: value });
+  const ready = c.images.filter((img) => img.url).length >= 2;
+
+  return (
+    <>
+      <ScreenHeaderFields
+        c={c}
+        set={set}
+        onUploadingChange={onUploadingChange}
+        maxImages={2}
+        imagesLimitHint="Два фото: перше — «до», друге — «після». Порядок міняють стрілки."
+      />
+      <div className="admin-field">
+        <label className="admin-label">
+          Підписи станів{" "}
+          <HintDot
+            align="start"
+            text="Те, що написано на перемикачі й на плашці поверх фото. Коротке слово читається краще за речення: «Було / Стало», «Неправильно / Правильно», «До візиту / Після візиту»."
+          />
+        </label>
+        <div className="admin-row">
+          <input
+            value={c.beforeLabel}
+            onChange={(e) => set("beforeLabel")(e.target.value)}
+            placeholder="Було"
+            className="admin-input-flex"
+          />
+          <input
+            value={c.afterLabel}
+            onChange={(e) => set("afterLabel")(e.target.value)}
+            placeholder="Стало"
+            className="admin-input-flex"
+          />
+        </div>
+        {!ready && <p className="admin-hint">Потрібні саме два фото — поки екран показує лише попередження.</p>}
+      </div>
+    </>
+  );
+}
+
 /** «Порядок кроків»: правильна послідовність — та, у якій кроки стоять
  *  ТУТ. Плеєр показує їх перемішаними, тож окремого поля «правильна
  *  відповідь» немає й не може розсинхронитись зі списком. */
 function OrderingFields({ content, onChange, onUploadingChange }) {
   const c = { lead: "", images: [], items: [], explanation: "", ...content };
   const set = (field) => (value) => onChange({ ...c, [field]: value });
-  const setItem = (i, text) => set("items")(c.items.map((it, j) => (j === i ? { ...it, text } : it)));
+  const setItem = (item, text) => set("items")(c.items.map((it) => (it === item ? { ...it, text } : it)));
 
-  function move(i, dir) {
-    const j = i + dir;
-    if (j < 0 || j >= c.items.length) return;
-    const next = [...c.items];
-    [next[i], next[j]] = [next[j], next[i]];
-    set("items")(next);
-  }
+  // Ідентичність рядка — сам об'єкт `it` (референс), не index: індекс
+  // міняється при кожній перестановці, а setItem вище лишає референс
+  // НЕЗМІННИМ для всіх рядків, крім того, що редагують просто зараз —
+  // достатньо для lib/useDragReorder.ts, синтетичні id заводити не треба.
+  const { containerRef, containerProps, registerRow, dragId, dragDeltaY, moveByKeyboard } = useDragReorder({
+    ids: c.items,
+    onReorder: set("items"),
+  });
 
   return (
     <>
@@ -951,32 +1282,52 @@ function OrderingFields({ content, onChange, onUploadingChange }) {
           Кроки у ПРАВИЛЬНОМУ порядку{" "}
           <HintDot
             align="start"
-            text="Впишіть кроки так, як вони мають іти насправді — окремого поля «правильна відповідь» немає, правильний порядок це сам цей список. Співробітнику вони покажуться перемішаними, і він відновлює послідовність стрілками. Зарахується лише повний збіг: часткового балу тут немає."
+            text="Впишіть кроки так, як вони мають іти насправді — окремого поля «правильна відповідь» немає, правильний порядок це сам цей список. Співробітнику вони покажуться перемішаними, і він відновлює послідовність перетягуванням. Зарахується лише повний збіг: часткового балу тут немає."
           />
         </label>
-        {c.items.map((it, i) => (
-          <div className="admin-row admin-option-row" key={i}>
-            <span className="admin-hint" style={{ minWidth: 18 }}>
-              {i + 1}
-            </span>
-            <input value={it.text || ""} onChange={(e) => setItem(i, e.target.value)} placeholder="Текст кроку" className="admin-input-flex" />
-            <button type="button" onClick={() => move(i, -1)} className="admin-icon-btn" aria-label="Вище" title="Підняти крок">
-              ↑
-            </button>
-            <button type="button" onClick={() => move(i, 1)} className="admin-icon-btn" aria-label="Нижче" title="Опустити крок">
-              ↓
-            </button>
-            <button
-              type="button"
-              onClick={() => set("items")(c.items.filter((_, j) => j !== i))}
-              className="admin-icon-btn"
-              aria-label="Видалити крок"
-              title="Видалити цей крок"
+        <div ref={containerRef} {...containerProps}>
+          {c.items.map((it, i) => (
+            <div
+              key={i}
+              ref={registerRow(it)}
+              data-drag-row
+              className={`admin-row admin-option-row admin-drag-row${dragId === it ? " is-dragging" : ""}`}
+              style={dragId === it ? { transform: `translateY(${dragDeltaY}px)` } : undefined}
             >
-              ✕
-            </button>
-          </div>
-        ))}
+              <button
+                type="button"
+                className="admin-drag-handle"
+                data-drag-handle
+                title="Перетягніть, щоб змінити порядок кроків"
+                aria-label={`Перетягніть крок «${it.text || i + 1}» — або керуйте стрілками вгору/вниз`}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    moveByKeyboard(it, -1);
+                  } else if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    moveByKeyboard(it, 1);
+                  }
+                }}
+              >
+                <GripIcon />
+              </button>
+              <span className="admin-hint" style={{ minWidth: 18 }}>
+                {i + 1}
+              </span>
+              <input value={it.text || ""} onChange={(e) => setItem(it, e.target.value)} placeholder="Текст кроку" className="admin-input-flex" />
+              <button
+                type="button"
+                onClick={() => set("items")(c.items.filter((x) => x !== it))}
+                className="admin-icon-btn"
+                aria-label="Видалити крок"
+                title="Видалити цей крок"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
         <button type="button" onClick={() => set("items")([...c.items, { text: "" }])} className="admin-btn-link" title="Додати ще один крок">
           + Додати крок
         </button>
@@ -1088,6 +1439,10 @@ function ComponentTypeFields({ type, content, onChange, componentId, onUploading
       return <OrderingFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
     case "matching":
       return <MatchingFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
+    case "imagepins":
+      return <ImagePinsFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
+    case "beforeafter":
+      return <BeforeAfterFields content={content} onChange={onChange} onUploadingChange={onUploadingChange} />;
     case "input":
       return <InputFields content={content} onChange={onChange} />;
     default:
@@ -2191,14 +2546,157 @@ function ModuleHeader({ courseModule, expanded, onToggleExpand, summary, onSaved
   );
 }
 
-function ScreenHeader({ screen, expanded, onToggleExpand, summary, onDelete }) {
+function ScreenHeader({ screen, expanded, onToggleExpand, summary, onDelete, index, total, onMove, onRename }) {
+  // Перейменування — прямо в рядку, як у модуля (ModuleHeader): окрема
+  // форма чи діалог заради одного поля були б важчі за саму дію.
+  // Олівець, а не «клік по назві»: сам рядок уже клікабельний і розгортає
+  // екран, тож без явної кнопки перейменування конфліктувало б із ним.
+  const [renaming, setRenaming] = useState(false);
+  const [title, setTitle] = useState(screen.title);
+  const inputRef = useRef(null);
+
+  // Синхронізувати title з пропсом ефектом НЕ можна (правило React
+  // Compiler: setState усередині ефекту тягне каскад рендерів) — та й не
+  // треба: поле наповнюється в мить входу в режим, а поза ним його
+  // значення нікому не потрібне.
+  useEffect(() => {
+    if (renaming) inputRef.current?.select();
+  }, [renaming]);
+
+  function startRenaming() {
+    setTitle(screen.title);
+    setRenaming(true);
+  }
+
+  function commit() {
+    setRenaming(false);
+    const next = title.trim();
+    // Порожня назва — не зберігаємо: екран лишився б безіменним рядком у
+    // навігації, знайти його потім було б нічим.
+    if (!next || next === screen.title) {
+      setTitle(screen.title);
+      return;
+    }
+    onRename?.(next);
+  }
+
+  // Рядок і розгортається по кліку, і тягнеться (lib/useDragReorder.ts).
+  // Хук рух відстежує, але клік НЕ гасить — його теперішнім користувачам
+  // (кроки «порядку») це не було потрібно, там onClick немає взагалі. Тут
+  // потрібно: без цієї перевірки екран після кожного перетягування ще й
+  // розгортався б. 4px — той самий поріг, що й у хука (CLICK_SLOP_PX).
+  const pressYRef = useRef(null);
+
   return (
-    <div className="admin-accordion-header admin-accordion-header-sub" onClick={onToggleExpand}>
+    <div
+      className="admin-accordion-header admin-accordion-header-sub"
+      onPointerDown={(e) => {
+        pressYRef.current = e.clientY;
+      }}
+      onClick={(e) => {
+        const pressedAt = pressYRef.current;
+        pressYRef.current = null;
+        if (pressedAt !== null && Math.abs(e.clientY - pressedAt) > 4) return;
+        onToggleExpand();
+      }}
+    >
+      {/* Тягнути екран можна ЛИШЕ за цю ручку або стрілками (рішення
+          користувача 2026-09-23, після спроби зробити всю картку
+          хапалкою): решта рядка — звичайні клікабельні елементи, і
+          передусім шеврон, який розгортає екран. Коли драг стартував із
+          будь-якої точки, шеврон переставав спрацьовувати — картка просто
+          сіпалась під пальцем. */}
+      <button
+        type="button"
+        className="admin-drag-handle"
+        data-drag-handle
+        title="Перетягніть, щоб змінити порядок екранів"
+        aria-label={`Перетягніть екран «${screen.title}» — або керуйте стрілками нижче`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripIcon />
+      </button>
       <span className={`admin-accordion-caret${expanded ? " open" : ""}`}>
         <ChevronIcon />
       </span>
-      <h3>{screen.title}</h3>
+      {renaming ? (
+        <input
+          ref={inputRef}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            } else if (e.key === "Escape") {
+              setTitle(screen.title);
+              setRenaming(false);
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="admin-input-flex admin-title-input"
+          aria-label="Назва екрана"
+        />
+      ) : (
+        <h3>{screen.title}</h3>
+      )}
+      {!renaming && (
+        <button
+          type="button"
+          className="admin-icon-btn admin-icon-btn--edit"
+          onClick={(e) => {
+            e.stopPropagation();
+            startRenaming();
+          }}
+          aria-label="Перейменувати екран"
+          title="Перейменувати екран"
+        >
+          <PencilIcon />
+        </button>
+      )}
       <span className="admin-hint admin-accordion-summary">{summary}</span>
+      {/* Стрілки — не дубль перетягування, а єдиний спосіб змінити порядок
+          там, де HTML5-drag не працює взагалі: планшет, телефон, клавіатура.
+          Ті самі стрілки, що в «порядку кроків» у плеєра. */}
+      {onMove && (
+        <span className="admin-accordion-moves">
+          <button
+            type="button"
+            className="admin-icon-btn admin-icon-btn--move"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMove(-1);
+            }}
+            disabled={index === 0}
+            aria-label="Підняти екран"
+            title="Підняти екран вище"
+          >
+            {/* SVG, а не гліф «↑»: текстова стрілка сидить у рядку вище
+                оптичного центру, і в кружку кнопки виглядала зсунутою —
+                паддингом це не лікується, бо залежить від метрики шрифту. */}
+            <span className="admin-move-ico is-up" aria-hidden="true">
+              <ChevronIcon />
+            </span>
+          </button>
+          <button
+            type="button"
+            className="admin-icon-btn admin-icon-btn--move"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMove(1);
+            }}
+            disabled={index === total - 1}
+            aria-label="Опустити екран"
+            title="Опустити екран нижче"
+          >
+            <span className="admin-move-ico is-down" aria-hidden="true">
+              <ChevronIcon />
+            </span>
+          </button>
+        </span>
+      )}
       <button
         type="button"
         onClick={(e) => {
@@ -2211,6 +2709,112 @@ function ScreenHeader({ screen, expanded, onToggleExpand, summary, onDelete }) {
       >
         ✕
       </button>
+    </div>
+  );
+}
+
+/**
+ * Список екранів модуля з перетягуванням. Окремий компонент, а не шматок
+ * JSX усередині map — інакше useDragReorder довелось би викликати в циклі,
+ * що заборонено правилами хуків: кожен модуль має власний список і власний
+ * стан перетягування.
+ *
+ * Механіка — той самий lib/useDragReorder.ts, що вже тягає кроки «порядку»
+ * в конструкторі й у плеєрі: pointer events (працює і пальцем, на відміну
+ * від HTML5-drag), FLIP-доїзд сусідів, стрілки з клавіатури на ручці.
+ * Другого механізму перетягування в цьому файлі свідомо не заводимо.
+ */
+function ModuleScreens({
+  courseModule,
+  expandedScreenId,
+  onToggleScreen,
+  onDeleteScreen,
+  onRenameScreen,
+  onReorder,
+  questionStats,
+  selectedComponentId,
+  onSelectComponent,
+  onComponentsReordered,
+  onComponentCreated,
+}) {
+  const screens = courseModule.screens;
+  // Ідентичність рядка — screen.id, а НЕ сам об'єкт екрана.
+  //
+  // Кроки «порядку» вище передають у хук самі об'єкти, і їм це можна:
+  // їхній setItem лишає референси незмінними. Тут інакше — збереження
+  // порядку проставляє кожному екрану новий order, тобто створює НОВІ
+  // об'єкти. Після першої ж перестановки взятий рядок переставав
+  // знаходитись у списку за старою ссилкою, і перетягування вмирало,
+  // зсунувши екран рівно на одну позицію — як стрілка (скарга
+  // користувача 2026-09-23). Число переживає будь-яке перестворення.
+  // useMemo не про швидкодію: FLIP-ефект хука висить на `ids`, і новий
+  // масив на кожному рендері ганяв би його дарма. Тут масив міняється
+  // рівно тоді, коли справді змінився порядок, — саме коли й треба
+  // «доїхати» рядкам.
+  const screenIds = useMemo(() => screens.map((s) => s.id), [screens]);
+  const { containerRef, containerProps, registerRow, dragId, dragDeltaY, moveByKeyboard } = useDragReorder({
+    ids: screenIds,
+    onReorder: (nextIds) => {
+      const byId = new Map(screens.map((s) => [s.id, s]));
+      onReorder(nextIds.map((id) => byId.get(id)).filter(Boolean));
+    },
+  });
+
+  return (
+    // Клас на обгортці обов'язковий: щільний список екранів із
+    // роздільниками тримається саме на ньому. Доти правило було
+    // прив'язане до .admin-accordion-body, і поява цієї обгортки розірвала
+    // селектор — між екранами знову з'явилось по 32px порожнечі
+    // (скарга користувача 2026-09-23).
+    <div ref={containerRef} {...containerProps} className="admin-screen-list">
+      {screens.map((screen, screenIndex) => {
+        const isScreenExpanded = expandedScreenId === screen.id;
+        return (
+          <section
+            key={screen.id}
+            ref={registerRow(screen.id)}
+            data-drag-row
+            className={`admin-module admin-drag-row${dragId === screen.id ? " is-dragging" : ""}`}
+            style={dragId === screen.id ? { transform: `translateY(${dragDeltaY}px)` } : undefined}
+            // Драг стартує ТІЛЬКИ з ручки: хук слухає контейнер, тож
+            // зупиняємо подію на рядку раніше, ніж вона туди дійде. Так
+            // сам хук (спільний з іншими списками) лишається незмінним, а
+            // шеврон, заголовок і стрілки поводяться як звичайні кнопки.
+            onPointerDown={(e) => {
+              if (!e.target.closest?.("[data-drag-handle]")) e.stopPropagation();
+            }}
+          >
+            <ScreenHeader
+              screen={screen}
+              expanded={isScreenExpanded}
+              onToggleExpand={() => onToggleScreen(screen.id)}
+              summary={`${screen.components.length} комп.`}
+              onDelete={() => onDeleteScreen(screen)}
+              onRename={(title) => onRenameScreen(screen, title)}
+              index={screenIndex}
+              total={screens.length}
+              onMove={(dir) => moveByKeyboard(screen.id, dir)}
+            />
+
+            {isScreenExpanded && (
+              <div className="admin-accordion-body">
+                <ComponentNavList
+                  questionStats={questionStats}
+                  components={screen.components}
+                  selectedComponentId={selectedComponentId}
+                  onSelect={(componentId) => onSelectComponent(screen.id, componentId)}
+                  onReordered={(reordered) => onComponentsReordered(screen.id, reordered)}
+                />
+                <NewComponentForm
+                  screenId={screen.id}
+                  nextOrder={screen.components.length + 1}
+                  onCreated={(created) => onComponentCreated(screen.id, created)}
+                />
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -2362,6 +2966,66 @@ export function AdminCourseEditor({ courseId }) {
   // Drag-and-drop модулів прямо в редакторі (не лише на дашборді) —
   // оптимістичне оновлення порядку локально + збереження order (1..N)
   // кожного модуля через PATCH.
+  /**
+   * Перестановка ЕКРАНІВ усередині модуля — і перетягуванням, і стрілками.
+   *
+   * Обов'язково переписуємо order УСІМ екранам модуля (1..N), а не міняємо
+   * місцями два значення: при однакових order база вертає екрани в
+   * довільному порядку, і курс у плеєрі почав би «плавати» між
+   * завантаженнями. Та сама причина, чому так зроблено для компонентів
+   * (ComponentNavList) і модулів (handleModuleDrop нижче).
+   *
+   * Наскрізна нумерація питань нічого окремого не потребує: і конструктор
+   * (numberComponents), і плеєр (quizComponentIds.indexOf) рахують номер
+   * від ПОРЯДКУ в списку, а не зберігають його. Щойно масив перебудовано —
+   * номери вже правильні.
+   */
+  /**
+   * Перейменування екрана. Стан оновлюємо ОДРАЗУ, не чекаючи сервера:
+   * назва бере участь у навігації, хлібних крихтах і прев'ю, і бачити
+   * стару ще пів секунди після Enter — гірше, ніж зрідка відкотити її
+   * назад, якщо запит не пройшов.
+   */
+  function renameScreen(moduleId, screenId, title) {
+    const setTitle = (value) =>
+      setCourse((c) => ({
+        ...c,
+        modules: c.modules.map((m) =>
+          m.id === moduleId ? { ...m, screens: m.screens.map((s) => (s.id === screenId ? { ...s, title: value } : s)) } : m
+        ),
+      }));
+    const previous = course.modules.find((m) => m.id === moduleId)?.screens.find((s) => s.id === screenId)?.title;
+    setTitle(title);
+    fetch(`/api/admin/screens/${screenId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("rename failed");
+      })
+      .catch(() => {
+        if (previous !== undefined) setTitle(previous);
+      });
+  }
+
+  function persistScreenOrder(moduleId, nextScreens) {
+    const withOrder = nextScreens.map((s, i) => ({ ...s, order: i + 1 }));
+    setCourse((c) => ({
+      ...c,
+      modules: c.modules.map((m) => (m.id === moduleId ? { ...m, screens: withOrder } : m)),
+    }));
+    Promise.all(
+      withOrder.map((screen, i) =>
+        fetch(`/api/admin/screens/${screen.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order: i + 1 }),
+        })
+      )
+    );
+  }
+
   function handleModuleDrop(targetIndex) {
     if (dragModuleIndex === null || dragModuleIndex === targetIndex) {
       setDragModuleIndex(null);
@@ -2556,37 +3220,19 @@ export function AdminCourseEditor({ courseId }) {
 
                 {isModuleExpanded && (
                   <div className="admin-accordion-body">
-                    {courseModule.screens.map((screen) => {
-                      const isScreenExpanded = expandedScreenId === screen.id;
-                      return (
-                        <section key={screen.id} className="admin-module">
-                          <ScreenHeader
-                            screen={screen}
-                            expanded={isScreenExpanded}
-                            onToggleExpand={() => setExpandedScreenId(isScreenExpanded ? null : screen.id)}
-                            summary={pluralize(screen.components.length, "компонент", "компоненти", "компонентів")}
-                            onDelete={() => handleDeleteScreen(courseModule.id, screen.id, screen.title)}
-                          />
-
-                          {isScreenExpanded && (
-                            <div className="admin-accordion-body">
-                              <ComponentNavList
-                                questionStats={questionStats}
-                                components={screen.components}
-                                selectedComponentId={selectedComponentId}
-                                onSelect={(componentId) => selectComponent(courseModule.id, screen.id, componentId)}
-                                onReordered={(reordered) => reorderComponentsInState(screen.id, reordered)}
-                              />
-                              <NewComponentForm
-                                screenId={screen.id}
-                                nextOrder={screen.components.length + 1}
-                                onCreated={(created) => addComponentToState(screen.id, created)}
-                              />
-                            </div>
-                          )}
-                        </section>
-                      );
-                    })}
+                    <ModuleScreens
+                      courseModule={courseModule}
+                      expandedScreenId={expandedScreenId}
+                      onToggleScreen={(screenId) => setExpandedScreenId(expandedScreenId === screenId ? null : screenId)}
+                      onDeleteScreen={(screen) => handleDeleteScreen(courseModule.id, screen.id, screen.title)}
+                      onRenameScreen={(screen, title) => renameScreen(courseModule.id, screen.id, title)}
+                      onReorder={(next) => persistScreenOrder(courseModule.id, next)}
+                      questionStats={questionStats}
+                      selectedComponentId={selectedComponentId}
+                      onSelectComponent={(screenId, componentId) => selectComponent(courseModule.id, screenId, componentId)}
+                      onComponentsReordered={reorderComponentsInState}
+                      onComponentCreated={addComponentToState}
+                    />
 
                     <NewScreenForm
                       moduleId={courseModule.id}

@@ -528,21 +528,11 @@
   font-size: calc(11.5px * var(--fs-scale));
   color: var(--ink-soft);
 }
-/* Тип питання — моно-тег, як у legacy .q-type-tag. Пігулка — той самий
-   виняток, що й решта бейджів/чипів (design-guardian: badges round). */
-.q-type-tag {
-  display: inline-block;
-  font-family: var(--font-mono);
-  font-size: calc(10.5px * var(--fs-scale));
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--green-700);
-  background: var(--green-tint);
-  border-radius: var(--radius-badge);
-  padding: 5px 11px;
-  margin-bottom: 10px;
-}
+/* Зелена плашка з назвою типу питання (.q-type-tag) прибрана 2026-09-23:
+   спершу у звичайного питання, тепер і в «порядку кроків» та
+   «відповідності». Вона дублювала банер, що стоїть просто над нею, і
+   називала тип, замість сказати, ЩО РОБИТИ — інструкція тепер другим
+   рядком у самому банері (components/QuestionScreens.tsx QuestionHeader). */
 @media (prefers-reduced-motion: reduce) {
   .quiz-banner::after,
   .quiz-banner-ico {
@@ -1024,38 +1014,10 @@
   gap: 9px;
   margin-top: 6px;
 }
-.call-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: var(--radius-card);
-  background: var(--cb-primary);
-  color: var(--cb-white);
-  font-family: var(--font-mono);
-  font-size: calc(11px * var(--fs-scale));
-}
-.call-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--cb-secondary);
-  flex-shrink: 0;
-  animation: callPulse 1.6s ease-in-out infinite;
-}
-@keyframes callPulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-.call-label {
-  flex: 1;
-  min-width: 0;
-}
+/* Смуга дзвінка (.call-bar/.call-dot) прибрана 2026-09-23: її місце
+   зайняла шапка чату (.chat-head нижче) з аватаром і імʼям
+   співрозмовника. Таймер (.call-time) переїхав у неї ж. */
+
 .call-time {
   font-variant-numeric: tabular-nums;
 }
@@ -1098,45 +1060,136 @@
   opacity: 0.75;
   margin-bottom: 3px;
 }
-/* "Ви" — фірмовий зелений, клієнт — світлий: класична асиметрія чату,
-   щоб з першого погляду було видно, чия це репліка. */
+/* ---- Ряд чату ----
+   Сторони розвернуто як у справжньому месенджері (рішення користувача
+   2026-09-23): ВЛАСНІ репліки праворуч, співрозмовник ліворуч із
+   аватаром. Раніше було дзеркально, і саме через це екран не читався як
+   переписка — у Telegram/WhatsApp/iMessage «я» завжди праворуч. */
+.chat-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  /* Репліки одного голосу підряд тримаються щільніше — розрив між
+     ГОЛОСАМИ більший за розрив усередині серії, так око само розбиває
+     стрічку на репліки. Працює разом з .starts нижче. */
+  margin-top: -5px;
+}
+.chat-row.starts {
+  margin-top: 0;
+}
+.chat-row.mine {
+  flex-direction: row-reverse;
+}
+.chat-row.theirs {
+  justify-content: flex-start;
+}
+/* «Порада» й «ремарка» — не учасники розмови, а вставки автора. У
+   месенджерах таке малюють службовим повідомленням по центру, а не
+   чиєюсь реплікою. */
+.chat-row.aside {
+  justify-content: center;
+  margin-top: 4px;
+}
+.chat-row.aside .bubble {
+  max-width: 100%;
+  text-align: center;
+}
+.chat-avatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--cb-secondary);
+  color: var(--cb-white);
+  font-family: var(--font-display);
+  font-size: calc(14px * var(--fs-scale));
+  line-height: 1;
+}
+/* Аватар біля репліки — менший за той, що в шапці, і показується лише в
+   ПЕРШОЇ репліки серії. У решти лишається порожній кружечок-розпірка:
+   так усі бульбашки серії стоять по одній лінії, а аватар не
+   повторюється (той самий прийом, що в Telegram). */
+.chat-avatar.sm {
+  width: 26px;
+  height: 26px;
+  font-size: calc(11.5px * var(--fs-scale));
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+.chat-row.starts .chat-avatar.sm {
+  background: var(--cb-support-60);
+  color: var(--cb-black);
+}
+.chat-avatar.sm:empty {
+  background: none;
+}
+
+/* Шапка чату: з ким розмова. Стоїть замість колишньої смуги дзвінка —
+   таймер лишився праворуч, бо діалог у курсі це все-таки візит/дзвінок. */
+.chat-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  border: var(--border-w) solid var(--line);
+}
+.chat-head-txt {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+.chat-head-txt b {
+  font-size: calc(13.5px * var(--fs-scale));
+}
+.chat-head-txt span {
+  font-size: calc(11.5px * var(--fs-scale));
+  color: var(--ink-soft);
+}
+
 .bubble.me {
-  align-self: flex-start;
   background: var(--cb-primary);
   color: var(--cb-white);
+  /* Кут «хвостика» з боку свого краю — класична форма бульбашки. */
+  border-bottom-right-radius: var(--radius-xs);
 }
-/* Усі співрозмовники — праворуч, навпроти власних реплік співробітника
-   (.bubble.me ліворуч). Відрізняються заливкою, щоб у діалозі на три
-   голоси було видно, хто саме говорить, не вчитуючись у підпис. */
+/* Співрозмовники різняться заливкою: у діалозі на три голоси видно, хто
+   говорить, ще до того, як прочитаєш підпис. */
+.bubble.client,
+.bubble.manager,
+.bubble.colleague {
+  border-bottom-left-radius: var(--radius-xs);
+}
 .bubble.client {
-  align-self: flex-end;
   background: var(--surface-1);
   border: var(--border-w) solid var(--line);
   color: var(--ink);
 }
 .bubble.manager {
-  align-self: flex-end;
   background: var(--cb-notification-light);
   border: 1px solid var(--cb-notification);
   color: var(--ink);
 }
 .bubble.colleague {
-  align-self: flex-end;
   background: var(--cb-support-40);
   border: 1px solid var(--cb-support-60);
   color: var(--ink);
 }
 .bubble.tip {
-  align-self: stretch;
-  max-width: 100%;
   background: var(--gold-soft);
   color: var(--ink);
+  font-size: calc(12.2px * var(--fs-scale));
 }
 .bubble.note {
-  align-self: stretch;
-  max-width: 100%;
   background: var(--green-tint);
   color: var(--ink);
+  font-size: calc(12.2px * var(--fs-scale));
 }
 .bubble.typing {
   padding: 13px;
@@ -1369,6 +1422,42 @@
 .tl-title {
   min-width: 0;
 }
+/* Плавне розкриття деталі кроку. grid-template-rows 0fr→1fr — єдиний
+   спосіб анімувати висоту, яку наперед не знаєш, без вимірювань у JS:
+   рядок сітки сам домовляється з вмістом, а overflow:hidden на дитині
+   обрізає його, поки рядок ще нульовий. max-height тут не годиться —
+   довелось би вгадувати «достатньо велике» число, і чим сильніше воно
+   перевищує реальну висоту, тим більше анімація «пробігає» порожнечу в
+   кінці. Браузери без підтримки такого переходу просто покажуть деталь
+   миттєво, як було раніше. */
+.tl-detail-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows var(--dur-base) var(--ease-premium), opacity var(--dur-fast) var(--ease-out),
+    padding-bottom var(--dur-base) var(--ease-premium);
+}
+.tl-detail-wrap.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  /* Нижній відступ живе ТУТ, а не на .tl-detail: padding входить у
+     мінімальну висоту елемента сітки, тож закритий крок лишав під собою
+     рівно ці 13px порожнечі (виміряно). На обгортці він анімується
+     разом з висотою й у закритому стані дорівнює нулю. */
+  padding-bottom: 13px;
+}
+.tl-detail-wrap > .tl-detail {
+  overflow: hidden;
+  /* Той самий бік тієї ж пастки: елемент сітки за замовчуванням не
+     стискається нижче власного вмісту (min-height:auto). */
+  min-height: 0;
+  padding-bottom: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-detail-wrap {
+    transition: none;
+  }
+}
 .tl-detail {
   padding: 0 4px 13px;
   font-size: calc(12.6px * var(--fs-scale));
@@ -1435,7 +1524,24 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 14px;
+}
+
+/* ---- Повітря навколо фото — ОДНЕ правило на всі типи екранів ----
+   Текст не має злипатись із знімком ні зверху, ні знизу (прохання
+   користувача 2026-09-23; почалось із гарячої точки, але виявилось
+   спільним: .cp-screen-media мала лише нижній відступ, а в інфо-блоку на
+   телефоні не було жодного).
+   Величина — ВИСОТА РЯДКА вступного тексту (14.5px × 1.5), а не кругле
+   число: так проміжок лишається «рядком порожнечі» й тоді, коли людина
+   змінила розмір шрифту повзунком (--fs-scale). Однаково згори й знизу —
+   фото читається як окремий блок, а не як шапка наступного абзацу. */
+.cp-screen-media,
+.cp-info-media,
+.hs-frame,
+.pins-frame,
+.ba-frame {
+  margin-top: calc(14.5px * var(--fs-scale) * 1.5);
+  margin-bottom: calc(14.5px * var(--fs-scale) * 1.5);
 }
 
 /* ---- Зум фото (lightbox) ---- */
@@ -1885,8 +1991,12 @@
     border: var(--border-w) solid var(--line);
   }
   /* Гаряча точка — виняток: зони задані у % від рамки, фото має
-     заповнювати рамку по ширині рівно так, як і на мобільному. */
-  .hs-frame .cp-img-wrap.is-loaded {
+     заповнювати рамку по ширині рівно так, як і на мобільному.
+     Фото з точками — рівно той самий випадок: якщо max-width звузить
+     знімок усередині рамки, точки поїдуть відносно того, що на ньому
+     зображено, бо рахуються у % ВІД РАМКИ. */
+  .hs-frame .cp-img-wrap.is-loaded,
+  .pins-frame .cp-img-wrap.is-loaded {
     max-width: none;
     border: none;
   }
@@ -1941,6 +2051,10 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    /* Тут фото — ЛІВА КОЛОНКА поруч із текстом, а не блок над ним: верхній
+       відступ (спільне правило вище) зсунув би знімок вниз відносно
+       тексту, з яким він має починатись на одній лінії. */
+    margin-top: 0;
   }
   .screen-component:has(> .cp-info-media + .cp-info-text) {
     display: grid;
@@ -2068,6 +2182,324 @@
 
 /* ---- Гаряча точка на фото (components/ScreenComponents.jsx
    HotspotScreen) ---- */
+/* ---- Фото з точками (ImagePinsScreen) ----
+   Пояснялка, а не питання: точки видно одразу, тап розкриває підпис
+   поруч із самою деталлю. Виноска поверх фото, а не панеллю знизу —
+   на телефоні панель відриває пояснення від того, про що воно. */
+.pins-frame {
+  position: relative;
+  display: block;
+  line-height: 0;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.pin {
+  position: absolute;
+  z-index: 2;
+  /* translate(-50%,-50%) — координати точки це її ЦЕНТР, як і в зон
+     hotspot: так автор ставить точку саме туди, куди тицьнув. */
+  transform: translate(-50%, -50%);
+  /* Ширину задає автор (у % кадру, інлайном), висоту — aspect-ratio: так
+     маркер лишається рівно круглим чи квадратним на будь-якому екрані.
+     Мінімум 26px — нижче пальцем не влучити навіть на маленькому фото. */
+  aspect-ratio: 1;
+  min-width: 26px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+  /* Контейнер потрібен, щоб цифра всередині масштабувалась разом із
+     маркером (cqw нижче): інакше на великому маркері лишався б дрібний
+     номер у центрі порожнього кола. */
+  container-type: inline-size;
+}
+/* Телефон — одна колонка: фото, під ним записи по порядку номерів.
+   Десктопну розкладку в три колонки додає @container нижче. */
+.pins-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.pin-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--cb-white);
+  /* Зелений, а не синій (рішення користувача 2026-09-23): фірмовий колір
+     і той самий, яким позначені всі «зроблено» в плеєрі. */
+  background: var(--cb-secondary);
+  color: var(--cb-white);
+  font-family: var(--font-mono);
+  /* clamp — щоб цифра не ставала ні нечитабельно дрібною на маленькому
+     маркері, ні велетенською на маркері в пів-кадру. */
+  font-size: clamp(10px, 42cqw, 22px);
+  line-height: 1;
+  box-shadow: var(--shadow-sm);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.pin.is-circle .pin-num {
+  border-radius: 50%;
+}
+.pin.is-square .pin-num {
+  border-radius: var(--radius-xs);
+}
+/* Перелив-підказка (.tap-next::after) малюється на САМІЙ кнопці, а вона
+   квадратна — заокруглення живе на .pin-num усередині. Без цих двох рядків
+   над круглою точкою грав квадратний блік (скарга користувача 2026-09-23). */
+/* КРИТИЧНО: .tap-next (підказка «тапни далі») ставить position:relative і
+   стоїть у файлі НИЖЧЕ за .pin, тобто перебиває його position:absolute.
+   Через це перша ще не відкрита точка — а вона завжди з .tap-next —
+   випадала з абсолютного позиціонування, ставала в звичайний потік під
+   фото й розтягувала рамку на свою висоту. Саме це виглядало як «точки в
+   прев'ю не там, де я їх поставив» (скарга користувача 2026-09-23;
+   виміряно: рамка 359×416 при фото 359×369, різниця рівно 47px = висота
+   точки). Повертаємо absolute явно й із більшою специфічністю. */
+.pin.tap-next {
+  position: absolute;
+}
+.pin.is-circle::after {
+  border-radius: 50%;
+}
+.pin.is-square::after {
+  border-radius: var(--radius-xs);
+}
+/* Спільний перелив зелений — а точка ТЕЖ зелена, тож на ній він не видно
+   зовсім (скарга користувача 2026-09-23). Тут світлий блік: по зеленому
+   кружечку він читається, і саме він кличе відкрити наступний номер. */
+.pin.tap-next::after {
+  background: linear-gradient(
+    100deg,
+    transparent 18%,
+    rgba(255, 255, 255, 0.28) 36%,
+    rgba(255, 255, 255, 0.72) 50%,
+    rgba(255, 255, 255, 0.28) 64%,
+    transparent 82%
+  );
+  background-size: 260% 100%;
+}
+/* Уже прочитана точка — темніша: видно, куди ще не заходив. */
+.pin.open .pin-num {
+  background: var(--green-700);
+}
+/* Точка, підпис якої зараз відкритий: обвідка товща й тінь помітніша —
+   видно, до чого саме належить попап. */
+.pin.is-active .pin-num {
+  border-width: 3px;
+  box-shadow: 0 0 0 3px var(--cb-overlay-10), var(--shadow-md);
+}
+.pin:focus-visible {
+  outline: none;
+}
+.pin:focus-visible .pin-num {
+  box-shadow: var(--cb-focus-ring);
+}
+/* Підпис біля самої точки — короткий заголовок і лише в натиснутої.
+   Повний текст живе в записі (.pin-note-card нижче), тож тут достатньо
+   назви: на телефоні кілька підписів одночасно просто закрили б фото. */
+.pin-chip {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 6px);
+  transform: translateY(-50%);
+  /* width:max-content ОБОВ'ЯЗКОВИЙ. Підпис лежить усередині самої точки, а
+     вона вузька (13% кадру): для абсолютного елемента доступна ширина — це
+     ширина батька мінус зсув, тобто тут узагалі від'ємна. Поки стояв
+     nowrap, текст просто вилазив за межі точки; щойно дозволили перенос —
+     рядок схлопнувся до однієї літери на рядок (скарга користувача
+     2026-09-23). max-content рахує ширину від самого тексту, а не від
+     батька.
+     Стеля в px, а не у vw: у прев'ю конструктора «вікном» є весь десктоп,
+     і 38vw дали б підпис, ширший за сам телефон. px тут масштабується
+     разом із мокапом (він на zoom), тож і там, і на справжньому телефоні
+     це однакова частка екрана. */
+  width: max-content;
+  max-width: 180px;
+  padding: 4px 8px;
+  border-radius: var(--radius-badge);
+  background: var(--cb-secondary);
+  color: var(--cb-white);
+  font-size: calc(11.8px * var(--fs-scale));
+  font-weight: 600;
+  line-height: 1.3;
+  /* Заголовок переноситься, а не обрізається трьома крапками: «Кольєретка
+     / Colla…» не називає нічого. Назви тут короткі, двох рядків вистачає,
+     а повний текст усе одно є в записі. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: var(--shadow-sm);
+  animation: pinChipIn var(--dur-fast) var(--ease-out) both;
+}
+/* Біля правого краю кадру підпис іде вліво — інакше рамка (overflow:
+   hidden) зрізала б його. */
+.pin-chip.to-left {
+  left: auto;
+  right: calc(100% + 6px);
+  animation-name: pinChipInLeft;
+}
+/* Підпис ВИЇЖДЖАЄ вбік із-під точки, а не просто проявляється: рух від
+   самої точки назовні читається як «ось що це таке», тоді як масштаб на
+   місці нічого не пояснював (прохання користувача 2026-09-23).
+   Напрямок протилежний тому, у який підпис відкривається: праворуч від
+   точки — виїзд зліва направо, ліворуч — навпаки. translateY(-50%) у
+   кожному кадрі обовʼязковий: він тримає підпис по центру точки. */
+@keyframes pinChipIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-10px);
+  }
+}
+@keyframes pinChipInLeft {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(10px);
+  }
+}
+
+/* Запис РОЗКРИВАЄТЬСЯ по висоті, а не зʼявляється готовою: інакше список
+   під фото стрибає, і незрозуміло, що саме додалось (прохання
+   користувача 2026-09-23). Анімація, а не transition: запис приходить у
+   DOM уже відкритою, тож переходити нема від чого — а @keyframes грає
+   одразу на монтуванні. 0fr→1fr — той самий приём, що й у кроків
+   таймлайну: висоту вмісту наперед не знаєш, а рядок сітки домовляється
+   з ним сам. */
+.pin-note-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+  animation: pinNoteOpen var(--dur-base) var(--ease-premium) forwards;
+}
+@keyframes pinNoteOpen {
+  to {
+    grid-template-rows: 1fr;
+  }
+}
+/* min-height:0 — елемент сітки за замовчуванням не стискається нижче
+   власного вмісту, і без цього запис зʼявлялась би одразу на повну. */
+.pin-note-slot > .pin-note-card {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Запис: номер + заголовок жирним + опис. Накопичуються в порядку
+   номерів точок. */
+.pin-note-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 11px;
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  border: var(--border-w) solid var(--line);
+  font-size: calc(12.8px * var(--fs-scale));
+  line-height: 1.45;
+}
+/* Точку вже знайшли на фото — її номер темніє так само, як сама точка.
+   Це єдиний слід прогресу в списку: тексти ж видно від початку. */
+.pin-note-card.is-seen .pin-note-num {
+  background: var(--green-700);
+}
+/* Запис точки, натиснутої щойно, — підсвічена: коли їх уже чотири, око
+   має одразу бачити, про яку саме йдеться. */
+.pin-note-card.is-active {
+  border-color: var(--cb-secondary);
+  background: var(--cb-secondary-tint);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pin-chip,
+  .pin-note-slot {
+    animation: none;
+    grid-template-rows: 1fr;
+  }
+}
+.pin-note-num {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--cb-secondary);
+  color: var(--cb-white);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--fs-scale));
+  line-height: 1;
+}
+.pin-note-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  /* Довге слово (артикул, посилання) не має розсовувати колонку. */
+  overflow-wrap: anywhere;
+}
+
+/* ---- До / після (BeforeAfterScreen) ----
+   Обидва знімки лежать одне на одному й міняють лише прозорість: кадр не
+   стрибає при перемиканні, навіть якщо фото трохи різних пропорцій, і
+   порівнюється РІВНО те саме місце. */
+.ba-frame {
+  position: relative;
+  display: grid;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.ba-layer {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-premium);
+}
+.ba-layer.is-on {
+  opacity: 1;
+}
+.ba-badge {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  left: 8px;
+  padding: 3px 9px;
+  border-radius: var(--radius-badge);
+  background: var(--cb-overlay-50);
+  color: var(--cb-white);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--fs-scale));
+  line-height: 1.5;
+  pointer-events: none;
+}
+.ba-badge.is-after {
+  background: var(--cb-secondary);
+}
+.ba-switch {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.ba-switch-btn {
+  flex: 1;
+  min-height: var(--btn-h-md);
+  padding: 0 var(--btn-px-md);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-btn);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: calc(13px * var(--fs-scale));
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.ba-switch-btn.is-on {
+  border-color: var(--cb-secondary);
+  background: var(--cb-secondary-tint);
+  color: var(--green-900);
+}
+.ba-switch-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+
 .hs-frame {
   position: relative;
   display: block;
@@ -2075,6 +2507,7 @@
   border-radius: var(--radius-card);
   overflow: hidden;
   cursor: crosshair;
+  /* Відступи згори й знизу — у спільному правилі для всіх фото вище. */
 }
 .hs-frame.answered {
   cursor: default;
@@ -2095,10 +2528,47 @@
   position: absolute;
   z-index: 2;
   transform: translate(-50%, -50%);
-  border: 2px solid var(--cb-secondary);
-  background: var(--cb-secondary-tint);
+  /* Правильне місце має ЧИТАТИСЬ як виділений об'єкт, а не як тонка
+     рамочка на фото (скарга користувача 2026-09-23). Звідси товща обвідка,
+     помітніша заливка (22% проти 10% у --cb-secondary-tint) і зовнішня
+     тінь: зона відділяється від знімка навіть на строкатому фоні. */
+  border: 3px solid var(--cb-secondary);
+  background: color-mix(in srgb, var(--cb-secondary) 22%, transparent);
+  box-shadow: 0 0 0 2px var(--cb-overlay-10), 0 6px 18px rgba(20, 22, 26, 0.22);
   pointer-events: none;
+  overflow: hidden;
   animation: hsZoneIn var(--dur-base) var(--ease-premium) both;
+}
+/* «Прожектор»: решта знімка приглушена, зона лишається яскравою. Робить
+   це ОДНА велетенська зовнішня тінь — вона заливає все навколо зони, а
+   .hs-frame з overflow:hidden обрізає її рівно по кадру. Ні окремого
+   оверлея, ні масок, ні другої копії фото (яка на мобільному інтернеті
+   коштувала б ще одне завантаження знімка).
+   Тільки для ОДНІЄЇ зони (клас solo ставить компонент): при кількох
+   правильних місцях тінь кожної зони приглушувала б сусідні, і жодне з
+   них не виглядало б знайденим. */
+.hs-zone.solo {
+  box-shadow: 0 0 0 2px var(--cb-overlay-10), 0 6px 18px rgba(20, 22, 26, 0.22), 0 0 0 9999px rgba(20, 22, 26, 0.55);
+}
+/* Той самий «перелив», що запрошує тапнути картку чи кнопку (.tap-next
+   вище) — тут він не запрошує, а СВІТИТЬ на знайдене місце. Градієнт і
+   темп ті самі, щоб рух по всьому застосунку читався як один почерк. */
+.hs-zone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 18%,
+    color-mix(in srgb, var(--cb-secondary) 17%, transparent) 36%,
+    color-mix(in srgb, var(--cb-secondary) 42%, transparent) 50%,
+    color-mix(in srgb, var(--cb-secondary) 17%, transparent) 64%,
+    transparent 82%
+  );
+  background-size: 260% 100%;
+  animation: cpTapSweep 5.2s ease-in-out infinite;
 }
 /* Форма зони — вибір автора курсу (lib/hotspotZones.ts): прямокутник чи
    овал. Заокруглення саме тут, а не в .hs-zone: старі зони приходять без
@@ -2139,7 +2609,8 @@
   background: var(--danger);
 }
 @media (prefers-reduced-motion: reduce) {
-  .hs-zone {
+  .hs-zone,
+  .hs-zone::after {
     animation: none;
   }
 }
@@ -2656,6 +3127,40 @@
   line-height: 1.4;
 }
 @container cp-card (min-width: 640px) {
+  /* ---- Фото з точками: записи ПОРУЧ із фото, у своїй половині ----
+     Кадр посередині, ліворуч і праворуч — колонки записів. Запис іде в ту
+     саму половину, у якій стоїть її точка (клас side-left/side-right
+     ставить компонент за координатою x): погляд не перетинає знімок, щоб
+     знайти пояснення. Якщо всі точки в одній половині, друга колонка
+     лишається порожньою — це свідомо: зв'язок «запис ↔ місце на фото»
+     важливіший за симетрію (рішення користувача 2026-09-23).
+     Фото займає рядки з 1-го й далі, щоб записи лягали поруч, а не під
+     ним; span 99 замість 1/-1 — кількість рядків тут неявна. */
+  .pins-layout {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 1.5fr) 1fr;
+    align-items: start;
+    column-gap: 12px;
+    row-gap: 9px;
+  }
+  .pins-layout > .pins-frame {
+    grid-column: 2;
+    grid-row: 1 / span 99;
+  }
+  .pin-note-slot.side-left {
+    grid-column: 1;
+  }
+  .pin-note-slot.side-right {
+    grid-column: 3;
+  }
+  /* Поруч із фото колонка вужча, ніж телефон на всю ширину, тож стеля
+     підпису менша. Знову в px, не у відсотках: відсоток тут рахувався б
+     від самої ТОЧКИ (вона — контейнер для абсолютного підпису), тобто від
+     ~47px, і рядок знову ліг би стовпчиком по літері. */
+  .pin-chip {
+    max-width: 150px;
+  }
+
   .cp-plan-square-facts {
     justify-content: center;
   }
@@ -2774,16 +3279,31 @@
 }
 
 /* ===================== Порядок кроків і відповідність (2026-09-17) =====================
-   Обидва типи БЕЗ перетягування: застосунок телефонний, а drag на дотику
-   промахується. Порядок рухається стрілками, пари зіставляються тапами —
-   найбільша можлива «зона влучання» це кнопка. */
+   «Відповідність» — БЕЗ перетягування: пари зіставляються тапами,
+   найбільша можлива "зона влучання" це кнопка (рішення чинне й далі, тут
+   не переглядалось).
+
+   «Порядок кроків» — перетягування (lib/useDragReorder.ts, 2026-09-23,
+   явне прохання користувача — "максимально юзер френдли drag and drop
+   без скачків/мигань/дерганей"). Попереднє рішення (стрілки, бо "drag на
+   дотику промахується") було свідомо переглянуте: ручка ВЕЛИКА (44px —
+   мінімальний тач-таргет) і touch-action:none на ній самій блокує
+   скрол-жест ще до старту перетягування, тож палець не змагається зі
+   сторінкою за той самий дотик. Клавіатурна альтернатива (стрілки
+   вгору/вниз на фокусі ручки) лишається — це не заміна доступності, а
+   рівноправний другий шлях (WCAG «dragging movements»). */
 .q-order {
+  position: relative;
   list-style: none;
   margin: 12px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  /* Змінна, а не літерал: .q-order-check нижче будує свій відступ ЯК
+     2× ЦЬОГО значення — якщо колись зміниться крок між кроками, відступ
+     до кнопки перерахується сам, без ризику розійтись. */
+  --q-order-gap: 8px;
+  gap: var(--q-order-gap);
   counter-reset: none;
 }
 .q-order-row {
@@ -2794,6 +3314,29 @@
   border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
+  /* Тягнути можна за БУДЬ-яке місце картки, не лише за ручку (прохання
+     користувача 2026-09-23) — тож курсор і блокування нативного
+     скрол-жесту стоять на всьому рядку, не лише на .q-order-handle. */
+  cursor: grab;
+  touch-action: none;
+  /* transform — лише для рядка "в руці" (інлайн-стиль dragDeltaY, JSX);
+     решта отримують той самий transform ТИМЧАСОВО від FLIP-анімації
+     (lib/useDragReorder.ts), тож властивість мусить бути дозволена всім,
+     не лише .is-dragging. */
+}
+.q-order-row:active {
+  cursor: grabbing;
+}
+/* Рядок "у руці": піднятий над рештою, не ловить власні pointer-події
+   (inше elementFromPoint у хуку бачив би сам рядок замість того, що під
+   ним), і йде за пальцем БЕЗ transition — миттєво, лямбда-затримка тут
+   читалась би як "відставання". */
+.q-order-row.is-dragging {
+  position: relative;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: var(--shadow-md);
+  transition: none;
 }
 .q-order-row.is-correct {
   border-color: var(--cb-success);
@@ -2823,39 +3366,38 @@
   text-align: left;
   overflow-wrap: anywhere;
 }
-.q-order-moves {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+/* Ручка перетягування — ЄДИНА точка, з якої стартує драг (клік по
+   тексту кроку нічого не тягне). 44px — не косметика: менший тач-таргет
+   на телефоні означає промахи пальцем повз саму ручку. */
+.q-order-handle {
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
-}
-.q-order-moves button {
-  width: var(--iconbtn-sm);
-  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: var(--border-w) solid var(--line);
+  border: none;
   border-radius: var(--radius-btn);
-  background: var(--surface-1);
-  cursor: pointer;
-  color: var(--ink);
+  background: none;
+  color: var(--ink-soft);
+  cursor: grab;
+  /* Без цього браузер на дотику встигає почати ВЛАСНИЙ скрол сторінки
+     раніше, ніж наш pointerdown отримає керування — палець "тягне" фон
+     замість рядка. Той самий прийом, що на канві зон hotspot
+     (app/styles/admin.css .adm-hotspot-canvas). */
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.q-order-moves button:disabled {
-  opacity: 0.35;
-  cursor: default;
+.q-order-handle:active {
+  cursor: grabbing;
 }
-.q-order-moves button svg {
-  width: 14px;
-  height: 14px;
+.q-order-handle svg {
+  width: 20px;
+  height: 20px;
 }
-/* Друга стрілка — та сама іконка, розвернута: окремої «вниз» у наборі
-   немає, а заводити її заради одного місця не варто. */
-.q-order-moves button:first-child svg {
-  transform: rotate(-90deg);
-}
-.q-order-moves button:last-child svg {
-  transform: rotate(90deg);
+.q-order-handle:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
 }
 .q-order-mark {
   flex-shrink: 0;
@@ -2871,6 +3413,16 @@
 .q-order-row.is-wrong .q-order-mark {
   color: var(--cb-fail);
 }
+/* Відступ до кнопки «Перевірити» — РІВНО вдвічі більший за крок між
+   самими рядками (--q-order-gap на .q-order вище), а не довільне число:
+   прохання користувача 2026-09-23, дивлячись на конкретний екран
+   (mechanics-15, модуль 12, «Питання», третій блок — «Порядок кроків» із
+   трьома кроками). Відступ між рядками 1→2→3 лишається тим, що є; лише
+   останній крок → кнопка отримує подвоєний повітряний прошарок, щоб
+   кнопка ЯВНО читалась як наступна дія, а не четвертий рядок списку. */
+.q-order-check {
+  margin-top: calc(var(--q-order-gap) * 2);
+}
 
 .q-match-hint {
   margin: 12px 0 6px;
@@ -2882,6 +3434,11 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   align-items: start;
+  /* Кнопка «Зіставте всі пари» йде одразу за колонками й злипалась із
+     останньою парою (скарга користувача 2026-09-23). Відступ — той самий,
+     що ми вже поставили навколо фото: ВИСОТА РЯДКА тексту, а не кругле
+     число, тож він лишається однаковим і при зміненому розмірі шрифту. */
+  margin-bottom: calc(14.5px * var(--fs-scale) * 1.5);
 }
 .q-match-col {
   list-style: none;

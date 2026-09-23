@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { QuestionIcon, ChevronIcon, CheckIcon, XIcon } from "@/components/icons";
+import { QuestionIcon, ChevronIcon, CheckIcon, XIcon, GripIcon } from "@/components/icons";
 import { ScreenMedia } from "@/components/ScreenComponents";
 import { shuffleArray } from "@/lib/coursePlayerLogic";
 import { renderRichMarks } from "@/lib/richText";
+import { useDragReorder } from "@/lib/useDragReorder";
 
 type Img = { url: string; caption?: string };
 type QuestionProps = {
@@ -40,7 +41,7 @@ function QuestionHeader({
   screenNumber,
   questionNumber,
   questionTotal,
-  typeLabel,
+  actionLabel,
   title,
   images,
   onZoomImage,
@@ -49,7 +50,8 @@ function QuestionHeader({
   screenNumber?: number;
   questionNumber?: number;
   questionTotal?: number;
-  typeLabel: string;
+  /** Що саме треба зробити — другим рядком у банері. */
+  actionLabel: string;
   title?: string | null;
   images?: Img[];
   onZoomImage?: (img: { src: string; alt: string }) => void;
@@ -65,18 +67,20 @@ function QuestionHeader({
         <span className="quiz-banner-ico" aria-hidden="true">
           <QuestionIcon />
         </span>
+        {/* Тип завдання — у САМОМУ банері, а не окремою зеленою плашкою
+            під ним (її прибрано, як раніше прибрали у звичайного питання):
+            дві плашки поспіль забирали висоту й повторювали одна одну, а
+            головне — «Порядок кроків» називав тип, але не казав, що з ним
+            робити. Тепер тут інструкція: «розташуйте у правильній
+            послідовності». */}
         <span className="quiz-banner-txt">
           <b>Блок питань</b>
-          {questionNumber && questionTotal ? (
-            <span>
-              Питання {questionNumber} з {questionTotal}
-            </span>
-          ) : (
-            <span>Дайте відповідь</span>
-          )}
+          <span>
+            {questionNumber && questionTotal ? `Питання ${questionNumber} з ${questionTotal} · ` : ""}
+            {actionLabel}
+          </span>
         </span>
       </div>
-      <span className="q-type-tag">{typeLabel}</span>
       {title && <h2 className="cp-h2">{renderRichMarks(title)}</h2>}
       {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       <ScreenMedia images={images} title={title} onZoomImage={onZoomImage} />
@@ -105,12 +109,15 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
   });
   const isAnswered = answer !== undefined;
 
-  function move(from: number, to: number) {
-    if (isAnswered || to < 0 || to >= order.length) return;
-    const next = [...order];
-    [next[from], next[to]] = [next[to], next[from]];
-    setOrder(next);
-  }
+  // Перетягування — lib/useDragReorder.ts: та сама механіка, що й у
+  // конструкторі (components/AdminCourseEditor.jsx OrderingFields), тут
+  // застосована до масиву ПОЗИЦІЙ (order), а не самих кроків: крок №2
+  // лишається кроком №2, міняється лише МІСЦЕ, на якому він стоїть.
+  const { containerRef, containerProps, registerRow, dragId, dragDeltaY, moveByKeyboard } = useDragReorder({
+    ids: order,
+    onReorder: setOrder,
+    disabled: isAnswered,
+  });
 
   function check() {
     if (isAnswered) return;
@@ -123,29 +130,47 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
         screenNumber={screenNumber}
         questionNumber={questionNumber}
         questionTotal={questionTotal}
-        typeLabel="Порядок кроків"
+        actionLabel="перетягніть блоки у правильній послідовності"
         title={component.title}
         lead={lead}
         images={images}
         onZoomImage={onZoomImage}
       />
 
-      <ol className="q-order">
+      <ol className="q-order" ref={containerRef as React.RefObject<HTMLOListElement>} {...containerProps}>
         {order.map((itemIndex, pos) => {
           const correctHere = isAnswered && itemIndex === pos;
+          const isDragging = dragId === itemIndex;
           return (
-            <li key={itemIndex} className={`q-order-row${isAnswered ? (correctHere ? " is-correct" : " is-wrong") : ""}`}>
+            <li
+              key={itemIndex}
+              ref={registerRow(itemIndex)}
+              data-drag-row
+              className={`q-order-row${isAnswered ? (correctHere ? " is-correct" : " is-wrong") : ""}${isDragging ? " is-dragging" : ""}`}
+              style={isDragging ? { transform: `translateY(${dragDeltaY}px)` } : undefined}
+            >
               <span className="q-order-num">{pos + 1}</span>
               <span className="q-order-text">{renderRichMarks(items[itemIndex]?.text)}</span>
               {!isAnswered && (
-                <span className="q-order-moves">
-                  <button type="button" onClick={() => move(pos, pos - 1)} disabled={pos === 0} aria-label="Вище">
-                    <ChevronIcon />
-                  </button>
-                  <button type="button" onClick={() => move(pos, pos + 1)} disabled={pos === order.length - 1} aria-label="Нижче">
-                    <ChevronIcon />
-                  </button>
-                </span>
+                <button
+                  type="button"
+                  className="q-order-handle"
+                  data-drag-handle
+                  aria-label={`Перетягніть, щоб змінити місце кроку «${items[itemIndex]?.text || pos + 1}» — або керуйте стрілками вгору/вниз`}
+                  // Клавіатурна альтернатива драгу (WCAG «dragging movements»):
+                  // фокус на ручці, стрілки рухають крок без жодного жесту.
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      moveByKeyboard(itemIndex, -1);
+                    } else if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      moveByKeyboard(itemIndex, 1);
+                    }
+                  }}
+                >
+                  <GripIcon />
+                </button>
               )}
               {isAnswered && (
                 <span className="q-order-mark" aria-hidden="true">
@@ -158,7 +183,7 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
       </ol>
 
       {!isAnswered && (
-        <button type="button" className="btn-primary-full" onClick={check}>
+        <button type="button" className="btn-primary-full q-order-check" onClick={check}>
           <span className="btn-label">Перевірити</span>
         </button>
       )}
@@ -247,15 +272,24 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
         screenNumber={screenNumber}
         questionNumber={questionNumber}
         questionTotal={questionTotal}
-        typeLabel="Відповідність"
+        actionLabel="зіставте пари"
         title={component.title}
         lead={lead}
         images={images}
         onZoomImage={onZoomImage}
       />
 
+      {/* Перша підказка пояснює МЕХАНІКУ цілком, а не лише поточний крок:
+          «Оберіть пункт ліворуч» саме по собі не казало, що буде далі й
+          навіщо (прохання користувача 2026-09-23). Далі підказка веде по
+          кроках, як і раніше. Стоїть просто над колонками — там, куди
+          дивиться рука, а не в банері нагорі. */}
       <p className="q-match-hint">
-        {isAnswered ? "Ваші пари" : activeLeft === null ? "Оберіть пункт ліворуч" : "Тепер оберіть пару праворуч"}
+        {isAnswered
+          ? "Ваші пари"
+          : activeLeft === null
+            ? "Натисніть пункт ліворуч, потім відповідний йому праворуч"
+            : "Тепер оберіть пару праворуч"}
       </p>
 
       <div className="q-match">
