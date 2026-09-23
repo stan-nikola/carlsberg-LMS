@@ -8,6 +8,8 @@ import {
   buildTeamRows,
   courseFunnels,
   parseTeamQuery,
+  pluralPeople,
+  reasonLabel,
   retriedEnrollmentIds,
   statusBar,
   subtreeIds,
@@ -88,12 +90,43 @@ describe("сегмент людини — worst-wins", () => {
 
   it("без призначень — поза полосою, але рахується окремо", () => {
     const data = raw({ employees: [employee({ id: 1 }), employee({ id: 2 })], courses: [course({ id: 1 })], enrollments: [enrollment({ id: 1, employeeId: 1, courseId: 1, status: "completed", passed: true, scorePercent: 90, completedAt: day(-2) })] });
-    const people = buildPeople(buildTeamRows(data, NOW), data, NOW);
-    const bar = statusBar(people);
+    const rows = buildTeamRows(data, NOW);
+    const people = buildPeople(rows, data, NOW);
+    const bar = statusBar(people, rows);
     expect(bar.noEnrollments).toBe(1);
     expect(bar.total).toBe(1);
     expect(bar.segments.find((s) => s.key === "on_track")?.count).toBe(1);
     expect(bar.segments.reduce((s, x) => s + x.count, 0)).toBe(bar.total);
+  });
+
+  it("полоса дає ДВА числа: людей у сегменті і курсів у цьому стані", () => {
+    // Одна людина з двома простроченими курсами: 1 людина, 2 курси —
+    // саме та розбіжність, через яку «Прострочено 7» читалось як курси.
+    const data = raw({
+      employees: [employee({ id: 1 }), employee({ id: 2 })],
+      courses: [course({ id: 1 }), course({ id: 2 })],
+      enrollments: [
+        enrollment({ id: 1, employeeId: 1, courseId: 1, status: "overdue", dueDate: day(-3) }),
+        enrollment({ id: 2, employeeId: 1, courseId: 2, status: "in_progress", dueDate: day(-1) }),
+        enrollment({ id: 3, employeeId: 2, courseId: 1, status: "completed", passed: true, scorePercent: 90, completedAt: day(-1) }),
+      ],
+    });
+    const rows = buildTeamRows(data, NOW);
+    const bar = statusBar(buildPeople(rows, data, NOW), rows);
+    const overdue = bar.segments.find((s) => s.key === "overdue")!;
+    expect(overdue.count).toBe(1);
+    expect(overdue.courses).toBe(2);
+    // «Неактивні» — властивість людини, курсів там не буває.
+    expect(bar.segments.find((s) => s.key === "inactive")?.courses).toBeNull();
+  });
+
+  it("підпис причини завжди називає одиницю", () => {
+    expect(reasonLabel("not_started", 1)).toBe("1 курс не розпочато");
+    expect(reasonLabel("overdue", 2)).toBe("2 курси прострочено");
+    expect(reasonLabel("overdue", 5)).toBe("5 курсів прострочено");
+    expect(pluralPeople(1)).toBe("людина");
+    expect(pluralPeople(3)).toBe("людини");
+    expect(pluralPeople(7)).toBe("людей");
   });
 });
 
@@ -115,6 +148,7 @@ describe("увага, матриця, воронки", () => {
     const top = attentionTop(people, rows, 5);
     expect(top[0].person.id).toBe(1);
     expect(top[0].reasons.map((r) => r.kind)).toEqual(["overdue", "not_started"]);
+    expect(top[0].reasons.map((r) => r.label)).toEqual(["1 курс прострочено", "1 курс не розпочато"]);
     expect(top[0].reasons[0].courseSlug).toBe("course-1");
     expect(top.some((t) => t.person.id === 2)).toBe(false);
   });

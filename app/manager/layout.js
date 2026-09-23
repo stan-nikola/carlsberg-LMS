@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { isManagerTier } from "@/lib/permissions";
-import { prisma } from "@/lib/prisma";
-import { isRecentlyAssigned } from "@/lib/progress";
+import { getHasNewCourses } from "@/lib/managerOverview";
 import { ManagerShell } from "@/components/ManagerShell";
 import { ManagerShellSkeleton } from "@/components/ManagerShellSkeleton";
 
@@ -24,23 +23,16 @@ async function ManagerGate({ children }) {
     redirect("/hub");
   }
 
-  // Маркер "нове" на бургер-меню й на "Курси" — той самий isRecentlyAssigned
-  // (lib/progress.js), що вже дає бейдж "Нове" на картках курсів у /hub:
-  // суто за датою призначення (assignedAt, ще не розпочато), без окремої
-  // таблиці "прочитано/непрочитано" — керівник теж Employee зі своїми
-  // enrollments, той самий сигнал підходить без змін.
+  // Маркер "нове" на "Курси" — той самий isRecentlyAssigned (lib/progress.js),
+  // що вже дає бейдж "Нове" на картках курсів у /hub: суто за датою
+  // призначення (assignedAt, ще не розпочато), без окремої таблиці
+  // "прочитано/непрочитано".
   //
-  // Раніше тут стояв getEmployeeEnrollments(employee.id) — повне дерево
-  // курс→модулі→екрани+лічильники+завершення модулів, побудоване для
-  // самого хаба навчання, заради ОДНОГО булевого прапорця (аудит
-  // швидкодії, 2026-09-19: цей layout виконується на КОЖЕН перехід між
-  // вкладками /manager, не лише раз). select — лише два поля, яких
-  // реально потребує isRecentlyAssigned.
-  const myEnrollments = await prisma.enrollment.findMany({
-    where: { employeeId: employee.id },
-    select: { assignedAt: true, status: true },
-  });
-  const hasNewCourses = myEnrollments.some((e) => isRecentlyAssigned(e));
+  // Рахується в кеш-межі (getHasNewCourses, lib/managerOverview.js), а не
+  // тут: isRecentlyAssigned читає поточний час, а це в рендері Server
+  // Component під Cache Components заборонено — помилка E1432 зривала
+  // гідратацію всього /manager (2026-09-23).
+  const hasNewCourses = await getHasNewCourses(employee.id);
 
   return (
     <ManagerShell hasNewCourses={hasNewCourses}>

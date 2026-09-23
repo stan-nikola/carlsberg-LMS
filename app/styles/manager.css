@@ -771,33 +771,26 @@ body:has(.manager-shell) {
   }
 }
 
-/* ---- Шапка дашборда (2026-09-23): полоса статусів + «Потребують уваги» ----
-   Замість п'яти KPI-плиток. Два блоки поруч на широкому екрані, у
-   стовпчик — на вузькому; margin як у колишнього .mgr-kpi-row (22px). */
-.mgr-overview-head {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
-  gap: 16px;
-  margin-bottom: 22px;
-}
-.mgr-status,
-.mgr-attention {
-  border: var(--border-w) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--surface-1);
-  padding: var(--card-pad-roomy);
-  min-width: 0;
-}
-.mgr-status-head {
+/* ---- «Стан команди» + «Потребують уваги» (2026-09-23) ----
+   Замість п'яти KPI-плиток. Обидві — ЗВИЧАЙНІ картки сітки
+   (.mgr-chart-card), тож рамку/фон/заголовок дає сама картка, а тут лише
+   вміст: інакше їх не можна було ні зменшити, ні перетягнути, ні
+   прибрати, а висоту їм диктував сусід по ряду. */
+.mgr-status-body {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
 }
-.mgr-status-head h2 {
-  font-size: 16px;
-  margin: 0;
+/* Дрібна примітка в заголовку картки («8 людей із призначеннями») —
+   праворуч, перед підказкою ⓘ (у .mgr-section h2 вона теж margin-left:auto). */
+.mgr-card-note {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.mgr-attention-all {
+  align-self: flex-start;
+  margin-top: 8px;
 }
 .mgr-status-bar {
   display: flex;
@@ -857,7 +850,7 @@ body:has(.manager-shell) {
 }
 .mgr-status-legend {
   list-style: none;
-  margin: 10px 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
@@ -874,6 +867,15 @@ body:has(.manager-shell) {
 }
 .mgr-status-legend-item b {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mgr-status-legend-label {
+  color: var(--ink-soft);
+}
+.mgr-status-legend-sub {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .mgr-status-legend-item.is-empty {
   color: var(--ink-soft);
@@ -987,60 +989,115 @@ body:has(.manager-shell) {
   outline: none;
 }
 
-/* ---- Матриця люди × курси ---- */
+/* ---- Матриця люди × курси ----
+   Щільна теплокарта: назви курсів вертикально (writing-mode), колонка
+   ~30px, липкі перший стовпчик і шапка, «тіні» на краях горизонтального
+   скролу — один і той самий вигляд на всіх екранах (рішення користувача,
+   2026-09-23). Власні тонкі поля замість .admin-table: у матриці важлива
+   щільність, а не повітря. */
 .mgr-matrix-wrap {
   overflow: auto;
   min-height: 0;
+  /* Класичний прийом «scroll shadows» (Lea Verou): дві білі «криючі»
+     плями прибиті до вмісту (background-attachment: local), дві тіні —
+     до контейнера (scroll). Поки є куди скролити, пляма від'їжджає й
+     тінь проступає — без JS і без окремих елементів. */
+  background:
+    linear-gradient(to right, var(--surface-1) 30%, transparent) left center / 28px 100% no-repeat local,
+    linear-gradient(to left, var(--surface-1) 30%, transparent) right center / 28px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--cb-overlay-10), transparent) left center / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--cb-overlay-10), transparent) right center / 12px 100% no-repeat scroll;
 }
 .mgr-matrix {
-  width: 100%;
+  width: auto;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
 }
 .mgr-matrix th,
 .mgr-matrix td {
-  padding: 4px 6px;
-  text-align: left;
+  /* Тонкі внутрішні поля — щоб у картку влізло більше курсів. */
+  padding: 2px 3px;
+  text-align: center;
   vertical-align: middle;
   font-size: 12px;
+  border-bottom: var(--border-w) solid var(--line);
+}
+.mgr-matrix tbody tr:last-child th,
+.mgr-matrix tbody tr:last-child td {
+  border-bottom: none;
 }
 .mgr-matrix thead th {
   position: sticky;
   top: 0;
   background: var(--surface-1);
-  z-index: 1;
-  /* .admin-table thead th — nowrap/uppercase: назви курсів тут мають
-     переноситись, інакше колонка обрізає їх до одного слова. */
+  z-index: 2;
+  /* .admin-table thead th — nowrap/uppercase: вертикальному підпису це
+     заважає, тож скидаємо. */
   white-space: normal;
   text-transform: none;
   letter-spacing: normal;
   vertical-align: bottom;
+  font-weight: 600;
+  color: var(--ink);
 }
-.mgr-matrix tbody th {
+/* Липкий перший стовпчик: ім'я видно і посеред горизонтального скролу.
+   z-index вищий у шапки-кута, щоб він не ховався під заголовками. */
+.mgr-matrix .mgr-matrix-corner {
   position: sticky;
   left: 0;
   background: var(--surface-1);
+  text-align: left;
   font-weight: 500;
-  max-width: 160px;
-  overflow-wrap: anywhere;
+  z-index: 1;
+  padding-right: 8px;
+  /* width:1% — класичний прийом для table-layout:auto: колонка сідає на
+     ширину свого вмісту, а ВЕСЬ надлишок ширини таблиці дістається
+     колонкам курсів (клітинки ширші, легше поцілити пальцем). Без цього
+     залишок забирала саме колонка імен — 256px під 124px тексту. */
+  width: 1%;
+  /* Тонка риска замість тіні — відокремлює липку колонку від решти. */
+  box-shadow: inset -1px 0 0 var(--line);
+}
+.mgr-matrix thead .mgr-matrix-corner {
+  z-index: 3;
+  vertical-align: bottom;
 }
 .mgr-matrix-course,
 .mgr-matrix-person {
   color: var(--ink);
   text-decoration: none;
-  display: block;
-  overflow-wrap: anywhere;
   font-weight: 600;
 }
-.mgr-matrix-course {
-  font-size: 11px;
-  line-height: 1.25;
-  min-width: 84px;
-  max-width: 120px;
-  /* break-word, не anywhere: у вузькій колонці anywhere рвав слова по
-     літерах («Ада/пта/ція»); таблиця й так скролиться по горизонталі. */
+.mgr-matrix-person {
+  /* Ширину задає САМ блок, а не max-width комірки: при table-layout:auto
+     max-width на th/td браузер ігнорує, і колонка імен розповзалась на
+     чверть картки. */
+  display: block;
+  max-width: 160px;
+  font-size: 12px;
+  line-height: 1.2;
   overflow-wrap: break-word;
-  hyphens: auto;
+}
+.mgr-matrix-course {
+  /* vertical-rl + rotate(180°) = читається знизу вгору, як у класичній
+     матриці навчання. sideways-lr дав би те саме одним рядком, але його
+     ще не підтримує частина браузерів. */
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+  display: block;
+  margin-inline: auto;
+  font-size: 11px;
+  line-height: 1.15;
+  font-weight: 500;
+  /* Стеля висоти шапки: довша назва обрізається з «…», повна — у title. */
+  max-height: 118px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mgr-matrix-course:hover,
 .mgr-matrix-person:hover,
@@ -1056,11 +1113,11 @@ body:has(.manager-shell) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-btn);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
   text-decoration: none;
   color: var(--cb-white);
 }
@@ -1589,14 +1646,26 @@ a.mgr-matrix-cell:focus-visible {
 .mgr-chart-card > h2 {
   flex: none;
 }
+/* Тіло картки займає решту висоти. overflow:auto потрібен лише коли
+   картку зменшили вручну або вміст уперся в стелю авто-висоти
+   (MAX_AUTO_CARD_H у ManagerDashboard.jsx) — інакше картка й так рівно
+   під вміст, і скрол не з'являється. */
 .mgr-chart-card > ul,
 .mgr-chart-card > .mgr-ring-grid,
 .mgr-chart-card > .mgr-first-try-body,
 .mgr-chart-card > .mgr-trend-row,
-.mgr-chart-card > .mgr-matrix-wrap {
+.mgr-chart-card > .mgr-matrix-wrap,
+.mgr-chart-card > .mgr-status-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+}
+/* Виняток із min-height:0 вище: у стовпчиків тренду висота задана у
+   ВІДСОТКАХ від доріжки, тож доріжка, що сіла по вмісту (самі лише
+   підписи), схлопувала графік у смужку — авто-висота картки рахувалась
+   уже по схлопнутому. Нижня межа доріжки та сама, що й у .mgr-trend-row. */
+.mgr-chart-card > .mgr-trend-row {
+  min-height: 100px;
 }
 /* Телефон: сітка вироджується в стовпчик, висота — по вмісту, ручні
    розміри й ручки вимкнені (рішення користувача, 2026-09-23); порядок і
@@ -1615,7 +1684,8 @@ a.mgr-matrix-cell:focus-visible {
   .mgr-chart-card > .mgr-ring-grid,
   .mgr-chart-card > .mgr-first-try-body,
   .mgr-chart-card > .mgr-trend-row,
-  .mgr-chart-card > .mgr-matrix-wrap {
+  .mgr-chart-card > .mgr-matrix-wrap,
+  .mgr-chart-card > .mgr-status-body {
     overflow: visible;
   }
   .mgr-chart-card > .mgr-matrix-wrap {

@@ -20,13 +20,7 @@ const REASON_PILL: Record<PersonSegment, string> = {
  */
 export function AttentionList({ items }: { items: AttentionItem[] }) {
   return (
-    <section className="mgr-attention" aria-label="Потребують уваги">
-      <div className="mgr-status-head">
-        <h2>Потребують уваги</h2>
-        <Link href="/manager/team" className="admin-btn-link">
-          Уся команда
-        </Link>
-      </div>
+    <>
       {items.length === 0 ? (
         <p className="admin-hint">Усі на графіку — нагадувати нікому.</p>
       ) : (
@@ -61,6 +55,9 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
           })}
         </ul>
       )}
-    </section>
+      <Link href="/manager/team" className="admin-btn-link mgr-attention-all">
+        Уся команда
+      </Link>
+    </>
   );
 }

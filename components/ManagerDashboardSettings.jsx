@@ -18,6 +18,8 @@ import { XIcon } from "@/components/icons";
  * "у людину" (СВ, щодня) чи "у контент/тренд по всій зоні" (T&D).
  */
 export const DASHBOARD_CARDS = [
+  { id: "status", label: "Стан команди (полоса)", group: "sv" },
+  { id: "attention", label: "Потребують уваги", group: "sv" },
   { id: "rings", label: "Показники команди (кільця)", group: "sv" },
   { id: "deadlines", label: "Дедлайни на горизонті", group: "sv" },
   { id: "scoreDist", label: "Розподіл балів", group: "sv" },

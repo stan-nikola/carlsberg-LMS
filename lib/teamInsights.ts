@@ -82,13 +82,45 @@ export type TeamPerson = {
   activeWeeks: number[];
 };
 
-export const SEGMENT_META: Record<PersonSegment, { label: string; short: string }> = {
-  overdue: { label: "Прострочено", short: "прострочено" },
-  behind: { label: "Відстають", short: "відстає" },
-  not_started: { label: "Не почали", short: "не почав" },
-  inactive: { label: "Неактивні", short: "неактивний" },
-  on_track: { label: "На графіку", short: "на графіку" },
+export const SEGMENT_META: Record<PersonSegment, { label: string }> = {
+  overdue: { label: "Прострочено" },
+  behind: { label: "Відстають" },
+  not_started: { label: "Не почали" },
+  inactive: { label: "Неактивні" },
+  on_track: { label: "На графіку" },
 };
+
+/** 1 курс / 2 курси / 5 курсів. */
+export function pluralCourses(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "курс";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "курси";
+  return "курсів";
+}
+
+/** 1 людина / 2 людини / 5 людей. */
+export function pluralPeople(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "людина";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "людини";
+  return "людей";
+}
+
+/**
+ * Підпис причини в списку «Потребують уваги». ОДИНИЦЯ ЗАВЖДИ НАЗВАНА:
+ * «не почав» без уточнення читалось як «людина не почала нічого», хоча
+ * означало «один її курс ще не розпочато» — і суперечило кільцю
+ * «Розпочали 100%» поруч (скарга користувача, 2026-09-23).
+ */
+export function reasonLabel(kind: PersonSegment, count: number): string {
+  if (kind === "overdue") return `${count} ${pluralCourses(count)} прострочено`;
+  if (kind === "behind") return `відстає: ${count} ${pluralCourses(count)}`;
+  if (kind === "not_started") return `${count} ${pluralCourses(count)} не розпочато`;
+  if (kind === "inactive") return "неактивний";
+  return "на графіку";
+}
 
 export const SEGMENT_ORDER: PersonSegment[] = ["overdue", "behind", "not_started", "inactive", "on_track"];
 
@@ -247,19 +279,33 @@ function personFrom(e: RawEmployee, rows: TeamRow[], weeks: Set<number> | undefi
 
 /* ---------------- Похідні для дашборда ---------------- */
 
-export type StatusBarSegment = { key: PersonSegment; label: string; count: number; href: string };
+/** `count` — ЛЮДИ (сегментація worst-wins, саме їм пишуть «Нагадати»);
+ *  `courses` — скільки призначень команди в цьому стані (null для
+ *  «неактивні»: це властивість людини, а не курсу). Два числа поруч, бо
+ *  «Прострочено 7» без одиниці читалось як 7 курсів, хоча курсів 8
+ *  (скарга користувача, 2026-09-23). */
+export type StatusBarSegment = { key: PersonSegment; label: string; count: number; courses: number | null; href: string };
 
-export function statusBar(people: TeamPerson[]): { segments: StatusBarSegment[]; total: number; noEnrollments: number } {
+export function statusBar(people: TeamPerson[], rows: TeamRow[]): { segments: StatusBarSegment[]; total: number; noEnrollments: number } {
   const counts = new Map<PersonSegment, number>(SEGMENT_ORDER.map((k) => [k, 0]));
   let noEnrollments = 0;
   for (const p of people) {
     if (p.segment == null) noEnrollments += 1;
     else counts.set(p.segment, (counts.get(p.segment) || 0) + 1);
   }
+  const unfinished = rows.filter((r) => r.status !== "completed");
+  const courseCounts: Record<PersonSegment, number | null> = {
+    overdue: unfinished.filter((r) => r.isOverdue).length,
+    behind: unfinished.filter((r) => !r.isOverdue && r.schedule === "behind").length,
+    not_started: unfinished.filter((r) => !r.isOverdue && r.schedule !== "behind" && r.status === "not_started").length,
+    inactive: null,
+    on_track: rows.filter((r) => r.status === "completed" || (!r.isOverdue && r.schedule !== "behind" && r.status !== "not_started")).length,
+  };
   const segments = SEGMENT_ORDER.map((key) => ({
     key,
     label: SEGMENT_META[key].label,
     count: counts.get(key) || 0,
+    courses: courseCounts[key],
     href: `/manager/team?status=${key}`,
   }));
   return { segments, total: people.length - noEnrollments, noEnrollments };
@@ -268,6 +314,8 @@ export function statusBar(people: TeamPerson[]): { segments: StatusBarSegment[];
 export type AttentionReason = {
   kind: PersonSegment;
   label: string;
+  /** Скільки курсів у цьому стані (для «неактивний» — 0). */
+  count: number;
   courseId: number | null;
   courseSlug: string | null;
   courseTitle: string | null;
@@ -297,7 +345,8 @@ export function attentionTop(people: TeamPerson[], rows: TeamRow[], limit = ATTE
         if (!r) return;
         reasons.push({
           kind,
-          label: count > 1 ? `${count} ${SEGMENT_META[kind].short}` : SEGMENT_META[kind].short,
+          label: reasonLabel(kind, count),
+          count,
           courseId: r.courseId,
           courseSlug: r.courseSlug,
           courseTitle: r.courseTitle,
@@ -308,7 +357,15 @@ export function attentionTop(people: TeamPerson[], rows: TeamRow[], limit = ATTE
       pick("behind", (r) => r.schedule === "behind", person.counts.behind);
       if (person.counts.notStarted > 0) pick("not_started", (r) => r.status === "not_started", person.counts.notStarted);
       if (person.inactive && person.segment !== "on_track" && person.counts.total > person.counts.completed) {
-        reasons.push({ kind: "inactive", label: `не заходив(ла) ${person.lastSeenLabel === "ще не заходив(ла)" ? "жодного разу" : `з ${person.lastSeenLabel}`}`, courseId: null, courseSlug: null, courseTitle: null, dueDateLabel: null });
+        reasons.push({
+          kind: "inactive",
+          label: `не заходив(ла) ${person.lastSeenLabel === "ще не заходив(ла)" ? "жодного разу" : `з ${person.lastSeenLabel}`}`,
+          count: 0,
+          courseId: null,
+          courseSlug: null,
+          courseTitle: null,
+          dueDateLabel: null,
+        });
       }
       return { person, reasons };
     });

@@ -21,13 +21,21 @@ export function TeamMatrix({ data }: { data: TeamMatrixData }) {
   if (data.rows.length === 0) return <p className="admin-hint">Немає призначень у команді.</p>;
   return (
     <>
+      {/* Горизонтальний скрол із «тінями» на краях (CSS, .mgr-matrix-wrap):
+          перша колонка липка, тож ім'я завжди видно — той самий приклад, що
+          в матрицях навчання SAP SF/Cornerstone. */}
       <div className="mgr-matrix-wrap">
         <table className="admin-table mgr-matrix">
           <thead>
             <tr>
-              <th scope="col">Людина</th>
+              <th scope="col" className="mgr-matrix-corner">
+                Людина
+              </th>
               {data.courses.map((c) => (
                 <th key={c.id} scope="col">
+                  {/* Назва курсу вертикально (writing-mode) — колонка
+                      стискається до ~30px, тож у картку влазить удвічі-втричі
+                      більше курсів, ніж горизонтальним підписом. */}
                   <Link href={`/manager/team?view=courses&course=${encodeURIComponent(c.slug)}`} className="mgr-matrix-course" title={c.title}>
                     {c.title}
                   </Link>
@@ -38,7 +46,7 @@ export function TeamMatrix({ data }: { data: TeamMatrixData }) {
           <tbody>
             {data.rows.map(({ person, cells }) => (
               <tr key={person.id}>
-                <th scope="row">
+                <th scope="row" className="mgr-matrix-corner">
                   <Link href={`/manager/team/${person.id}`} prefetch={false} className="mgr-matrix-person">
                     {person.name}
                   </Link>
