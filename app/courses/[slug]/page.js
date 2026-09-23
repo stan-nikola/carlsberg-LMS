@@ -10,7 +10,7 @@ import {
   getSessionModules,
   moduleCooldownDays,
 } from "@/lib/courseContent";
-import { buildCoursePlan, toPlanView } from "@/lib/coursePlan";
+import { buildCoursePlan, toPlanView, toPlanInputs, toPacing } from "@/lib/coursePlan";
 import { pickQuestionPool } from "@/lib/retryPolicy";
 import { isScored } from "@/lib/componentTypes";
 import { isManagerTier } from "@/lib/permissions";
@@ -110,29 +110,15 @@ export default async function CoursePage({ params, searchParams }) {
   // методичці (щоб із неї можна було перепройти модуль, складений не на
   // 100%). Дати форматуються тут, на сервері: той самий toLocaleDateString
   // на клієнті в іншій таймзоні дав би інший текст і розбіжність гідратації.
+  // Темп і правила перескладання з конструктора (toPacing): рекомендовано
+  // днів на модуль, загальна пауза між модулями і «м'яке гальмо» повторних
+  // спроб (власні поля модуля мають пріоритет над курсом).
   const plan = buildCoursePlan(
-    course.modules.map((m) => ({
-      id: m.id,
-      title: m.title,
-      order: m.order,
-      cooldownDays: m.cooldownDays,
-      retakeCooldownDays: m.retakeCooldownDays,
-      componentCount: componentCount(m),
-      retryFreeAttempts: m.retryFreeAttempts,
-      retryCooldownHours: m.retryCooldownHours,
-    })),
+    toPlanInputs(course.modules, componentCount),
     completions,
     { assignedAt: enrollment.assignedAt, dueDate: enrollment.dueDate },
     new Date(),
-    // Темп і правила перескладання з конструктора: рекомендовано днів на
-    // модуль, загальна пауза між модулями і «м'яке гальмо» повторних
-    // спроб (власні поля модуля мають пріоритет над курсом).
-    {
-      moduleDays: course.moduleDays ?? null,
-      pauseDays: course.modulePauseDays ?? null,
-      retryFreeAttempts: course.retryFreeAttempts ?? null,
-      retryCooldownHours: course.retryCooldownHours ?? null,
-    }
+    toPacing(course)
   );
   const planView = toPlanView(plan, course.certificateEnabled !== false);
 

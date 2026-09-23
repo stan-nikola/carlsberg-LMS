@@ -1,6 +1,7 @@
 "use client";
 
 import { cloneElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   ChevronIcon,
   TrendIcon,
@@ -20,16 +21,24 @@ import { CompletionRing } from "@/components/CompletionRing";
 import { medalTier } from "@/lib/progress";
 import { PageSkeleton, LinesSkeleton } from "@/components/Skeleton";
 import { Avatar } from "@/components/Avatar";
-import { StatusBadge } from "@/components/StatusBadge";
 import { ProfileCard } from "@/components/ProfileCard";
 import { MarqueeText } from "@/components/MarqueeText";
 import { ManagerDashboardSettings } from "@/components/ManagerDashboardSettings";
+import { EnrollmentRow, formatDuration } from "@/components/EnrollmentRow";
+import { TeamStatusBar } from "@/components/TeamStatusBar";
+import { pluralPeople } from "@/lib/teamInsights";
+import { AttentionList } from "@/components/AttentionList";
+import { TeamMatrix } from "@/components/TeamMatrix";
 
 // localStorage, не БД (рішення користувача, 2026-09-19) — вибір карток
 // живе лише в цьому браузері, на іншому пристрої дашборд знову стартує з
 // ролевого дефолту нижче. v1 — щоб можна було безпечно змінити формат, не
 // читаючи старий несумісний масив як валідний.
-const DASHBOARD_CARDS_STORAGE_KEY = "carls_manager_dashboard_cards_v1";
+// v2 (2026-09-23): у наборі з'явились "status"/"attention" — картки, яких
+// у збереженому v1-списку бути не могло, тож старий вибір не підходить:
+// людина з v1 просто не побачила б нових карток. Ключ змінено, дашборд
+// стартує з ролевого дефолту нижче.
+const DASHBOARD_CARDS_STORAGE_KEY = "carls_manager_dashboard_cards_v2";
 
 // Дефолт при ПЕРШОМУ заході (нема запису в localStorage — keeper сам
 // нічого не вмикав/вимикав) залежить від посади: Position.code (lib/
@@ -49,10 +58,14 @@ const DASHBOARD_CARDS_STORAGE_KEY = "carls_manager_dashboard_cards_v1";
 // вмикає її сам — тоді дерево підвантажується одразу для НЬОГО, а не
 // для всіх за замовчуванням.
 const ROLE_DEFAULT_CARDS = {
-  SV: ["rings", "deadlines", "scoreDist"],
-  ASM: ["rings", "deadlines", "scoreDist"],
+  // peopleStatus (матриця люди × курси) повернуто в дефолт СВ/АСМ
+  // (2026-09-23): дерева команди вона більше не потребує.
+  SV: ["status", "attention", "rings", "deadlines", "scoreDist", "peopleStatus"],
+  ASM: ["status", "attention", "rings", "deadlines", "scoreDist", "peopleStatus"],
 };
 const FALLBACK_ROLE_DEFAULT_CARDS = [
+  "status",
+  "attention",
   "rings",
   "deadlines",
   "hardestModules",
@@ -93,37 +106,53 @@ const LONG_PRESS_MS = 450;
 // тексту, а не намір тягнути: довге натискання скасовується.
 const LONG_PRESS_MOVE_TOLERANCE_PX = 8;
 
-// Ширина картки в "слотах" (1..4). Слот — умовна колонка ~230px: саме
-// стільки картка просить як базову ширину, а решту вільного місця в рядку
-// ділить пропорційно кількості слотів. Тобто число задає НЕ жорсткі
-// пікселі, а частку — рядки й далі заповнюються без дір, як домовлялись.
-const DASHBOARD_SPANS_STORAGE_KEY = "carls_manager_dashboard_spans_v1";
-const SPAN_SLOT_BASIS_PX = 230;
-const SPAN_SLOT_GAP_PX = 20;
-const MAX_CARD_SPAN = 4;
-// Скільки треба протягнути ручку, щоб додати/відняти слот.
-const SPAN_STEP_PX = SPAN_SLOT_BASIS_PX + SPAN_SLOT_GAP_PX;
-
-// Висота картки — окремий ключ від ширини: ширина задається в слотах
-// (частка рядка), а висота — у пікселях, кроком по сітці. Застосовується
-// як min-height, а НЕ height: так картка ніколи не обріже власний вміст
-// (правило "нічого не виходить за контейнер"), лише стане вищою за
-// природну висоту, якщо керівник так хоче.
-const DASHBOARD_HEIGHTS_STORAGE_KEY = "carls_manager_dashboard_heights_v1";
-const HEIGHT_STEP_PX = 20;
+// Сітка дашборда в ЮНІТАХ (2026-09-23, рішення користувача: як Grafana —
+// колонки по ширині контейнера, рядки фіксованої висоти, картка займає
+// W×H цілих юнітів, `grid-auto-flow: dense` заповнює дірки). Розміри
+// зберігаються в юнітах, тож один лейаут коректно перераховується на
+// будь-якому екрані; старі ключі spans_v1/heights_v1 (пікселі) ігноруються.
+// GRID_UNIT_PX/GRID_GAP_PX/GRID_ROW_PX ДЗЕРКАЛЯТЬ .mgr-charts у manager.css
+// (--mgr-grid-unit/--mgr-grid-gap/--mgr-row-h): JS рахує кількість
+// колонок і крок ручок, CSS малює — числа мають збігатись.
+const DASHBOARD_LAYOUT_STORAGE_KEY = "carls_manager_dashboard_layout_v2";
+const GRID_UNIT_PX = 240;
+const GRID_GAP_PX = 16;
+const GRID_ROW_PX = 112;
+const MAX_CARD_H = 8;
+// Стеля АВТО-висоти (рішення користувача, 2026-09-23): картка сама бере
+// стільки рядків сітки, скільки треба вмісту, але не більше — інакше одна
+// матриця на велику команду розтягнула б дашборд на три екрани. Те, що
+// вище стелі, скролиться всередині картки.
+const MAX_AUTO_CARD_H = 6;
+// Дефолт W×H на картку — ширина лишається за ним завжди, висота діє лише
+// як запасний варіант, поки авто-замір ще не відпрацював (перший кадр).
+const DEFAULT_CARD_SIZE = {
+  status: [2, 2],
+  attention: [2, 3],
+  rings: [2, 2],
+  trend: [2, 2],
+  deadlines: [1, 2],
+  scoreDist: [1, 2],
+  firstTry: [2, 2],
+  duration: [2, 2],
+  courseBreakdown: [2, 3],
+  hardestModules: [2, 3],
+  peopleStatus: [3, 4],
+  teamCompare: [2, 3],
+  hardestQuestions: [2, 3],
+};
 // Кільце (CompletionRing): звичайний розмір і межа, нижче якої відсоток
 // усередині вже не прочитати.
 const RING_MAX_PX = 108;
 const RING_MIN_PX = 54;
-const MAX_CARD_HEIGHT_PX = 900;
 // Наскільки можна зрушити вказівник, щоб це все ще вважалось кліком, а не
 // перетягуванням.
 const CLICK_SLOP_PX = 6;
 
-function readStoredHeights() {
+function readStoredLayout() {
   if (typeof window === "undefined") return {};
   try {
-    const raw = window.localStorage.getItem(DASHBOARD_HEIGHTS_STORAGE_KEY);
+    const raw = window.localStorage.getItem(DASHBOARD_LAYOUT_STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
@@ -132,21 +161,10 @@ function readStoredHeights() {
   }
 }
 
-function spanFlexStyle(span) {
-  const basis = span * SPAN_SLOT_BASIS_PX + (span - 1) * SPAN_SLOT_GAP_PX;
-  return { flexGrow: span, flexShrink: 1, flexBasis: `min(100%, ${basis}px)` };
-}
-
-function readStoredSpans() {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(DASHBOARD_SPANS_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
+/** Скільки колонок сітки вміщається в ширину контейнера — та сама
+ *  формула, що repeat(auto-fill, minmax(unit, 1fr)) у CSS. */
+function gridColumnsFor(width) {
+  return Math.max(1, Math.floor((width + GRID_GAP_PX) / (GRID_UNIT_PX + GRID_GAP_PX)));
 }
 
 function readStoredOrder() {
@@ -182,6 +200,8 @@ function mergeCardOrder(stored, canonical) {
 // колись з'явиться картка, якої тут нема, renderChartCards допише її в
 // кінець — дашборд не "втратить" її мовчки.
 const CANONICAL_CARD_IDS = [
+  "status",
+  "attention",
   "rings",
   "trend",
   "deadlines",
@@ -194,42 +214,6 @@ const CANONICAL_CARD_IDS = [
   "teamCompare",
   "hardestQuestions",
 ];
-
-const STATUS_META = {
-  not_started: { label: "Не розпочато", cls: "status-pill-neutral" },
-  in_progress: { label: "В процесі", cls: "status-pill-alert" },
-  overdue: { label: "Прострочено", cls: "status-pill-fail" },
-};
-
-// status="completed" саме по собі означає лише "пройшов до кінця" —
-// НЕ "склав". Прохідний бал налаштовується per-курс (Course.passThreshold,
-// дефолт 80% — той самий поріг, що вже рахує passed = scorePercent >=
-// course.passThreshold при генерації даних) — completed з passed:false
-// мусить бути червоним "Не складено", а не зеленим "Завершено", інакше
-// провалений курс візуально виглядає як успіх.
-function StatusPill({ status, passed }) {
-  if (status === "completed") {
-    return <StatusBadge passed={Boolean(passed)} />;
-  }
-  const meta = STATUS_META[status] || STATUS_META.not_started;
-  return <span className={`status-pill ${meta.cls}`}>{meta.label}</span>;
-}
-
-function formatDate(value) {
-  if (!value) return null;
-  return new Date(value).toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
-
-/** durationSeconds -> "12 хв" / "1 год 40 хв" — той самий формат, що вже
- * планувався для показу часу проходження в кабінеті керівника. */
-function formatDuration(seconds) {
-  if (seconds == null) return null;
-  const totalMinutes = Math.round(seconds / 60);
-  if (totalMinutes < 60) return `${totalMinutes} хв`;
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return minutes > 0 ? `${hours} год ${minutes} хв` : `${hours} год`;
-}
 
 /**
  * Колір кільця відносно решти кілець у тій самій сітці — не фіксований
@@ -261,113 +245,6 @@ function rateColor(pct, allValues) {
  */
 function ChartHint({ text }) {
   return <HintDot text={text} />;
-}
-
-function EnrollmentRow({ enrollment }) {
-  const date = formatDate(enrollment.completedAt);
-  const dueDate = formatDate(enrollment.dueDate);
-  const duration = formatDuration(enrollment.durationSeconds);
-  const [showAttempts, setShowAttempts] = useState(false);
-  const hasHistory = enrollment.attempts && enrollment.attempts.length > 1;
-
-  return (
-    <li className="mgr-enrollment-row">
-      <div className="mgr-enrollment-main">
-        {/* Перенос у 2 рядки, а не біжучий рядок: відколи курси лежать у
-            гумовій сітці (до 4 в ряд), картка вдвічі-втричі вужча за
-            колишній рядок на всю ширину, і MarqueeText прокручував би
-            назву КОЖНОГО курсу — список читався б як зламаний. */}
-        <span className="mgr-enrollment-title">{enrollment.course.title}</span>
-        <StatusPill status={enrollment.status} passed={enrollment.passed} />
-      </div>
-      <div className="mgr-enrollment-stats">
-        {enrollment.scorePercent != null && <span className="mgr-stat-chip">{enrollment.scorePercent}% балів</span>}
-        {date ? (
-          <span className="mgr-stat-chip">
-            <CalendarIcon /> {date}
-          </span>
-        ) : (
-          // Ще не завершено (overdue/in_progress/not_started) — дедлайн
-          // замість дати завершення, щоб рядок статистики НІКОЛИ не був
-          // порожнім (порожній рядок під заголовком — саме та картка, де
-          // заголовок курсу виглядав "збільшеним": йому просто нема з
-          // чим порівнятись поруч, хоча реальний розмір той самий 13.5px).
-          dueDate && (
-            <span className="mgr-stat-chip">
-              <CalendarIcon /> Дедлайн: {dueDate}
-            </span>
-          )
-        )}
-        {duration && (
-          <span className="mgr-stat-chip">
-            <ClockIcon /> {duration}
-          </span>
-        )}
-        {/* Серію правильних відповідей (longestCorrectStreak) тут більше не
-            показуємо — лишилась у базі та Excel-звітах (2026-09-17). */}
-        {/* Медаль за той самий бал, що вже показаний вище — золото/срібло/
-            бронза за порогом (100% / 95%+ / 90%+): наочний символ поруч із
-            цифрою. */}
-        {medalTier(enrollment.scorePercent) && (
-          <span className="mgr-stat-chip mgr-medal-chip" title={`${enrollment.scorePercent}% — медаль`}>
-            <MedalIcon tier={medalTier(enrollment.scorePercent)} />
-          </span>
-        )}
-      </div>
-      {/* Курс -> модулі: раніше тут закінчувалась інформація про людину на
-          рівні курсу в цілому — не було видно, який САМЕ модуль складено, а
-          який ще ні (лише фінальний бал за весь курс). Список модулів
-          завжди видимий (не під ще одним акордеоном) — це основна причина,
-          чому керівник розгортає людину, ховати саме це не варто.
-          ModuleCompletion.longestCorrectStreak — серія поспіль ПРАВИЛЬНИХ
-          відповідей у межах саме цього модуля (не всього курсу); для
-          завершень, записаних до появи цього поля, лишається null — не
-          показуємо чіп, а не вигадуємо число. */}
-      {/* Колонки бал / серія / медаль — у КОЖНОМУ рядку списку, якщо є
-          хоч в одному (порожні теж), інакше значення різних рядків
-          з'їжджали: «80% 🎯 4» без медалі ставав під «🎯 5 🏅» сусіда
-          (те саме рішення, що в CourseTile). */}
-      {enrollment.modules && enrollment.modules.length > 0 && (
-        <ul className="mgr-module-list">
-          {enrollment.modules.map((m, _i, all) => (
-            <li key={m.id} className={`mgr-module-row${m.passed === true ? " is-pass" : m.passed === false ? " is-fail" : " is-pending"}`}>
-              <span className="mgr-module-status-icon">
-                {m.passed === true ? <CheckIcon /> : m.passed === false ? <XIcon /> : <span className="mgr-module-dot" aria-hidden="true" />}
-              </span>
-              <span className="mgr-module-title">{m.title}</span>
-              {all.some((x) => x.scorePercent != null) && (
-                <span className="mgr-module-score">{m.scorePercent != null ? `${m.scorePercent}%` : ""}</span>
-              )}
-              {all.some((x) => medalTier(x.scorePercent)) && (
-                <span className="mgr-module-medal" title={medalTier(m.scorePercent) ? `${m.scorePercent}% — медаль за модуль` : undefined}>
-                  {medalTier(m.scorePercent) && <MedalIcon tier={medalTier(m.scorePercent)} />}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {hasHistory && (
-        <div className="mgr-attempts">
-          <button type="button" className="admin-btn-link" onClick={() => setShowAttempts((v) => !v)}>
-            {showAttempts ? "Сховати історію спроб" : `Історія спроб (${enrollment.attempts.length})`}
-          </button>
-          {showAttempts && (
-            <ul className="mgr-attempts-list">
-              {enrollment.attempts.map((a) => (
-                <li key={a.id} className="mgr-attempts-item">
-                  <span>{formatDate(a.completedAt)}</span>
-                  <span>{a.scorePercent}% балів</span>
-                  <span>{formatDuration(a.durationSeconds)}</span>
-                  <StatusBadge passed={Boolean(a.passed)} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </li>
-  );
 }
 
 function TeamNode({ node, summaryByEmployeeId, ratingByEmployeeId }) {
@@ -442,7 +319,9 @@ function TeamNode({ node, summaryByEmployeeId, ratingByEmployeeId }) {
           )}
 
           <Avatar name={node.name} src={node.avatarUrl} size="sm" />
-          <button type="button" className="mgr-team-name-btn" onClick={toggleDetail}>
+          {/* Ім'я — посилання на сторінку людини (/manager/team/[id],
+              2026-09-23); розкриття курсів на місці лишилось за шевроном. */}
+          <Link href={`/manager/team/${node.id}`} className="mgr-team-name-btn">
             <MarqueeText className="mgr-team-name">{node.name}</MarqueeText>
             <MarqueeText className="mgr-team-meta">
               {node.position?.name || "—"}
@@ -454,7 +333,7 @@ function TeamNode({ node, summaryByEmployeeId, ratingByEmployeeId }) {
                   реально означає їхню зону відповідальності. */}
               {node.territory && (node.position?.level ?? 99) <= 3 ? ` · ${node.territory.name}` : ""}
             </MarqueeText>
-          </button>
+          </Link>
         </div>
 
         {summary && (
@@ -654,47 +533,35 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // ініціалізатор з localStorage, інакше SSR-розмітка (без збереженого
   // порядку/ширини/висоти) розходиться з першим клієнтським рендером.
   const [storedOrder, setStoredOrder] = useState(null);
-  // Ширини, які керівник сам поставив ручкою (id -> слоти). Поки картки
-  // тут нема — діє ширина з розмітки/CSS, тож дашборд у всіх, хто нічого
-  // не тягнув, виглядає рівно як раніше.
-  const [cardSpans, setCardSpans] = useState({});
-  const [cardHeights, setCardHeights] = useState({});
-  // Одним ефектом підхоплюємо всі чотири збережені в localStorage
-  // налаштування одразу після монтування на клієнті — до цього моменту
-  // дашборд секунду показує SSR-дефолт (ролевий набір карток, розмітковий
-  // порядок/ширина/висота), потім перемикається на збережений вибір
-  // керівника. setState викликаємо лише для того, що РЕАЛЬНО є в
-  // localStorage — щоб не переписувати дефолт порожнім значенням там, де
-  // керівник іще нічого не налаштовував.
+  // Розміри в юнітах сітки, які керівник сам поставив ручками (id ->
+  // {w, h}). Поки картки тут нема — діє DEFAULT_CARD_SIZE.
+  const [cardLayout, setCardLayout] = useState({});
+  // Одним ефектом підхоплюємо всі збережені в localStorage налаштування
+  // одразу після монтування на клієнті — до цього моменту дашборд секунду
+  // показує SSR-дефолт (ролевий набір карток, розмітковий порядок/розмір),
+  // потім перемикається на збережений вибір керівника. setState викликаємо
+  // лише для того, що РЕАЛЬНО є в localStorage — щоб не переписувати
+  // дефолт порожнім значенням там, де керівник іще нічого не налаштовував.
   useEffect(() => {
     const storedCards = readStoredCards();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- одноразове читання localStorage після монтування, не синхронізація зі стейтом React
     if (storedCards) setCardOverride(storedCards);
     const order = readStoredOrder();
     if (order) setStoredOrder(order);
-    const spans = readStoredSpans();
-    if (Object.keys(spans).length > 0) setCardSpans(spans);
-    const heights = readStoredHeights();
-    if (Object.keys(heights).length > 0) setCardHeights(heights);
+    const layout = readStoredLayout();
+    if (Object.keys(layout).length > 0) setCardLayout(layout);
   }, []);
   const [resizeId, setResizeId] = useState(null);
   const resizeRef = useRef(null);
-  // Картки, у яких вміст НЕ доходить до низу (є куди тягнути висоту).
-  // Тільки їм показуємо нижню ручку: на картці, де вміст уже впирається
-  // в край, тягнути було нікуди — ручка стояла мертва (скарга
-  // користувача). Поруч тримаємо "природну" висоту кожної картки — нижче
-  // за неї ряд стискати не можна, інакше вміст обріжеться.
-  const [slackCardIds, setSlackCardIds] = useState(() => new Set());
-  // Дві різні "природні" висоти картки:
-  //  • naturalHeightsRef — СТИСНУТА (кільце в мінімумі) = жорстка підлога,
-  //    нижче якої вміст почав би обрізатись;
-  //  • fullHeightsRef — ЗВИЧАЙНА (кільце в повний розмір) = висота, на якій
-  //    ручна висота вже не потрібна, запис можна прибрати.
-  // Без другої картка з кільцем "відпружинювала": щойно висота доходила до
-  // стиснутої підлоги, запис вважався зайвим, кільце розгорталось назад — і
-  // картка знову ставала високою.
-  const naturalHeightsRef = useRef(new Map());
-  const fullHeightsRef = useRef(new Map());
+  // Скільки колонок сітки вміщається зараз і яка реальна ширина однієї —
+  // міряємо ResizeObserver-ом на самій секції (нижче): ширина картки в
+  // юнітах клампиться по колонках, ручка по X крокує по реальній ширині
+  // колонки, а не по номінальних 240px.
+  const chartsRef = useRef(null);
+  const [grid, setGrid] = useState({ cols: 4, colWidth: GRID_UNIT_PX });
+  // Висота кожної картки в рядках сітки, порахована з її ВМІСТУ
+  // (measureAutoHeights нижче). Ручна висота з cardLayout перекриває це.
+  const [autoHeights, setAutoHeights] = useState({});
   const [editMode, setEditMode] = useState(false);
   const [dragId, setDragId] = useState(null);
   const [dragDelta, setDragDelta] = useState({ x: 0, y: 0 });
@@ -738,119 +605,68 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     }
   }
 
-  function persistSpans(next) {
-    setCardSpans(next);
+  function persistLayout(next) {
+    setCardLayout(next);
     try {
-      window.localStorage.setItem(DASHBOARD_SPANS_STORAGE_KEY, JSON.stringify(next));
+      window.localStorage.setItem(DASHBOARD_LAYOUT_STORAGE_KEY, JSON.stringify(next));
     } catch {
       // Як і з рештою налаштувань дашборда — без localStorage просто не
       // переживе перезавантаження.
     }
   }
 
-  function persistHeights(next) {
-    setCardHeights(next);
-    try {
-      window.localStorage.setItem(DASHBOARD_HEIGHTS_STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // Як і решта налаштувань дашборда.
-    }
+  /** Розмір картки в юнітах. Ширина — ручна або дефолтна; висота —
+   *  ручна, інакше порахована з вмісту (autoHeights), інакше дефолт. */
+  function cardSize(id) {
+    const d = DEFAULT_CARD_SIZE[id] || [1, 2];
+    const s = cardLayout[id];
+    return { w: s?.w ?? d[0], h: s?.h ?? autoHeights[id] ?? d[1] };
   }
 
   /**
-   * Стеля розміру кільця (--mgr-ring-max) із реально доступної висоти
-   * усередині картки. Без неї кільце лишалось би 108px і задавало картці
-   * жорсткий мінімум висоти — ряд не стискався б навіть удвічі.
-   * RING_MIN_PX — нижче кільце вже нечитабельне (цифра всередині).
+   * Стеля розміру кільця (--mgr-ring-max): у сітці висота панелі задана
+   * юнітами, тож кільце має вміститись у неї, а не навпаки. Зменшуємо,
+   * доки тіло картки реально не перестане переповнюватись (краще трохи
+   * менше кільце, ніж скрол усередині картки з кільцями). RING_MIN_PX —
+   * нижче цифра всередині вже не читається.
    */
   function applyRingCaps() {
     for (const card of document.querySelectorAll("[data-card-id]")) {
       const rings = [...card.querySelectorAll(".mgr-ring")];
       if (rings.length === 0) continue;
       const setCap = (px) => rings.forEach((ring) => ring.style.setProperty("--mgr-ring-max", `${px}px`));
-      // Скільки картка займає САМА ПО СОБІ (без нав'язаної висоти: ані
-      // ручної, ані розтягнутої сусідом по рядку) при найменшому й при
-      // звичайному кільці. Різниця — це "ціна" повного кільця у висоті.
-      const savedAlignSelf = card.style.alignSelf;
-      const savedMinHeight = card.style.minHeight;
-      const savedHeight = card.style.height;
-      card.style.alignSelf = "flex-start";
-      card.style.minHeight = "";
-      card.style.height = "";
-      // offsetHeight — з тієї ж причини, що й у замірі підлоги: у режимі
-      // редагування картка повернута анімацією, і rect бреше.
-      setCap(RING_MIN_PX);
-      const atMin = card.offsetHeight;
-      setCap(RING_MAX_PX);
-      const atMax = card.offsetHeight;
-      card.style.alignSelf = savedAlignSelf;
-      card.style.minHeight = savedMinHeight;
-      card.style.height = savedHeight;
-      // Фактична висота картки в розкладці (уже з урахуванням ручної
-      // висоти й вирівнювання рядка) — скільки місця реально є.
-      const actual = card.offsetHeight;
-      const ringRoom = atMax - atMin;
-      if (ringRoom <= 0) {
-        setCap(RING_MAX_PX);
-        continue;
-      }
-      const share = Math.max(0, Math.min(1, (actual - atMin) / ringRoom));
-      let cap = Math.round(RING_MIN_PX + (RING_MAX_PX - RING_MIN_PX) * share);
+      const body = card.querySelector(".mgr-ring-grid, .mgr-first-try-body") || card;
+      let cap = RING_MAX_PX;
       setCap(cap);
-      // Перевірка ділом: пропорція вище — оцінка, а у flex із переносом
-      // (кільце + легенда поруч) висота рядка може стрибнути не так, як
-      // очікувалось. Тому зменшуємо кільце доти, доки вміст справді не
-      // вміститься — краще трохи менше кільце, ніж обрізаний вміст.
-      for (let i = 0; i < 8 && cap > RING_MIN_PX && card.scrollHeight > card.clientHeight + 1; i++) {
-        cap = Math.max(RING_MIN_PX, cap - 8);
+      for (let i = 0; i < 12 && cap > RING_MIN_PX && body.scrollHeight > body.clientHeight + 1; i++) {
+        cap = Math.max(RING_MIN_PX, cap - 6);
         setCap(cap);
       }
     }
   }
 
-  /** Картки одного візуального ряду — у flex-wrap це ті, що стоять на
-   * тій самій вертикалі (offsetTop). Висота міняється саме рядком:
-   * сусіди в ряду й так завжди однакової висоти (align-items:stretch),
-   * тож тягнути "лише цю картку" було б ілюзією. */
-  function rowCardIds(id) {
-    const el = document.querySelector(`[data-card-id="${id}"]`);
-    if (!el) return [id];
-    const top = el.offsetTop;
-    return [...document.querySelectorAll("[data-card-id]")]
-      .filter((node) => Math.abs(node.offsetTop - top) < 4)
-      .map((node) => node.getAttribute("data-card-id"));
-  }
-
   function resetLayout() {
     setStoredOrder(null);
-    setCardSpans({});
-    setCardHeights({});
+    setCardLayout({});
     try {
       window.localStorage.removeItem(DASHBOARD_ORDER_STORAGE_KEY);
-      window.localStorage.removeItem(DASHBOARD_SPANS_STORAGE_KEY);
-      window.localStorage.removeItem(DASHBOARD_HEIGHTS_STORAGE_KEY);
+      window.localStorage.removeItem(DASHBOARD_LAYOUT_STORAGE_KEY);
+      // Старі піксельні ключі (до сітки в юнітах) — прибираємо заодно.
+      window.localStorage.removeItem("carls_manager_dashboard_spans_v1");
+      window.localStorage.removeItem("carls_manager_dashboard_heights_v1");
     } catch {
       // Немає localStorage — стан у пам'яті все одно скинуто.
     }
   }
 
-  // Дві ручки: на правому краю — ширина (кроком у слот), на нижньому —
-  // висота (кроком по сітці). Одна вісь на ручку, а не кутовий "хапок"
-  // одразу по двох: на дашборді майже завжди треба щось одне, і по одній
-  // осі промахнутись важче (той самий підхід, що в Grafana/Datadog для
-  // окремих країв плитки).
-  function handleResizePointerDown(e, id, defaultSpan, axis) {
+  // Дві ручки: на правому краю — ширина (кроком у колонку), на нижньому —
+  // висота (кроком у рядок сітки). Одна вісь на ручку, а не кутовий
+  // "хапок" одразу по двох: на дашборді майже завжди треба щось одне, і
+  // по одній осі промахнутись важче (той самий підхід, що в Grafana/
+  // Datadog для окремих країв плитки).
+  function handleResizePointerDown(e, id, axis) {
     e.stopPropagation(); // інакше секція почне перетягувати саму картку
-    const cardEl = e.currentTarget.closest("[data-card-id]");
-    resizeRef.current = {
-      id,
-      axis,
-      startX: e.clientX,
-      startY: e.clientY,
-      startSpan: cardSpans[id] ?? defaultSpan,
-      startHeight: cardHeights[id] ?? Math.round(cardEl?.getBoundingClientRect().height ?? 0),
-      rowIds: axis === "y" ? rowCardIds(id) : [id],
-    };
+    resizeRef.current = { id, axis, startX: e.clientX, startY: e.clientY, start: cardSize(id) };
     setResizeId(id);
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -863,37 +679,17 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   function handleResizePointerMove(e) {
     const resize = resizeRef.current;
     if (!resize) return;
+    const current = cardSize(resize.id);
+    let next;
     if (resize.axis === "y") {
-      const raw = resize.startHeight + (e.clientY - resize.startY);
-      const snapped = Math.min(MAX_CARD_HEIGHT_PX, Math.round(raw / HEIGHT_STEP_PX) * HEIGHT_STEP_PX);
-      // Нижня межа — найвищий ВМІСТ у цьому ряду: нижче ряд стискати
-      // нікуди, інакше довгий список обрізало б. Тому тягнути вгору можна
-      // рівно до природної висоти ряду, не далі.
-      const floor = Math.max(
-        HEIGHT_STEP_PX,
-        ...resize.rowIds.map((rowId) => naturalHeightsRef.current.get(rowId) ?? 0)
-      );
-      // Висота, на якій ручна висота вже нічого не змінює (вміст у
-      // звичайному розмірі). Усе, що нижче за неї, ЗБЕРІГАЄМО як власну
-      // висоту — інакше стиснута картка з кільцем розгорталась би назад.
-      const fullNatural = Math.max(
-        floor,
-        ...resize.rowIds.map((rowId) => fullHeightsRef.current.get(rowId) ?? 0)
-      );
-      const height = Math.max(floor, snapped);
-      const next = { ...cardHeights };
-      for (const rowId of resize.rowIds) {
-        if (height >= fullNatural) delete next[rowId];
-        else next[rowId] = height;
-      }
-      if (JSON.stringify(next) === JSON.stringify(cardHeights)) return;
-      persistHeights(next);
-      return;
+      const steps = Math.round((e.clientY - resize.startY) / (GRID_ROW_PX + GRID_GAP_PX));
+      next = { ...current, h: Math.min(MAX_CARD_H, Math.max(1, resize.start.h + steps)) };
+    } else {
+      const steps = Math.round((e.clientX - resize.startX) / (grid.colWidth + GRID_GAP_PX));
+      next = { ...current, w: Math.min(grid.cols, Math.max(1, resize.start.w + steps)) };
     }
-    const steps = Math.round((e.clientX - resize.startX) / SPAN_STEP_PX);
-    const nextSpan = Math.min(MAX_CARD_SPAN, Math.max(1, resize.startSpan + steps));
-    if (nextSpan === (cardSpans[resize.id] ?? resize.startSpan)) return;
-    persistSpans({ ...cardSpans, [resize.id]: nextSpan });
+    if (next.w === current.w && next.h === current.h) return;
+    persistLayout({ ...cardLayout, [resize.id]: next });
   }
 
   function handleResizePointerUp() {
@@ -1023,11 +819,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       const node = byId.get(id);
       if (!node) return null;
       const isDragging = dragId === id;
-      // Дефолт слотів — з розмітки: широкі картки (mgr-chart-card-wide)
-      // це 2 слоти, решта 1. Поки керівник не тягнув ручку, інлайнового
-      // стилю нема взагалі й ширину задає CSS, як і до цієї фічі.
-      const defaultSpan = node.props.className.includes("mgr-chart-card-wide") ? 2 : 1;
-      const span = cardSpans[id];
+      // W клампиться по реально доступних колонках (телефон — 1, вузьке
+      // вікно — 2…), збережене значення при цьому не втрачається.
+      const { w, h } = cardSize(id);
       // Хрестик у режимі перетягування — той самий жест, що прибирає
       // іконку з екрана iPhone: знімає галочку видимості цієї картки
       // (той самий toggleCard, що й чекбокс у шторці налаштувань, тож
@@ -1056,29 +850,23 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
               aria-orientation="vertical"
               aria-label="Змінити ширину картки"
               title="Потягніть, щоб зробити картку ширшою або вужчою"
-              onPointerDown={(e) => handleResizePointerDown(e, id, defaultSpan, "x")}
+              onPointerDown={(e) => handleResizePointerDown(e, id, "x")}
               onPointerMove={handleResizePointerMove}
               onPointerUp={handleResizePointerUp}
               onPointerCancel={handleResizePointerUp}
             />,
-            // Нижня ручка — лише де є запас або де висоту вже задали
-            // вручну (щоб свою ж зміну можна було відкотити). На картці,
-            // чий вміст і так упирається в край, тягнути нікуди — там
-            // ручка була б мертвою.
-            slackCardIds.has(id) || cardHeights[id] ? (
-              <span
-                key="mgr-card-resize-y"
-                className="mgr-card-resize mgr-card-resize-y"
-                role="separator"
-                aria-orientation="horizontal"
-                aria-label="Змінити висоту ряду"
-                title="Потягніть, щоб змінити висоту ряду (нижче за вміст не стиснеться)"
-                onPointerDown={(e) => handleResizePointerDown(e, id, defaultSpan, "y")}
-                onPointerMove={handleResizePointerMove}
-                onPointerUp={handleResizePointerUp}
-                onPointerCancel={handleResizePointerUp}
-              />
-            ) : null,
+            <span
+              key="mgr-card-resize-y"
+              className="mgr-card-resize mgr-card-resize-y"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Змінити висоту картки"
+              title="Потягніть, щоб змінити висоту картки (кроком у рядок сітки)"
+              onPointerDown={(e) => handleResizePointerDown(e, id, "y")}
+              onPointerMove={handleResizePointerMove}
+              onPointerUp={handleResizePointerUp}
+              onPointerCancel={handleResizePointerUp}
+            />,
           ]
         : null;
       return cloneElement(
@@ -1090,14 +878,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             resizeId === id ? " is-resizing" : ""
           }`,
           style: {
-            ...(span ? spanFlexStyle(span) : null),
-            // height І min-height разом: сама min-height картку НЕ
-            // стискає (вміст із повнорозмірним кільцем усе одно тримав би
-            // її вищою), а height задає рівно ту висоту, яку вибрав
-            // керівник — кільце під неї підлаштується (applyRingCaps).
-            // Значення вже обмежене стиснутою підлогою, тож вміст не
-            // обріжеться.
-            ...(cardHeights[id] ? { height: `${cardHeights[id]}px`, minHeight: `${cardHeights[id]}px` } : null),
+            // Юніти сітки; на телефоні CSS перекриває їх !important-ом
+            // (одна колонка, висота по вмісту).
+            gridColumn: `span ${Math.min(w, grid.cols)}`,
+            gridRow: `span ${h}`,
             ...(isDragging ? { transform: `translate(${dragDelta.x}px, ${dragDelta.y}px)` } : null),
           },
         },
@@ -1108,163 +892,80 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     });
   }
 
-  // Міряємо, де в картці лишається вільне місце під вмістом. Саме цим
-  // вирішується, показувати нижню ручку чи ні: тягнути висоту має сенс
-  // лише там, де є запас ("З першої спроби", кільця), а не там, де вміст
-  // уже впирається в край (довгі списки).
-  const spansKey = JSON.stringify(cardSpans);
-  const heightsKey = JSON.stringify(cardHeights);
-  // Зміна ширини вікна теж робить збережену висоту замалою (підписи
-  // переносяться, картки міняють ширину) — тоді перемірюємо й підтягуємо.
-  // Лічильник просто "штовхає" ефект нижче, власної логіки не має.
-  const [viewportTick, setViewportTick] = useState(0);
-  useEffect(() => {
-    let timer = 0;
-    function onResize() {
-      // setTimeout, а не requestAnimationFrame: rAF не виконується, поки
-      // сторінку не малюють (фонова вкладка, згорнуте вікно) — а перевірити
-      // висоти після зміни розміру треба саме тоді, коли на сторінку
-      // повернуться. Таймер зрештою спрацює в будь-якому разі.
-      clearTimeout(timer);
-      timer = setTimeout(() => setViewportTick((n) => n + 1), 120);
-    }
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      clearTimeout(timer);
+  const layoutKey = JSON.stringify(cardLayout);
+  // Кількість колонок і реальна ширина однієї — з ширини секції. Той
+  // самий поріг, що repeat(auto-fill, minmax(unit,1fr)) у CSS, тож JS і
+  // CSS завжди згодні, скільки колонок є. useLayoutEffect: клампінг W по
+  // колонках має спрацювати до першого пейнту, інакше на вузькому вікні
+  // на кадр з'являється картка ширша за сітку.
+  useLayoutEffect(() => {
+    const el = chartsRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const update = () => {
+      const width = el.clientWidth;
+      if (!width) return;
+      const cols = gridColumnsFor(width);
+      const colWidth = (width - (cols - 1) * GRID_GAP_PX) / cols;
+      setGrid((prev) => (prev.cols === cols && Math.abs(prev.colWidth - colWidth) < 1 ? prev : { cols, colWidth }));
     };
-  }, []);
-  // useEffect, НЕ useLayoutEffect: цей замір проходить по ВСІХ картках
-  // ДВІЧІ (offsetHeight зі стиснутим і з повним кільцем — форсований
-  // reflow щоразу) — на layout-ефекті це синхронно блокує ПЕРШИЙ пейнт
-  // після монтування, і саме воно тримало скелетон на екрані ~1с навіть
-  // коли дані вже прийшли з кешу (аудит "скелетони між екранами", 2026-
-  // 09-19; підтверджено заміром DOM: .sk-card лишався в дереві ще ~1040мс
-  // після появи реальних карток). Ціна — рідкісний одно-кадровий "стрибок"
-  // для того, хто вручну розтягував картку (нижче, коментар про зняття
-  // ручної висоти) замість гарантованого блокування пейнту щоразу.
-  useEffect(() => {
-    // Рахуємо ЗАВЖДИ, не лише в режимі редагування: збережена висота могла
-    // стати замалою після зміни ширини вікна чи набору карток — тоді вміст
-    // вивалюється за картку (скарга користувача: рядок "100%" у "Розподілі
-    // балів" опинився під карткою). Нижче така висота підтягується до
-    // мінімально можливої.
-    if (!state.data) return;
-    // IIFE, а не прямий виклик setState у тілі ефекту — той самий прийом,
-    // що й у ефекті hardestQuestions вище (react-hooks/set-state-in-effect).
-    (() => {
-      const nodes = [...document.querySelectorAll("[data-card-id]")];
-      // Синхронно знімаємо ручну висоту з УСІХ карток одразу (без цього
-      // якщо картку вже розтягли раніше, її вміст, центрований у флекс-
-      // обгортці, ЗАРАЗ стоїть нижче — і наступний замір "природної"
-      // висоти сам поповз би слідом за попереднім розтягуванням, звужити
-      // назад ставало б неможливо: "підлога" щоразу росла разом зі
-      // стелею). Читання getBoundingClientRect одразу після зняття
-      // форсує reflow ДО того, як браузер щось намалює (немає await/RAF
-      // між зняттям і поверненням стилю) — проміжний нерозтягнутий кадр
-      // ніхто не бачить.
-      // Фактична висота ДО того, як приберемо нав'язані розміри — з нею
-      // порівнюємо "стиснуту" висоту нижче.
-      const actualHeight = new Map(nodes.map((node) => [node.getAttribute("data-card-id"), node.offsetHeight]));
-      const savedMinHeight = nodes.map((node) => node.style.minHeight);
-      const savedHeight = nodes.map((node) => node.style.height);
-      nodes.forEach((node) => {
-        node.style.minHeight = "";
-        node.style.height = "";
-      });
-      // Кільця на час заміру — у найменший дозволений розмір: "природна"
-      // висота картки з кільцем має означати "наскільки вона МОЖЕ
-      // стиснутись", а не "скільки займає кільце зараз". Інакше підлога
-      // рахувалась би по 108px і картку не вийшло б зробити вдвічі
-      // нижчою, хоча кільце це дозволяє. Після заміру applyRingCaps()
-      // нижче поверне кільцям розмір під реально доступне місце.
-      const rings = [...document.querySelectorAll(".mgr-ring")];
-      const savedRingCap = rings.map((ring) => ring.style.getPropertyValue("--mgr-ring-max"));
-      rings.forEach((ring) => {
-        ring.style.setProperty("--mgr-ring-max", `${RING_MIN_PX}px`);
-      });
-      // Власна висота картки, коли її ніщо не тримає: ні ручна висота, ні
-      // вирівнювання рядка (align-self:flex-start знімає розтягування по
-      // найвищому сусідові). Це рівно та висота, нижче за яку вміст почав
-      // би обрізатись — рахувати її по "найнижчому видимому елементу"
-      // виявилось неточно: у центрованому вмісті (кільце+легенда) нижній
-      // край листа не враховує відступи знизу, і замір виходив на ~20px
-      // меншим за реальну потребу — картку обрізало.
-      const savedAlignSelf = nodes.map((node) => node.style.alignSelf);
-      nodes.forEach((node) => {
-        node.style.alignSelf = "flex-start";
-      });
-      // offsetHeight, а НЕ getBoundingClientRect().height: у режимі
-      // редагування картки ледь повернуті (анімація погойдування), і
-      // рамка поверненого прямокутника вища за сам блок — на широкій
-      // картці це давало зайвих ~9px і всі розрахунки "пливли".
-      const measureContentHeight = (node) => node.offsetHeight;
-      // Прохід 1 — кільця в мінімумі: жорстка підлога.
-      const natural = new Map(nodes.map((node) => [node.getAttribute("data-card-id"), measureContentHeight(node)]));
-      // Прохід 2 — кільця в повний розмір: висота, на якій ручна висота
-      // вже не потрібна.
-      rings.forEach((ring) => {
-        ring.style.setProperty("--mgr-ring-max", `${RING_MAX_PX}px`);
-      });
-      const full = new Map(nodes.map((node) => [node.getAttribute("data-card-id"), measureContentHeight(node)]));
-      const slack = new Set();
-      for (const node of nodes) {
-        const id = node.getAttribute("data-card-id");
-        const naturalH = natural.get(id) ?? 0;
-        // Ручку показуємо там, де тягнути реально є куди: поточна висота
-        // помітно більша за стиснуту (кільце в мінімумі, вміст упритул).
-        // Порівняння саме з фактичною висотою, а не з "порожнечею під
-        // вмістом": картка з кільцем виглядає щільною, але стиснутись
-        // може — кільце вміє зменшуватись.
-        if ((actualHeight.get(id) ?? naturalH) - naturalH > HEIGHT_STEP_PX) slack.add(id);
-      }
-      nodes.forEach((node, i) => {
-        node.style.minHeight = savedMinHeight[i];
-        node.style.height = savedHeight[i];
-        node.style.alignSelf = savedAlignSelf[i];
-      });
-      rings.forEach((ring, i) => {
-        if (savedRingCap[i]) ring.style.setProperty("--mgr-ring-max", savedRingCap[i]);
-        else ring.style.removeProperty("--mgr-ring-max");
-      });
-      naturalHeightsRef.current = natural;
-      fullHeightsRef.current = full;
-      // Самолікування: збережена висота, що стала МЕНШОЮ за мінімально
-      // можливу (вікно звузилось, підпис переніс рядок, картку звузили),
-      // підтягується назад — інакше вміст вилазить за картку.
-      const fixed = {};
-      let needsFix = false;
-      for (const [id, h] of Object.entries(cardHeights)) {
-        const floor = natural.get(id);
-        if (floor && h < floor) {
-          fixed[id] = floor;
-          needsFix = true;
-        } else {
-          fixed[id] = h;
-        }
-      }
-      if (needsFix) persistHeights(fixed);
-      // Кільця вміють стискатись — саме тому їхні картки можна зробити
-      // нижчими за "звичайний" розмір кільця (рішення користувача: "якщо
-      // картка дозволяє зменшитись — зменшуємо"). Стелю рахуємо тут, бо
-      // CSS її не бачить: .mgr-first-try-body — flex із переносом, і
-      // висоту рядка там диктує вміст, а не контейнер.
-      applyRingCaps();
-      setSlackCardIds((prev) => {
-        if (prev.size === slack.size && [...slack].every((id) => prev.has(id))) return prev;
-        return slack;
-      });
-    })();
-  }, [editMode, orderKey, spansKey, heightsKey, cardHeights, enabledCards, state.data, viewportTick]);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [state.data]);
 
-  // Стеля кільця залежить від висоти картки, тож перераховуємо її не лише
-  // в режимі редагування, а й просто при завантаженні зі збереженими
-  // висотами чи після зміни складу/порядку карток. useEffect (не
-  // useLayoutEffect) — той самий привід, що й у ефекті вище: ще один
-  // прохід offsetHeight по всіх картках не повинен блокувати пейнт.
+  /**
+   * АВТО-ВИСОТА (рішення користувача, 2026-09-23: «всі картки мають
+   * розтягуватись і стискатись залежно від вмісту»): міряємо, скільки
+   * картка займає САМА ПО СОБІ при своїй теперішній ширині, і переводимо
+   * це в рядки сітки. Так пустоти всередині не лишається, а краї
+   * лишаються рівними — на відміну від «рядів по вмісту», де сітка
+   * розсипається.
+   *
+   * Замір батчем, не по картці: спершу всім знімаємо нав'язану висоту
+   * (align-self + grid-row), потім ОДНИМ проходом читаємо offsetHeight,
+   * потім повертаємо стилі — два reflow замість двох десятків.
+   * Картки з РУЧНОЮ висотою не міряємо: вибір людини головніший.
+   */
+  function measureAutoHeights() {
+    const nodes = [...document.querySelectorAll("[data-card-id]")];
+    if (nodes.length === 0) return;
+    const saved = nodes.map((n) => [n.style.alignSelf, n.style.gridRow]);
+    nodes.forEach((n) => {
+      n.style.alignSelf = "start";
+      n.style.gridRow = "auto";
+    });
+    const measured = nodes.map((n) => n.offsetHeight);
+    nodes.forEach((n, i) => {
+      n.style.alignSelf = saved[i][0];
+      n.style.gridRow = saved[i][1];
+    });
+    const next = {};
+    nodes.forEach((n, i) => {
+      const id = n.getAttribute("data-card-id");
+      const rows = Math.ceil((measured[i] + GRID_GAP_PX) / (GRID_ROW_PX + GRID_GAP_PX));
+      next[id] = Math.min(MAX_AUTO_CARD_H, Math.max(1, rows));
+    });
+    setAutoHeights((prev) => {
+      const ids = new Set([...Object.keys(prev), ...Object.keys(next)]);
+      for (const id of ids) if (prev[id] !== next[id]) return next;
+      return prev;
+    });
+  }
+
+  // Перерахунок висот і стелі кільця — при зміні даних, набору/порядку
+  // карток, ручної розкладки чи ширини сітки. useEffect (не
+  // useLayoutEffect): прохід offsetHeight по картках не повинен блокувати
+  // перший пейнт (аудит "скелетони між екранами", 2026-09-19).
   useEffect(() => {
-    applyRingCaps();
-  }, [heightsKey, spansKey, orderKey, enabledCards, state.data]);
+    // IIFE, а не прямий виклик — той самий прийом, що й в інших ефектах
+    // цього файлу (react-hooks/set-state-in-effect): замір читає DOM і
+    // лише потім, за потреби, оновлює стан, це не синхронізація стейтів.
+    (() => {
+      measureAutoHeights();
+      applyRingCaps();
+    })();
+  }, [layoutKey, orderKey, enabledCards, state.data, grid, teamTree.data, hardestQuestions.items, barsAnimated]);
 
 
   // Клік повз картки виходить із режиму перетягування — як тап по вільному
@@ -1362,35 +1063,15 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     return () => observer.disconnect();
   }, [teamTreeVisible, state.data]);
 
-  // peopleStatus/teamCompare (обидві спираються на дерево команди) стоять
-  // ВИЩЕ секції "Детально по команді" — раніше при увімкненій картці
-  // дерево тягнулось одразу на монтуванні, навіть коли сама картка ще не
-  // в екрані (скарга користувача, 2026-09-20: "на телефоні на старте не
-  // видно, на десктопі теж якщо не прокручувати" — увімкнена картка не
-  // означає видима). Тепер у кожної своя IntersectionObserver-підв'язка
-  // до її ж DOM-вузла (ref нижче на самій картці), той самий rootMargin,
-  // що в "Детально по команді" — ensureTeamTree() ідемпотентний, тож
-  // байдуже, яка з трьох секцій підвантажить дерево першою.
-  const peopleStatusWanted = enabledCards.has("peopleStatus");
+  // teamCompare (спирається на дерево команди) стоїть ВИЩЕ секції
+  // "Детально по команді" — раніше при увімкненій картці дерево тягнулось
+  // одразу на монтуванні, навіть коли сама картка ще не в екрані (скарга
+  // користувача, 2026-09-20). Тепер у неї своя IntersectionObserver-
+  // підв'язка до її ж DOM-вузла, той самий rootMargin, що в "Детально по
+  // команді" — ensureTeamTree() ідемпотентний. Матриця люди × курси
+  // (peopleStatus) дерева більше не потребує — дані приходять з overview.
   const teamCompareWanted = enabledCards.has("teamCompare");
-  const peopleStatusSectionRef = useRef(null);
   const teamCompareSectionRef = useRef(null);
-  useEffect(() => {
-    if (!peopleStatusWanted) return undefined;
-    const el = peopleStatusSectionRef.current;
-    if (!el) return undefined;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          ensureTeamTree();
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "150px 0px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [peopleStatusWanted, state.data]);
   useEffect(() => {
     if (!teamCompareWanted) return undefined;
     const el = teamCompareSectionRef.current;
@@ -1472,25 +1153,6 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
 
   const flatTeam = useMemo(() => (teamTree.data ? flattenTree(teamTree.data) : []), [teamTree.data]);
 
-  // "Статус по людях" (нова картка, блок СВ) — кожен НЕ-керівник у видимій
-  // команді (в СВ таких зазвичай усі прямі підлеглі; в АСМ — усі польові
-  // люди під його СВ), з чотирма лічильниками статусу. Найзанепокоєніші
-  // (прострочено/не розпочато) — першими, і показуємо не більш ніж
-  // PEOPLE_STATUS_LIMIT рядків, щоб велика команда не розтягувала картку
-  // на весь екран (той самий компроміс, що вже є в hardestModules/
-  // courseBreakdown — top-N, не все підряд).
-  const peopleStatus = useMemo(() => {
-    if (!state.data || !teamTree.data) return { rows: [], hiddenCount: 0 };
-    const summaryMap = state.data.team.summaryByEmployeeId;
-    const rows = flatTeam
-      .filter((n) => !n.children || n.children.length === 0)
-      .map((n) => ({ node: n, summary: summaryMap[n.id] }))
-      .filter((r) => r.summary && r.summary.total > 0)
-      .sort((a, b) => b.summary.overdue + b.summary.notStarted - (a.summary.overdue + a.summary.notStarted));
-    const PEOPLE_STATUS_LIMIT = 15;
-    return { rows: rows.slice(0, PEOPLE_STATUS_LIMIT), hiddenCount: Math.max(0, rows.length - PEOPLE_STATUS_LIMIT) };
-  }, [state.data, teamTree.data, flatTeam]);
-
   // "Порівняння команд" (нова картка, блок АСМ) — кожен ПРЯМИЙ підлеглий
   // керівника (для АСМ — його СВ, для СВ — просто кожна людина окремо,
   // деградує до "команди з однієї людини", теж має сенс), з підсумком по
@@ -1545,7 +1207,8 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   }
 
   const { me, team } = state.data;
-  const { stats, summaryByEmployeeId, weeklyTrend, rating } = team;
+  const { stats, summaryByEmployeeId, weeklyTrend, rating, funnels } = team;
+  const funnelByCourseId = new Map((funnels || []).map((f) => [f.id, f]));
   const trendMax = Math.max(1, ...weeklyTrend.map((w) => w.count));
   // team.tree більше не приходить разом з рештою (ensureTeamTree/teamTree
   // вище) — БЕЗ фільтра показуємо вкладене дерево (teamTree.data, той
@@ -1554,7 +1217,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   const visibleNodes = sortNodes(filteredFlat ?? teamTree.data ?? [], sortBy, summaryByEmployeeId, rating.byEmployeeId);
   // Для rateColor нижче — 4 показники "Показники команди" ранжуються один
   // відносно одного, не за фіксованим per-метрика кольором.
-  const ringValues = [stats.completionRate, stats.passRate, stats.onTimeRate, stats.engagementRate];
+  const ringValues = [stats.completionRate, stats.passRate, stats.onTimeRate, stats.startedRate];
   // Бари в "Дедлайнах" і "Розподілі балів" міряються від найбільшої
   // корзини, а не від суми: корзини взаємовиключні, і при 5 корзинах
   // частка від суми зробила б усі бари однаково куцими.
@@ -1567,10 +1230,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   return (
     <div className="admin-page manager-page">
       <div className="mgr-page-header">
-        <div>
-          <div className="greeting">КАБІНЕТ КЕРІВНИКА</div>
-          <h1 className="hub-h1">Команда</h1>
-        </div>
+        <h1 className="greeting hub-greeting-h1">КАБІНЕТ КЕРІВНИКА</h1>
         <div className="mgr-page-header-actions">
           {/* Прямий лінк на /api/manager/export — браузер сам ініціює
               завантаження по Content-Disposition:attachment, без fetch+blob. */}
@@ -1620,40 +1280,21 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         />
       )}
 
-      <ProfileCard dbName={me.name} hasEmail={me.hasEmail} externalCode={me.externalCode} levelLabel={me.levelLabel} avatarUrl={me.avatarUrl} />
-
-      <div className="mgr-kpi-row">
-        <div className="mgr-kpi-tile">
-          <b>{stats.teamSize}</b>
-          <MarqueeText className="mgr-kpi-tile-label">у команді</MarqueeText>
-        </div>
-        <div className="mgr-kpi-tile">
-          <b>{stats.avgScore != null ? `${stats.avgScore}%` : "—"}</b>
-          <MarqueeText className="mgr-kpi-tile-label">середній бал</MarqueeText>
-        </div>
-        {/* Середній % команди від найкращих у своїх посадах + місце серед
-            команд керівників тієї ж посади (ASM серед ASM). */}
-        <div className="mgr-kpi-tile" title="Середній рейтинг підлеглих: % від найкращого у своїй посаді">
-          <b>{rating.avg}%</b>
-          <MarqueeText className="mgr-kpi-tile-label">
-            рейтинг команди{rating.rank ? ` · №${rating.rank} з ${rating.teams}` : ""}
-          </MarqueeText>
-        </div>
-        <div className={`mgr-kpi-tile${stats.overdueCount > 0 ? " mgr-kpi-tile-alert" : ""}`}>
-          <b>{stats.overdueCount}</b>
-          <MarqueeText className="mgr-kpi-tile-label">прострочено</MarqueeText>
-        </div>
-        {/* Замінено з "56% виконання команди" — той самий % тепер живе в
-            кільці "Виконано" нижче, дублювати число в квадратній плитці
-            й у кільці поруч не мало сенсу. Тут — конкретна кількість
-            людей (скільком написати), а не ще один відсоток. */}
-        <div className={`mgr-kpi-tile${stats.noActivityCount > 0 ? " mgr-kpi-tile-alert" : ""}`}>
-          <b>{stats.noActivityCount}</b>
-          <MarqueeText className="mgr-kpi-tile-label">без активності</MarqueeText>
-        </div>
-      </div>
+      {/* Клікабельна → "Досягнення" з підсвіткою картки рейтингу, той самий
+          підхід, що й на /hub (2026-09-22, рішення користувача:
+          "унифицировать подходы"). externalCode прибрано — ProfileCard.jsx
+          більше не приймає й не показує цей пропс (той самий фікс, що вже
+          був на /hub). */}
+      <ProfileCard
+        dbName={me.name}
+        hasEmail={me.hasEmail}
+        levelLabel={me.levelLabel}
+        avatarUrl={me.avatarUrl}
+        href="/manager/achievements?highlight=rating"
+      />
 
       <section
+        ref={chartsRef}
         className={`mgr-section mgr-charts${editMode ? " mgr-charts-edit" : ""}`}
         onPointerDown={handleCardPointerDown}
         onPointerMove={handleCardPointerMove}
@@ -1661,17 +1302,51 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         onPointerCancel={handleCardPointerUp}
       >
         {renderChartCards([
+          /* Замість п'яти KPI-плиток (2026-09-23): полоса статусів команди
+            — кожна людина рівно в одному сегменті, сегмент = посилання на
+            список. Звичайна картка сітки, а не окрема шапка: інакше її не
+            можна було ні зменшити, ні перетягнути, ні прибрати, а висоту
+            їй диктував сусід по ряду (скарга користувача: «дуже велика
+            картка, вона ужимається?»). */
+          ["status", enabledCards.has("status") && (
+        <div className="mgr-chart-card">
+          <h2>
+            <PeopleIcon /> Стан команди
+            <span className="admin-hint mgr-card-note">
+              {team.statusBar.total} {pluralPeople(team.statusBar.total)} із призначеннями
+            </span>
+            <ChartHint text="Кожна людина рівно в ОДНОМУ сегменті — за найгіршим своїм станом (прострочено → відстає → не почала → неактивна → на графіку). Число в сегменті — люди; друге число поруч у легенді — скільки призначень команди в цьому стані. Клік відкриває список саме цих людей." />
+          </h2>
+          <TeamStatusBar data={team.statusBar} />
+        </div>
+          )],
+
+          /* Топ-5 за терміновістю з кнопкою «Нагадати» — єдиний блок
+            дашборда, з якого можна одразу ДІЯТИ, а не лише дивитись. */
+          ["attention", enabledCards.has("attention") && (
+        <div className="mgr-chart-card">
+          <h2>
+            <PeopleIcon /> Потребують уваги
+            <ChartHint text="П'ятеро найтерміновіших: прострочення важать найбільше, далі відставання від графіка, не розпочате й відсутність на платформі. Чипи називають одиницю («2 курси прострочено»), а «Нагадати» надсилає сповіщення з готовим текстом за причиною." />
+          </h2>
+          <AttentionList items={team.attention} />
+        </div>
+          )],
+
           ["rings", enabledCards.has("rings") && (
         <div className="mgr-chart-card">
           <h2>
             Показники команди
-            <ChartHint text="Чотири різні знаменники: «Виконано» — частка призначень, доведених до кінця; «Складено» — з них ті, що набрали прохідний бал курсу; «Вчасно» — вкладені в дедлайн серед тих, де дедлайн уже вирішено; «Розпочали» — частка людей, що взялися бодай за один курс." />
+            <ChartHint text="Усі чотири кільця рахують ПРИЗНАЧЕННЯ (людина × курс), лише знаменники різні: «Виконано» — частка доведених до кінця; «Складено» — з них ті, що набрали прохідний бал курсу; «Вчасно» — вкладені в дедлайн серед тих, де дедлайн уже вирішено; «Розпочато» — ті, де є будь-який рух. Скільки ЛЮДЕЙ у якому стані — у полосі «Стан команди» вгорі. Клік веде до того, по чому треба діяти: «Вчасно» — до тих, хто не вклався, «Розпочато» — до ще не розпочатих." />
           </h2>
+          {/* Кожне кільце — посилання на список за тим самим критерієм:
+              «Вчасно» веде до доповнення (хто НЕ вчасно), «Розпочали» —
+              до тих, хто ще не почав: діяти треба саме по них. */}
           <div className="mgr-ring-grid">
-            <CompletionRing pct={stats.completionRate} label="Виконано" color={rateColor(stats.completionRate, ringValues)} />
-            <CompletionRing pct={stats.passRate} label="Складено (80%+)" color={rateColor(stats.passRate, ringValues)} />
-            <CompletionRing pct={stats.onTimeRate} label="Вчасно" color={rateColor(stats.onTimeRate, ringValues)} />
-            <CompletionRing pct={stats.engagementRate} label="Розпочали" color={rateColor(stats.engagementRate, ringValues)} />
+            <CompletionRing pct={stats.completionRate} label="Виконано" color={rateColor(stats.completionRate, ringValues)} href="/manager/team?view=courses&status=completed" />
+            <CompletionRing pct={stats.passRate} label="Складено (80%+)" color={rateColor(stats.passRate, ringValues)} href="/manager/team?view=courses&status=passed" />
+            <CompletionRing pct={stats.onTimeRate} label="Вчасно" color={rateColor(stats.onTimeRate, ringValues)} href="/manager/team?view=courses&timing=late" />
+            <CompletionRing pct={stats.startedRate} label="Розпочато" color={rateColor(stats.startedRate, ringValues)} href="/manager/team?view=courses&status=not_started" />
           </div>
         </div>
           )],
@@ -1691,12 +1366,12 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ) : (
             <div className="mgr-trend-row">
               {weeklyTrend.map((w) => (
-                <div
+                <Link
                   key={w.label}
-                  className="mgr-trend-col"
-                  // Розбивка по людях — прямо в підказці бару (хто саме
-                  // складав модулі того тижня), без окремого рядка на
-                  // людину в і так компактній картці.
+                  href={`/manager/team?week=${w.weekIndex}`}
+                  className="mgr-trend-col mgr-card-link"
+                  // Розбивка по людях — у підказці бару; клік — список тих,
+                  // хто складав модулі того тижня.
                   title={
                     w.people.length > 0
                       ? `${w.label}: ${w.count}\n${w.people.map((p) => `${p.name} — ${p.count}`).join("\n")}`
@@ -1711,7 +1386,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                   </div>
                   <span className="mgr-trend-count">{w.count}</span>
                   <span className="mgr-trend-label">{w.label}</span>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -1734,15 +1409,17 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ) : (
             <ul className="mgr-bar-list">
               {stats.deadlineHorizon.map((b) => (
-                <li key={b.key} className="mgr-bar-row">
-                  <MarqueeText className="mgr-bar-label">{b.label}</MarqueeText>
-                  <div className="mgr-bar-track">
-                    <div
-                      className={`mgr-bar-fill${b.alert && b.count > 0 ? " mgr-bar-fill-alert" : ""}`}
-                      style={{ width: `${barsAnimated ? (b.count / deadlineMax) * 100 : 0}%` }}
-                    />
-                  </div>
-                  <span className="mgr-bar-value">{b.count}</span>
+                <li key={b.key}>
+                  <Link href={`/manager/team?view=courses&due=${b.key}`} className="mgr-bar-row mgr-card-link">
+                    <MarqueeText className="mgr-bar-label">{b.label}</MarqueeText>
+                    <div className="mgr-bar-track">
+                      <div
+                        className={`mgr-bar-fill${b.alert && b.count > 0 ? " mgr-bar-fill-alert" : ""}`}
+                        style={{ width: `${barsAnimated ? (b.count / deadlineMax) * 100 : 0}%` }}
+                      />
+                    </div>
+                    <span className="mgr-bar-value">{b.count}</span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -1764,15 +1441,17 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ) : (
             <ul className="mgr-bar-list">
               {stats.scoreDistribution.map((b) => (
-                <li key={b.key} className="mgr-bar-row">
-                  <MarqueeText className="mgr-bar-label">{b.label}</MarqueeText>
-                  <div className="mgr-bar-track">
-                    <div
-                      className="mgr-bar-fill"
-                      style={{ width: `${barsAnimated ? (b.count / scoreDistMax) * 100 : 0}%` }}
-                    />
-                  </div>
-                  <span className="mgr-bar-value">{b.count}</span>
+                <li key={b.key}>
+                  <Link href={`/manager/team?view=courses&score=${b.key}`} className="mgr-bar-row mgr-card-link">
+                    <MarqueeText className="mgr-bar-label">{b.label}</MarqueeText>
+                    <div className="mgr-bar-track">
+                      <div
+                        className="mgr-bar-fill"
+                        style={{ width: `${barsAnimated ? (b.count / scoreDistMax) * 100 : 0}%` }}
+                      />
+                    </div>
+                    <span className="mgr-bar-value">{b.count}</span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -1784,7 +1463,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             відсоток при високому "Складено" означає, що команда бере курс
             не знанням, а повторами. */
           ["firstTry", enabledCards.has("firstTry") && (
-        <div className="mgr-chart-card mgr-chart-card-wide mgr-first-try-card">
+        <div className="mgr-chart-card mgr-first-try-card">
           <h2>
             <CheckIcon /> З першої спроби
             <ChartHint text="Частка призначень, де ПЕРША ж спроба була успішною, серед усіх, де спроба взагалі була. Ті, хто склав із другого разу або не склав досі, знижують показник. Низьке значення при високому «Складено» — курс беруть повторами, а не з розуміння." />
@@ -1800,8 +1479,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                   <span>склали одразу</span>
                 </li>
                 <li>
-                  <b>{stats.firstAttempt.retried}</b>
-                  <span>з другої та далі</span>
+                  <Link href="/manager/team?view=courses&retried=1" className="mgr-card-link">
+                    <b>{stats.firstAttempt.retried}</b>
+                    <span>з другої та далі</span>
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -1814,7 +1495,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             що його прогортали, а хвіст "понад 40 хв" — що матеріал важкий
             або незручно поданий. */
           ["duration", enabledCards.has("duration") && (
-        <div className="mgr-chart-card mgr-chart-card-wide">
+        <div className="mgr-chart-card">
           <h2>
             <ClockIcon /> Час на проходження
             <ChartHint text="Скільки часу займала одна спроба проходження. Поруч — МЕДІАНА, а не середнє: одна забута відкритою вкладка на три години зсунула б середнє так, що воно перестало б описувати команду. «У фокусі» — час, коли вкладка справді була активною; велика різниця між ним і загальним означає «відкрив і пішов»." />
@@ -1857,7 +1538,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             passThreshold), інакше курс без жодного складеного показував би
             оманливі 100% лише тому, що всі до нього "дійшли". */
           ["courseBreakdown", enabledCards.has("courseBreakdown") && (
-        <div className="mgr-chart-card mgr-chart-card-wide">
+        <div className="mgr-chart-card">
           <h2>
             <TrendIcon /> % складання по курсу
             <ChartHint text="Скільки людей РЕАЛЬНО склали курс (набрали його прохідний бал) із тих, кому він призначений. Той, хто дійшов до кінця й не набрав порогу, у зелену частину не рахується." />
@@ -1866,23 +1547,44 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <p className="admin-hint">Немає даних.</p>
           ) : (
             <ul className="mgr-bar-list">
-              {stats.courseBreakdown.map((c) => (
-                <li key={c.title} className="mgr-bar-row">
-                  {/* Перенос у 2 рядки, а не біжучий рядок: у сітці на 4
-                      колонки картка вдвічі вужча, і MarqueeText починав
-                      прокручувати КОЖНУ назву курсу — список читався як
-                      зламаний. */}
-                  <span className="mgr-bar-label mgr-bar-label-stack">
-                    <span className="mgr-bar-label-main">{c.title}</span>
-                  </span>
-                  <div className="mgr-bar-track">
-                    <div className="mgr-bar-fill" style={{ width: `${barsAnimated ? c.pct : 0}%` }} />
-                  </div>
-                  <span className="mgr-bar-value">
-                    {c.completed}/{c.total} · {c.pct}%
-                  </span>
-                </li>
-              ))}
+              {stats.courseBreakdown.map((c) => {
+                const f = funnelByCourseId.get(c.id);
+                const stage = (key, value, label) => (
+                  <Link key={key} href={`/manager/team?view=courses&course=${encodeURIComponent(c.slug)}&stage=${key}`} className="mgr-funnel-stage" title={label}>
+                    {value}
+                  </Link>
+                );
+                return (
+                  <li key={c.id}>
+                    {/* Перенос у 2 рядки, а не біжучий рядок: у вузькій
+                        картці MarqueeText прокручував би КОЖНУ назву. */}
+                    <div className="mgr-bar-row">
+                      <Link href={`/manager/team?view=courses&course=${encodeURIComponent(c.slug)}`} className="mgr-bar-label mgr-bar-label-stack mgr-card-link">
+                        <span className="mgr-bar-label-main">{c.title}</span>
+                      </Link>
+                      <div className="mgr-bar-track">
+                        <div className="mgr-bar-fill" style={{ width: `${barsAnimated ? c.pct : 0}%` }} />
+                      </div>
+                      <span className="mgr-bar-value">
+                        {c.completed}/{c.total} · {c.pct}%
+                      </span>
+                    </div>
+                    {/* Воронка курсу: призначено → почали → склали → 100%;
+                        кожна цифра — список саме тих призначень. */}
+                    {f && (
+                      <div className="mgr-funnel" aria-label="Воронка курсу">
+                        {stage("assigned", f.assigned, "Призначено")}
+                        <span aria-hidden="true">›</span>
+                        {stage("started", f.started, "Почали")}
+                        <span aria-hidden="true">›</span>
+                        {stage("passed", f.passed, "Склали")}
+                        <span aria-hidden="true">›</span>
+                        {stage("perfect", f.perfect, "На 100%")}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -1893,7 +1595,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             ТЕМИ, а не до людини чи курсу цілком. Подвійної ширини з тієї ж
             причини, що й "% складання по курсу" — назви модулів довгі. */
           ["hardestModules", enabledCards.has("hardestModules") && (
-        <div className="mgr-chart-card mgr-chart-card-wide">
+        <div className="mgr-chart-card">
           <h2>
             <CourseIcon /> Найскладніші модулі
             <ChartHint text="Модулі, які команда найчастіше провалює — за кількістю людей, що не набрали прохідний бал модуля. Сортування за кількістю провалів, а не за відсотком: «1 з 1» дало б 100% і витіснило б реально проблемний «3 з 8». Модулі без жодного провалу в список не потрапляють. «У середньому спроб» — скільки разів людині доводилось проходити модуль: 1.0 означає «склали з першого разу», більше — матеріал давався важко навіть тим, хто зрештою склав." />
@@ -1903,29 +1605,27 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ) : (
             <ul className="mgr-bar-list">
               {stats.hardestModules.map((m) => (
-                <li key={`${m.course}-${m.title}`} className="mgr-bar-row">
-                  {/* Назва модуля + курс ДВОМА рядками, а не одним через
-                      "·" з біжучим рядком, як у курсів вище: "модуль ·
-                      курс" удвічі довше за просту назву курсу й у ту саму
-                      колонку не влазить — MarqueeText там починав
-                      прокручувати кожен рядок, і список читався як
-                      зламаний. */}
-                  <span className="mgr-bar-label mgr-bar-label-stack">
-                    <span className="mgr-bar-label-main">{m.title}</span>
-                    {m.course ? <span className="mgr-bar-label-sub">{m.course}</span> : null}
-                    {m.avgAttempts > 1 ? (
-                      <span className="mgr-bar-label-sub">У середньому спроб: {m.avgAttempts}</span>
-                    ) : null}
-                  </span>
-                  <div className="mgr-bar-track">
-                    <div
-                      className="mgr-bar-fill mgr-bar-fill-alert"
-                      style={{ width: `${barsAnimated ? m.pct : 0}%` }}
-                    />
-                  </div>
-                  <span className="mgr-bar-value">
-                    {m.failed}/{m.total} · {m.pct}%
-                  </span>
+                <li key={m.id}>
+                  {/* Клік — хто саме провалив цей модуль. Назва модуля +
+                      курс ДВОМА рядками (у вузькій колонці одним не влазить). */}
+                  <Link href={`/manager/team?view=courses&module=${m.id}`} className="mgr-bar-row mgr-card-link">
+                    <span className="mgr-bar-label mgr-bar-label-stack">
+                      <span className="mgr-bar-label-main">{m.title}</span>
+                      {m.course ? <span className="mgr-bar-label-sub">{m.course}</span> : null}
+                      {m.avgAttempts > 1 ? (
+                        <span className="mgr-bar-label-sub">У середньому спроб: {m.avgAttempts}</span>
+                      ) : null}
+                    </span>
+                    <div className="mgr-bar-track">
+                      <div
+                        className="mgr-bar-fill mgr-bar-fill-alert"
+                        style={{ width: `${barsAnimated ? m.pct : 0}%` }}
+                      />
+                    </div>
+                    <span className="mgr-bar-value">
+                      {m.failed}/{m.total} · {m.pct}%
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -1936,43 +1636,16 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           /* Нова картка (блок СВ, 2026-09-19) — компактний статус по кожній
             людині без керівних підлеглих, а не агрегат: СВ щодня цікавить
             саме "хто ще не почав/прострочив", а не середнє по команді. */
+          /* Матриця люди × курси (2026-09-23) — замість «Статусу по людях»:
+            id картки лишився peopleStatus заради збереженого в localStorage
+            вибору/порядку. Дерева команди не потребує — дані з overview. */
           ["peopleStatus", enabledCards.has("peopleStatus") && (
-        <div className="mgr-chart-card mgr-chart-card-wide" ref={peopleStatusSectionRef}>
+        <div className="mgr-chart-card">
           <h2>
-            <PeopleIcon /> Статус по людях
-            <ChartHint text="Кожна людина без власних підлеглих у видимій команді — скільки в неї призначень якого статусу. Спочатку ті, в кого найбільше прострочень і ще не розпочатого — кому написати першим." />
+            <PeopleIcon /> Люди × курси
+            <ChartHint text="Уся команда одним поглядом: рядок — людина (проблемні зверху), стовпчик — курс, клітинка — стан призначення. Клік по клітинці відкриває цей курс у цієї людини, по імені — сторінку людини, по назві курсу — усі призначення курсу." />
           </h2>
-          {!teamTree.data ? (
-            // rows=5, не 3 — картка тримає до 15 рядків людей, і закороткий
-            // скелетон лишав видиму "дірку" знизу до появи реальних даних
-            // (той самий компроміс, що вже привів PageSkeleton до cards=9).
-            <LinesSkeleton rows={5} />
-          ) : peopleStatus.rows.length === 0 ? (
-            <p className="admin-hint">Немає даних по людях.</p>
-          ) : (
-            <>
-              <ul className="mgr-people-status-list">
-                {peopleStatus.rows.map(({ node, summary }) => (
-                  <li key={node.id} className="mgr-people-status-row">
-                    <MarqueeText className="mgr-people-status-name">{node.name}</MarqueeText>
-                    <span className="mgr-people-status-badges">
-                      {summary.overdue > 0 && <span className="mgr-badge mgr-badge-overdue">{summary.overdue} прострочено</span>}
-                      {summary.notStarted > 0 && <span className="mgr-badge">{summary.notStarted} не почав</span>}
-                      {summary.inProgress > 0 && <span className="mgr-badge">{summary.inProgress} у процесі</span>}
-                      {summary.completed > 0 && (
-                        <span className={`mgr-badge${summary.failed > 0 ? " mgr-badge-fail" : " mgr-badge-success"}`}>
-                          {summary.completed} завершено
-                        </span>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              {peopleStatus.hiddenCount > 0 && (
-                <p className="admin-hint mgr-people-status-more">і ще {peopleStatus.hiddenCount} — деталі нижче, в «Детально по команді»</p>
-              )}
-            </>
-          )}
+          <TeamMatrix data={team.matrix} />
         </div>
           )],
 
@@ -1981,7 +1654,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             окремо (для АСМ — кожен СВ зі своєю командою), а не одним
             числом на всіх: порівняння команд одна з одною, не людей. */
           ["teamCompare", enabledCards.has("teamCompare") && (
-        <div className="mgr-chart-card mgr-chart-card-wide" ref={teamCompareSectionRef}>
+        <div className="mgr-chart-card" ref={teamCompareSectionRef}>
           <h2>
             <PeopleIcon /> Порівняння команд
             <ChartHint text="Для кожного прямого підлеглого — підсумок по ньому й усіх, хто під ним (не лише його власні призначення). Дозволяє побачити, чия команда відстає, а не лише загальний середній по всіх одразу." />
@@ -1993,17 +1666,21 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ) : (
             <ul className="mgr-bar-list">
               {teamCompare.map((t) => (
-                <li key={t.id} className="mgr-bar-row">
-                  <span className="mgr-bar-label mgr-bar-label-stack">
-                    <span className="mgr-bar-label-main">{t.name}</span>
-                    {t.overdue > 0 ? <span className="mgr-bar-label-sub">{t.overdue} прострочено</span> : null}
-                  </span>
-                  <div className="mgr-bar-track">
-                    <div className="mgr-bar-fill" style={{ width: `${barsAnimated ? t.pct : 0}%` }} />
-                  </div>
-                  <span className="mgr-bar-value">
-                    {t.completed}/{t.total} · {t.pct}%
-                  </span>
+                <li key={t.id}>
+                  {/* Клік — та сама сторінка команди, але в межах
+                      піддерева цього прямого підлеглого (?team=). */}
+                  <Link href={`/manager/team?team=${t.id}`} className="mgr-bar-row mgr-card-link">
+                    <span className="mgr-bar-label mgr-bar-label-stack">
+                      <span className="mgr-bar-label-main">{t.name}</span>
+                      {t.overdue > 0 ? <span className="mgr-bar-label-sub">{t.overdue} прострочено</span> : null}
+                    </span>
+                    <div className="mgr-bar-track">
+                      <div className="mgr-bar-fill" style={{ width: `${barsAnimated ? t.pct : 0}%` }} />
+                    </div>
+                    <span className="mgr-bar-value">
+                      {t.completed}/{t.total} · {t.pct}%
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -2017,7 +1694,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             не виконується, поки керівник сам не увімкнув картку в
             налаштуваннях. */
           ["hardestQuestions", enabledCards.has("hardestQuestions") && (
-        <div className="mgr-chart-card mgr-chart-card-wide">
+        <div className="mgr-chart-card">
           <h2>
             <CourseIcon /> Найскладніші питання
             <ChartHint text="Питання (не цілі модулі), на яких команда найчастіше помиляється, по всіх курсах разом. Точніше за «Найскладніші модулі» — показує конкретне питання, яке варто переформулювати чи пояснити в матеріалі. Питання з менш ніж 3 відповідями в список не потрапляють." />

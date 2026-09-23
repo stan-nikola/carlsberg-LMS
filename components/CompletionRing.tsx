@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 /**
  * Кільце з відсотком — той самий strokeDasharray-прийом, що вже є в
@@ -30,10 +31,13 @@ export function CompletionRing({
   pct,
   label,
   color = "var(--cb-secondary)",
+  href,
 }: {
   pct: number;
   label?: string;
   color?: string;
+  /** Drill-down: усе кільце стає посиланням на список за цим показником. */
+  href?: string;
 }) {
   const [animated, setAnimated] = useState(false);
   useEffect(() => {
@@ -45,9 +49,8 @@ export function CompletionRing({
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(100, pct));
   const dash = animated ? (clamped / 100) * circumference : 0;
-
-  return (
-    <div className="mgr-ring-item">
+  const inner = (
+    <>
       <svg viewBox="0 0 120 120" className="mgr-ring" role="img" aria-label={`${label ? label + ": " : ""}${clamped}%`}>
         <circle cx="60" cy="60" r={radius} fill="none" stroke="var(--line)" />
         <circle
@@ -69,6 +72,14 @@ export function CompletionRing({
         </text>
       </svg>
       {label && <span className="mgr-ring-label">{label}</span>}
-    </div>
+    </>
+  );
+
+  return href ? (
+    <Link href={href} className="mgr-ring-item mgr-card-link">
+      {inner}
+    </Link>
+  ) : (
+    <div className="mgr-ring-item">{inner}</div>
   );
 }

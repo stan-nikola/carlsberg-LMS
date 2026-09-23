@@ -12,8 +12,7 @@ export default async function ManagerNotificationsPage() {
 
   return (
     <div className="manager-page manager-notifications-page">
-      <div className="greeting">КАБІНЕТ КЕРІВНИКА</div>
-      <h1 className="hub-h1">Сповіщення</h1>
+      <h1 className="greeting hub-greeting-h1">КАБІНЕТ КЕРІВНИКА</h1>
       <NotificationCenter initialItems={feed.items} initialCursor={feed.nextCursor} initialUnreadCount={feed.unreadCount} />
     </div>
   );

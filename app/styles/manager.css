@@ -556,50 +556,7 @@ body:has(.manager-shell) {
   margin-top: 24px;
 }
 
-/* ---- "Статус по людях" (нова картка, блок СВ) ----
-   Компактний рядок на людину: ім'я + 4 badge-лічильники — той самий
-   візуальний словник, що .mgr-badge/.mgr-badge-overdue/.mgr-badge-success
-   у дереві команди нижче на цій же сторінці, навмисно не новий стиль. */
-.mgr-people-status-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 360px;
-  overflow-y: auto;
-}
-.mgr-people-status-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  padding: 7px 2px;
-  border-bottom: var(--border-w) solid var(--line);
-}
-.mgr-people-status-row:last-child {
-  border-bottom: none;
-}
-.mgr-people-status-name {
-  /* MarqueeText сам вмикає біжучий рядок лише коли реально не влазить —
-     ellipsis тут більше не потрібен, .marquee (globals.css) уже задає
-     overflow:hidden/white-space:nowrap. */
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  color: var(--ink);
-}
-.mgr-people-status-badges {
-  /* Переносяться: на вузькій картці 4 бейджі поруч з іменем не вміщались
-     і рядок вилазив за край картки (скарга користувача — блоки не мають
-     виходити за свій контейнер). */
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  /* НЕ flex-shrink:0: інакше група тримає max-content ширину (всі бейджі
-     в один рядок), її дітям ніколи не бракує місця — і перенос, дозволений
-     вище, просто не спрацьовує. */
-  min-width: 0;
-  justify-content: flex-end;
-}
+/* «і ще N» під матрицею люди × курси. */
 .mgr-people-status-more {
   text-align: center;
   padding-top: 6px;
@@ -814,98 +771,623 @@ body:has(.manager-shell) {
   }
 }
 
-.mgr-kpi-row {
-  /* Гумовий ряд із переносом (запит користувача): на десктопі всі 5
-     плиток стоять в один рядок, а з вужчим вікном переносяться по
-     потребі — аж до одного стовпчика на телефоні. Раніше тут були
-     жорсткі 5 колонок: вони не переносились ніколи, і на вузькому екрані
-     плитки просто стискались у нечитабельні смужки.
-     min(100%, …) — щоб на телефоні базова ширина не перевищила екран
-     (той самий прийом, що в .mgr-chart-card і .card-grid). */
+/* ---- «Стан команди» + «Потребують уваги» (2026-09-23) ----
+   Замість п'яти KPI-плиток. Обидві — ЗВИЧАЙНІ картки сітки
+   (.mgr-chart-card), тож рамку/фон/заголовок дає сама картка, а тут лише
+   вміст: інакше їх не можна було ні зменшити, ні перетягнути, ні
+   прибрати, а висоту їм диктував сусід по ряду. */
+.mgr-status-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+/* Дрібна примітка в заголовку картки («8 людей із призначеннями») —
+   праворуч, перед підказкою ⓘ (у .mgr-section h2 вона теж margin-left:auto). */
+.mgr-card-note {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.mgr-attention-all {
+  align-self: flex-start;
+  margin-top: 8px;
+}
+.mgr-status-bar {
+  display: flex;
+  height: 28px;
+  border-radius: var(--radius-badge);
+  overflow: hidden;
+  gap: 2px;
+}
+.mgr-status-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--cb-white);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  transition: filter var(--dur-fast) var(--ease-premium);
+}
+.mgr-status-seg:hover,
+.mgr-status-seg:focus-visible {
+  filter: brightness(1.08);
+  outline: none;
+}
+.mgr-status-seg-count {
+  padding: 0 6px;
+  white-space: nowrap;
+}
+/* Кольори сегментів — «світлофор без червоного» + сірий (CLAUDE.md):
+   прострочено — таки червоний (це вже факт, не «спробуй ще»), відстає —
+   бурштин, не почав — синій «доступно», неактивний — сірий, на графіку —
+   зелений. */
+.is-overdue.mgr-status-seg,
+.mgr-status-dot.is-overdue,
+.is-overdue .mgr-status-dot {
+  background: var(--cb-fail);
+}
+.is-behind.mgr-status-seg,
+.is-behind .mgr-status-dot {
+  background: var(--cb-alert);
+  color: var(--ink);
+}
+.is-not_started.mgr-status-seg,
+.is-not_started .mgr-status-dot {
+  background: var(--cb-notification);
+}
+.is-inactive.mgr-status-seg,
+.is-inactive .mgr-status-dot {
+  background: var(--ink-soft);
+}
+.is-on_track.mgr-status-seg,
+.is-on_track .mgr-status-dot {
+  background: var(--cb-success);
+  color: var(--ink);
+}
+.mgr-status-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.mgr-status-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: var(--radius-badge);
+}
+.mgr-status-legend-item b {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mgr-status-legend-label {
+  color: var(--ink-soft);
+}
+.mgr-status-legend-sub {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mgr-status-legend-item.is-empty {
+  color: var(--ink-soft);
+}
+.mgr-status-legend-item.is-none {
+  color: var(--ink-soft);
+}
+.mgr-status-legend-item:hover,
+.mgr-status-legend-item:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+.mgr-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.mgr-attention-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.mgr-attention-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: var(--border-w) solid var(--line);
+}
+.mgr-attention-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+.mgr-attention-main {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
-  /* -30% від попередніх 32px (запит користувача: блоки дашборда стояли
-     задалеко один від одного по вертикалі). Те саме зроблено для
-     .mgr-section нижче — разом вони й дають усю вертикальну ритміку
-     сторінки /manager. */
-  margin-bottom: 22px;
+  gap: 2px 8px;
 }
-.mgr-kpi-tile {
-  border: var(--border-w) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--surface-1);
-  /* Висота плитки -30% (запит користувача): урізані і вертикальний
-     padding, і кегль числа — самим лише padding такої різниці не вийшло
-     б, бо більшу частину висоти займає саме число. Горизонтальний
-     padding не чіпаємо — звужувати плитки не просили. */
-  /* Ті самі поля, що в карток-діаграм нижче (--card-pad-roomy): інакше
-     вміст плитки починався на 8px від краю, а вміст картки — на 16px, і
-     ліві краї по вертикалі не збігались (запит користувача: розташувати
-     як сусідні картки). */
-  padding: var(--card-pad-roomy);
-  /* Плитка як елемент гумового ряду вище: базово ~140px, далі ділить
-     вільне місце порівну з рештою. min-width:0 — щоб довгий підпис не
-     розпирав плитку, а вмикав біжучий рядок.
-     Саме 140, а не 180: перенос рядка flex рахує за БАЗОВОЮ шириною, до
-     стиснення, тож при 180px дві плитки (180+14+180=374) не вміщались у
-     355px телефона — і на екрані стояло п'ять майже порожніх плиток на
-     всю ширину одна під одною (скарга користувача, 2026-09-19). При 140
-     на телефон стає дві в ряд, а на найвужчих 320px — усе одно одна.
-     Підпис, якому й після цього тісно, їде біжучим рядком — для того він
-     і MarqueeText. */
-  flex: 1 1 min(100%, 140px);
-  min-width: 0;
-  /* Число й підпис — ОДНИМ рядком (запит користувача), не стовпчиком.
-     align-items:center — по вертикальному центру пари.
-     Центрування по горизонталі прибрано (запит користувача: плитки мають
-     стояти як сусідні картки): пара починається від лівого поля, тож її
-     початок збігається по вертикалі з заголовками карток-діаграм нижче. */
+.mgr-attention-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.mgr-attention-name:hover,
+.mgr-attention-name:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+.mgr-attention-meta {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.mgr-attention-reasons {
+  flex-basis: 100%;
   display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Посилання-провал усередині карток: успадковує колір, підкреслює по
+   ховеру, фокус — токен кільця. У режимі перетягування посилання
+   вимикаються (.mgr-charts-edit нижче), інакше довге натискання
+   навігувало б замість того, щоб узяти картку. */
+.mgr-card-link {
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-btn);
+}
+.mgr-card-link:hover .mgr-bar-label,
+.mgr-card-link:hover .mgr-bar-label-main,
+.mgr-card-link:hover .mgr-ring-label,
+.mgr-card-link:hover .mgr-trend-label,
+.mgr-card-link:hover > span:last-child {
+  text-decoration: underline;
+}
+.mgr-card-link:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.mgr-charts-edit a {
+  pointer-events: none;
+}
+/* Воронка курсу під баром «% складання по курсу». */
+.mgr-funnel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.mgr-funnel-stage {
+  color: var(--ink);
+  text-decoration: none;
+  padding: 0 4px;
+  border-radius: var(--radius-badge);
+  border: var(--border-w) solid var(--line);
+}
+.mgr-funnel-stage:hover,
+.mgr-funnel-stage:focus-visible {
+  border-color: var(--green-500);
+  outline: none;
+}
+
+/* ---- Матриця люди × курси ----
+   Щільна теплокарта: назви курсів вертикально (writing-mode), колонка
+   ~30px, липкі перший стовпчик і шапка, «тіні» на краях горизонтального
+   скролу — один і той самий вигляд на всіх екранах (рішення користувача,
+   2026-09-23). Власні тонкі поля замість .admin-table: у матриці важлива
+   щільність, а не повітря. */
+.mgr-matrix-wrap {
+  overflow: auto;
+  min-height: 0;
+  /* Класичний прийом «scroll shadows» (Lea Verou): дві білі «криючі»
+     плями прибиті до вмісту (background-attachment: local), дві тіні —
+     до контейнера (scroll). Поки є куди скролити, пляма від'їжджає й
+     тінь проступає — без JS і без окремих елементів. */
+  background:
+    linear-gradient(to right, var(--surface-1) 30%, transparent) left center / 28px 100% no-repeat local,
+    linear-gradient(to left, var(--surface-1) 30%, transparent) right center / 28px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--cb-overlay-10), transparent) left center / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--cb-overlay-10), transparent) right center / 12px 100% no-repeat scroll;
+}
+.mgr-matrix {
+  width: auto;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+.mgr-matrix th,
+.mgr-matrix td {
+  /* Тонкі внутрішні поля — щоб у картку влізло більше курсів. */
+  padding: 2px 3px;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 12px;
+  border-bottom: var(--border-w) solid var(--line);
+}
+.mgr-matrix tbody tr:last-child th,
+.mgr-matrix tbody tr:last-child td {
+  border-bottom: none;
+}
+.mgr-matrix thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-1);
+  z-index: 2;
+  /* .admin-table thead th — nowrap/uppercase: вертикальному підпису це
+     заважає, тож скидаємо. */
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  vertical-align: bottom;
+  font-weight: 600;
+  color: var(--ink);
+}
+/* Липкий перший стовпчик: ім'я видно і посеред горизонтального скролу.
+   z-index вищий у шапки-кута, щоб він не ховався під заголовками. */
+.mgr-matrix .mgr-matrix-corner {
+  position: sticky;
+  left: 0;
+  background: var(--surface-1);
+  text-align: left;
+  font-weight: 500;
+  z-index: 1;
+  padding-right: 8px;
+  /* width:1% — класичний прийом для table-layout:auto: колонка сідає на
+     ширину свого вмісту, а ВЕСЬ надлишок ширини таблиці дістається
+     колонкам курсів (клітинки ширші, легше поцілити пальцем). Без цього
+     залишок забирала саме колонка імен — 256px під 124px тексту. */
+  width: 1%;
+  /* Тонка риска замість тіні — відокремлює липку колонку від решти. */
+  box-shadow: inset -1px 0 0 var(--line);
+}
+.mgr-matrix thead .mgr-matrix-corner {
+  z-index: 3;
+  vertical-align: bottom;
+}
+.mgr-matrix-course,
+.mgr-matrix-person {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+}
+.mgr-matrix-person {
+  /* Ширину задає САМ блок, а не max-width комірки: при table-layout:auto
+     max-width на th/td браузер ігнорує, і колонка імен розповзалась на
+     чверть картки. */
+  display: block;
+  max-width: 160px;
+  font-size: 12px;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+}
+.mgr-matrix-course {
+  /* vertical-rl + rotate(180°) = читається знизу вгору, як у класичній
+     матриці навчання. sideways-lr дав би те саме одним рядком, але його
+     ще не підтримує частина браузерів. */
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+  display: block;
+  margin-inline: auto;
+  font-size: 11px;
+  line-height: 1.15;
+  font-weight: 500;
+  /* Стеля висоти шапки: довша назва обрізається з «…», повна — у title. */
+  max-height: 118px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mgr-matrix-course:hover,
+.mgr-matrix-person:hover,
+.mgr-matrix-course:focus-visible,
+.mgr-matrix-person:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+.mgr-matrix-td {
+  text-align: center;
+}
+.mgr-matrix-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-btn);
+  font-weight: 700;
+  font-size: 12px;
+  text-decoration: none;
+  color: var(--cb-white);
+}
+.mgr-matrix-cell.is-passed {
+  background: var(--cb-success);
+  color: var(--ink);
+}
+.mgr-matrix-cell.is-failed {
+  background: var(--cb-fail);
+}
+.mgr-matrix-cell.is-overdue {
+  background: var(--cb-fail);
+}
+.mgr-matrix-cell.is-behind {
+  background: var(--cb-alert);
+  color: var(--ink);
+}
+.mgr-matrix-cell.is-in_progress {
+  background: var(--cb-notification);
+}
+.mgr-matrix-cell.is-not_started {
+  background: var(--cb-overlay-10);
+  color: var(--ink-soft);
+}
+.mgr-matrix-cell.is-empty {
+  background: transparent;
+  border: var(--border-w) dashed var(--line);
+}
+a.mgr-matrix-cell:hover,
+a.mgr-matrix-cell:focus-visible {
+  box-shadow: var(--cb-focus-ring);
+  outline: none;
+}
+.mgr-matrix-legend {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.mgr-matrix-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.mgr-matrix-legend .mgr-matrix-cell {
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+}
+
+/* ---- /manager/team: список ---- */
+.mgr-team-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+}
+.mgr-team-views {
+  display: flex;
+  gap: 6px;
+}
+.mgr-team-search {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.mgr-team-search .admin-input {
+  width: 100%;
+}
+.mgr-team-sort {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-.mgr-kpi-tile b {
-  font-family: var(--font-display);
-  font-size: 21px;
-  line-height: 1.1;
-  color: var(--green-700);
-  /* Число не стискається й не переноситься — місце віддає підпис, а він
-     уміє їхати біжучим рядком. */
-  flex-shrink: 0;
+.mgr-team-filters {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
-.mgr-kpi-tile-label {
-  /* MarqueeText вмикає біжучий рядок ЛИШЕ якщо підпис реально не влазить
-     у залишок рядка (виміряно через ResizeObserver, не завжди-анімація).
-     min-width:0 — обов'язково: без нього flex-елемент не стискається
-     тісніше за свій текст, підпис розсуває плитку й маркі не спрацьовує.
-     flex-grow:0 (не 1) — підпис сідає по своїй ширині, а не забирає весь
-     залишок рядка: інакше justify-content:center на .mgr-kpi-tile вище
-     не мав би чим центрувати пару "число + підпис" (grow:1 з'їдав би
-     ВЕСЬ вільний простір сам). Стискатись (flex-shrink:1) і так може —
-     для маркі цього достатньо. */
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 100%;
-  /* -10% від 12px (запит користувача). Текст зліва (не центр) — щоб
-     короткий підпис у власній, не розтягнутій ширині не "гуляв" по
-     центру свого блоку; центр пари як цілого дає justify-content вище. */
-  font-size: 10.8px;
-  text-align: left;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.mgr-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--btn-h-sm);
+  padding: 0 12px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-badge);
+  background: var(--surface-1);
+  color: var(--ink);
+  font-size: 12.5px;
+  text-decoration: none;
+}
+.mgr-filter-chip.is-active {
+  border-color: var(--green-500);
+  background: var(--cb-secondary-tint);
+}
+.mgr-filter-chip:hover,
+.mgr-filter-chip:focus-visible {
+  border-color: var(--green-500);
+  outline: none;
+}
+.mgr-team-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+.mgr-team-remind {
+  min-height: var(--btn-h-sm);
+  padding: 0 var(--btn-px-sm);
+  font-size: 13px;
+  width: auto;
+  flex: 0 0 auto;
+}
+.mgr-table-wrap {
+  overflow-x: auto;
+}
+.mgr-team-table tbody tr.is-selected {
+  background: var(--cb-secondary-tint);
+}
+.mgr-team-table .mgr-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mgr-team-table .is-bad {
+  color: var(--danger);
+  font-weight: 600;
+}
+.mgr-team-table .is-warn {
   color: var(--ink-soft);
 }
-.mgr-kpi-tile-alert {
-  border-color: var(--cb-fail);
+.mgr-team-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  text-decoration: none;
 }
-.mgr-kpi-tile-alert b {
+.mgr-team-person-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.mgr-team-person-name,
+.mgr-team-course {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.mgr-team-person:hover .mgr-team-person-name,
+.mgr-team-person-name:hover,
+.mgr-team-course:hover,
+.mgr-team-person:focus-visible .mgr-team-person-name,
+.mgr-team-person-name:focus-visible,
+.mgr-team-course:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+.mgr-team-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ---- /manager/team/[id]: людина ---- */
+.mgr-crumb {
+  color: inherit;
+  text-decoration: none;
+}
+.mgr-crumb:hover,
+.mgr-crumb:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+.mgr-person-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  padding: var(--card-pad-roomy);
+  margin-bottom: 16px;
+}
+.mgr-person-main {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.mgr-person-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.mgr-person-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.mgr-enrollment-row.is-highlighted {
+  box-shadow: 0 0 0 2px var(--cb-notification);
+}
+.mgr-enrollment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+/* ---- «Нагадати» — нативний <dialog> ---- */
+.mgr-reminder-dialog {
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  color: var(--ink);
+  padding: var(--card-pad-roomy);
+  width: min(92vw, 460px);
+  box-shadow: var(--shadow-lg);
+}
+.mgr-reminder-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+.mgr-reminder-title {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+.mgr-reminder-who {
+  margin: 0 0 10px;
+}
+.mgr-reminder-text {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+}
+.mgr-reminder-result {
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+.mgr-reminder-error {
   color: var(--danger);
+}
+.mgr-reminder-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.mgr-reminder-send {
+  min-height: var(--btn-h-sm);
+  padding: 0 var(--btn-px-sm);
+  font-size: 13px;
+  width: auto;
 }
 
 .mgr-section {
-  /* -30% від попередніх 36px — див. коментар при .mgr-kpi-row. */
+  /* -30% від попередніх 36px. */
   margin-bottom: 25px;
 }
 .mgr-section h2 {
@@ -1123,24 +1605,36 @@ body:has(.manager-shell) {
    пакує рядки без дір — рівно та задача, для якої flex-wrap і зроблений
    (на відміну від grid, порожні "комірки" тут просто не існують: наступна
    картка завжди займає вільний залишок поточного рядка). */
+/* Сітка карток у ЮНІТАХ (2026-09-23, рішення користувача — як Grafana):
+   колонки по ширині контейнера, рядки фіксованої висоти, картка займає
+   W×H юнітів (inline grid-column/grid-row span із ManagerDashboard.jsx),
+   dense — наступна картка, що вміщається, заповнює дірку. Числа
+   ДЗЕРКАЛЯТЬ GRID_UNIT_PX/GRID_GAP_PX/GRID_ROW_PX у ManagerDashboard.jsx.
+   Раніше тут був flex-wrap: широка картка, що не вміщалась у ряд,
+   лишала пробіл, а висоти сусідів не сходились. */
 .mgr-charts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
+  --mgr-grid-unit: 240px;
+  --mgr-grid-gap: 16px;
+  --mgr-row-h: 112px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--mgr-grid-unit)), 1fr));
+  grid-auto-rows: var(--mgr-row-h);
+  grid-auto-flow: dense;
+  gap: var(--mgr-grid-gap);
 }
 .mgr-chart-card {
-  /* Звичайна картка — базово ~300px, росте на 1 частку вільного місця в
-     рядку. min(100%, …) — як у .card-grid: на вузькому екрані базова
-     ширина не може перевищити сам viewport (без цього — горизонтальний
-     скрол). min-width:0 — щоб картка МОГЛА стиснутись тісніше за
-     контент замість роздування рядка (потрібно і для .mgr-bar-row/
-     MarqueeText усередині: без цього overflow там не спрацьовує). */
-  flex: 1 1 min(100%, 300px);
   min-width: 0;
+  min-height: 0;
   border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface-1);
   padding: var(--card-pad-roomy);
+  /* Панель фіксованої висоти: заголовок зверху, тіло займає решту й
+     скролиться всередині (списки), кільця стискаються під наявне місце
+     (--mgr-ring-max, applyRingCaps у ManagerDashboard.jsx). */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   /* Курсор-палець на всіх картках (запит користувача): картка реагує на
      утримання — довге натискання вмикає режим перетягування, — і без
      курсора це ніяк не видно. У самому режимі курсор змінюється на
@@ -1149,20 +1643,57 @@ body:has(.manager-shell) {
   /* Якір для хрестика "прибрати картку" в режимі перетягування. */
   position: relative;
 }
-/* Картки, яким потрібна ширина: довгі назви курсів/модулів, кільце з
-   розшифровкою поруч, ряд бейджів. flex-grow:2 (не 1) — щоб вільне
-   місце в рядку діставалось їм вдвічі щедріше за звичайні картки, тож
-   дві широкі поряд виходять приблизно вдвічі ширшими за одну звичайну,
-   як і раніше на grid-колонках, без ручних @media-порогів.
-   Базова ширина — 460px, НЕ рівно 2×300+gap (620px): перенос рядка у
-   flex-wrap рахується по базовій (нестиснутій) ширині ДО того, як
-   спрацьовує flex-shrink — дві картки по 620px (1260px разом) переносило
-   в окремі рядки вже на типовій ширині кабінету (~1112px), хоча вдвох
-   вони туди вільно вміщались би стиснутими. 460px — компроміс: дві поряд
-   вміщаються вже від помірної десктопної ширини, а на зовсім вузькій
-   (мобільній) однаково впираються в min(100%,…) і йдуть в один стовпчик. */
-.mgr-chart-card-wide {
-  flex: 2 1 min(100%, 460px);
+.mgr-chart-card > h2 {
+  flex: none;
+}
+/* Тіло картки займає решту висоти. overflow:auto потрібен лише коли
+   картку зменшили вручну або вміст уперся в стелю авто-висоти
+   (MAX_AUTO_CARD_H у ManagerDashboard.jsx) — інакше картка й так рівно
+   під вміст, і скрол не з'являється. */
+.mgr-chart-card > ul,
+.mgr-chart-card > .mgr-ring-grid,
+.mgr-chart-card > .mgr-first-try-body,
+.mgr-chart-card > .mgr-trend-row,
+.mgr-chart-card > .mgr-matrix-wrap,
+.mgr-chart-card > .mgr-status-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+/* Виняток із min-height:0 вище: у стовпчиків тренду висота задана у
+   ВІДСОТКАХ від доріжки, тож доріжка, що сіла по вмісту (самі лише
+   підписи), схлопувала графік у смужку — авто-висота картки рахувалась
+   уже по схлопнутому. Нижня межа доріжки та сама, що й у .mgr-trend-row. */
+.mgr-chart-card > .mgr-trend-row {
+  min-height: 100px;
+}
+/* Телефон: сітка вироджується в стовпчик, висота — по вмісту, ручні
+   розміри й ручки вимкнені (рішення користувача, 2026-09-23); порядок і
+   видимість карток лишаються. !important — перекриває inline span. */
+@media (max-width: 599px) {
+  .mgr-charts {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+  }
+  .mgr-chart-card {
+    grid-column: auto !important;
+    grid-row: auto !important;
+    overflow: visible;
+  }
+  .mgr-chart-card > ul,
+  .mgr-chart-card > .mgr-ring-grid,
+  .mgr-chart-card > .mgr-first-try-body,
+  .mgr-chart-card > .mgr-trend-row,
+  .mgr-chart-card > .mgr-matrix-wrap,
+  .mgr-chart-card > .mgr-status-body {
+    overflow: visible;
+  }
+  .mgr-chart-card > .mgr-matrix-wrap {
+    overflow-x: auto;
+  }
+  .mgr-card-resize {
+    display: none;
+  }
 }
 .mgr-ring-grid {
   /* Кілець рівно ЧОТИРИ — це фіксована розмітка, а не сітка за даними,

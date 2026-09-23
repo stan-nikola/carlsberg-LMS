@@ -61,9 +61,34 @@ const ibmPlexMono = IBM_Plex_Mono({
   variable: "--font-ibm-plex-mono",
 });
 
+// Абсолютна адреса сайту — потрібна метаданим (og:image мусить бути
+// абсолютним, інакше Telegram/Viber його просто не заберуть). На Vercel
+// змінна є завжди; локально — сам dev-сервер.
+const SITE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : "http://localhost:3000";
+
 export const metadata = {
+  metadataBase: new URL(SITE_URL),
   title: PLATFORM_NAME,
   description: PLATFORM_TAGLINE,
+  // Прев'ю посилання в месенджерах. Без цього блока месенджер брав із
+  // сторінки першу-ліпшу картинку — і на /register нею виявлялась
+  // підказка «де взяти код» зі скріном Monolit Agent (скарга
+  // користувача, 2026-09-23). Саме зображення — app/opengraph-image.tsx.
+  openGraph: {
+    type: "website",
+    siteName: PLATFORM_SHORT_NAME,
+    title: PLATFORM_NAME,
+    description: PLATFORM_TAGLINE,
+    locale: "uk_UA",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: PLATFORM_NAME,
+    description: PLATFORM_TAGLINE,
+  },
   // Android/Chrome читає app/manifest.js (файлова конвенція App Router,
   // Next сам підключає <link rel="manifest">). iOS Safari той файл
   // ігнорує — "Додати на головний екран" там орієнтується саме на ці

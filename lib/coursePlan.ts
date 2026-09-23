@@ -44,6 +44,52 @@ export type PlanModuleInput = {
   retryCooldownHours?: number | null;
 };
 
+/**
+ * Модулі курсу з Prisma → вхід плану. Один маппінг на плеєр
+ * (app/courses/[slug]/page.js) і кабінет керівника (lib/teamInsights.ts):
+ * поле, додане в PlanModuleInput, інакше губилось би в одному з двох.
+ * `componentCountOf` — плеєр рахує з повного вмісту, кабінету керівника
+ * час не потрібен (0 не впливає на schedule.status).
+ */
+export function toPlanInputs<
+  M extends {
+    id: number;
+    title: string;
+    order: number;
+    cooldownDays: number | null;
+    retakeCooldownDays: number | null;
+    retryFreeAttempts?: number | null;
+    retryCooldownHours?: number | null;
+  },
+>(modules: M[], componentCountOf: (m: M) => number = () => 0): PlanModuleInput[] {
+  return modules.map((m) => ({
+    id: m.id,
+    title: m.title,
+    order: m.order,
+    cooldownDays: m.cooldownDays,
+    retakeCooldownDays: m.retakeCooldownDays,
+    componentCount: componentCountOf(m),
+    retryFreeAttempts: m.retryFreeAttempts ?? null,
+    retryCooldownHours: m.retryCooldownHours ?? null,
+  }));
+}
+
+/** Темп курсу з Prisma-рядка курсу → CoursePacing (той самий маппінг, що
+ *  в плеєрі). */
+export function toPacing(course: {
+  moduleDays?: number | null;
+  modulePauseDays?: number | null;
+  retryFreeAttempts?: number | null;
+  retryCooldownHours?: number | null;
+}): CoursePacing {
+  return {
+    moduleDays: course.moduleDays ?? null,
+    pauseDays: course.modulePauseDays ?? null,
+    retryFreeAttempts: course.retryFreeAttempts ?? null,
+    retryCooldownHours: course.retryCooldownHours ?? null,
+  };
+}
+
 export type PlanCompletion = {
   moduleId: number;
   passed: boolean;
@@ -426,7 +472,7 @@ export function buildCoursePlan(
   };
 }
 
-function formatDate(date: Date): string {
+export function formatDate(date: Date): string {
   return date.toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 

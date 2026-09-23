@@ -16,6 +16,12 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const cursor = Number(searchParams.get("cursor")) || null;
 
+  // Employee.lastSeenAt — «людина відкривала застосунок»: дзвіночок опитує
+  // цей роут кожні 60с лише поки вкладка відкрита, тож це чесний сигнал
+  // присутності. Пишемо не частіше разу на годину і best-effort — збій
+  // запису не має ламати стрічку.
+  const now = new Date();
+  const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
   const [items, unreadCount] = await Promise.all([
     prisma.notification.findMany({
       where: { employeeId: employee.id, ...(cursor ? { id: { lt: cursor } } : {}) },
@@ -24,6 +30,12 @@ export async function GET(request) {
       select: { id: true, type: true, category: true, title: true, message: true, url: true, isRead: true, createdAt: true },
     }),
     prisma.notification.count({ where: { employeeId: employee.id, isRead: false } }),
+    prisma.employee
+      .updateMany({
+        where: { id: employee.id, OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: hourAgo } }] },
+        data: { lastSeenAt: now },
+      })
+      .catch(() => null),
   ]);
 
   const hasMore = items.length > PAGE_SIZE;
