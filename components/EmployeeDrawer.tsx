@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { XIcon } from "@/components/icons";
 import { EmployeeDetail } from "@/components/EmployeeDetail";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 
 type Props = {
   employeeId: number;
@@ -25,14 +26,10 @@ export function EmployeeDrawer({ employeeId, onClose, onChanged }: Props) {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    // Поки панель відкрита — сторінка під нею не скролиться.
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+  // Поки панель відкрита — сторінка під нею не скролиться.
+  useBodyScrollLock(true);
 
   return (
     <div

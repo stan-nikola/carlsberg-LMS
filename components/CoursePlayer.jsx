@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { enqueue } from "@/lib/offlineOutbox";
 import { useRouter } from "next/navigation";
 import Image, { getImageProps } from "next/image";
-import { renderRichText } from "@/lib/richText";
+import { renderRichText, renderRichMarks } from "@/lib/richText";
 import { ChevronIcon, CertificateIcon, SpinnerIcon, QuestionIcon } from "@/components/icons";
 import { MorphRevealIcon } from "@/components/MorphRevealIcon";
 import { CoursePlanPanel } from "@/components/CoursePlan";
@@ -14,10 +14,13 @@ import {
   ChecklistScreen,
   ScriptScreen,
   TimelineScreen,
+  ImagePinsScreen,
+  BeforeAfterScreen,
   PhotoScreen,
   InputScreen,
   ImageLightbox,
   ScreenMedia,
+  NoteAccordion,
   CourseImage,
   ConfettiBurst,
   HotspotScreen,
@@ -27,6 +30,7 @@ import { isGateSatisfied, gateTotal, gateHint, isScored } from "@/lib/componentT
 import { courseStreakMessages, pickStreakMessage, resolveStreakSub, isScheduledStreak } from "@/lib/streakMessages";
 import { numberComponents, shuffleArray } from "@/lib/coursePlayerLogic";
 import { peekScrollTo } from "@/lib/scrollHints";
+import { isVideoUrl } from "@/lib/videoEmbed";
 import { downloadCertificate } from "@/lib/downloadCertificate";
 import { getLocalDisplayName } from "@/lib/localName";
 
@@ -104,6 +108,10 @@ export function ComponentScreen({ component, screenNumber, onGateProgress, onZoo
       return <ScriptScreen {...common} />;
     case "timeline":
       return <TimelineScreen {...common} />;
+    case "imagepins":
+      return <ImagePinsScreen {...common} />;
+    case "beforeafter":
+      return <BeforeAfterScreen {...common} />;
     case "photo":
       return <PhotoScreen component={component} screenNumber={screenNumber} onZoomImage={onZoomImage} />;
     case "input":
@@ -174,38 +182,11 @@ export function InfoScreen({ component, screenNumber, onZoomImage }) {
           <span>{kicker}</span>
         </div>
       )}
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       {mediaNode}
       {textNode}
     </>
-  );
-}
-
-/** "Підказка" (Component.content.info.note) — розгортається по кліку, а не
- * видима завжди: щоб не перевантажувати екран текстом одразу і трохи
- * заохотити самому подумати перед тим, як підглянути відповідь/деталь. */
-function NoteAccordion({ note }) {
-  const [open, setOpen] = useState(false);
-  const boxRef = useRef(null);
-  function toggle() {
-    const opening = !open;
-    setOpen(opening);
-    // Той самий патерн, що в акордеоні/таймлайні: розкрили — розкритий
-    // текст має лишитись на екрані, а не піти під нижній край
-    // (користувач, 2026-09-15: «Варто знати не скролить по паттерну»).
-    if (opening) requestAnimationFrame(() => peekScrollTo(null, { keepVisible: boxRef.current }));
-  }
-  return (
-    <div className={`cp-note-accordion${open ? " open" : ""}`} ref={boxRef}>
-      <button type="button" className="cp-note-toggle" onClick={toggle} aria-expanded={open}>
-        <b>Варто знати</b>
-        <span className="cp-note-chevron">
-          <ChevronIcon />
-        </span>
-      </button>
-      {open && <div className="cp-note-body">{note}</div>}
-    </div>
   );
 }
 
@@ -282,19 +263,19 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
         <span className="quiz-banner-ico" aria-hidden="true">
           <QuestionIcon />
         </span>
+        {/* Тип відповіді живе САМЕ тут (2026-09-23, рішення користувача):
+            окрема зелена пілюля «Один варіант / Кілька правильних» над
+            питанням прибрана, бо казала те саме, що й ця плашка, лише
+            іншими словами й кольором. */}
         <span className="quiz-banner-txt">
           <b>Блок питань</b>
-          {questionNumber && questionTotal ? (
-            <span>
-              Питання {questionNumber} з {questionTotal}
-            </span>
-          ) : (
-            <span>Оберіть відповідь</span>
-          )}
+          <span>
+            {questionNumber && questionTotal ? `Питання ${questionNumber} з ${questionTotal} · ` : ""}
+            {questionType === "multi" ? "оберіть декілька правильних відповідей" : "оберіть одну правильну відповідь"}
+          </span>
         </span>
       </div>
-      <span className="q-type-tag">{questionType === "multi" ? "Кілька правильних" : "Один варіант"}</span>
-      <h2 className="cp-h2">{component.title}</h2>
+      <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>
       {/* Фото між питанням і варіантами — питання може спиратись саме на
           зображення ("що не так на цій викладці?"). */}
       <ScreenMedia images={component.content?.images} title={component.title} onZoomImage={onZoomImage} />
@@ -310,9 +291,23 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
             {/* Маркер вибору — кружечок для одного варіанта, квадратик із
                 галочкою для кількох. Повернуто з legacy-курсу: без нього
                 по варіанту не видно, що він взагалі вибирається, поки не
-                натиснеш. */}
-            <span className={`opt-mark${questionType === "multi" ? " chk" : ""}`} aria-hidden="true" />
-            <span className="opt-text">{opt.text}</span>
+                натиснеш.
+                ПІСЛЯ відповіді всередину малюється підсумок (рішення
+                користувача, 2026-09-23): зелений кружечок — галочка,
+                червоний — хрестик, обидві «промальовуються» тим самим
+                MorphRevealIcon, що вже є в плані курсу й у статус-бейджі. */}
+            <span className={`opt-mark${questionType === "multi" ? " chk" : ""}`} aria-hidden={!isAnswered}>
+              {isAnswered && (opt.correct || selected.includes(index)) && (
+                <MorphRevealIcon
+                  shape={opt.correct ? "check" : "x"}
+                  label={opt.correct ? "Правильно" : "Неправильно"}
+                  size={12}
+                  strokeWidth={3}
+                  className="opt-mark-ico"
+                />
+              )}
+            </span>
+            <span className="opt-text">{renderRichMarks(opt.text)}</span>
           </button>
         ))}
       </div>
@@ -345,13 +340,13 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
             <ul className="q-fb-options">
               {optionFeedback.map((o) => (
                 <li key={o.index} className={o.kind}>
-                  <b>{o.text}</b>
-                  <span>{o.explanation}</span>
+                  <b>{renderRichMarks(o.text)}</b>
+                  <span>{renderRichMarks(o.explanation)}</span>
                 </li>
               ))}
             </ul>
           )}
-          {explanation && <span className="q-fb-explain">{explanation}</span>}
+          {explanation && <span className="q-fb-explain">{renderRichMarks(explanation)}</span>}
         </div>
       )}
     </>
@@ -765,7 +760,11 @@ export function CoursePlayer({
       if (!screen) continue;
       for (const component of screen.components) {
         for (const img of component.content?.images ?? []) {
-          if (img?.url) urls.add(img.url);
+          // Посилання на ролик тут не місце: це не файл зображення, і
+          // next/image на чужому хості одразу кидає «hostname is not
+          // configured». Плеєр YouTube/Vimeo гріти нема чим — він тягне
+          // своє сам, коли доходить черга (lib/videoEmbed.ts).
+          if (img?.url && !isVideoUrl(img.url)) urls.add(img.url);
         }
       }
     }
@@ -919,7 +918,11 @@ export function CoursePlayer({
   // без зв'язку. Усі http(s)-посилання в контенті екранів — це фото.
   useEffect(() => {
     if (previewMode || !("serviceWorker" in navigator)) return;
-    const urls = [location.pathname, ...new Set(JSON.stringify(screens).match(/https?:\/\/[^"\\]+/g) || [])];
+    // Посилання на відео пропускаємо: ролик лежить на YouTube/Vimeo, його
+    // плеєр офлайн усе одно не запуститься, а качати сторінку сервісу в
+    // кеш — марно витрачений мобільний трафік співробітника.
+    const found = (JSON.stringify(screens).match(/https?:\/\/[^"\\]+/g) || []).filter((u) => !isVideoUrl(u));
+    const urls = [location.pathname, ...new Set(found)];
     navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage({ type: "precache", urls })).catch(() => {});
   }, [screens, previewMode]);
   const activeSecondsRef = useRef(0);

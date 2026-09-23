@@ -13,7 +13,10 @@ export default async function ManagerNotificationsPage() {
   return (
     <div className="manager-page manager-notifications-page">
       <h1 className="greeting hub-greeting-h1">КАБІНЕТ КЕРІВНИКА</h1>
-      <NotificationCenter initialItems={feed.items} initialCursor={feed.nextCursor} initialUnreadCount={feed.unreadCount} />
+      {/* managerMode — старі сповіщення в базі ведуть у /hub/..., що для
+          керівника означає редірект на голий /manager; центр підміняє
+          адресу на відповідну в кабінеті (lib/notificationTypes.ts). */}
+      <NotificationCenter initialItems={feed.items} initialCursor={feed.nextCursor} initialUnreadCount={feed.unreadCount} managerMode />
     </div>
   );
 }

@@ -65,3 +65,17 @@ export function renderRichText(text) {
   if (!text) return null;
   return text.split(/\n\n+/).map((paragraph, pIdx) => <p key={pIdx}>{renderInline(paragraph)}</p>);
 }
+
+/**
+ * Ті самі накреслення, але БЕЗ розбиття на абзаци — для місць, де текст
+ * уже лежить усередині свого рядкового контейнера (`<p class="cp-lead">`,
+ * `<span class="q-fb-explain">`, репліка діалогу). Там renderRichText дав
+ * би <p> усередині <p>: браузер такий тег розриває, і React скаржиться на
+ * гідратацію. У конструкторі такі поля йдуть без підказки про абзац
+ * (`paragraphs={false}` у RichTextArea) — щоб автор не чекав від порожнього
+ * рядка того, чого тут не станеться.
+ */
+export function renderRichMarks(text) {
+  if (!text) return null;
+  return renderInline(text);
+}

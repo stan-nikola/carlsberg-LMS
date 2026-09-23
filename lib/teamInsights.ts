@@ -9,7 +9,7 @@
  * «Відстає» — рівно `buildCoursePlan().schedule.status === "behind"`
  * (рішення користувача 2026-09-23): керівник бачить те саме, що людина в
  * плеєрі; курси без графіка модулів (Course.moduleDays) відстаючими не
- * бувають — лише «на графіку / прострочено» за дедлайном.
+ * бувають — лише «за графіком / прострочено» за дедлайном.
  */
 
 import { buildCoursePlan, formatDate, toPacing, toPlanInputs, type ScheduleStatus } from "./coursePlan";
@@ -87,7 +87,7 @@ export const SEGMENT_META: Record<PersonSegment, { label: string }> = {
   behind: { label: "Відстають" },
   not_started: { label: "Не почали" },
   inactive: { label: "Неактивні" },
-  on_track: { label: "На графіку" },
+  on_track: { label: "За графіком" },
 };
 
 /** 1 курс / 2 курси / 5 курсів. */
@@ -119,7 +119,7 @@ export function reasonLabel(kind: PersonSegment, count: number): string {
   if (kind === "behind") return `відстає: ${count} ${pluralCourses(count)}`;
   if (kind === "not_started") return `${count} ${pluralCourses(count)} не розпочато`;
   if (kind === "inactive") return "неактивний";
-  return "на графіку";
+  return "за графіком";
 }
 
 export const SEGMENT_ORDER: PersonSegment[] = ["overdue", "behind", "not_started", "inactive", "on_track"];

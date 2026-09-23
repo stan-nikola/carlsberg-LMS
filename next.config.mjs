@@ -25,7 +25,14 @@ function buildCsp({ frameAncestors = "'none'" } = {}) {
     "font-src 'self'",
     "connect-src 'self'",
     "worker-src 'self'",
-    "frame-src 'self'",
+    // Вбудовані плеєри відео в екранах курсу (lib/videoEmbed.ts): автор
+    // вставляє посилання на YouTube/Vimeo, і плеєр показується в <iframe>.
+    // Без цих трьох джерел CSP глушить фрейм ще до запиту, і на екрані —
+    // порожній сірий прямокутник без жодного натяку, що саме не так
+    // (2026-09-23: перше ж вставлене посилання виглядало як «зламане
+    // фото»). youtube.com поруч із nocookie-доменом навмисно: плеєр сам
+    // переадресовує туди частину запитів.
+    "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

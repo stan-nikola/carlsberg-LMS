@@ -82,6 +82,40 @@ export function categoryMeta(key: string): NotificationCategoryMeta | { key: str
   return NOTIFICATION_CATEGORIES.find((c) => c.key === key) || { key, label: key, icon: "🔔", hint: "" };
 }
 
+/**
+ * Посилання «для хаба» → відповідник у кабінеті керівника.
+ *
+ * Керівний шар (SV і вище) взагалі не бачить /hub: app/hub/layout.js
+ * мовчки перекидає будь-який запит туди на ГОЛИЙ /manager, без розділу й
+ * без query. Тому сповіщення з url `/hub/achievements?highlight=badge…`,
+ * що прийшло керівнику, відкривало дашборд команди, а не відзнаку
+ * (скарга користувача, 2026-09-23: «не переходить на ачивки з
+ * колокольчика»). Шлях у layout недоступний (Server Component не бачить
+ * pathname), middleware в проєкті немає — тож правильну адресу підставляє
+ * той, хто СТВОРЮЄ сповіщення (lib/notifications.js notifyEmployees), і
+ * дублює центр сповіщень для рядків, що вже лежать у базі.
+ *
+ * Невідомий /hub-шлях веде на /manager — краще дашборд, ніж редирект,
+ * що з'їсть query. Усе, що не /hub (напр. /courses/<slug>), не чіпаємо:
+ * плеєр курсу спільний для обох кабінетів.
+ */
+const HUB_TO_MANAGER: Record<string, string> = {
+  "/hub": "/manager",
+  "/hub/learn": "/manager/courses",
+  "/hub/achievements": "/manager/achievements",
+  "/hub/profile": "/manager/profile",
+  "/hub/notifications": "/manager/notifications",
+};
+
+export function toManagerUrl(url: string | null | undefined): string | null {
+  if (!url) return url ?? null;
+  if (url !== "/hub" && !url.startsWith("/hub/") && !url.startsWith("/hub?")) return url;
+  const queryAt = url.search(/[?#]/);
+  const pathname = queryAt === -1 ? url : url.slice(0, queryAt);
+  const rest = queryAt === -1 ? "" : url.slice(queryAt);
+  return `${HUB_TO_MANAGER[pathname] ?? "/manager"}${rest}`;
+}
+
 export type PreferenceValues = Record<string, boolean>;
 
 /** Дефолти вподобань — усе увімкнено (рядка в БД може не бути). */

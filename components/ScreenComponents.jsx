@@ -2,10 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ChevronIcon, CheckIcon } from "@/components/icons";
+import { ChevronIcon, CheckIcon, XIcon } from "@/components/icons";
 import { isHotspotHit } from "@/lib/componentTypes";
 import { peekScrollTo, scrollToEnd } from "@/lib/scrollHints";
 import { nextTimelineTarget } from "@/lib/coursePlayerLogic";
+import { renderRichText, renderRichMarks } from "@/lib/richText";
+import { MorphRevealIcon } from "@/components/MorphRevealIcon";
+import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
+import { zoneShapeClass, zoneStyle } from "@/lib/hotspotZones";
+import { parseVideoEmbed } from "@/lib/videoEmbed";
 
 /**
  * Інтерактивні компоненти екрана, портовані з попередньої vanilla-JS
@@ -141,12 +146,41 @@ export function CourseImage({ src, alt, onLoaded, zoomable = false }) {
   );
 }
 
+/** "Підказка" (Component.content.info.note) — розгортається по кліку, а не
+ * видима завжди: щоб не перевантажувати екран текстом одразу і трохи
+ * заохотити самому подумати перед тим, як підглянути відповідь/деталь.
+ * Живе тут, а не в плеєрі: її рендерять і InfoScreen, і PhotoScreen, а
+ * імпорт із CoursePlayer сюди замкнув би коло (плеєр уже імпортує звідси). */
+export function NoteAccordion({ note }) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef(null);
+  function toggle() {
+    const opening = !open;
+    setOpen(opening);
+    // Той самий патерн, що в акордеоні/таймлайні: розкрили — розкритий
+    // текст має лишитись на екрані, а не піти під нижній край
+    // (користувач, 2026-09-15: «Варто знати не скролить по паттерну»).
+    if (opening) requestAnimationFrame(() => peekScrollTo(null, { keepVisible: boxRef.current }));
+  }
+  return (
+    <div className={`cp-note-accordion${open ? " open" : ""}`} ref={boxRef}>
+      <button type="button" className="cp-note-toggle" onClick={toggle} aria-expanded={open}>
+        <b>Варто знати</b>
+        <span className="cp-note-chevron">
+          <ChevronIcon />
+        </span>
+      </button>
+      {open && <div className="cp-note-body">{renderRichText(note)}</div>}
+    </div>
+  );
+}
+
 function Kicker({ screenNumber, text }) {
   if (!text) return null;
   return (
     <div className="cp-kicker">
       <span className="cp-kicker-num">{screenNumber}</span>
-      <span>{text}</span>
+      <span>{renderRichMarks(text)}</span>
     </div>
   );
 }
@@ -170,6 +204,30 @@ export function ScreenMedia({ images, title, onZoomImage }) {
     <div className="cp-screen-media">
       {valid.map((img, i) => {
         const alt = img.caption || title || "";
+        // Відео — вбудований плеєр YouTube/Vimeo за посиланням
+        // (lib/videoEmbed.ts). Лайтбокс до нього не чіпляємо: у плеєра є
+        // власні контроли й свій повний екран, а тап по кадру має ставити
+        // паузу, а не відкривати щось зверху.
+        const embed = parseVideoEmbed(img.url);
+        if (embed) {
+          return (
+            <div className="photo-frame" key={i}>
+              <div className="cp-video-embed">
+                <iframe
+                  src={embed.src}
+                  title={img.caption || title || embed.title}
+                  // loading=lazy: на екрані може стояти кілька роликів, і
+                  // без цього кожен тягне свій плеєр ще до того, як людина
+                  // до нього догортала.
+                  loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+              {img.caption && <div className="cp-photo-caption">{renderRichMarks(img.caption)}</div>}
+            </div>
+          );
+        }
         return (
           <div
             className={`photo-frame${zoomable ? " zoomable" : ""}`}
@@ -189,7 +247,7 @@ export function ScreenMedia({ images, title, onZoomImage }) {
             }
           >
             <CourseImage src={img.url} alt={alt} zoomable={zoomable} />
-            {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
+            {img.caption && <div className="cp-photo-caption">{renderRichMarks(img.caption)}</div>}
           </div>
         );
       })}
@@ -240,8 +298,8 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="acc-list" ref={listRef}>
         {items.map((item, i) => (
@@ -249,7 +307,7 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
             {/* У методичці заголовок — не кнопка: нічого не розгортати. */}
             {readOnly ? (
               <div className="acc-head acc-head--static">
-                <span className="acc-title">{item.title || `Картка ${i + 1}`}</span>
+                <span className="acc-title">{renderRichMarks(item.title) || `Картка ${i + 1}`}</span>
               </div>
             ) : (
               <button
@@ -258,13 +316,13 @@ export function AccordionScreen({ component, screenNumber, onGateProgress, onZoo
                 onClick={() => toggle(i)}
                 aria-expanded={everOpened.has(i)}
               >
-                <span className="acc-title">{item.title || `Картка ${i + 1}`}</span>
+                <span className="acc-title">{renderRichMarks(item.title) || `Картка ${i + 1}`}</span>
                 <span className="acc-chevron">
                   <ChevronIcon />
                 </span>
               </button>
             )}
-            {isOpen(i) && <div className="acc-body">{item.body}</div>}
+            {isOpen(i) && <div className="acc-body">{renderRichText(item.body)}</div>}
           </div>
         ))}
       </div>
@@ -295,8 +353,8 @@ export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoo
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="check-list">
         {items.map((item, i) =>
@@ -306,7 +364,7 @@ export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoo
               <span className="check-box">
                 <CheckIcon />
               </span>
-              <span className="check-text">{item.text}</span>
+              <span className="check-text">{renderRichMarks(item.text)}</span>
             </div>
           ) : (
             <button
@@ -316,10 +374,18 @@ export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoo
               onClick={() => toggle(i)}
               aria-pressed={checked.has(i)}
             >
+              {/* Галочка з'являється тим самим морфом, що й у варіантах
+                  відповіді (components/CoursePlayer.jsx) — один почерк на
+                  весь застосунок. Рендериться ЛИШЕ коли пункт відмічено:
+                  MorphRevealIcon промальовується на монтуванні, тож
+                  постійно присутня й лише пофарбована в прозоре іконка
+                  (як було) анімації не дала б узагалі.
+                  Без label — стан уже озвучено через aria-pressed самої
+                  кнопки, друга озвучка була б дублем. */}
               <span className="check-box">
-                <CheckIcon />
+                {checked.has(i) && <MorphRevealIcon shape="check" size={14} strokeWidth={3} className="check-mark" />}
               </span>
-              <span className="check-text">{item.text}</span>
+              <span className="check-text">{renderRichMarks(item.text)}</span>
             </button>
           )
         )}
@@ -333,6 +399,22 @@ export function ChecklistScreen({ component, screenNumber, onGateProgress, onZoo
 // Підпис за замовчуванням для ролі. Перебивається власним b.label із
 // конструктора (для співрозмовника, якого немає в списку ролей).
 // "note" навмисно без підпису — це ремарка, а не чиясь репліка.
+/**
+ * Ім'я голосу: власний підпис репліки з конструктора, інакше стандартний
+ * для ролі. Рішення користувача 2026-09-23 — «кружок з першою літерою
+ * імені, яке вказали кастомно або зі списку за замовчуванням».
+ */
+function speakerName(bubble) {
+  if (!bubble) return "";
+  return (bubble.label || "").trim() || BUBBLE_LABELS[bubble.role] || "";
+}
+
+/** Літера для кружечка-аватара. Порожньому імені — крапка, щоб кружечок
+ *  не виглядав зламаним. */
+function speakerInitial(name) {
+  return (name || "").trim().charAt(0).toUpperCase() || "·";
+}
+
 const BUBBLE_LABELS = {
   me: "Ви кажете",
   client: "Клієнт",
@@ -349,7 +431,12 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
   const [typing, setTyping] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const advanceRef = useRef(null);
+  const wrapRef = useRef(null);
   const timerRef = useRef(null);
+  // Співрозмовник у шапці — перший НЕ власний голос діалогу (і не
+  // «порада»/«ремарка», це вставки автора, а не учасники розмови).
+  const partner =
+    speakerName(bubbles.find((b) => b.role && b.role !== "me" && b.role !== "tip" && b.role !== "note")) || "Співрозмовник";
 
   useEffect(() => {
     onGateProgress?.(revealed);
@@ -363,6 +450,38 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
     return () => clearInterval(timerRef.current);
   }, [readOnly]);
 
+  /**
+   * Після кожної нової репліки кнопка «Наступна репліка» має лишатись на
+   * екрані — трохи вище нижнього краю (там, одразу під в'юпортом, стоїть
+   * сіра смуга .navwrap із підказкою гейта й кнопкою «Далі»). Інакше
+   * діалог доводиться догортувати руками після КОЖНОЇ репліки.
+   *
+   * Чому ефект, а не requestAnimationFrame одразу після setRevealed (як
+   * було): на останній репліці кнопка ЗНИКАЄ, і в rAF ref міг вказувати
+   * ще на неї або вже на null — залежно від того, чи встиг React
+   * закомітити. Ефект гарантовано йде після коміту, тож розгалуження
+   * «є кнопка / вже нема» завжди правильне.
+   *
+   * І чому не scrollIntoView({block:"nearest"}), що стояв тут раніше:
+   * по-перше, "nearest" підводить елемент рівно до краю — кнопка
+   * опинялась впритул до сірої смуги; по-друге, scrollIntoView крутить
+   * УСІХ прокручуваних предків, тобто разом із в'юпортом плеєра смикав і
+   * сторінку під ним (той самий дефект уже ловили в методичці). Наш
+   * peekScrollTo знаходить саме .cp-viewport і скролить лише його.
+   */
+  useEffect(() => {
+    if (readOnly || revealed === 0) return;
+    if (advanceRef.current) {
+      // minShift:4 — тут потрібна саме повна видимість кнопки: типова
+      // мертва зона в 24px лишала б її зрізаною знизу.
+      peekScrollTo(null, { keepVisible: advanceRef.current, minShift: 4 });
+    } else {
+      // Репліки скінчились, кнопки більше нема — показуємо низ діалогу
+      // разом із підказкою, що екран дочитано.
+      scrollToEnd(wrapRef.current);
+    }
+  }, [revealed, readOnly]);
+
   function revealNext() {
     if (typing || revealed >= bubbles.length) return;
     setTyping(true);
@@ -371,13 +490,6 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
     setTimeout(() => {
       setTyping(false);
       setRevealed((n) => n + 1);
-      requestAnimationFrame(() => {
-        try {
-          advanceRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        } catch {
-          /* старі браузери без smooth-скролу — не критично */
-        }
-      });
     }, 620);
   }
 
@@ -388,14 +500,23 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
 
-      <div className="script-wrap">
-        <div className="call-bar">
-          <span className="call-dot" />
-          <span className="call-label">{callLabel || "Дзвінок із клієнтом"}</span>
+      <div className="script-wrap" ref={wrapRef}>
+        {/* Шапка чату замість колишньої смуги дзвінка: хто на тому боці —
+            видно один раз згори, як у будь-якому месенджері, і підпис у
+            кожній репліці стає зайвим. Співрозмовник — перша НЕ-власна
+            репліка діалогу: саме з ким іде розмова. */}
+        <div className="chat-head">
+          <span className="chat-avatar" aria-hidden="true">
+            {speakerInitial(partner)}
+          </span>
+          <span className="chat-head-txt">
+            <b>{partner}</b>
+            <span>{callLabel || "Дзвінок із клієнтом"}</span>
+          </span>
           {!readOnly && (
             <span className="call-time">
               {mm}:{ss}
@@ -408,21 +529,48 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
           ))}
         </div>
 
-        {bubbles.slice(0, revealed).map((b, i) => (
-          <div key={i} className={`bubble ${b.role || "me"}`}>
-            {(b.label || BUBBLE_LABELS[b.role]) && <span className="bubble-label">{b.label || BUBBLE_LABELS[b.role]}</span>}
-            <span>{b.text}</span>
-          </div>
-        ))}
+        {bubbles.slice(0, revealed).map((b, i) => {
+          const role = b.role || "me";
+          const isAside = role === "tip" || role === "note";
+          const name = speakerName(b);
+          // Групування: аватар і ім'я — лише в ПЕРШОЇ репліки серії одного
+          // голосу, як у месенджерах. Інакше поруч із трьома репліками
+          // клієнта тричі висів би той самий кружечок з тією ж літерою.
+          const prev = bubbles[i - 1];
+          const startsGroup = !prev || (prev.role || "me") !== role || speakerName(prev) !== name;
+          return (
+            <div
+              key={i}
+              className={`chat-row ${isAside ? "aside" : role === "me" ? "mine" : "theirs"}${startsGroup ? " starts" : ""}`}
+            >
+              {!isAside && role !== "me" && (
+                <span className="chat-avatar sm" aria-hidden="true">
+                  {startsGroup ? speakerInitial(name) : ""}
+                </span>
+              )}
+              <div className={`bubble ${role}`}>
+                {!isAside && role !== "me" && startsGroup && name && <span className="bubble-label">{name}</span>}
+                <span>{renderRichMarks(b.text)}</span>
+              </div>
+            </div>
+          );
+        })}
 
         {typing && (
-          <div className={`bubble ${bubbles[revealed]?.role || "me"} typing`}>
-            <span className="wave-bars">
-              <span />
-              <span />
-              <span />
-              <span />
-            </span>
+          <div className={`chat-row ${(bubbles[revealed]?.role || "me") === "me" ? "mine" : "theirs"}`}>
+            {(bubbles[revealed]?.role || "me") !== "me" && (
+              <span className="chat-avatar sm" aria-hidden="true">
+                {speakerInitial(speakerName(bubbles[revealed]))}
+              </span>
+            )}
+            <div className={`bubble ${bubbles[revealed]?.role || "me"} typing`}>
+              <span className="wave-bars">
+                <span />
+                <span />
+                <span />
+                <span />
+              </span>
+            </div>
           </div>
         )}
 
@@ -441,6 +589,235 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
           </button>
         )}
       </div>
+    </>
+  );
+}
+
+/* ===================== ФОТО З ТОЧКАМИ (пояснялка) ===================== */
+
+/**
+ * Фото з пронумерованими точками: тап по точці розкриває її підпис.
+ * Гейт — відкрити всі. Це НЕ питання: правильної відповіді немає, у бал
+ * не йде (пор. HotspotScreen, де треба вгадати місце).
+ *
+ * Навіщо окремий тип, коли є акордеон: підпис прив'язаний до МІСЦЯ на
+ * фото. «Ось тут кран, ось тут редуктор» списком під картинкою читається
+ * як набір слів — людина все одно мусить сама зіставити текст із деталлю.
+ * Тут зіставляти не треба, і саме тому цей тип є в кожному серйозному
+ * авторському інструменті (H5P Image Hotspots, Storyline markers).
+ *
+ * Підпис показується поруч із точкою, а не в окремій панелі знизу: на
+ * телефоні панель знизу відриває пояснення від деталі, про яку воно.
+ * Відкрита точка лишається відкритою — як картки акордеона.
+ */
+export function ImagePinsScreen({ component, screenNumber, onGateProgress, onZoomImage, readOnly = false, tapHint = true }) {
+  const { kicker, lead, images = [], pins = [], pinShape, pinSize } = component.content || {};
+  const [opened, setOpened] = useState(() => new Set());
+  // Точка, натиснута ОСТАННЬОЮ — окремо від набору вже прочитаних:
+  // підпис біля самої точки показується лише в неї, а список записів
+  // нижче тримає всі відкриті.
+  const [active, setActive] = useState(null);
+  const image = images.find((img) => img.url);
+
+  useEffect(() => {
+    onGateProgress?.(readOnly ? pins.length : opened.size);
+  }, [opened, pins.length, readOnly, onGateProgress]);
+
+  const layoutRef = useRef(null);
+
+  /**
+   * Щойно відкрита запись має бути на екрані. peekScrollTo з keepVisible
+   * сам вирішує, чи треба щось робити: якщо низ запису вже видно, зсув
+   * виходить нульовим і екран не смикається (рішення користувача
+   * 2026-09-23 — «підʼїжджати, тільки якщо її не видно»). На десктопі
+   * записи стоять збоку від фото й видимі одразу, тож там теж тихо.
+   */
+  useEffect(() => {
+    if (readOnly || active == null) return undefined;
+    const note = layoutRef.current?.querySelector(`[data-note="${active}"]`);
+    if (!note) return undefined;
+    // Невелика пауза, а не миттєвий скрол: записи розкриваються каскадом
+    // при вході на екран, і якщо тапнути точку саме в цей момент, їхні
+    // позиції ще їдуть. Раніше тут стояло 280мс — чекали, поки запис
+    // дорозкриється; тепер вони відкриті одразу, тож вистачає 120мс, і
+    // підʼїзд відчувається як відповідь на тап, а не як роздум.
+    const t = setTimeout(() => peekScrollTo(null, { keepVisible: note }), 120);
+    return () => clearTimeout(t);
+  }, [active, readOnly]);
+
+  const isOpen = (i) => readOnly || opened.has(i);
+  const nextIdx = readOnly || !tapHint ? -1 : pins.findIndex((_, i) => !opened.has(i));
+
+  return (
+    <>
+      <Kicker screenNumber={screenNumber} text={kicker} />
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
+
+      {!image ? (
+        <p className="cp-lead">Для цього екрана ще не додано фото.</p>
+      ) : (
+        /* Один контейнер і на фото, і на записи — щоб розкладка була суто
+           CSS-ною, без дублювання тексту в DOM. Телефон: колонка, фото
+           зверху, записи під ним по порядку номерів. Десктоп (@container
+           cp-card): три колонки, фото посередині, а кожна запис іде в ту
+           саму половину кадру, у якій стоїть її точка. */
+        <div className="pins-layout" ref={layoutRef}>
+          <div className="pins-frame">
+          <CourseImage
+            src={image.url}
+            alt={image.caption || component.title || ""}
+            zoomable={typeof onZoomImage === "function"}
+          />
+          {pins.map((pin, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`pin ${pinShape === "square" ? "is-square" : "is-circle"}${isOpen(i) ? " open" : ""}${
+                active === i ? " is-active" : ""
+              }${i === nextIdx ? " tap-next" : ""}`}
+              // Ширина у ВІДСОТКАХ кадру + aspect-ratio:1 у CSS — маркер
+              // лишається рівно круглим/квадратним на будь-якому екрані й
+              // однаковим у всіх точок (розмір один на компонент).
+              style={{ left: `${pin.x}%`, top: `${pin.y}%`, width: `${pinSize || 8}%` }}
+              onClick={() => {
+                if (readOnly) return;
+                setOpened((prev) => (prev.has(i) ? prev : new Set(prev).add(i)));
+                setActive((cur) => (cur === i ? null : i));
+              }}
+              aria-label={pin.title || `Точка ${i + 1}`}
+            >
+              <span className="pin-num">{i + 1}</span>
+              {/* Підпис ЛИШАЄТЬСЯ біля точки після відкриття, а не зникає з
+                  переходом до наступної (рішення користувача 2026-09-23):
+                  так на фото поступово проступає вся карта підписів і не
+                  треба тримати в голові, де що. Виглядають усі однаково —
+                  яка з них зараз обрана, видно по підсвіченому запису. */}
+              {isOpen(i) && pin.title && (
+                <span className={`pin-chip${pin.x > 55 ? " to-left" : ""}`}>{renderRichMarks(pin.title)}</span>
+              )}
+            </button>
+          ))}
+          </div>
+
+          {/* Записи НАКОПИЧУЮТЬСЯ: відкрита точка лишається в списку, тож
+              під кінець видно весь розбір знімка й деталі можна порівняти
+              між собою (рішення користувача 2026-09-23). Порядок — за
+              номерами точок, а не за порядком натискань: список має
+              читатись як опис, а не як історія кліків. */}
+          {/* Усі підписи видно ОДРАЗУ (рішення користувача 2026-09-23 —
+              «вони не закривають простір і добре виглядають»). Тап по точці
+              тепер означає не «відкрий текст», а «знайди це місце на фото»:
+              підпис виїжджає біля самої точки, її запис підсвічується, і до
+              нього підʼїжджає екран. Гейт лишився — «Далі» відкриється, коли
+              торкнулись кожної точки, інакше екран проклацали б не глянувши
+              на знімок. */}
+          {pins.map((pin, i) =>
+            pin.title || pin.text ? (
+              // Слот-обгортка тримає анімацію розкриття (і колонку на
+              // десктопі), сама картка лишається зі своїми відступами:
+              // анімувати висоту можна лише на гріді, а padding картки
+              // інакше стирчав би навіть при нульовій висоті.
+              <div
+                key={`note-${i}`}
+                className={`pin-note-slot side-${pin.x > 50 ? "right" : "left"}`}
+                data-note={i}
+                // Каскад: записи розкриваються одна за одною, а не всі
+                // разом — так видно, що їх кілька, і око встигає за рухом.
+                style={{ animationDelay: `${i * 70}ms` }}
+              >
+                <div className={`pin-note-card${active === i ? " is-active" : ""}${opened.has(i) ? " is-seen" : ""}`}>
+                  <span className="pin-note-num">{i + 1}</span>
+                  <span className="pin-note-txt">
+                    {pin.title && <b>{renderRichMarks(pin.title)}</b>}
+                    {pin.text && <span>{renderRichMarks(pin.text)}</span>}
+                  </span>
+                </div>
+              </div>
+            ) : null
+          )}
+        </div>
+      )}
+      {image?.caption && <div className="cp-photo-caption">{renderRichMarks(image.caption)}</div>}
+    </>
+  );
+}
+
+/* ===================== ДО / ПІСЛЯ ===================== */
+
+/**
+ * Два фото в одній рамці з перемикачем. Гейт — перемкнути хоча б раз.
+ *
+ * Чому перемикач, а не «шторка» з повзунком, як у багатьох галереях:
+ * повзунок вимагає тягнути пальцем рівно по вузькій ручці, а тут
+ * телефонний застосунок для польових умов — у проєкті вже є рішення не
+ * робити механік на перетягуванні. Тап по кадру дає ту саму головну
+ * цінність: обидва стани показуються В ОДНИХ І ТИХ САМИХ межах кадру,
+ * тож око бачить різницю миттєво, не переносячи погляд між двома фото.
+ */
+export function BeforeAfterScreen({ component, screenNumber, onGateProgress, onZoomImage, readOnly = false, tapHint = true }) {
+  const { kicker, lead, images = [], beforeLabel, afterLabel } = component.content || {};
+  const valid = (images || []).filter((img) => img.url);
+  const [showAfter, setShowAfter] = useState(readOnly);
+  const [switched, setSwitched] = useState(readOnly);
+
+  useEffect(() => {
+    onGateProgress?.(switched ? 1 : 0);
+  }, [switched, onGateProgress]);
+
+  if (valid.length < 2) {
+    return (
+      <>
+        <Kicker screenNumber={screenNumber} text={kicker} />
+        {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+        <p className="cp-lead">Для цього екрана потрібні два фото — «до» і «після».</p>
+      </>
+    );
+  }
+
+  const labels = [beforeLabel || "Було", afterLabel || "Стало"];
+  const shown = valid[showAfter ? 1 : 0];
+
+  function toggle(next) {
+    if (readOnly) return;
+    setShowAfter(next);
+    if (next) setSwitched(true);
+  }
+
+  return (
+    <>
+      <Kicker screenNumber={screenNumber} text={kicker} />
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
+
+      <div className="ba-frame">
+        {/* Обидва фото лежать одне на одному й лише міняють прозорість:
+            так кадр не «стрибає» при перемиканні, навіть якщо знімки
+            трохи різних пропорцій, і перехід виходить плавним. */}
+        {valid.slice(0, 2).map((img, i) => (
+          <div key={i} className={`ba-layer${(i === 1) === showAfter ? " is-on" : ""}`} aria-hidden={(i === 1) !== showAfter}>
+            <CourseImage src={img.url} alt={img.caption || labels[i]} zoomable={typeof onZoomImage === "function"} />
+          </div>
+        ))}
+        <span className={`ba-badge${showAfter ? " is-after" : ""}`}>{labels[showAfter ? 1 : 0]}</span>
+      </div>
+
+      {!readOnly && (
+        <div className="ba-switch" role="group" aria-label="Порівняння">
+          {labels.map((label, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`ba-switch-btn${(i === 1) === showAfter ? " is-on" : ""}${!switched && i === 1 && tapHint ? " tap-next" : ""}`}
+              onClick={() => toggle(i === 1)}
+              aria-pressed={(i === 1) === showAfter}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {shown?.caption && <div className="cp-photo-caption">{renderRichMarks(shown.caption)}</div>}
     </>
   );
 }
@@ -494,8 +871,8 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
       <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
       <div className="timeline" ref={listRef}>
         {steps.map((step, i) => (
@@ -517,7 +894,7 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
             <div className="tl-body">
               {readOnly ? (
                 <div className="tl-head tl-head--static">
-                  <span className="tl-title">{step.title || `Крок ${i + 1}`}</span>
+                  <span className="tl-title">{renderRichMarks(step.title) || `Крок ${i + 1}`}</span>
                 </div>
               ) : (
                 <button
@@ -526,10 +903,19 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
                   onClick={() => toggle(i)}
                   aria-expanded={openSet.has(i)}
                 >
-                  <span className="tl-title">{step.title || `Крок ${i + 1}`}</span>
+                  <span className="tl-title">{renderRichMarks(step.title) || `Крок ${i + 1}`}</span>
                 </button>
               )}
-              {isOpen(i) && step.detail && <div className="tl-detail">{step.detail}</div>}
+              {/* Деталь крока рендериться ЗАВЖДИ, а розкривається класом:
+                  умовний рендер не дає чого анімувати — елемент з'являється
+                  вже на повну висоту, і крок «стрибає». Обгортка тримає
+                  саму анімацію висоти, .tl-detail лишається зі своїми
+                  відступами. */}
+              {step.detail && (
+                <div className={`tl-detail-wrap${isOpen(i) ? " open" : ""}`} aria-hidden={!isOpen(i)}>
+                  <div className="tl-detail">{renderRichText(step.detail)}</div>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -538,41 +924,28 @@ export function TimelineScreen({ component, screenNumber, onGateProgress, onZoom
   );
 }
 
-/* ===================== PHOTO (самостійне фото) ===================== */
+/* ===================== PHOTO (фото та відео) ===================== */
 
+/**
+ * Обгортка навколо медіа: рубрика, заголовок, вступний рядок, саме фото
+ * чи ролик — і «Варто знати» під ним. Той самий набір полів і той самий
+ * порядок, що в усіх решти типів екрана: фото без жодного тексту читалось
+ * як загублений слайд, і автору доводилось заводити окремий інфо-екран
+ * поруч, аби підписати, що саме показано.
+ *
+ * Розмітку медіа НЕ дублюємо — беремо спільний ScreenMedia: до цього тут
+ * лежала власна копія рамки, і будь-яка зміна (лупа, відео, підпис)
+ * мовчки проходила повз саме той екран, який і створений заради фото.
+ */
 export function PhotoScreen({ component, screenNumber, onZoomImage }) {
-  const { images = [] } = component.content || {};
+  const { kicker, lead, note, images = [] } = component.content || {};
   return (
     <>
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {images
-        .filter((img) => img.url)
-        .map((img, i) => {
-          const alt = img.caption || component.title || "";
-          const zoomable = typeof onZoomImage === "function";
-          return (
-            <div
-              className={`photo-frame${zoomable ? " zoomable" : ""}`}
-              key={i}
-              role={zoomable ? "button" : undefined}
-              tabIndex={zoomable ? 0 : undefined}
-              onClick={zoomable ? () => onZoomImage({ src: img.url, alt }) : undefined}
-              onKeyDown={
-                zoomable
-                  ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        onZoomImage({ src: img.url, alt });
-                      }
-                    }
-                  : undefined
-              }
-            >
-              <CourseImage src={img.url} alt={alt} />
-              {img.caption && <div className="cp-photo-caption">{img.caption}</div>}
-            </div>
-          );
-        })}
+      <Kicker screenNumber={screenNumber} text={kicker} />
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
+      <ScreenMedia images={images} title={component.title} onZoomImage={onZoomImage} />
+      {note && <NoteAccordion note={note} />}
     </>
   );
 }
@@ -600,7 +973,7 @@ export function InputScreen({ component, screenNumber, onGateProgress }) {
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
       {label && <label className="cp-input-label">{label}</label>}
       <Field
         className="cp-input-field"
@@ -776,7 +1149,7 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
     return (
       <>
         <Kicker screenNumber={screenNumber} text={kicker} />
-        {component.title && <h2 className="cp-h2">{component.title}</h2>}
+        {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
         <p className="cp-lead">Для цього питання ще не додано фото.</p>
       </>
     );
@@ -785,8 +1158,8 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
   return (
     <>
       <Kicker screenNumber={screenNumber} text={kicker} />
-      {component.title && <h2 className="cp-h2">{component.title}</h2>}
-      {lead && <p className="cp-lead">{lead}</p>}
+      {component.title && <h2 className="cp-h2">{renderRichMarks(component.title)}</h2>}
+      {lead && <p className="cp-lead">{renderRichMarks(lead)}</p>}
 
       <div
         className={`hs-frame${isAnswered ? " answered" : ""}${imgReady ? "" : " loading"}`}
@@ -799,12 +1172,17 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
 
         {/* Правильні зони показуємо ЛИШЕ після відповіді — інакше питання
             не мало б сенсу. */}
+        {/* solo — коли правильне місце ОДНЕ: тоді решту знімка можна
+            приглушити, лишивши яскравою саму зону (CSS робить це величезною
+            зовнішньою тінню, обрізаною рамкою кадру). При кількох зонах
+            такий прийом не працює: тінь однієї зони приглушила б сусідню,
+            тож там лишається просто підсвітка без затемнення. */}
         {isAnswered &&
           zones.map((z, i) => (
             <span
               key={i}
-              className="hs-zone"
-              style={{ left: `${z.x}%`, top: `${z.y}%`, width: `${(z.r || 8) * 2}%`, aspectRatio: "1" }}
+              className={`hs-zone ${zoneShapeClass(z)}${zones.length === 1 ? " solo" : ""}`}
+              style={zoneStyle(z)}
             />
           ))}
 
@@ -812,12 +1190,12 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
           <span className={`hs-pin${answer ? " ok" : " bad"}`} style={{ left: `${click.x}%`, top: `${click.y}%` }} />
         )}
       </div>
-      {image.caption && <div className="cp-photo-caption">{image.caption}</div>}
+      {image.caption && <div className="cp-photo-caption">{renderRichMarks(image.caption)}</div>}
 
       {isAnswered && (
         <div className={`q-fb show ${answer ? "ok" : "bad"}`}>
           <b className="q-fb-verdict">{answer ? "Влучно!" : "Не те місце — правильне обведено зеленим."}</b>
-          {explanation && <span className="q-fb-explain">{explanation}</span>}
+          {explanation && <span className="q-fb-explain">{renderRichMarks(explanation)}</span>}
         </div>
       )}
     </>
@@ -832,17 +1210,13 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
  * поверх усього, закривається по фону/Esc/кнопці.
  */
 export function ImageLightbox({ src, alt, onClose }) {
+  useBodyScrollLock(Boolean(src));
   useEffect(() => {
     function onKey(e) {
       if (e.key === "Escape") onClose();
     }
     document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   if (!src) return null;
