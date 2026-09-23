@@ -26,7 +26,7 @@ export const NOTIFICATION_CATEGORIES: NotificationCategoryMeta[] = [
   {
     key: "deadlines",
     label: "Дедлайни",
-    hint: "Нагадування за 3 дні та за 1 день до терміну, прострочення",
+    hint: "Нагадування за 3 дні та за 1 день до терміну, прострочення, нагадування від керівника",
     icon: "⏰",
   },
   {
@@ -67,6 +67,7 @@ export const TYPE_CATEGORY: Record<string, NotificationCategoryKey> = {
   deadline_3d: "deadlines",
   deadline_1d: "deadlines",
   enrollment_overdue: "deadlines",
+  manager_reminder: "deadlines",
   badge_awarded: "badges",
   subordinate_enrollment_overdue: "team",
   team_digest: "team",

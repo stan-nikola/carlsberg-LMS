@@ -102,6 +102,12 @@ model Employee {
   /// той проставляється, коли адмін заводить рядок Employee, а не коли
   /// співробітник вперше увійшов.
   firstLoginAt DateTime?
+  /// Останній раз, коли людина відкривала застосунок — оновлюється не
+  /// частіше разу на годину з GET /api/notifications (дзвіночок опитує його
+  /// лише поки застосунок відкритий). Сесія — stateless cookie, окремої
+  /// таблиці входів нема, тож це єдиний чесний сигнал «неактивний N днів»
+  /// для кабінету керівника (2026-09-23).
+  lastSeenAt DateTime?
 
   positionId Int?
   position   Position? @relation(fields: [positionId], references: [id])

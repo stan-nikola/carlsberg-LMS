@@ -55,6 +55,13 @@ function NavPending() {
   return <span className={`nav-pending${pending ? " is-pending" : ""}`} aria-hidden="true" />;
 }
 
+/** «Команда» лишається активною і на drill-down сторінках /manager/team/*
+ *  (2026-09-23): вони — підрозділи дашборда, окремого пункту меню не мають. */
+function isNavActive(pathname, href) {
+  if (href === "/manager") return pathname === "/manager" || pathname.startsWith("/manager/team");
+  return pathname === href;
+}
+
 export function ManagerShell({ hasNewCourses = false, children }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -110,7 +117,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   const navLinks = (
     <nav className="mgr-nav">
       {NAV_ITEMS.map(({ href, label, Icon }) => {
-        const isActive = pathname === href;
+        const isActive = isNavActive(pathname, href);
         return (
           <Link
             key={href}
@@ -142,7 +149,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   // баг на прототипі, той самий підводний камінь для будь-якого
   // абсолютно спозиціонованого елемента у flex-контейнері).
   useLayoutEffect(() => {
-    const activeHref = NAV_ITEMS.find((t) => pathname === t.href)?.href ?? NAV_ITEMS[0].href;
+    const activeHref = NAV_ITEMS.find((t) => isNavActive(pathname, t.href))?.href ?? NAV_ITEMS[0].href;
     const activeEl = tabRefs.current.get(activeHref);
     const pill = pillRef.current;
     const bar = tabbarRef.current;
@@ -214,7 +221,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
       <nav className="tabbar mgr-tabbar" role="tablist" ref={tabbarRef}>
         <span className="tab-pill" ref={pillRef} aria-hidden="true" />
         {NAV_ITEMS.map(({ href, label, Icon }) => {
-          const isActive = pathname === href;
+          const isActive = isNavActive(pathname, href);
           return (
             <Link
               key={href}

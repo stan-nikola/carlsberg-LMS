@@ -22,7 +22,7 @@ export const DASHBOARD_CARDS = [
   { id: "deadlines", label: "Дедлайни на горизонті", group: "sv" },
   { id: "scoreDist", label: "Розподіл балів", group: "sv" },
   { id: "hardestModules", label: "Найскладніші модулі", group: "td" },
-  { id: "peopleStatus", label: "Статус по людях", group: "sv" },
+  { id: "peopleStatus", label: "Матриця: люди × курси", group: "sv" },
   { id: "trend", label: "Активність по тижнях", group: "asm" },
   { id: "courseBreakdown", label: "% складання по курсу", group: "asm" },
   { id: "teamCompare", label: "Порівняння команд", group: "asm" },
