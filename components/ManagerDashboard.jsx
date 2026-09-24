@@ -773,9 +773,24 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     const grid = gridRef.current;
     const el = chartsRef.current;
     if (!grid || !el) return;
+    // Вмикання/вимикання картки — це ДЕЛЬТА, а не перебудова всієї сітки.
+    // Раніше тут був removeAll + makeWidget усіх заново: наявні картки
+    // ставали на свої gs-x/gs-y, а нова (без збереженої позиції) падала в
+    // ПЕРШУ вільну щілину зверху й розпихала все під собою — «ламала весь
+    // дашборд» (скарга користувача, 2026-09-24). Тепер:
+    //  • вимкнену прибираємо точково (React уже видалив її DOM — у engine
+    //    лишився вузол-привид, знімаємо його);
+    //  • увімкнену додаємо В НИЗ (y = поточна висота сітки), не чіпаючи
+    //    жодної наявної картки; звідти її можна перетягнути куди треба.
+    const domById = new Map([...el.querySelectorAll(":scope > .grid-stack-item")].map((i) => [i.getAttribute("gs-id"), i]));
     grid.batchUpdate();
-    grid.removeAll(false, false);
-    for (const item of el.querySelectorAll(":scope > .grid-stack-item")) grid.makeWidget(item);
+    for (const node of [...grid.engine.nodes]) {
+      if (node.el && !domById.has(node.el.getAttribute("gs-id"))) grid.removeWidget(node.el, false, false);
+    }
+    const bottom = grid.getRow();
+    for (const item of domById.values()) {
+      if (!item.gridstackNode) grid.makeWidget(item, { x: 0, y: bottom, w: Number(item.getAttribute("gs-w")) || 6, autoPosition: false });
+    }
     grid.batchUpdate(false);
   }, [visibleKey, orderKey]);
 

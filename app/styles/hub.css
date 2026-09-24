@@ -75,6 +75,15 @@
 .hub-greeting-h1 {
   margin-bottom: 10px;
 }
+/* Титульний H1 вкладки (КОМАНДА / КУРСИ / ДОСЯГНЕННЯ / ПРОФІЛЬ / КАБІНЕТ
+   КЕРІВНИКА) на десктопі — +20% (користувач, 2026-09-24). Лише на широкому
+   екрані: на телефоні розмір лишається, там ці заголовки й так пропорційні
+   вузькій картці. Спільний клас для /hub і /manager, тож правило одне. */
+@media (min-width: 900px) {
+  .hub-greeting-h1 {
+    font-size: calc(11px * var(--fs-scale) * 1.2);
+  }
+}
 .hub-empty-note {
   font-size: calc(11.6px * var(--fs-scale));
   color: var(--ink-soft);
@@ -808,6 +817,38 @@ a.profile-card-link:focus-visible {
 .lb-row-self {
   border-color: var(--green-700);
   background: color-mix(in srgb, var(--green-700) 8%, var(--surface-1));
+}
+/* Клікабельний рядок (кабінет керівника: лідери за посадами → лист
+   підлеглого). У /hub рядки не клікабельні — там цього класу немає. */
+a.lb-row-link {
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--dur-fast) var(--ease-premium), background var(--dur-fast) var(--ease-premium);
+}
+@media (hover: hover) {
+  a.lb-row-link:hover {
+    border-color: var(--green-500);
+    background: var(--green-tint);
+  }
+}
+a.lb-row-link:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+/* Лідери, згруповані за посадою (кабінет керівника): блок на посаду з
+   заголовком, усередині — рейтинг лише цієї посади. */
+.leaderboard-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.lb-group-title {
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--fs-scale));
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--green-700);
+  margin: 0 0 6px;
 }
 .lb-rank {
   display: flex;
