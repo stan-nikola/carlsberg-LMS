@@ -19,6 +19,9 @@ import "@/app/styles/registration.css";
 import "@/app/styles/hub.css";
 import "@/app/styles/course-player.css";
 import "@/app/styles/admin.css";
+// Сітка дашборда керівника (components/ManagerDashboard.jsx) — базові
+// стилі gridstack ДО manager.css, щоб наші правила їх перекривали.
+import "gridstack/dist/gridstack.min.css";
 import "@/app/styles/manager.css";
 import "@/app/styles/notifications.css";
 import "@/app/styles/rating.css";

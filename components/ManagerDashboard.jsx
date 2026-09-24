@@ -19,6 +19,7 @@ import {
 } from "@/components/icons";
 import { HintDot } from "@/components/HintDot";
 import { CompletionRing } from "@/components/CompletionRing";
+import { GridStack } from "gridstack";
 import { medalTier } from "@/lib/progress";
 import { PageSkeleton, LinesSkeleton } from "@/components/Skeleton";
 import { Avatar } from "@/components/Avatar";
@@ -107,65 +108,53 @@ const LONG_PRESS_MS = 450;
 // тексту, а не намір тягнути: довге натискання скасовується.
 const LONG_PRESS_MOVE_TOLERANCE_PX = 8;
 
-// Сітка дашборда в ЮНІТАХ (2026-09-23, рішення користувача: як Grafana —
-// колонки по ширині контейнера, рядки фіксованої висоти, картка займає
-// W×H цілих юнітів, `grid-auto-flow: dense` заповнює дірки). Розміри
-// зберігаються в юнітах, тож один лейаут коректно перераховується на
-// будь-якому екрані; старі ключі spans_v1/heights_v1 (пікселі) ігноруються.
-// GRID_UNIT_PX/GRID_GAP_PX/GRID_ROW_PX ДЗЕРКАЛЯТЬ .mgr-charts у manager.css
-// (--mgr-grid-unit/--mgr-grid-gap/--mgr-row-h): JS рахує кількість
-// колонок і крок ручок, CSS малює — числа мають збігатись.
-const DASHBOARD_LAYOUT_STORAGE_KEY = "carls_manager_dashboard_layout_v2";
-const GRID_UNIT_PX = 240;
-const GRID_GAP_PX = 16;
-const GRID_ROW_PX = 112;
-const MAX_CARD_H = 8;
-// Стеля АВТО-висоти (рішення користувача, 2026-09-23): картка сама бере
-// стільки рядків сітки, скільки треба вмісту, але не більше — інакше одна
-// матриця на велику команду розтягнула б дашборд на три екрани. Те, що
-// вище стелі, скролиться всередині картки.
-const MAX_AUTO_CARD_H = 6;
-// Дефолт W×H на картку — ширина лишається за ним завжди, висота діє лише
-// як запасний варіант, поки авто-замір ще не відпрацював (перший кадр).
-const DEFAULT_CARD_SIZE = {
-  status: [2, 2],
-  attention: [2, 3],
-  rings: [2, 2],
-  trend: [2, 2],
-  deadlines: [1, 2],
-  scoreDist: [1, 2],
-  firstTry: [2, 2],
-  duration: [2, 2],
-  courseBreakdown: [2, 3],
-  hardestModules: [2, 3],
-  peopleStatus: [3, 4],
-  teamCompare: [2, 3],
-  hardestQuestions: [2, 3],
+// Сітка дашборда — gridstack.js (2026-09-24, рішення користувача після
+// двох власних движків: flex-wrap лишав дірки, власний grid у юнітах
+// смикався при перетягуванні й розтягував картки в порожнечу).
+// Модель як у Grafana: 12 віртуальних колонок, ширина картки — частка з
+// них (тож згорнута бічна панель просто робить усе пропорційно ширшим,
+// розкладка не міняється), висота — СТРОГО по вмісту (sizeToContent),
+// картки «спливають» угору в порожнє місце (float:false), перетягування
+// з плейсхолдером і автоскролом сторінки біля краю. Зберігається лише
+// {x,y,w} по картках; старі ключі юнітів/пікселів ігноруються.
+const DASHBOARD_GRID_STORAGE_KEY = "carls_manager_dashboard_grid_v3";
+const GRID_COLUMNS = 12;
+// Крок висоти. Дрібний — щоб картка «по вмісту» майже не мала повітря
+// знизу (округлення вгору не більше за одну клітинку).
+const GRID_CELL_HEIGHT_PX = 24;
+// Половина проміжку між картками: gridstack ставить margin з кожного боку.
+const GRID_MARGIN_PX = 8;
+// Дефолтна ширина картки в колонках із 12; вужче за MIN_CARD_W картку не
+// стиснути — у 2 колонках (~180px) не читається жодна діаграма.
+const DEFAULT_CARD_W = {
+  status: 6,
+  attention: 6,
+  rings: 6,
+  trend: 6,
+  deadlines: 3,
+  scoreDist: 3,
+  firstTry: 6,
+  duration: 6,
+  courseBreakdown: 6,
+  hardestModules: 6,
+  peopleStatus: 12,
+  teamCompare: 6,
+  hardestQuestions: 6,
 };
-// Кільце (CompletionRing): звичайний розмір і межа, нижче якої відсоток
-// усередині вже не прочитати.
-const RING_MAX_PX = 108;
-const RING_MIN_PX = 54;
-// Наскільки можна зрушити вказівник, щоб це все ще вважалось кліком, а не
-// перетягуванням.
-const CLICK_SLOP_PX = 6;
+const MIN_CARD_W = 3;
 
-function readStoredLayout() {
-  if (typeof window === "undefined") return {};
+/** Збережена розкладка gridstack: масив {id,x,y,w}; будь-яке сміття → null. */
+function readStoredGrid() {
+  if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(DASHBOARD_LAYOUT_STORAGE_KEY);
-    if (!raw) return {};
+    const raw = window.localStorage.getItem(DASHBOARD_GRID_STORAGE_KEY);
+    if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter((n) => n && typeof n.id === "string" && Number.isInteger(n.x) && Number.isInteger(n.y) && Number.isInteger(n.w));
   } catch {
-    return {};
+    return null;
   }
-}
-
-/** Скільки колонок сітки вміщається в ширину контейнера — та сама
- *  формула, що repeat(auto-fill, minmax(unit, 1fr)) у CSS. */
-function gridColumnsFor(width) {
-  return Math.max(1, Math.floor((width + GRID_GAP_PX) / (GRID_UNIT_PX + GRID_GAP_PX)));
 }
 
 function readStoredOrder() {
@@ -534,14 +523,13 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // ініціалізатор з localStorage, інакше SSR-розмітка (без збереженого
   // порядку/ширини/висоти) розходиться з першим клієнтським рендером.
   const [storedOrder, setStoredOrder] = useState(null);
-  // Розміри в юнітах сітки, які керівник сам поставив ручками (id ->
-  // {w, h}). Поки картки тут нема — діє DEFAULT_CARD_SIZE.
-  const [cardLayout, setCardLayout] = useState({});
-  // Перший рендер після відновлення збереженої розкладки НЕ анімуємо:
-  // SSR малює канонічний порядок, і FLIP нижче чесно возив би картки з
-  // нього в збережений — на кожному оновленні сторінки було видно, як
-  // вони «переїжджають» (скарга користувача, 2026-09-23).
-  const skipNextFlipRef = useRef(false);
+  // Збережена розкладка gridstack (readStoredGrid) — підхоплюється тим же
+  // ефектом, що й решта налаштувань, і застосовується при ініціалізації
+  // сітки (grid.load) нижче. null — ще не читали; [] — нічого не збережено.
+  const [storedGrid, setStoredGrid] = useState(null);
+  // Скидання розкладки перемонтовує сітку (key на секції): простіше й
+  // надійніше, ніж повертати кожній картці дефолт через API gridstack.
+  const [gridEpoch, setGridEpoch] = useState(0);
   // Одним ефектом підхоплюємо всі збережені в localStorage налаштування
   // одразу після монтування на клієнті — до цього моменту дашборд показує
   // SSR-дефолт (ролевий набір карток, розмітковий порядок/розмір), потім
@@ -559,35 +547,15 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- одноразове читання localStorage після монтування, не синхронізація зі стейтом React
     if (storedCards) setCardOverride(storedCards);
     const order = readStoredOrder();
-    const layout = readStoredLayout();
-    if (order || Object.keys(layout).length > 0) skipNextFlipRef.current = true;
     if (order) setStoredOrder(order);
-    if (Object.keys(layout).length > 0) setCardLayout(layout);
+    setStoredGrid(readStoredGrid() || []);
   }, []);
-  const [resizeId, setResizeId] = useState(null);
-  const resizeRef = useRef(null);
-  // Скільки колонок сітки вміщається зараз і яка реальна ширина однієї —
-  // міряємо ResizeObserver-ом на самій секції (нижче): ширина картки в
-  // юнітах клампиться по колонках, ручка по X крокує по реальній ширині
-  // колонки, а не по номінальних 240px.
   const chartsRef = useRef(null);
-  const [grid, setGrid] = useState({ cols: 4, colWidth: GRID_UNIT_PX });
-  // Висота кожної картки в рядках сітки, порахована з її ВМІСТУ
-  // (measureAutoHeights нижче). Ручна висота з cardLayout перекриває це.
-  const [autoHeights, setAutoHeights] = useState({});
+  // Екземпляр gridstack живе в ref, не в стані: React про його зміни
+  // знати не мусить, вони не впливають на розмітку карток.
+  const gridRef = useRef(null);
   const [editMode, setEditMode] = useState(false);
-  const [dragId, setDragId] = useState(null);
-  const [dragDelta, setDragDelta] = useState({ x: 0, y: 0 });
-  const dragRef = useRef(null);
   const longPressRef = useRef(null);
-  // Остання картка, з якою вже помінялись місцями. Без цього кожен
-  // наступний pointermove над ТІЄЮ САМОЮ карткою міняв порядок знову й
-  // знову: після обміну ціль з'їжджає під той самий курсор, і пара
-  // смикалась туди-сюди десятки разів за секунду.
-  const lastSwapTargetRef = useRef(null);
-  // Позиції карток ДО останньої зміни порядку — для FLIP-анімації нижче
-  // (виміряти старе → перерендерити → доїхати з різниці в нуль).
-  const cardRectsRef = useRef(new Map());
 
   function toggleCard(id) {
     const next = new Set(enabledCards);
@@ -608,133 +576,20 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   const orderedIds = useMemo(() => mergeCardOrder(storedOrder, CANONICAL_CARD_IDS), [storedOrder]);
   const orderKey = orderedIds.join("|");
 
-  function persistOrder(next) {
-    setStoredOrder(next);
-    try {
-      window.localStorage.setItem(DASHBOARD_ORDER_STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // Те саме, що й з видимістю: без localStorage порядок просто не
-      // переживе перезавантаження.
-    }
-  }
-
-  function persistLayout(next) {
-    setCardLayout(next);
-    try {
-      window.localStorage.setItem(DASHBOARD_LAYOUT_STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // Як і з рештою налаштувань дашборда — без localStorage просто не
-      // переживе перезавантаження.
-    }
-  }
-
-  /** Розмір картки в юнітах. Ширина — ручна або дефолтна; висота —
-   *  ручна, інакше порахована з вмісту (autoHeights), інакше дефолт. */
-  function cardSize(id) {
-    const d = DEFAULT_CARD_SIZE[id] || [1, 2];
-    const s = cardLayout[id];
-    return { w: s?.w ?? d[0], h: s?.h ?? autoHeights[id] ?? d[1] };
-  }
-
-  /**
-   * Стеля розміру кільця (--mgr-ring-max): у сітці висота панелі задана
-   * юнітами, тож кільце має вміститись у неї, а не навпаки. Зменшуємо,
-   * доки тіло картки реально не перестане переповнюватись (краще трохи
-   * менше кільце, ніж скрол усередині картки з кільцями). RING_MIN_PX —
-   * нижче цифра всередині вже не читається.
-   */
-  function applyRingCaps() {
-    for (const card of document.querySelectorAll("[data-card-id]")) {
-      const rings = [...card.querySelectorAll(".mgr-ring")];
-      if (rings.length === 0) continue;
-      const setCap = (px) => rings.forEach((ring) => ring.style.setProperty("--mgr-ring-max", `${px}px`));
-      const body = card.querySelector(".mgr-ring-grid, .mgr-first-try-body") || card;
-      let cap = RING_MAX_PX;
-      setCap(cap);
-      for (let i = 0; i < 12 && cap > RING_MIN_PX && body.scrollHeight > body.clientHeight + 1; i++) {
-        cap = Math.max(RING_MIN_PX, cap - 6);
-        setCap(cap);
-      }
-    }
-  }
-
   function resetLayout() {
     setStoredOrder(null);
-    setCardLayout({});
+    setStoredGrid([]);
     try {
       window.localStorage.removeItem(DASHBOARD_ORDER_STORAGE_KEY);
-      window.localStorage.removeItem(DASHBOARD_LAYOUT_STORAGE_KEY);
-      // Старі піксельні ключі (до сітки в юнітах) — прибираємо заодно.
+      window.localStorage.removeItem(DASHBOARD_GRID_STORAGE_KEY);
+      // Ключі попередніх движків сітки — прибираємо заодно.
+      window.localStorage.removeItem("carls_manager_dashboard_layout_v2");
       window.localStorage.removeItem("carls_manager_dashboard_spans_v1");
       window.localStorage.removeItem("carls_manager_dashboard_heights_v1");
     } catch {
       // Немає localStorage — стан у пам'яті все одно скинуто.
     }
-  }
-
-  // Дві ручки: на правому краю — ширина (кроком у колонку), на нижньому —
-  // висота (кроком у рядок сітки). Одна вісь на ручку, а не кутовий
-  // "хапок" одразу по двох: на дашборді майже завжди треба щось одне, і
-  // по одній осі промахнутись важче (той самий підхід, що в Grafana/
-  // Datadog для окремих країв плитки).
-  function handleResizePointerDown(e, id, axis) {
-    e.stopPropagation(); // інакше секція почне перетягувати саму картку
-    resizeRef.current = { id, axis, startX: e.clientX, startY: e.clientY, start: cardSize(id) };
-    setResizeId(id);
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {
-      // Той самий випадок, що й у startDrag: без захоплення події просто
-      // приходитимуть на документ — зміна розміру від цього не ламається.
-    }
-  }
-
-  function handleResizePointerMove(e) {
-    const resize = resizeRef.current;
-    if (!resize) return;
-    const current = cardSize(resize.id);
-    let next;
-    if (resize.axis === "y") {
-      const steps = Math.round((e.clientY - resize.startY) / (GRID_ROW_PX + GRID_GAP_PX));
-      next = { ...current, h: Math.min(MAX_CARD_H, Math.max(1, resize.start.h + steps)) };
-    } else {
-      const steps = Math.round((e.clientX - resize.startX) / (grid.colWidth + GRID_GAP_PX));
-      next = { ...current, w: Math.min(grid.cols, Math.max(1, resize.start.w + steps)) };
-    }
-    if (next.w === current.w && next.h === current.h) return;
-    persistLayout({ ...cardLayout, [resize.id]: next });
-  }
-
-  function handleResizePointerUp() {
-    if (!resizeRef.current) return;
-    resizeRef.current = null;
-    setResizeId(null);
-  }
-
-  function moveCardBefore(id, overId) {
-    const from = orderedIds.indexOf(id);
-    const to = orderedIds.indexOf(overId);
-    if (from < 0 || to < 0 || from === to) return;
-    const next = orderedIds.filter((x) => x !== id);
-    // Тягнемо вниз — стаємо ПІСЛЯ картки, над якою відпустили; вгору —
-    // перед нею. Інакше картка "перестрибує" ціль на одну позицію.
-    next.splice(next.indexOf(overId) + (from < to ? 1 : 0), 0, id);
-    persistOrder(next);
-  }
-
-  function startDrag(target, id, clientX, clientY, pointerId) {
-    // pressX/pressY — точка натискання, яку НЕ переприв'язуємо при зміні
-    // порядку (на відміну від startX/startY): за нею відрізняємо клік від
-    // перетягування на pointerup.
-    dragRef.current = { id, startX: clientX, startY: clientY, pressX: clientX, pressY: clientY, moved: false };
-    try {
-      target.setPointerCapture(pointerId);
-    } catch {
-      // setPointerCapture кидає, якщо вказівник уже відпущено — тоді
-      // просто тягнемо без захоплення, події й так прийдуть на документ.
-    }
-    setDragId(id);
-    setDragDelta({ x: 0, y: 0 });
+    setGridEpoch((n) => n + 1);
   }
 
   function cancelLongPress() {
@@ -744,82 +599,40 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     }
   }
 
-  // Обробники висять на самій секції (делегування), а не на кожній картці:
-  // так renderChartCards лишається чистою функцією розмітки й не чіпає
-  // refs під час рендера (react-hooks/refs), а захоплення вказівника
-  // (setPointerCapture) живе на одному стабільному елементі — картка під
-  // пальцем може перемикатись, секція ні.
+  // Довге натискання на картку вмикає режим перетягування — як на іконку
+  // в iOS. Саме перетягування далі веде gridstack (сітка стає
+  // не-static в ефекті нижче); наступне натискання вже тягне картку.
+  // Обробники — на секції (делегування), а не на кожній картці.
   function handleCardPointerDown(e) {
-    const id = e.target?.closest?.("[data-card-id]")?.getAttribute("data-card-id");
-    if (!id) return;
-    // Тільки основна кнопка миші / дотик — правою кнопкою тягати нічого.
+    if (editMode || !e.target?.closest?.("[data-card-id]")) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    if (editMode) {
-      startDrag(e.currentTarget, id, e.clientX, e.clientY, e.pointerId);
-      return;
-    }
-    // Довге натискання вмикає режим редагування І одразу бере картку —
-    // один жест, як на телефоні.
-    const target = e.currentTarget;
-    const { clientX, clientY, pointerId } = e;
+    // Посилання й кнопки всередині картки — це клік, не «взяти картку».
+    if (e.target.closest("a, button, input, select")) return;
+    const { clientX, clientY } = e;
     const timer = setTimeout(() => {
       longPressRef.current = null;
       setEditMode(true);
-      startDrag(target, id, clientX, clientY, pointerId);
     }, LONG_PRESS_MS);
     longPressRef.current = { timer, startX: clientX, startY: clientY };
   }
 
   function handleCardPointerMove(e) {
-    const drag = dragRef.current;
-    if (!drag) {
-      // Рух далі допуску до спрацювання таймера — це скрол/виділення
-      // тексту, а не намір тягнути.
-      const pending = longPressRef.current;
-      if (
-        pending &&
-        Math.hypot(e.clientX - pending.startX, e.clientY - pending.startY) > LONG_PRESS_MOVE_TOLERANCE_PX
-      ) {
-        cancelLongPress();
-      }
-      return;
+    // Рух далі допуску до спрацювання таймера — це скрол/виділення
+    // тексту, а не намір тягнути.
+    const pending = longPressRef.current;
+    if (pending && Math.hypot(e.clientX - pending.startX, e.clientY - pending.startY) > LONG_PRESS_MOVE_TOLERANCE_PX) {
+      cancelLongPress();
     }
-    if (!drag.moved && Math.hypot(e.clientX - drag.pressX, e.clientY - drag.pressY) > CLICK_SLOP_PX) {
-      drag.moved = true;
-    }
-    setDragDelta({ x: e.clientX - drag.startX, y: e.clientY - drag.startY });
-    // Картка під вказівником. Сама взята картка має pointer-events:none
-    // (CSS .is-dragging), тож elementFromPoint бачить те, що ПІД нею.
-    const under = document.elementFromPoint(e.clientX, e.clientY);
-    const overId = under?.closest?.("[data-card-id]")?.getAttribute("data-card-id");
-    if (!overId || overId === drag.id) {
-      // Вийшли в порожнечу або на себе — наступний захід на ту саму
-      // картку знову дозволено.
-      lastSwapTargetRef.current = null;
-      return;
-    }
-    if (overId === lastSwapTargetRef.current) return;
-    lastSwapTargetRef.current = overId;
-    moveCardBefore(drag.id, overId);
-  }
-
-  function handleCardPointerUp() {
-    cancelLongPress();
-    const drag = dragRef.current;
-    if (!drag) return;
-    dragRef.current = null;
-    setDragId(null);
-    setDragDelta({ x: 0, y: 0 });
-    // Клік (без руху) по самій картці виходить із режиму — як і клік повз
-    // картки (запит користувача). Перетягування, звісно, режим лишає.
-    if (!drag.moved) setEditMode(false);
   }
 
   /**
    * Приймає пари [id, вузол] у канонічному порядку, повертає їх у порядку
-   * керівника, підмішуючи в кожну картку обробники перетягування.
-   * cloneElement — щоб не переписувати розмітку всіх 11 карток: вони
-   * лишаються там, де й були, просто отримують ще кілька пропсів.
+   * керівника, загорнутими в структуру gridstack:
+   *   .grid-stack-item[gs-id] > .grid-stack-item-content > .mgr-chart-card
+   * Атрибути gs-* на обгортці — ЛИШЕ стартові й сталі (React їх більше
+   * не переписує): далі ними володіє gridstack, і будь-яка зміна пропса з
+   * боку React затерла б позицію, яку сітка щойно виставила.
+   * cloneElement — щоб не переписувати розмітку всіх 13 карток.
    */
   function renderChartCards(entries) {
     const visible = entries.filter(([, node]) => node);
@@ -831,154 +644,146 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     return ordered.map((id) => {
       const node = byId.get(id);
       if (!node) return null;
-      const isDragging = dragId === id;
-      // W клампиться по реально доступних колонках (телефон — 1, вузьке
-      // вікно — 2…), збережене значення при цьому не втрачається.
-      const { w, h } = cardSize(id);
       // Хрестик у режимі перетягування — той самий жест, що прибирає
       // іконку з екрана iPhone: знімає галочку видимості цієї картки
       // (той самий toggleCard, що й чекбокс у шторці налаштувань, тож
-      // повернути її можна там же).
+      // повернути її можна там же). Лежить на обгортці, а не в картці:
+      // .grid-stack-item-content ріже все, що звисає за край.
       const removeButton = editMode ? (
         <button
-          key="mgr-card-remove"
           type="button"
           className="mgr-card-remove"
           aria-label="Прибрати картку з дашборда"
           title="Прибрати з дашборда (повернути — у налаштуваннях карток)"
-          // Без цього pointerdown дійшов би до секції й почав перетягування
-          // замість натискання кнопки.
-          onPointerDown={(e) => e.stopPropagation()}
           onClick={() => toggleCard(id)}
         >
           <XIcon />
         </button>
       ) : null;
-      const resizeHandles = editMode
-        ? [
-            <span
-              key="mgr-card-resize-x"
-              className="mgr-card-resize mgr-card-resize-x"
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Змінити ширину картки"
-              title="Потягніть, щоб зробити картку ширшою або вужчою"
-              onPointerDown={(e) => handleResizePointerDown(e, id, "x")}
-              onPointerMove={handleResizePointerMove}
-              onPointerUp={handleResizePointerUp}
-              onPointerCancel={handleResizePointerUp}
-            />,
-            <span
-              key="mgr-card-resize-y"
-              className="mgr-card-resize mgr-card-resize-y"
-              role="separator"
-              aria-orientation="horizontal"
-              aria-label="Змінити висоту картки"
-              title="Потягніть, щоб змінити висоту картки (кроком у рядок сітки)"
-              onPointerDown={(e) => handleResizePointerDown(e, id, "y")}
-              onPointerMove={handleResizePointerMove}
-              onPointerUp={handleResizePointerUp}
-              onPointerCancel={handleResizePointerUp}
-            />,
-          ]
-        : null;
-      return cloneElement(
-        node,
-        {
-          key: id,
-          "data-card-id": id,
-          className: `${node.props.className}${editMode ? " is-editable" : ""}${isDragging ? " is-dragging" : ""}${
-            resizeId === id ? " is-resizing" : ""
-          }`,
-          style: {
-            // Юніти сітки; на телефоні CSS перекриває їх !important-ом
-            // (одна колонка, висота по вмісту).
-            gridColumn: `span ${Math.min(w, grid.cols)}`,
-            gridRow: `span ${h}`,
-            ...(isDragging ? { transform: `translate(${dragDelta.x}px, ${dragDelta.y}px)` } : null),
-          },
-        },
-        node.props.children,
-        removeButton,
-        resizeHandles
+      return (
+        <div key={id} className="grid-stack-item" data-card-id={id} gs-id={id} gs-w={DEFAULT_CARD_W[id] || 6} gs-min-w={MIN_CARD_W}>
+          <div className="grid-stack-item-content">
+            {cloneElement(node, { className: `${node.props.className}${editMode ? " is-editable" : ""}` })}
+          </div>
+          {removeButton}
+        </div>
       );
     });
   }
 
-  const layoutKey = JSON.stringify(cardLayout);
-  // Кількість колонок і реальна ширина однієї — з ширини секції. Той
-  // самий поріг, що repeat(auto-fill, minmax(unit,1fr)) у CSS, тож JS і
-  // CSS завжди згодні, скільки колонок є. useLayoutEffect: клампінг W по
-  // колонках має спрацювати до першого пейнту, інакше на вузькому вікні
-  // на кадр з'являється картка ширша за сітку.
+  // ---- gridstack: ініціалізація ----
+  // Один раз на монтування секції (gridEpoch міняє key — тоді заново).
+  // Існуючі DOM-діти секції стають віджетами (init читає gs-* атрибути),
+  // збережені позиції накладаються через load() по gs-id. Картки, яких у
+  // збереженому нема (нова картка, увімкнена пізніше), стають в кінець
+  // (autoPosition) — гравітація підбирає їх угору сама.
+  // useLayoutEffect: до першого пейнту, інакше кадр із картками, звалени-
+  // ми в кут (до init усі .grid-stack-item лежать absolute у 0,0).
+  const hasData = Boolean(state.data);
   useLayoutEffect(() => {
     const el = chartsRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return undefined;
-    const update = () => {
-      const width = el.clientWidth;
-      if (!width) return;
-      const cols = gridColumnsFor(width);
-      const colWidth = (width - (cols - 1) * GRID_GAP_PX) / cols;
-      setGrid((prev) => (prev.cols === cols && Math.abs(prev.colWidth - colWidth) < 1 ? prev : { cols, colWidth }));
-    };
-    update();
-    const observer = new ResizeObserver(update);
+    if (!el || !hasData || storedGrid === null || gridRef.current) return undefined;
+    const grid = GridStack.init(
+      {
+        column: GRID_COLUMNS,
+        cellHeight: GRID_CELL_HEIGHT_PX,
+        margin: GRID_MARGIN_PX,
+        float: false,
+        animate: true,
+        sizeToContent: true,
+        staticGrid: true,
+        // Телефон — один стовпчик, порядок зберігається (moveScale).
+        columnOpts: { breakpoints: [{ w: 599, c: 1 }], breakpointForWindow: true, layout: "moveScale" },
+        // Ширину тягнемо лише за правий край; висота — завжди по вмісту.
+        resizable: { handles: "e" },
+        // Хрестик і посилання всередині картки — не початок перетягування.
+        draggable: { cancel: "input,textarea,button,select,option,a,.mgr-card-remove", scroll: true },
+        // placeholderClass не чіпаємо: опція приймає ОДИН клас (classList.add
+        // з пробілом кидає й зриває перетягування на першому ж русі —
+        // спіймано живим тестом), а стиль плейсхолдера сидить у manager.css
+        // на дефолтному .grid-stack-placeholder.
+      },
+      el
+    );
+    if (!grid) return undefined;
+    gridRef.current = grid;
+    if (storedGrid.length > 0) {
+      grid.load(storedGrid, false);
+    } else {
+      // Перший показ без збереженої розкладки: autoPosition розставив
+      // картки ще з дефолтними висотами, і після заміру вмісту під
+      // короткими лишаються дірки. Один раз після першого заміру
+      // (подія resizecontent) підтягуємо всі картки в порожні місця,
+      // зберігаючи порядок.
+      const packOnce = () => {
+        grid.off("resizecontent");
+        grid.compact();
+      };
+      grid.on("resizecontent", packOnce);
+    }
+    // Будь-яка зміна позиції/ширини (перетягування, ресайз, гравітація
+    // після прибирання картки) — у localStorage. h не зберігаємо: воно
+    // щоразу рахується з вмісту.
+    grid.on("change", () => {
+      const nodes = grid.save(false).map(({ id, x, y, w }) => ({ id, x, y, w }));
+      try {
+        window.localStorage.setItem(DASHBOARD_GRID_STORAGE_KEY, JSON.stringify(nodes));
+      } catch {
+        // Без localStorage розкладка живе до перезавантаження.
+      }
+    });
+    el.classList.add("is-ready");
+    // Ширина секції міняється плавно (згортання бічної панелі — 250ms
+    // анімації, вікно тягнуть мишею), а власний throttle gridstack ловить
+    // лише ПЕРШИЙ кадр зміни й міг пропустити кінцеву ширину — картки
+    // лишались із висотою, поміряною на старій ширині (перевірено:
+    // до 160px повітря знизу). Свій спостерігач із «хвостовою» затримкою
+    // домірює вже на сталій ширині; onResize сам нічого не робить, якщо
+    // ширина та сама.
+    let settle = 0;
+    const observer = new ResizeObserver(() => {
+      clearTimeout(settle);
+      settle = setTimeout(() => grid.el && grid.onResize(), 180);
+    });
     observer.observe(el);
-    return () => observer.disconnect();
-  }, [state.data]);
+    return () => {
+      clearTimeout(settle);
+      observer.disconnect();
+      grid.destroy(false);
+      gridRef.current = null;
+      el.classList.remove("is-ready");
+    };
+  }, [hasData, storedGrid, gridEpoch]);
 
-  /**
-   * АВТО-ВИСОТА (рішення користувача, 2026-09-23: «всі картки мають
-   * розтягуватись і стискатись залежно від вмісту»): міряємо, скільки
-   * картка займає САМА ПО СОБІ при своїй теперішній ширині, і переводимо
-   * це в рядки сітки. Так пустоти всередині не лишається, а краї
-   * лишаються рівними — на відміну від «рядів по вмісту», де сітка
-   * розсипається.
-   *
-   * Замір батчем, не по картці: спершу всім знімаємо нав'язану висоту
-   * (align-self + grid-row), потім ОДНИМ проходом читаємо offsetHeight,
-   * потім повертаємо стилі — два reflow замість двох десятків.
-   * Картки з РУЧНОЮ висотою не міряємо: вибір людини головніший.
-   */
-  function measureAutoHeights() {
-    const nodes = [...document.querySelectorAll("[data-card-id]")];
-    if (nodes.length === 0) return;
-    const saved = nodes.map((n) => [n.style.alignSelf, n.style.gridRow]);
-    nodes.forEach((n) => {
-      n.style.alignSelf = "start";
-      n.style.gridRow = "auto";
-    });
-    const measured = nodes.map((n) => n.offsetHeight);
-    nodes.forEach((n, i) => {
-      n.style.alignSelf = saved[i][0];
-      n.style.gridRow = saved[i][1];
-    });
-    const next = {};
-    nodes.forEach((n, i) => {
-      const id = n.getAttribute("data-card-id");
-      const rows = Math.ceil((measured[i] + GRID_GAP_PX) / (GRID_ROW_PX + GRID_GAP_PX));
-      next[id] = Math.min(MAX_AUTO_CARD_H, Math.max(1, rows));
-    });
-    setAutoHeights((prev) => {
-      const ids = new Set([...Object.keys(prev), ...Object.keys(next)]);
-      for (const id of ids) if (prev[id] !== next[id]) return next;
-      return prev;
-    });
-  }
+  // Набір видимих карток змінився (чекбокс у шторці, хрестик): React уже
+  // додав/прибрав DOM-вузли, а сітка про них ще не знає. Документований
+  // для фреймворків прийом gridstack — зняти всі віджети (DOM лишаємо) і
+  // зареєструвати наявних дітей заново: gs-x/gs-y/gs-w на елементах
+  // сітка тримає актуальними сама, тож позиції не губляться.
+  const visibleKey = [...enabledCards].sort().join("|");
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    const el = chartsRef.current;
+    if (!grid || !el) return;
+    grid.batchUpdate();
+    grid.removeAll(false, false);
+    for (const item of el.querySelectorAll(":scope > .grid-stack-item")) grid.makeWidget(item);
+    grid.batchUpdate(false);
+  }, [visibleKey, orderKey]);
 
-  // Перерахунок висот і стелі кільця — при зміні даних, набору/порядку
-  // карток, ручної розкладки чи ширини сітки. useEffect (не
-  // useLayoutEffect): прохід offsetHeight по картках не повинен блокувати
-  // перший пейнт (аудит "скелетони між екранами", 2026-09-19).
+  // Режим перетягування ↔ static-сітка. Поза режимом картки не тягнуться
+  // і ручок немає — як і було з власним движком.
   useEffect(() => {
-    // IIFE, а не прямий виклик — той самий прийом, що й в інших ефектах
-    // цього файлу (react-hooks/set-state-in-effect): замір читає DOM і
-    // лише потім, за потреби, оновлює стан, це не синхронізація стейтів.
-    (() => {
-      measureAutoHeights();
-      applyRingCaps();
-    })();
-  }, [layoutKey, orderKey, enabledCards, state.data, grid, teamTree.data, hardestQuestions.items, barsAnimated]);
+    gridRef.current?.setStatic(!editMode);
+  }, [editMode, gridEpoch, hasData]);
+
+  // Вміст карток міняється після даних (дерево команди, найскладніші
+  // питання, анімація барів) — сітка міряє висоту сама (ResizeObserver у
+  // sizeToContent), тут лише підштовхуємо перерахунок, коли React уже
+  // домалював новий вміст.
+  useEffect(() => {
+    gridRef.current?.onResize();
+  }, [teamTree.data, hardestQuestions.items, barsAnimated, state.data]);
 
 
   // Клік повз картки виходить із режиму перетягування — як тап по вільному
@@ -1107,71 +912,6 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     const id = requestAnimationFrame(() => setBarsAnimated(true));
     return () => cancelAnimationFrame(id);
   }, [state.data]);
-
-  // FLIP: після зміни порядку картки просто "телепортувались" би на нові
-  // місця. Тут кожна, крім тієї, що в руці, стартує з попередньої позиції
-  // і доїжджає в нову — той самий ефект, що в iOS, коли іконки
-  // розступаються. Вимірювання — у useLayoutEffect (до промальовки), інакше
-  // встиг би блимнути кадр зі стрибком.
-  useLayoutEffect(() => {
-    const prev = cardRectsRef.current;
-    const next = new Map();
-    // Не анімуємо, коли сторінку не видно: у прихованій вкладці браузер не
-    // просуває анімації, і картка застигає на ПЕРШОМУ кадрі FLIP —
-    // тобто зі зсувом, який мала до перестановки (видно як "картка поїхала
-    // за край"). Позиції все одно перезаписуємо — щоб після повернення на
-    // вкладку наступний FLIP рахувався від актуальних координат.
-    // skipNextFlipRef — перший рендер після відновлення збереженої
-    // розкладки з localStorage: позиції змінились не тому, що керівник
-    // щось перетягнув, а тому що застосувався його ж збережений вибір.
-    // Возити картки з канонічного порядку в збережений на кожному
-    // оновленні сторінки — саме те, що виглядало як «картки переїжджають».
-    const restoring = skipNextFlipRef.current;
-    skipNextFlipRef.current = false;
-    const reduced =
-      restoring ||
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ||
-      document.visibilityState !== "visible";
-    for (const node of document.querySelectorAll("[data-card-id]")) {
-      const id = node.getAttribute("data-card-id");
-      // offsetLeft/Top, а НЕ getBoundingClientRect: у картки в руці на
-      // transform висить зсув за курсором, і rect повертав би позицію
-      // разом із ним — FLIP рахував би різницю "layout + курсор" і смикав
-      // картки. offsetParent у всіх карток спільний, тож для різниці
-      // позицій цього достатньо.
-      const pos = { left: node.offsetLeft, top: node.offsetTop };
-      next.set(id, pos);
-      const old = prev.get(id);
-      if (id === dragId) {
-        // Картка в руці: після зміни порядку її МІСЦЕ в потоці інше, а
-        // зсув ми рахуємо від точки захоплення. Без переприв'язки картка
-        // стрибала на різницю layout-позицій після кожного обміну (і що
-        // більше обмінів, то далі від курсора вона тікала).
-        if (old && dragRef.current && (pos.left !== old.left || pos.top !== old.top)) {
-          const shiftX = pos.left - old.left;
-          const shiftY = pos.top - old.top;
-          dragRef.current.startX += shiftX;
-          dragRef.current.startY += shiftY;
-          // І той самий зсув — із поточної дельти, інакше до наступного
-          // pointermove встигне промалюватись кадр зі стрибком.
-          setDragDelta((d) => ({ x: d.x - shiftX, y: d.y - shiftY }));
-        }
-        continue;
-      }
-      if (reduced || !old) continue;
-      const dx = old.left - pos.left;
-      const dy = old.top - pos.top;
-      if (!dx && !dy) continue;
-      // Гасимо попередній переїзд цієї ж картки, якщо він ще триває:
-      // інакше два FLIP накладаються й картка "смикається" вдвічі.
-      node.getAnimations?.().forEach((a) => a.cancel());
-      node.animate?.(
-        [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }],
-        { duration: 220, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }
-      );
-    }
-    cardRectsRef.current = next;
-  }, [orderKey, dragId]);
 
   const flatTeam = useMemo(() => (teamTree.data ? flattenTree(teamTree.data) : []), [teamTree.data]);
 
@@ -1315,13 +1055,20 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         href="/manager/achievements?highlight=rating"
       />
 
+      {/* className секції СТАЛИЙ: gridstack дописує на неї власні класи
+          (gs-12, grid-stack-static, grid-stack-animate) і ми — is-ready;
+          зміна пропса з боку React перезаписала б атрибут цілком і стерла
+          їх (спіймано живим тестом: після входу в режим редагування сітка
+          лишалась visibility:hidden). Режим редагування — клас на обгортці. */}
+      <div className={`mgr-charts-wrap${editMode ? " mgr-charts-edit" : ""}`}>
       <section
+        key={gridEpoch}
         ref={chartsRef}
-        className={`mgr-section mgr-charts${editMode ? " mgr-charts-edit" : ""}`}
+        className="mgr-section mgr-charts grid-stack"
         onPointerDown={handleCardPointerDown}
         onPointerMove={handleCardPointerMove}
-        onPointerUp={handleCardPointerUp}
-        onPointerCancel={handleCardPointerUp}
+        onPointerUp={cancelLongPress}
+        onPointerCancel={cancelLongPress}
       >
         {renderChartCards([
           /* Замість п'яти KPI-плиток (2026-09-23): полоса статусів команди
@@ -1433,7 +1180,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
               {stats.deadlineHorizon.map((b) => (
                 <li key={b.key}>
                   <Link href={`/manager/team?view=courses&due=${b.key}`} className="mgr-bar-row mgr-card-link">
-                    <MarqueeText className="mgr-bar-label">{b.label}</MarqueeText>
+                    <span className="mgr-bar-label">{b.label}</span>
                     <div className="mgr-bar-track">
                       <div
                         className={`mgr-bar-fill${b.alert && b.count > 0 ? " mgr-bar-fill-alert" : ""}`}
@@ -1465,7 +1212,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
               {stats.scoreDistribution.map((b) => (
                 <li key={b.key}>
                   <Link href={`/manager/team?view=courses&score=${b.key}`} className="mgr-bar-row mgr-card-link">
-                    <MarqueeText className="mgr-bar-label">{b.label}</MarqueeText>
+                    <span className="mgr-bar-label">{b.label}</span>
                     <div className="mgr-bar-track">
                       <div
                         className="mgr-bar-fill"
@@ -1529,7 +1276,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
               <ul className="mgr-bar-list">
                 {stats.durations.buckets.map((b) => (
                   <li key={b.key} className="mgr-bar-row">
-                    <MarqueeText className="mgr-bar-label">{b.label}</MarqueeText>
+                    <span className="mgr-bar-label">{b.label}</span>
                     <div className="mgr-bar-track">
                       <div
                         className="mgr-bar-fill"
@@ -1759,6 +1506,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           )],
         ])}
       </section>
+      </div>
 
       <section className="mgr-section" ref={teamTreeSectionRef}>
         <div className="mgr-team-header">

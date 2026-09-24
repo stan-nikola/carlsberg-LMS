@@ -330,102 +330,6 @@ body:has(.manager-shell) {
   width: 13px;
   height: 13px;
 }
-/* Ручка ширини — вертикальна смужка на правому краю картки, лише в
-   режимі перетягування. Тягнеш убік — картка міняє ширину кроками по
-   слоту (components/ManagerDashboard.jsx), а не довільними пікселями:
-   у flex-wrap довільна ширина лишає рвані ряди. */
-/* Ручки розміру — на правому краю (ширина) і на нижньому (висота).
-   Обидві всередині картки, не за її межею: ручка, що звисає назовні,
-   накладалась на сусідню картку й на край сторінки. */
-.mgr-card-resize {
-  position: absolute;
-  z-index: 6;
-  border: var(--border-w) solid var(--line);
-  border-radius: var(--radius-btn);
-  background: var(--surface);
-  box-shadow: var(--card-shadow);
-  touch-action: none;
-}
-.mgr-card-resize-x {
-  top: 50%;
-  right: 3px;
-  translate: 0 -50%;
-  width: 14px;
-  height: 46px;
-  cursor: ew-resize;
-}
-.mgr-card-resize-y {
-  left: 50%;
-  bottom: 3px;
-  translate: -50% 0;
-  width: 46px;
-  height: 14px;
-  cursor: ns-resize;
-}
-/* Дві риски всередині — щоб смужка читалась як ручка, а не як шов. */
-.mgr-card-resize::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  opacity: 0.7;
-}
-.mgr-card-resize-x::after {
-  width: 4px;
-  height: 18px;
-  border-left: var(--border-w) solid var(--ink-soft);
-  border-right: var(--border-w) solid var(--ink-soft);
-}
-.mgr-card-resize-y::after {
-  width: 18px;
-  height: 4px;
-  border-top: var(--border-w) solid var(--ink-soft);
-  border-bottom: var(--border-w) solid var(--ink-soft);
-}
-@media (hover: hover) {
-  .mgr-card-resize:hover {
-    border-color: var(--green-500);
-  }
-}
-/* Поки тягнуть ручку — картка не гойдається: інакше ширина "стрибає"
-   разом із нахилом і зрозуміти, що саме змінюєш, неможливо. */
-.mgr-chart-card.is-resizing {
-  animation: none;
-  rotate: none;
-}
-@media (hover: hover) {
-  .mgr-card-remove:hover {
-    border-color: var(--cb-fail);
-    color: var(--danger);
-  }
-}
-.mgr-card-remove:focus-visible {
-  outline: none;
-  box-shadow: var(--cb-focus-ring);
-}
-/* Поки картку тягнуть, решта завмирає: гойдання + FLIP-переїзди сусідів
-   одночасно читались як "трясе все й усюди" (скарга користувача). */
-.mgr-charts:has(.is-dragging) .mgr-chart-card.is-editable {
-  animation: none;
-}
-/* Сусідні картки гойдаються в протифазі — інакше вся сітка хитається як
-   одне ціле й ефект читається як "щось поїхало", а не "можна тягнути". */
-.mgr-chart-card.is-editable:nth-child(even) {
-  animation-delay: -0.21s;
-}
-.mgr-chart-card.is-dragging {
-  /* Піднята картка: без анімації гойдання, трохи більша, з тінню — і
-     БЕЗ pointer-events, щоб elementFromPoint під вказівником бачив
-     картку-сусіда, а не саму себе (інакше порядок не міняється). */
-  animation: none;
-  rotate: none;
-  pointer-events: none;
-  cursor: grabbing;
-  z-index: 5;
-  scale: 1.02;
-  box-shadow: var(--shadow-lg);
-  opacity: 0.95;
-}
 @media (prefers-reduced-motion: reduce) {
   .mgr-chart-card.is-editable {
     animation: none;
@@ -1189,9 +1093,19 @@ body:has(.manager-shell) {
   background: var(--cb-overlay-10);
   color: var(--ink-soft);
 }
+/* «Не призначено» — пунктирне коло має читатись як порожній слот, а не як
+   ледь помітна плямка: контур темніший за лінії сітки і товщий (1.5px),
+   тло — ледь сіре (користувач, 2026-09-24: «більш виразний контур»). */
 .mgr-matrix-cell.is-empty {
-  background: transparent;
-  border: var(--border-w) dashed var(--line);
+  background: var(--cb-overlay-10);
+  border: 1.5px dashed color-mix(in srgb, var(--ink-soft) 70%, var(--line));
+}
+/* Нижня лінія під останнім рядком: .admin-table знімає її для звичайних
+   таблиць (tbody tr:last-child td), а в сітці «як Excel» рамка мусить
+   замикатись і знизу. */
+.mgr-matrix tbody tr:last-child th,
+.mgr-matrix tbody tr:last-child td {
+  border-bottom: var(--border-w) solid var(--mgr-grid);
 }
 a.mgr-matrix-cell:hover,
 a.mgr-matrix-cell:focus-visible {
@@ -1589,6 +1503,19 @@ a.mgr-matrix-cell:focus-visible {
   border-radius: var(--radius-card);
   background: var(--surface);
   padding: var(--card-pad-compact);
+  /* Колонка: блок дій («Нагадати»/«Похвалити», історія спроб) притиснутий
+     до низу картки margin-top:auto — у сітці card-grid картки одного ряду
+     однієї висоти, і без цього кнопки стояли на різних рівнях (скарга
+     користувача, 2026-09-24). Те саме правило, що для card-grid у
+     globals.css. */
+  display: flex;
+  flex-direction: column;
+}
+.mgr-enrollment-row > .mgr-attempts {
+  margin-top: auto;
+  /* 16px = колишні margin 8 + padding 8: у найвищій картці ряду auto = 0,
+     і зазор між вмістом і кнопками тримає саме padding. */
+  padding-top: 16px;
 }
 .mgr-enrollment-main {
   display: flex;
@@ -1748,114 +1675,123 @@ a.mgr-matrix-cell:focus-visible {
    світлий фон токена + color-mix для читабельного темнішого тексту) ---- */
 
 /* ---- Графіки (ручний SVG — у проєкті немає чарт-бібліотеки) ---- */
-/* Було: CSS Grid з repeat(auto-fit, …) + grid-column:span 2 на широких
-   картках. Проблема виявилась не в кількості карток (це вже виправлено
-   2026-09-19), а в самому Grid: auto-placement за замовчуванням "sparse"
-   — коли картка, що займає 2 колонки, не влазить у залишок поточного
-   рядка, вона переносить РЯДОК цілком на наступний, а звільнене місце в
-   поточному рядку лишається порожнім (скарга користувача, 2026-09-19:
-   "Найскладніші модулі" і "Статус по людях", обидві широкі, стояли одна
-   під одною замість поряд). `grid-auto-flow:dense` частково рятує, але
-   не завжди — сама ідея "фіксовані колонки + span" погано стикується з
-   різноширокими картками.
-   Тому — flexbox-обгортка замість грід: кожна картка сама каже, скільки
-   МІСЦЯ (flex-basis) і скільки ЖАДІБНОСТІ (flex-grow) їй треба, а браузер
-   пакує рядки без дір — рівно та задача, для якої flex-wrap і зроблений
-   (на відміну від grid, порожні "комірки" тут просто не існують: наступна
-   картка завжди займає вільний залишок поточного рядка). */
-/* Сітка карток у ЮНІТАХ (2026-09-23, рішення користувача — як Grafana):
-   колонки по ширині контейнера, рядки фіксованої висоти, картка займає
-   W×H юнітів (inline grid-column/grid-row span із ManagerDashboard.jsx),
-   dense — наступна картка, що вміщається, заповнює дірку. Числа
-   ДЗЕРКАЛЯТЬ GRID_UNIT_PX/GRID_GAP_PX/GRID_ROW_PX у ManagerDashboard.jsx.
-   Раніше тут був flex-wrap: широка картка, що не вміщалась у ряд,
-   лишала пробіл, а висоти сусідів не сходились. */
+/* Сітка карток — gridstack.js (2026-09-24, рішення користувача; історія:
+   flex-wrap → власний CSS grid у юнітах → gridstack). Базові стилі —
+   gridstack/dist/gridstack.min.css (підключено в app/layout.js ДО цього
+   файлу). Структура кожної картки (components/ManagerDashboard.jsx
+   renderChartCards):
+     .grid-stack-item[gs-*] > .grid-stack-item-content > .mgr-chart-card
+   Позиції/ширини рахує gridstack (12 колонок, CSS-змінні на елементах),
+   висота — по вмісту (sizeToContent: сітка міряє першу дитину
+   .grid-stack-item-content, тобто саму картку). */
 .mgr-charts {
-  --mgr-grid-unit: 240px;
-  --mgr-grid-gap: 16px;
-  --mgr-row-h: 112px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--mgr-grid-unit)), 1fr));
-  grid-auto-rows: var(--mgr-row-h);
-  grid-auto-flow: dense;
-  gap: var(--mgr-grid-gap);
+  /* До ініціалізації всі .grid-stack-item лежать absolute у куті —
+     ховаємо, поки JS не розставив (клас ставить ефект у компоненті). */
+  visibility: hidden;
+}
+.mgr-charts.is-ready {
+  visibility: visible;
+}
+/* Обгортка вмісту — прозора; сама картка нижче має рамку й тло. Вміст
+   не ріжеться: висота картки і є висотою вмісту, а скрол (для матриці)
+   живе всередині її тіла. */
+/* .mgr-charts.grid-stack — спеціфічніше за обидва правила gridstack
+   (базове overflow-y:auto і size-to-content overflow-y:hidden), і не
+   залежить від порядку CSS-чанків: без цього overflow-x лишався auto, і
+   під карткою, що гойдається в режимі редагування, виринав
+   горизонтальний скролбар. */
+.mgr-charts.grid-stack > .grid-stack-item > .grid-stack-item-content,
+.mgr-charts.grid-stack > .grid-stack-item.size-to-content:not(.size-to-content-max) > .grid-stack-item-content {
+  overflow: visible;
 }
 .mgr-chart-card {
   min-width: 0;
-  min-height: 0;
   border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface-1);
   padding: var(--card-pad-roomy);
-  /* Панель фіксованої висоти: заголовок зверху, тіло займає решту й
-     скролиться всередині (списки), кільця стискаються під наявне місце
-     (--mgr-ring-max, applyRingCaps у ManagerDashboard.jsx). */
   display: flex;
   flex-direction: column;
-  /* НЕ overflow:hidden: хрестик «прибрати картку» звисає за кут на -9px,
-     і обрізка різала його навпіл (скарга користувача, 2026-09-23 — «мають
-     ніби випирати, як було раніше»). Зайвий вміст ріже саме ТІЛО картки
-     (нижче, `.mgr-chart-card > …{overflow:auto}`), а не вона сама. */
   overflow: visible;
   /* Курсор-палець на всіх картках (запит користувача): картка реагує на
      утримання — довге натискання вмикає режим перетягування, — і без
      курсора це ніяк не видно. У самому режимі курсор змінюється на
      grab/grabbing (нижче). */
   cursor: pointer;
-  /* Якір для хрестика "прибрати картку" в режимі перетягування. */
   position: relative;
 }
 .mgr-chart-card > h2 {
   flex: none;
 }
-/* Тіло картки займає решту висоти. overflow:auto потрібен лише коли
-   картку зменшили вручну або вміст уперся в стелю авто-висоти
-   (MAX_AUTO_CARD_H у ManagerDashboard.jsx) — інакше картка й так рівно
-   під вміст, і скрол не з'являється. */
-.mgr-chart-card > ul,
-.mgr-chart-card > .mgr-ring-grid,
-.mgr-chart-card > .mgr-first-try-body,
-.mgr-chart-card > .mgr-trend-row,
+/* Довгі списки не роздувають картку на кілька екранів — стеля, далі
+   скрол усередині тіла картки. Решта карток — рівно по вмісту. */
 .mgr-chart-card > .mgr-matrix-wrap,
-.mgr-chart-card > .mgr-status-body {
-  flex: 1 1 auto;
+.mgr-chart-card > ul {
   min-height: 0;
+  max-height: 520px;
   overflow: auto;
 }
-/* Виняток із min-height:0 вище: у стовпчиків тренду висота задана у
-   ВІДСОТКАХ від доріжки, тож доріжка, що сіла по вмісту (самі лише
-   підписи), схлопувала графік у смужку — авто-висота картки рахувалась
-   уже по схлопнутому. Нижня межа доріжки та сама, що й у .mgr-trend-row. */
+/* Стовпчики тренду задані у відсотках від доріжки — їй потрібна власна
+   мінімальна висота, інакше графік схлопується у смужку. */
 .mgr-chart-card > .mgr-trend-row {
   min-height: 100px;
 }
-/* Телефон: сітка вироджується в стовпчик, висота — по вмісту, ручні
-   розміри й ручки вимкнені (рішення користувача, 2026-09-23); порядок і
-   видимість карток лишаються. !important — перекриває inline span. */
-@media (max-width: 599px) {
-  .mgr-charts {
-    grid-template-columns: 1fr;
-    grid-auto-rows: auto;
+/* Плейсхолдер під карткою в руці — пунктир акцентного кольору замість
+   сірої плями gridstack. */
+.mgr-charts .grid-stack-placeholder > .placeholder-content {
+  border: 2px dashed var(--green-500);
+  border-radius: var(--radius-card);
+  background: var(--cb-secondary-tint);
+}
+/* Ручка ширини (gridstack .ui-resizable-e) — вертикальна смужка на
+   правому краю, той самий вигляд, що мала власна ручка. Видно лише в
+   режимі перетягування (поза ним сітка static і ручок немає). */
+.mgr-charts .grid-stack-item > .ui-resizable-e {
+  top: 50%;
+  right: calc(var(--gs-item-margin-right) + 3px);
+  bottom: auto;
+  translate: 0 -50%;
+  width: 14px;
+  height: 46px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-btn);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  cursor: ew-resize;
+}
+.mgr-charts .grid-stack-item > .ui-resizable-e::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 4px;
+  height: 18px;
+  border-left: var(--border-w) solid var(--ink-soft);
+  border-right: var(--border-w) solid var(--ink-soft);
+  opacity: 0.7;
+}
+@media (hover: hover) {
+  .mgr-charts .grid-stack-item > .ui-resizable-e:hover {
+    border-color: var(--green-500);
   }
-  .mgr-chart-card {
-    grid-column: auto !important;
-    grid-row: auto !important;
-    overflow: visible;
-  }
-  .mgr-chart-card > ul,
-  .mgr-chart-card > .mgr-ring-grid,
-  .mgr-chart-card > .mgr-first-try-body,
-  .mgr-chart-card > .mgr-trend-row,
-  .mgr-chart-card > .mgr-matrix-wrap,
-  .mgr-chart-card > .mgr-status-body {
-    overflow: visible;
-  }
-  .mgr-chart-card > .mgr-matrix-wrap {
-    overflow-x: auto;
-  }
-  .mgr-card-resize {
-    display: none;
-  }
+}
+/* Картка в руці / під ресайзом: без гойдання, з тінню. Класи — gridstack. */
+.mgr-charts .grid-stack-item.ui-draggable-dragging .mgr-chart-card,
+.mgr-charts .grid-stack-item.ui-resizable-resizing .mgr-chart-card {
+  animation: none;
+  rotate: none;
+  box-shadow: var(--shadow-lg);
+  cursor: grabbing;
+}
+/* Поки одну тягнуть — решта не гойдається, інакше читається як
+   «трясе все й усюди» (скарга користувача). */
+.mgr-charts:has(.ui-draggable-dragging) .mgr-chart-card.is-editable {
+  animation: none;
+}
+/* Сусідні картки гойдаються в протифазі — інакше вся сітка хитається як
+   одне ціле й ефект читається як "щось поїхало", а не "можна тягнути". */
+.mgr-charts > .grid-stack-item:nth-child(even) .mgr-chart-card.is-editable {
+  animation-delay: -0.21s;
 }
 .mgr-ring-grid {
   /* Кілець рівно ЧОТИРИ — це фіксована розмітка, а не сітка за даними,
@@ -1886,12 +1822,10 @@ a.mgr-matrix-cell:focus-visible {
   min-width: 0;
 }
 .mgr-ring {
-  /* Гумове в ОБИДВА боки: 108px — максимум, а не фікс. По ширині
-     зменшується у вузькій колонці автоматично; по висоті стелю задає
-     --mgr-ring-max, яку рахує components/ManagerDashboard.jsx з реальної
-     висоти картки (чистим CSS не вийде: .mgr-first-try-body — flex із
-     переносом, а висота РЯДКА у такому контейнері визначається вмістом,
-     тож ані stretch, ані max-height:100% кільце не стискають). */
+  /* Гумове по ширині: 108px — максимум, а не фікс, у вузькій колонці
+     зменшується автоматично. Висота картки тепер по вмісту (gridstack
+     sizeToContent), тож стискати кільце під картку більше не треба —
+     --mgr-ring-max лишається лише як ручка на випадок майбутніх потреб. */
   width: 100%;
   max-width: min(var(--mgr-ring-max, 108px), 100%);
   aspect-ratio: 1;
@@ -1990,9 +1924,13 @@ a.mgr-matrix-cell:focus-visible {
   }
 }
 .mgr-bar-label {
-  /* MarqueeText — той самий коментар, що .mgr-people-status-name вище. */
+  /* Звичайний перенос, не MarqueeText (правило сіток у CLAUDE.md): у
+     вузькій картці (3 колонки з 12) біжучий рядок стартував на кожному
+     підписі одразу й у застиглій фазі читався обрізаним з початку —
+     «остроченно» замість «Прострочено» (спіймано живим тестом 2026-09-24). */
   grid-area: label;
   min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 13px;
   color: var(--ink);
 }
@@ -2354,44 +2292,68 @@ a.mgr-matrix-cell:focus-visible {
   max-width: 0;
 }
 /* Згорнуто — пункти меню круглі (користувач, 2026-09-24): до цього пункт
-   лишався з padding 10px 12px на всю ширину колонки (44×41) і з
-   заокругленням читався як овал. Фіксоване коло 40px по центру колонки;
-   gap:0 — інакше схований підпис (max-width:0) усе одно лишав зазор і
-   зсував іконку з центру. */
+   лишався з padding 10px 12px на всю ширину колонки й з заокругленням
+   читався як овал.
+
+   Без смикання (скарга того ж дня): усе, що міняється між станами,
+   АНІМУЄТЬСЯ тією ж тривалістю, що й ширина панелі, а центр іконки стоїть
+   на одній вертикалі в обох станах — 27.5px від краю панелі:
+   розгорнуто 5 (поле панелі) + 1 (рамка) + 12 (padding) + 9.5;
+   згорнуто — коло 45px (1+12+19+12+1) притиснуте до лівого краю, той
+   самий рахунок. Тому коло не по центру колонки (align-self:center дало
+   б іконці «переїзд» на півпанелі за час анімації), а зліва, і ширина
+   панелі 55px = 45 + 2×5. Підпис ховається через max-width/opacity,
+   тож ширина пункту сама плавно з'їжджається (interpolate-size на
+   .mgr-sidebar успадковується). */
+.mgr-sidebar.is-collapsed {
+  width: 55px;
+}
+.mgr-nav-link {
+  transition:
+    background var(--dur-fast) var(--ease-premium),
+    color var(--dur-fast) var(--ease-premium),
+    width var(--dur-base) var(--ease-premium),
+    padding var(--dur-base) var(--ease-premium),
+    border-radius var(--dur-base) var(--ease-premium);
+}
 .mgr-sidebar.is-collapsed .mgr-nav-link {
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  gap: 0;
-  justify-content: center;
-  align-self: center;
+  width: 45px;
+  height: 45px;
+  padding: 12px;
+  align-self: flex-start;
   border-radius: 50%;
+  overflow: hidden;
 }
-.mgr-sidebar.is-collapsed .mgr-nav-bell {
-  justify-content: center;
-  padding: 4px 0 10px;
-}
-.mgr-sidebar.is-collapsed .mgr-sidebar-footer {
-  justify-content: center;
-  padding-left: 0;
+/* Дзвіночок і шестерня вже стоять на тій самій вертикалі (padding-left 4
+   + 37/2 = 27.5) — їх не рухаємо, лише округлюємо. */
+.mgr-nav-bell .iconbtn,
+.mgr-sidebar-footer .iconbtn {
+  transition:
+    border-radius var(--dur-base) var(--ease-premium),
+    transform var(--dur-fast) var(--ease-premium),
+    background var(--dur-fast) var(--ease-premium);
 }
 .mgr-sidebar.is-collapsed .iconbtn {
   border-radius: 50%;
 }
-/* Лого в згорнутій панелі вужче (32px замість 41) — інакше в колонці 44px
-   воно впиралось у краї й виглядало більшим за кнопки під ним. */
+/* Лого: розгорнуто 41×38 із центром на 27.5 (поле 2px), згорнуто 35×32
+   (поле 5px) — обидва анімуються, тож логотип плавно меншає на місці, а
+   не стрибає. Явна height замість auto — інакше transition нема чого
+   інтерполювати. */
+.mgr-sidebar-brand {
+  padding: 0 2px;
+  transition: padding var(--dur-base) var(--ease-premium);
+}
+.mgr-sidebar .platform-brand-logo {
+  height: 38px;
+  width: auto;
+  transition: height var(--dur-base) var(--ease-premium);
+}
 .mgr-sidebar.is-collapsed .mgr-sidebar-brand {
-  display: flex;
-  justify-content: center;
+  padding-left: 5px;
 }
 .mgr-sidebar.is-collapsed .platform-brand-logo {
   height: 32px;
-  width: auto;
-}
-/* Лого: центр 41px-логотипа (lg) на тій самій вертикалі, що центр
-   19px-іконки пункту (5px поле + 12px padding + 9.5px = 26.5px). */
-.mgr-sidebar-brand {
-  padding: 0 1px;
 }
 .mgr-sidebar-footer {
   justify-content: flex-start;
