@@ -689,7 +689,13 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         cellHeight: GRID_CELL_HEIGHT_PX,
         margin: GRID_MARGIN_PX,
         float: false,
-        animate: true,
+        // Стартуємо БЕЗ анімації: розстановка збереженої розкладки
+        // (grid.load) і перший замір висот під вміст (sizeToContent) —
+        // це не «керівник щось перетягнув», а відновлення стану, і
+        // анімувати його означало показати, як картки «стрибають» у свої
+        // місця на кожному перезавантаженні (скарга користувача,
+        // 2026-09-24). Вмикаємо анімацію нижче, коли розкладка вже стала.
+        animate: false,
         sizeToContent: true,
         staticGrid: true,
         // Телефон — один стовпчик, порядок зберігається (moveScale).
@@ -707,20 +713,22 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     );
     if (!grid) return undefined;
     gridRef.current = grid;
-    if (storedGrid.length > 0) {
-      grid.load(storedGrid, false);
-    } else {
-      // Перший показ без збереженої розкладки: autoPosition розставив
-      // картки ще з дефолтними висотами, і після заміру вмісту під
-      // короткими лишаються дірки. Один раз після першого заміру
-      // (подія resizecontent) підтягуємо всі картки в порожні місця,
-      // зберігаючи порядок.
-      const packOnce = () => {
-        grid.off("resizecontent");
+    if (storedGrid.length > 0) grid.load(storedGrid, false);
+    else grid.compact();
+    // Показуємо картки лише КОЛИ розкладка вже стала: init + load + перший
+    // замір висот під вміст відбулись, але без анімації й під
+    // visibility:hidden (.mgr-charts до .is-ready). Два кадри — щоб
+    // sizeToContent (він міряє в наступному кадрі) встиг і не лишив
+    // «дірок» під короткими картками; після цього вмикаємо анімацію, тож
+    // подальші перетягування/ресайз плавні, а перше відкриття — ні.
+    let revealRaf = requestAnimationFrame(() => {
+      revealRaf = requestAnimationFrame(() => {
+        if (!grid.el) return;
         grid.compact();
-      };
-      grid.on("resizecontent", packOnce);
-    }
+        grid.setAnimation(true);
+        el.classList.add("is-ready");
+      });
+    });
     // Будь-яка зміна позиції/ширини (перетягування, ресайз, гравітація
     // після прибирання картки) — у localStorage. h не зберігаємо: воно
     // щоразу рахується з вмісту.
@@ -732,7 +740,6 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         // Без localStorage розкладка живе до перезавантаження.
       }
     });
-    el.classList.add("is-ready");
     // Ширина секції міняється плавно (згортання бічної панелі — 250ms
     // анімації, вікно тягнуть мишею), а власний throttle gridstack ловить
     // лише ПЕРШИЙ кадр зміни й міг пропустити кінцеву ширину — картки
@@ -747,6 +754,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     });
     observer.observe(el);
     return () => {
+      cancelAnimationFrame(revealRaf);
       clearTimeout(settle);
       observer.disconnect();
       grid.destroy(false);

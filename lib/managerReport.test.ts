@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import ExcelJS from "exceljs";
-import { buildManagerReport, compareTeams, parseCardIds, CARD_SHEETS, type ReportInput } from "./managerReport";
+import { buildManagerReport, compareTeams, parseCardIds, sheetName, type ReportInput } from "./managerReport";
 import type { PersonCounts, TeamPerson, TeamRow } from "./teamInsights";
 
 const counts = (over: Partial<PersonCounts> = {}): PersonCounts => ({ total: 0, completed: 0, overdue: 0, inProgress: 0, notStarted: 0, failed: 0, behind: 0, avgScore: null, ...over });
@@ -83,13 +83,22 @@ function row(over: Partial<TeamRow> = {}): TeamRow {
   };
 }
 
+describe("sheetName", () => {
+  it("чистить заборонені символи, ріже до 31 і робить унікальним", () => {
+    const taken = new Set<string>();
+    expect(sheetName("Іван [Тест]: коли/де?", taken)).toBe("Іван Тест коли де");
+    expect(sheetName("Іван [Тест]: коли/де?", taken)).toBe("Іван Тест коли де (2)");
+    expect(sheetName("Дуже довге ім'я співробітника без кінця", taken).length).toBeLessThanOrEqual(31);
+    expect(sheetName("Роман Петренко", taken, "TECH0071")).toBe("Роман Петренко TECH0071");
+  });
+});
+
 describe("buildManagerReport", () => {
-  it("будує книгу: зведення, лист на кожну обрану картку в її порядку, деталізація", async () => {
-    const rasterized: string[] = [];
+  it("будує книгу: зведення → команда → матриця → курси → люди → сирі дані", async () => {
     const input: ReportInput = {
       managerName: "Керівник",
       generatedAt: new Date("2026-09-24T10:00:00Z"),
-      cardIds: ["deadlines", "status", "peopleStatus"],
+      cardIds: ["deadlines", "status", "trend"],
       stats: {
         teamSize: 1,
         completionRate: 100,
@@ -105,7 +114,7 @@ describe("buildManagerReport", () => {
         firstAttempt: { total: 1, passedFirst: 1, retried: 0, pct: 100 },
         durations: { total: 1, medianSeconds: 600, medianActiveSeconds: null, buckets: [{ key: "lt10", label: "до 10 хв", count: 1 }] },
       },
-      weeklyTrend: [{ label: "Цей тиждень", count: 1, people: [{ name: "Особа 1", count: 1 }] }],
+      weeklyTrend: [{ label: "-1 тиж.", count: 0, people: [] }, { label: "Цей тиждень", count: 3, people: [{ name: "Особа 1", count: 3 }] }],
       people: [person(1)],
       rows: [row()],
       teamTree: [{ id: 1, name: "Особа 1", children: [] }],
@@ -118,35 +127,41 @@ describe("buildManagerReport", () => {
         attempts: [{ enrollmentId: 1, completedAt: "2026-09-10", scorePercent: 95, passed: true, durationSeconds: 600, longestCorrectStreak: 3 }],
         moduleCompletions: [{ enrollmentId: 1, passed: false, scorePercent: 40, completedAt: "2026-09-09", longestCorrectStreak: 1, module: { title: "Модуль 1" } }],
       },
-      rasterize: async (svg) => {
-        rasterized.push(svg);
-        // 1×1 PNG — exceljs лише кладе байти, не декодує.
-        return Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
-      },
     };
     const buffer = await buildManagerReport(input);
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(buffer as unknown as ExcelJS.Buffer);
-    const names = wb.worksheets.map((w) => w.name);
-    expect(names).toEqual(["Зведення", CARD_SHEETS.deadlines.title, CARD_SHEETS.status.title, CARD_SHEETS.peopleStatus.title, "Рекомендації", "Команда", "Призначення", "Спроби", "Модулі"]);
+    expect(wb.worksheets.map((w) => w.name)).toEqual(["Зведення", "Команда", "Люди × курси", "Курси", "Особа 1 TP1", "Рекомендації", "Призначення", "Спроби", "Модулі"]);
 
-    // Зведення: формула + записаний результат.
-    const kpi = wb.getWorksheet("Зведення")!.getCell("B6").value as ExcelJS.CellFormulaValue;
+    const summary = wb.getWorksheet("Зведення")!;
+    // Формула + записаний результат; внутрішнє посилання без «#».
+    const kpi = summary.getCell("B6").value as ExcelJS.CellFormulaValue;
     expect(kpi.formula).toContain("COUNTA('Призначення'!C2:C2)");
     expect(kpi.result).toBe(1);
+    const teamLink = summary.getCell("A15").value as ExcelJS.CellHyperlinkValue;
+    expect(teamLink.hyperlink).toBe("'Команда'!A1");
+    // Блоки — у переданому порядку.
+    const titles = summary.getColumn(1).values.filter((v) => typeof v === "string") as string[];
+    expect(titles.indexOf("Дедлайни на горизонті")).toBeLessThan(titles.indexOf("Стан команди"));
+    expect(titles.indexOf("Стан команди")).toBeLessThan(titles.indexOf("Активність по тижнях"));
 
-    // Матриця: ✓ у клітинці людини × курсу.
-    const matrix = wb.getWorksheet(CARD_SHEETS.peopleStatus.title)!;
-    expect(matrix.getCell("A5").value).toBe("Особа 1");
-    expect(matrix.getCell("B5").value).toBe("✓");
+    // Команда: ім'я — посилання на лист людини; таблиця з підсумками.
+    const team = wb.getWorksheet("Команда")!;
+    expect(team.getTable("Team")).toBeDefined();
+    expect((team.getCell("A4").value as ExcelJS.CellHyperlinkValue).hyperlink).toBe("'Особа 1 TP1'!A1");
 
-    // Діаграми растеризувались лише для карток із діаграмою (дедлайни, стан).
-    expect(rasterized.length).toBe(2);
-    expect(rasterized.every((s) => s.startsWith("<svg"))).toBe(true);
+    // Матриця: ✓ і посилання на людину.
+    const matrix = wb.getWorksheet("Люди × курси")!;
+    expect(matrix.getCell("B4").value).toBe("✓");
+    expect((matrix.getCell("A4").value as ExcelJS.CellHyperlinkValue).text).toBe("Особа 1");
 
-    // Розумна таблиця з підсумками на листі деталізації.
-    const assignments = wb.getWorksheet("Призначення")!;
-    expect(assignments.getTable("Assignments")).toBeDefined();
-    expect(assignments.getCell("A1").value).toBe("Ім'я");
+    // Лист людини: назва, «← Команда», курс і провалений модуль.
+    const personWs = wb.getWorksheet("Особа 1 TP1")!;
+    expect(personWs.getCell("A1").value).toBe("Особа 1");
+    expect((personWs.getCell("B1").value as ExcelJS.CellHyperlinkValue).hyperlink).toBe("'Команда'!A1");
+    const col = personWs.getColumn(1).values.map((v) => (typeof v === "object" && v && "text" in (v as object) ? (v as ExcelJS.CellHyperlinkValue).text : v));
+    expect(col).toContain("Курси");
+    expect(col).toContain("Модулі");
+    expect(personWs.getColumn(2).values).toContain("Модуль 1");
   });
 });

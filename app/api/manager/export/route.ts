@@ -1,4 +1,3 @@
-import sharp from "sharp";
 import { getCurrentUser } from "@/lib/session";
 import { isManagerTier, getAllSubordinates } from "@/lib/permissions";
 import { getExportData, getDashboardStats, getHardestQuestions, getTeamTree, getWeeklyTrend } from "@/lib/managerDashboard";
@@ -33,9 +32,6 @@ const CANONICAL_CARD_IDS = [
   "hardestQuestions",
 ];
 
-// density 192 — удвічі щільніше за екранні 96 dpi: картинка в Excel
-// масштабується під зум, і на 100% лінії кілець без цього мильні.
-const rasterize = async (svg: string) => new Uint8Array(await sharp(Buffer.from(svg), { density: 192 }).png().toBuffer());
 
 export async function GET(request: Request) {
   const employee = await getCurrentUser();
@@ -68,7 +64,6 @@ export async function GET(request: Request) {
     teamTree,
     hardestQuestions,
     exportData,
-    rasterize,
   });
 
   return new Response(new Blob([buffer as BlobPart]), {
