@@ -995,8 +995,15 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <h1 className="greeting hub-greeting-h1">КАБІНЕТ КЕРІВНИКА</h1>
         <div className="mgr-page-header-actions">
           {/* Прямий лінк на /api/manager/export — браузер сам ініціює
-              завантаження по Content-Disposition:attachment, без fetch+blob. */}
-          <a className="admin-btn-link mgr-export-link" href="/api/manager/export" title="Завантажити звіт у форматі Excel" aria-label="Завантажити звіт у форматі Excel">
+              завантаження по Content-Disposition:attachment, без fetch+blob.
+              cards= — увімкнені картки в порядку дашборда: звіт повторює
+              екран лист у лист (lib/managerReport.ts). */}
+          <a
+            className="admin-btn-link mgr-export-link"
+            href={`/api/manager/export?cards=${orderedIds.filter((id) => enabledCards.has(id)).join(",")}`}
+            title="Завантажити звіт у форматі Excel — листи за увімкненими картками"
+            aria-label="Завантажити звіт у форматі Excel"
+          >
             <ExcelIcon /> <span className="mgr-export-label">Завантажити звіт</span>
           </a>
           {/* Навмисно ІНША іконка, ніж загальні налаштування застосунку

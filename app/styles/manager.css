@@ -692,6 +692,22 @@ body:has(.manager-shell) {
   margin-left: auto;
   white-space: nowrap;
 }
+/* У вузькій картці (3–4 колонки з 12) примітка не вміщається поруч із
+   назвою й вилазила за правий край (скарга користувача, 2026-09-24) —
+   переносимо її окремим рядком під назву, дрібнішим шрифтом. Поріг — від
+   ширини САМОЇ картки (@container mgr-chart), не вікна. */
+@container mgr-chart (max-width: 460px) {
+  .mgr-chart-card > h2 {
+    flex-wrap: wrap;
+  }
+  .mgr-card-note {
+    flex-basis: 100%;
+    order: 10;
+    margin-left: 0;
+    white-space: normal;
+    font-size: 11px;
+  }
+}
 .mgr-attention-all {
   align-self: flex-start;
   margin-top: 8px;
@@ -1734,7 +1750,7 @@ a.mgr-matrix-cell:focus-visible {
 /* Стовпчики тренду задані у відсотках від доріжки — їй потрібна власна
    мінімальна висота, інакше графік схлопується у смужку. */
 .mgr-chart-card > .mgr-trend-row {
-  min-height: 100px;
+  flex: none;
 }
 /* Плейсхолдер під карткою в руці — пунктир акцентного кольору замість
    сірої плями gridstack. */
@@ -2062,8 +2078,11 @@ a.mgr-matrix-cell:focus-visible {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  flex: 1;
-  min-height: 100px;
+  /* ВИЗНАЧЕНА висота, не min-height + flex:1: висота картки тепер по
+     вмісту (gridstack sizeToContent), і доріжка стовпчика зі своїм
+     height:100% більше не мала від чого рахуватись — графік схлопувався
+     до самих цифр (скарга користувача, 2026-09-24). */
+  height: 132px;
   padding-top: 6px;
 }
 .mgr-trend-col {
