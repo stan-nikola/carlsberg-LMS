@@ -1008,41 +1008,50 @@ body:has(.manager-shell) {
     radial-gradient(farthest-side at 0 50%, var(--cb-overlay-10), transparent) left center / 12px 100% no-repeat scroll,
     radial-gradient(farthest-side at 100% 50%, var(--cb-overlay-10), transparent) right center / 12px 100% no-repeat scroll;
 }
+/* Лінії сітки помітніші за звичайний --line (користувач, 2026-09-24:
+   «более серыми и более читабельными») — але це все ще похідна від
+   токенів, а не власний сірий. */
 .mgr-matrix {
-  width: auto;
-  min-width: 100%;
+  --mgr-grid: color-mix(in srgb, var(--line) 55%, var(--ink-soft));
+  /* Ширину таблиці задає компонент (сума колонок з lib/matrixSizes.ts);
+     fixed — щоб браузер не перерозподіляв її за вмістом, інакше потягнута
+     колонка «пливе» разом із сусідами. */
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   border: none;
+  border-top: var(--border-w) solid var(--mgr-grid);
+  border-left: var(--border-w) solid var(--mgr-grid);
   border-radius: 0;
   overflow: visible;
 }
 .mgr-matrix th,
 .mgr-matrix td {
-  /* Тонкі внутрішні поля — щоб у картку влізло більше курсів. */
-  padding: 2px 3px;
+  padding: 2px 4px;
   text-align: center;
   vertical-align: middle;
   font-size: 12px;
-  border-bottom: var(--border-w) solid var(--line);
-}
-.mgr-matrix tbody tr:last-child th,
-.mgr-matrix tbody tr:last-child td {
-  border-bottom: none;
+  /* Повна сітка, як у Excel: права й нижня лінія в кожної клітинки, верхня
+     й ліва — на самій таблиці. */
+  border-right: var(--border-w) solid var(--mgr-grid);
+  border-bottom: var(--border-w) solid var(--mgr-grid);
+  overflow: hidden;
 }
 .mgr-matrix thead th {
   position: sticky;
   top: 0;
-  background: var(--surface-1);
+  background: var(--surface-2);
   z-index: 2;
-  /* .admin-table thead th — nowrap/uppercase: вертикальному підпису це
+  /* .admin-table thead th — nowrap/uppercase: дворядковому підпису це
      заважає, тож скидаємо. */
   white-space: normal;
   text-transform: none;
   letter-spacing: normal;
-  vertical-align: bottom;
+  vertical-align: middle;
   font-weight: 600;
   color: var(--ink);
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 /* Липкий перший стовпчик: ім'я видно і посеред горизонтального скролу.
    z-index вищий у шапки-кута, щоб він не ховався під заголовками. */
@@ -1054,17 +1063,10 @@ body:has(.manager-shell) {
   font-weight: 500;
   z-index: 1;
   padding-right: 8px;
-  /* width:1% — класичний прийом для table-layout:auto: колонка сідає на
-     ширину свого вмісту, а ВЕСЬ надлишок ширини таблиці дістається
-     колонкам курсів (клітинки ширші, легше поцілити пальцем). Без цього
-     залишок забирала саме колонка імен — 256px під 124px тексту. */
-  width: 1%;
-  /* Тонка риска замість тіні — відокремлює липку колонку від решти. */
-  box-shadow: inset -1px 0 0 var(--line);
 }
 .mgr-matrix thead .mgr-matrix-corner {
   z-index: 3;
-  vertical-align: bottom;
+  background: var(--surface-2);
 }
 .mgr-matrix-course,
 .mgr-matrix-person {
@@ -1073,31 +1075,76 @@ body:has(.manager-shell) {
   font-weight: 600;
 }
 .mgr-matrix-person {
-  /* Ширину задає САМ блок, а не max-width комірки: при table-layout:auto
-     max-width на th/td браузер ігнорує, і колонка імен розповзалась на
-     чверть картки. */
   display: block;
-  max-width: 160px;
   font-size: 12px;
   line-height: 1.2;
   overflow-wrap: break-word;
 }
+/* Назва курсу горизонтально, максимум у два рядки (рішення користувача
+   2026-09-24 — вертикальний підпис обрізався з «…»). Довша — з «…» на
+   другому рядку, повна лишається в title; ширину колонки можна потягнути. */
 .mgr-matrix-course {
-  /* vertical-rl + rotate(180°) = читається знизу вгору, як у класичній
-     матриці навчання. sideways-lr дав би те саме одним рядком, але його
-     ще не підтримує частина браузерів. */
-  writing-mode: vertical-rl;
-  rotate: 180deg;
-  display: block;
-  margin-inline: auto;
-  font-size: 11px;
-  line-height: 1.15;
-  font-weight: 500;
-  /* Стеля висоти шапки: довша назва обрізається з «…», повна — у title. */
-  max-height: 118px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+/* ---- Ручки зміни розміру (components/TeamMatrix.tsx) ----
+   Невидима смужка 9px на межі клітинки; на ховері/під час тягнення в ній
+   проступає 2px риска акцентного кольору — так само підсвічує межу Excel.
+   touch-action:none — інакше палець на телефоні прокручує таблицю замість
+   тягнути. */
+.mgr-matrix-th {
+  position: sticky;
+}
+.mgr-matrix-handle {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+  user-select: none;
+}
+.mgr-matrix-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--green-500);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-premium);
+}
+.mgr-matrix-handle:hover::after,
+.mgr-matrix-handle.is-dragging::after {
+  opacity: 0.7;
+}
+.mgr-matrix-handle-col {
+  top: 0;
+  bottom: 0;
+  right: -5px;
+  width: 9px;
+  cursor: col-resize;
+}
+.mgr-matrix-handle-col::after {
+  left: 3px;
+  right: 4px;
+}
+.mgr-matrix-handle-row {
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  height: 9px;
+  cursor: row-resize;
+}
+.mgr-matrix-handle-row::after {
+  top: 3px;
+  bottom: 4px;
+}
+.mgr-matrix-legend-hint {
+  flex-basis: 100%;
+  opacity: 0.8;
 }
 .mgr-matrix-course:hover,
 .mgr-matrix-person:hover,
@@ -1184,17 +1231,98 @@ a.mgr-matrix-cell:focus-visible {
   display: flex;
   gap: 6px;
 }
+/* Пошук і сортування — та сама «капсула», що чипи «Люди / Призначення»
+   поруч (.mgr-filter-chip нижче): висота --btn-h-sm, рамка --line, радіус
+   --radius-badge. До 2026-09-24 тут стояв неіснуючий клас admin-input, і
+   браузер малював голі системні контроли. */
 .mgr-team-search {
+  position: relative;
+  display: flex;
+  align-items: center;
   flex: 1 1 220px;
   min-width: 0;
 }
-.mgr-team-search .admin-input {
+.mgr-team-search-icon {
+  position: absolute;
+  left: 11px;
+  display: inline-flex;
+  width: 15px;
+  height: 15px;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+.mgr-team-search-icon svg {
+  width: 15px;
+  height: 15px;
+}
+.mgr-team-search-input,
+.mgr-team-sort-select {
+  min-height: var(--btn-h-sm);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-badge);
+  background: var(--surface-1);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  transition: border-color var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
+}
+.mgr-team-search-input {
   width: 100%;
+  padding: 0 12px 0 32px;
+  appearance: none;
+}
+.mgr-team-search-input::-webkit-search-decoration {
+  appearance: none;
+}
+.mgr-team-search-input:focus,
+.mgr-team-sort-select:focus {
+  outline: none;
+  border-color: var(--green-500);
+  box-shadow: var(--cb-focus-ring);
 }
 .mgr-team-sort {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+.mgr-team-sort-label {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.mgr-team-sort-field {
+  position: relative;
+  display: inline-flex;
+}
+.mgr-team-sort-select {
+  appearance: none;
+  padding: 0 30px 0 12px;
+  cursor: pointer;
+}
+.mgr-team-sort-chevron {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  translate: 0 -50%;
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  color: var(--ink-soft);
+  pointer-events: none;
+  /* ChevronIcon дивиться праворуч — у списку має вниз. */
+  rotate: 90deg;
+}
+.mgr-team-sort-chevron svg {
+  width: 14px;
+  height: 14px;
+}
+/* На телефоні поле менше 16px змушує iOS Safari наближати сторінку при
+   фокусі — тут це не десктопний конструктор, кабінет реально відкривають
+   із телефона. */
+@media (max-width: 899px) {
+  .mgr-team-search-input,
+  .mgr-team-sort-select {
+    font-size: 16px;
+  }
 }
 .mgr-team-filters {
   list-style: none;
@@ -1294,7 +1422,37 @@ a.mgr-matrix-cell:focus-visible {
   gap: 4px;
 }
 
+/* ---- Шапка drill-down сторінок (/manager/team, /manager/team/[id]):
+   кругла «назад» — коротка риска — крихти (користувач, 2026-09-24). ---- */
+.mgr-page-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.mgr-page-head .hub-greeting-h1 {
+  margin-bottom: 0;
+}
+.mgr-back-btn {
+  /* Коло, а не плитка: має читатись як «назад» ще до наведення. */
+  border-radius: 50%;
+}
+.mgr-back-btn svg {
+  width: 18px;
+  height: 18px;
+}
+.mgr-page-head-rule {
+  flex: none;
+  width: 22px;
+  height: var(--border-w);
+  background: var(--line);
+}
+
 /* ---- /manager/team/[id]: людина ---- */
+.mgr-person-code {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
 .mgr-crumb {
   color: inherit;
   text-decoration: none;
@@ -2194,6 +2352,41 @@ a.mgr-matrix-cell:focus-visible {
 .mgr-sidebar.is-collapsed .platform-brand-text {
   opacity: 0;
   max-width: 0;
+}
+/* Згорнуто — пункти меню круглі (користувач, 2026-09-24): до цього пункт
+   лишався з padding 10px 12px на всю ширину колонки (44×41) і з
+   заокругленням читався як овал. Фіксоване коло 40px по центру колонки;
+   gap:0 — інакше схований підпис (max-width:0) усе одно лишав зазор і
+   зсував іконку з центру. */
+.mgr-sidebar.is-collapsed .mgr-nav-link {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+  align-self: center;
+  border-radius: 50%;
+}
+.mgr-sidebar.is-collapsed .mgr-nav-bell {
+  justify-content: center;
+  padding: 4px 0 10px;
+}
+.mgr-sidebar.is-collapsed .mgr-sidebar-footer {
+  justify-content: center;
+  padding-left: 0;
+}
+.mgr-sidebar.is-collapsed .iconbtn {
+  border-radius: 50%;
+}
+/* Лого в згорнутій панелі вужче (32px замість 41) — інакше в колонці 44px
+   воно впиралось у краї й виглядало більшим за кнопки під ним. */
+.mgr-sidebar.is-collapsed .mgr-sidebar-brand {
+  display: flex;
+  justify-content: center;
+}
+.mgr-sidebar.is-collapsed .platform-brand-logo {
+  height: 32px;
+  width: auto;
 }
 /* Лого: центр 41px-логотипа (lg) на тій самій вертикалі, що центр
    19px-іконки пункту (5px поле + 12px padding + 9.5px = 26.5px). */

@@ -15,6 +15,7 @@ import {
   DashboardTuneIcon,
   ExcelIcon,
   ArrowsMoveIcon,
+  RingsIcon,
 } from "@/components/icons";
 import { HintDot } from "@/components/HintDot";
 import { CompletionRing } from "@/components/CompletionRing";
@@ -1357,7 +1358,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["rings", enabledCards.has("rings") && (
         <div className="mgr-chart-card">
           <h2>
-            Показники команди
+            <RingsIcon /> Показники команди
             <ChartHint text="Усі чотири кільця рахують ПРИЗНАЧЕННЯ (людина × курс), лише знаменники різні: «Виконано» — частка доведених до кінця; «Складено» — з них ті, що набрали прохідний бал курсу; «Вчасно» — вкладені в дедлайн серед тих, де дедлайн уже вирішено; «Розпочато» — ті, де є будь-який рух. Скільки ЛЮДЕЙ у якому стані — у полосі «Стан команди» вгорі. Клік веде до того, по чому треба діяти: «Вчасно» — до тих, хто не вклався, «Розпочато» — до ще не розпочатих." />
           </h2>
           {/* Кожне кільце — посилання на список за тим самим критерієм:

@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isManagerTier(me)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  let body: { employeeIds?: unknown; courseId?: unknown; message?: unknown };
+  let body: { employeeIds?: unknown; courseId?: unknown; message?: unknown; kind?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -53,13 +53,24 @@ export async function POST(request: Request) {
   const course = courseId != null ? await prisma.course.findUnique({ where: { id: courseId }, select: { id: true, title: true, slug: true } }) : null;
   if (courseId != null && !course) return NextResponse.json({ error: "Курс не знайдено" }, { status: 404 });
 
+  // «Похвалити» (2026-09-24) — той самий маршрут і ті самі межі, лише
+  // інший тип (категорія «курси», не «дедлайни») і власний ключ дедуплікації:
+  // подяка й нагадування по одному курсу за день не мають гасити одне одного.
+  const praise = body.kind === "praise";
   const now = new Date();
-  const base = {
-    type: "manager_reminder",
-    title: course ? `Нагадування від керівника: «${course.title}»` : "Нагадування від керівника",
-    message,
-    dedupeKey: (id: number) => `reminder:${me.id}:${id}:${course ? course.id : "all"}:${dateKey(now)}`,
-  };
+  const base = praise
+    ? {
+        type: "manager_praise",
+        title: course ? `Відзнака від керівника: «${course.title}»` : "Відзнака від керівника",
+        message,
+        dedupeKey: (id: number) => `praise:${me.id}:${id}:${course ? course.id : "all"}:${dateKey(now)}`,
+      }
+    : {
+        type: "manager_reminder",
+        title: course ? `Нагадування від керівника: «${course.title}»` : "Нагадування від керівника",
+        message,
+        dedupeKey: (id: number) => `reminder:${me.id}:${id}:${course ? course.id : "all"}:${dateKey(now)}`,
+      };
 
   let created = 0;
   if (course) {

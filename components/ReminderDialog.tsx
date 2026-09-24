@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { managerReminderText } from "@/lib/notificationLogic";
+import { managerPraiseText, managerReminderText } from "@/lib/notificationLogic";
 import { SpinnerIcon } from "@/components/icons";
 
 export type ReminderRecipient = { id: number; name: string };
-export type ReminderReason = "overdue" | "behind" | "not_started" | "inactive" | "on_track" | "general";
+export type ReminderReason = "overdue" | "behind" | "not_started" | "inactive" | "failed" | "on_track" | "general";
+/** «Нагадати» про недороблене або «Похвалити» за складене — один діалог,
+ *  різний шаблон, заголовок і тип сповіщення на сервері. */
+export type ReminderMode = "remind" | "praise";
 
 /**
  * «Нагадати» з кабінету керівника: шаблон за причиною (керівник править
@@ -21,6 +24,7 @@ export function ReminderDialog({
   courseTitle,
   reason,
   dueDateLabel,
+  mode = "remind",
 }: {
   open: boolean;
   onClose: () => void;
@@ -29,6 +33,7 @@ export function ReminderDialog({
   courseTitle: string | null;
   reason: ReminderReason;
   dueDateLabel: string | null;
+  mode?: ReminderMode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [message, setMessage] = useState("");
@@ -40,14 +45,16 @@ export function ReminderDialog({
     const el = ref.current;
     if (!el) return;
     if (open && !el.open) {
-      setMessage(managerReminderText(reason === "on_track" ? "general" : reason, courseTitle, dueDateLabel));
+      setMessage(
+        mode === "praise" ? managerPraiseText(courseTitle) : managerReminderText(reason === "on_track" ? "general" : reason, courseTitle, dueDateLabel)
+      );
       setResult(null);
       setError("");
       el.showModal();
     } else if (!open && el.open) {
       el.close();
     }
-  }, [open, reason, courseTitle, dueDateLabel]);
+  }, [open, reason, courseTitle, dueDateLabel, mode]);
 
   // Esc / закриття ззовні — нативна подія close; слухаємо напряму, а не
   // через JSX-проп: інакше стан `open` лишався true після Esc і наступний
@@ -66,7 +73,7 @@ export function ReminderDialog({
       const res = await fetch("/api/manager/reminders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeIds: recipients.map((r) => r.id), courseId, message }),
+        body: JSON.stringify({ employeeIds: recipients.map((r) => r.id), courseId, message, kind: mode }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -84,7 +91,7 @@ export function ReminderDialog({
   return (
     <dialog ref={ref} className="mgr-reminder-dialog">
       <form method="dialog" onSubmit={(e) => e.preventDefault()}>
-        <h2 className="mgr-reminder-title">Нагадати</h2>
+        <h2 className="mgr-reminder-title">{mode === "praise" ? "Похвалити" : "Нагадати"}</h2>
         <p className="admin-hint mgr-reminder-who">
           Кому: {who}
           {courseTitle ? ` · курс «${courseTitle}»` : ""}
@@ -128,7 +135,8 @@ export function RemindButton({
   courseTitle = null,
   reason = "general",
   dueDateLabel = null,
-  label = "Нагадати",
+  mode = "remind",
+  label,
   className = "admin-btn-link",
   disabled = false,
 }: {
@@ -137,6 +145,7 @@ export function RemindButton({
   courseTitle?: string | null;
   reason?: ReminderReason;
   dueDateLabel?: string | null;
+  mode?: ReminderMode;
   label?: string;
   className?: string;
   disabled?: boolean;
@@ -145,7 +154,7 @@ export function RemindButton({
   return (
     <>
       <button type="button" className={className} onClick={() => setOpen(true)} disabled={disabled || recipients.length === 0}>
-        {label}
+        {label ?? (mode === "praise" ? "Похвалити" : "Нагадати")}
       </button>
       {open && (
         <ReminderDialog
@@ -156,6 +165,7 @@ export function RemindButton({
           courseTitle={courseTitle}
           reason={reason}
           dueDateLabel={dueDateLabel}
+          mode={mode}
         />
       )}
     </>

@@ -66,6 +66,7 @@ export type PersonCounts = {
 export type TeamPerson = {
   id: number;
   name: string;
+  externalCode: string | null;
   avatarUrl: string | null;
   positionCode: string | null;
   positionName: string | null;
@@ -262,6 +263,7 @@ function personFrom(e: RawEmployee, rows: TeamRow[], weeks: Set<number> | undefi
   return {
     id: e.id,
     name: e.name,
+    externalCode: e.externalCode ?? null,
     avatarUrl: e.avatarUrl,
     positionCode: e.position?.code ?? null,
     positionName: e.position?.name ?? null,
