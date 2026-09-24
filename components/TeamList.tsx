@@ -8,6 +8,7 @@ import { StatusPill } from "@/components/EnrollmentRow";
 import { SegmentPill } from "@/components/TeamStatusBar";
 import { RemindButton, type ReminderReason } from "@/components/ReminderDialog";
 import { teamQueryHref, type TeamListResult, type TeamQuery } from "@/lib/teamInsights";
+import { ChevronIcon, SearchIcon } from "@/components/icons";
 
 type Chip = { key: keyof TeamQuery; label: string };
 
@@ -76,16 +77,34 @@ export function TeamList({
             Призначення
           </Link>
         </div>
+        {/* Поле й список — у тій самій «капсулі», що чипи «Люди / Призначення»
+            поруч (.mgr-filter-chip): раніше стояв клас admin-input, якого в
+            CSS немає взагалі, і браузер малював голі системні контроли. */}
         <form className="mgr-team-search" onSubmit={submitSearch} role="search">
-          <input className="admin-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Пошук за іменем" aria-label="Пошук за іменем" />
+          <span className="mgr-team-search-icon" aria-hidden="true">
+            <SearchIcon />
+          </span>
+          <input
+            className="mgr-team-search-input"
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Пошук за іменем"
+            aria-label="Пошук за іменем"
+          />
         </form>
         <label className="mgr-team-sort">
-          <span className="admin-hint">Сортувати</span>
-          <select className="admin-input" value={query.sort} onChange={(e) => changeSort(e.target.value as TeamQuery["sort"])}>
-            <option value="urgency">за терміновістю</option>
-            <option value="name">за іменем</option>
-            <option value="score">за балом</option>
-          </select>
+          <span className="mgr-team-sort-label">Сортувати</span>
+          <span className="mgr-team-sort-field">
+            <select className="mgr-team-sort-select" value={query.sort} onChange={(e) => changeSort(e.target.value as TeamQuery["sort"])}>
+              <option value="urgency">за терміновістю</option>
+              <option value="name">за іменем</option>
+              <option value="score">за балом</option>
+            </select>
+            <span className="mgr-team-sort-chevron" aria-hidden="true">
+              <ChevronIcon />
+            </span>
+          </span>
         </label>
       </div>
 

@@ -374,6 +374,28 @@ export function CalendarIcon() {
 
 /** Стовпчиковий графік — заголовок блоку "% виконання по курсу" в
  * кабінеті керівника. */
+/** Кільце показника — картка «Показники команди» (чотири кільця) на
+ *  дашборді керівника; єдина картка, що лишалась без іконки (2026-09-24). */
+export function RingsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" opacity="0.35" />
+      <path d="M12 3a9 9 0 0 1 9 9" />
+      <circle cx="12" cy="12" r="3.5" />
+    </svg>
+  );
+}
+
+/** Лупа — поле пошуку в списку команди. */
+export function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+    </svg>
+  );
+}
+
 export function TrendIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

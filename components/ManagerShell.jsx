@@ -126,9 +126,11 @@ export function ManagerShell({ hasNewCourses = false, children }) {
             aria-current={isActive ? "page" : undefined}
             title={label}
           >
+            {/* Без червоної крапки на іконці (користувач, 2026-09-24): поруч
+                і так стоїть «· нове». У мобільному таббарі нижче крапка
+                лишається — там підпису немає, і вона єдиний сигнал. */}
             <span className="mgr-nav-icon">
               <Icon filled={isActive} />
-              {navBadges[href] && <span className="mgr-nav-dot" aria-hidden="true" />}
             </span>
             <span className="mgr-nav-label">
               {label}

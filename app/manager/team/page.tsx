@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getManagerTeamRows } from "@/lib/managerOverview";
 import { applyTeamFilters, describeTeamQuery, parseTeamQuery } from "@/lib/teamInsights";
 import { TeamList } from "@/components/TeamList";
+import { BackButton } from "@/components/BackButton";
 
 // TODO: Cache Components adoption — той самий опт-аут, що на app/manager/page.js.
 export const instant = false;
@@ -29,7 +30,14 @@ export default async function ManagerTeamPage({ searchParams }: { searchParams: 
 
   return (
     <div className="manager-page manager-team-page">
-      <h1 className="greeting hub-greeting-h1">КОМАНДА</h1>
+      {/* Сюди ведуть цифри дашборда, а назад вела лише вкладка «Команда»
+          в меню — і та без прокрутки/розкладки, як лишили. Кругла «назад»
+          повертає саме туди, звідки прийшли (2026-09-24). */}
+      <div className="mgr-page-head">
+        <BackButton />
+        <span className="mgr-page-head-rule" aria-hidden="true" />
+        <h1 className="greeting hub-greeting-h1">КОМАНДА</h1>
+      </div>
       <TeamList result={result} chips={chips} courseId={course?.id ?? null} courseTitle={course?.title ?? null} />
     </div>
   );

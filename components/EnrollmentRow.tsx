@@ -86,8 +86,14 @@ export function EnrollmentRow({
   }, [highlighted]);
 
   const unfinished = enrollment.status !== "completed";
+  // Завершено, але прохідний бал не набрано — теж привід нагадати, тільки
+  // текст інший («спробуйте ще раз», не «термін минув»). Складено — навпаки,
+  // привід похвалити (2026-09-24): до цього на складених кнопки не було
+  // взагалі, а на не складених — теж, бо рядок рахувався «завершеним».
+  const failed = enrollment.status === "completed" && enrollment.passed === false;
+  const passed = enrollment.status === "completed" && enrollment.passed === true;
   const reason: ReminderReason =
-    enrollment.status === "overdue" ? "overdue" : schedule === "behind" ? "behind" : enrollment.status === "not_started" ? "not_started" : "general";
+    enrollment.status === "overdue" ? "overdue" : failed ? "failed" : schedule === "behind" ? "behind" : enrollment.status === "not_started" ? "not_started" : "general";
 
   return (
     <li ref={ref} className={`mgr-enrollment-row${highlighted ? " is-highlighted" : ""}`} id={`enrollment-${enrollment.course.slug}`}>
@@ -147,7 +153,7 @@ export function EnrollmentRow({
           ))}
         </ul>
       )}
-      {(hasHistory || (remindRecipient && unfinished)) && (
+      {(hasHistory || remindRecipient) && (
         <div className="mgr-attempts">
           <div className="mgr-enrollment-actions">
             {hasHistory && (
@@ -155,7 +161,7 @@ export function EnrollmentRow({
                 {showAttempts ? "Сховати історію спроб" : `Історія спроб (${enrollment.attempts!.length})`}
               </button>
             )}
-            {remindRecipient && unfinished && (
+            {remindRecipient && (unfinished || failed) && (
               <RemindButton
                 recipients={[remindRecipient]}
                 courseId={enrollment.course.id}
@@ -163,6 +169,9 @@ export function EnrollmentRow({
                 reason={reason}
                 dueDateLabel={dueDate}
               />
+            )}
+            {remindRecipient && passed && (
+              <RemindButton recipients={[remindRecipient]} courseId={enrollment.course.id} courseTitle={enrollment.course.title} mode="praise" />
             )}
           </div>
           {showAttempts && enrollment.attempts && (

@@ -68,6 +68,9 @@ export const TYPE_CATEGORY: Record<string, NotificationCategoryKey> = {
   deadline_1d: "deadlines",
   enrollment_overdue: "deadlines",
   manager_reminder: "deadlines",
+  // Похвала за складений курс — про курс, не про дедлайн і не про
+  // відзнаку-бейдж: людина, що вимкнула «Досягнення», її все одно отримає.
+  manager_praise: "courses",
   badge_awarded: "badges",
   subordinate_enrollment_overdue: "team",
   team_digest: "team",

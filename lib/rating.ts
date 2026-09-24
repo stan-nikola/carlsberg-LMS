@@ -297,6 +297,60 @@ export async function getLeaderboard(employee: RatedEmployee, scope: Leaderboard
   return cachedLeaderboard(employee.id, employee.positionId, employee.position?.level, scope, limit);
 }
 
+/**
+ * Лідери команди керівника, ЗГРУПОВАНІ за посадою (рішення користувача
+ * 2026-09-24): один блок на посаду («Торгові представники», «Мерчендайзери»,
+ * «Техніки» …), усередині — рейтинг лише цієї посади (% від найкращого у
+ * ній). Так одразу видно, хто на якому місці СЕРЕД СВОЇХ, а не змішаним
+ * списком, де ТП і технік поруч непорівнянні. Кожен рядок клікабельний —
+ * веде на лист підлеглого (сторінка формує href).
+ */
+async function computeTeamLeaderboardByPosition(managerId: number) {
+  const ids = await getAllSubordinates(managerId);
+  if (ids.length === 0) return [];
+  const [people, points] = await Promise.all([
+    prisma.employee.findMany({
+      where: { id: { in: ids }, isActive: true },
+      select: { id: true, name: true, avatarUrl: true, position: { select: { id: true, name: true, level: true } } },
+    }),
+    sumPoints(ids),
+  ]);
+  const pointsById = new Map(points.map((p) => [p.employeeId, p.points]));
+  const groups = new Map<number, { positionId: number; positionName: string; level: number; rows: { id: number; name: string; avatarUrl: string | null; points: number }[] }>();
+  for (const p of people) {
+    if (!p.position) continue; // без посади рейтингувати нема з ким
+    const g = groups.get(p.position.id) || { positionId: p.position.id, positionName: p.position.name, level: p.position.level, rows: [] };
+    g.rows.push({ id: p.id, name: p.name, avatarUrl: p.avatarUrl ?? null, points: pointsById.get(p.id) || 0 });
+    groups.set(p.position.id, g);
+  }
+  return Array.from(groups.values())
+    // Вищі посади (менший level) зверху, далі за назвою — стабільний порядок.
+    .sort((a, b) => a.level - b.level || a.positionName.localeCompare(b.positionName, "uk"))
+    .map((g) => {
+      const max = Math.max(0, ...g.rows.map((r) => r.points));
+      return {
+        positionId: g.positionId,
+        positionName: g.positionName,
+        rows: g.rows
+          .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name, "uk"))
+          .map((r) => ({ ...r, normalized: max > 0 ? Math.round((r.points / max) * 100) : 0 })),
+      };
+    });
+}
+
+// Той самий кеш-профіль, що cachedLeaderboard: компанія-широкий зріз балів,
+// але результат згрупований за посадою; per-менеджер (у ключі його id).
+const cachedTeamLeaderboardByPosition = unstable_cache((managerId: number) => computeTeamLeaderboardByPosition(managerId), ["team-leaderboard-by-position"], {
+  revalidate: 60,
+  tags: ["rating"],
+});
+
+export async function getTeamLeaderboardByPosition(managerId: number) {
+  return cachedTeamLeaderboardByPosition(managerId);
+}
+
+export type TeamLeaderboardGroup = Awaited<ReturnType<typeof computeTeamLeaderboardByPosition>>[number];
+
 async function computeTeamRatingForManager(manager: { id: number; positionId: number | null }) {
   const [people, sums] = await Promise.all([
     prisma.employee.findMany({ where: { isActive: true }, select: { id: true, managerId: true, positionId: true } }),

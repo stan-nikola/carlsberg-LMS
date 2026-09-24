@@ -1,9 +1,37 @@
+import Link from "next/link";
 import { LockIcon } from "@/components/icons";
 import { RatingCard } from "@/components/RatingBlocks";
 import { BadgeGrid } from "@/components/BadgeGrid";
 import { CertificateList } from "@/components/CertificateList";
 import { LocalName } from "@/components/LocalName";
 import { Avatar } from "@/components/Avatar";
+
+/** Один рядок лідерборду. `href` — коли заданий, рядок клікабельний (лист
+ *  підлеглого в кабінеті керівника); інакше просто показ (у /hub). */
+function LeaderRow({ row, rank, currentEmployeeId, hasEmail, href }) {
+  const inner = (
+    <>
+      <span className="lb-rank">{rank}</span>
+      <Avatar name={row.name} src={row.avatarUrl} size="sm" />
+      <span className="lb-name">
+        {row.id === currentEmployeeId ? <LocalName dbName={row.name} hasEmail={hasEmail} /> : row.name}
+        {row.position && row.position !== row.name && <span className="lb-pos"> · {row.position}</span>}
+      </span>
+      <span className="lb-score">
+        {row.normalized != null ? `${row.normalized}%` : `${row.points} балів`}
+        {row.normalized != null && <span className="lb-pos"> · {row.points} б.</span>}
+      </span>
+    </>
+  );
+  const cls = `lb-row${row.id === currentEmployeeId ? " lb-row-self" : ""}${href ? " lb-row-link" : ""}`;
+  return href ? (
+    <Link className={cls} href={href}>
+      {inner}
+    </Link>
+  ) : (
+    <div className={cls}>{inner}</div>
+  );
+}
 
 /**
  * Екран «Досягнення» — спільний для /hub і /manager:
@@ -19,6 +47,10 @@ export function AchievementsPanel({
   certificates,
   leaderboard,
   leaderboardTitle,
+  // Кабінет керівника передає лідерів, ЗГРУПОВАНИХ за посадою, і функцію
+  // href на лист підлеглого; /hub — плоский `leaderboard` без href.
+  leaderboardGroups = null,
+  leaderHref = null,
   currentEmployeeId,
   hasEmail,
   cohortLabel,
@@ -79,25 +111,33 @@ export function AchievementsPanel({
         <h3>{leaderboardTitle}</h3>
       </div>
       <div className="leaderboard-wrap">
-        {leaderboard.length > 0 ? (
+        {leaderboardGroups ? (
+          // Кабінет керівника: блок на кожну посаду, усередині — рейтинг
+          // лише цієї посади, рядки клікабельні (лист підлеглого).
+          leaderboardGroups.length > 0 ? (
+            <div className="leaderboard-groups">
+              {leaderboardGroups.map((group) => (
+                <div className="lb-group" key={group.positionId}>
+                  <h4 className="lb-group-title">{group.positionName}</h4>
+                  <div className="leaderboard-list">
+                    {group.rows.map((row, i) => (
+                      <LeaderRow key={row.id} row={row} rank={i + 1} currentEmployeeId={currentEmployeeId} hasEmail={hasEmail} href={leaderHref?.(row.id)} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="leaderboard-lock">
+              <LockIcon />
+              <b>У команді ще немає рейтингу</b>
+              <span>Бали — лише за реальні результати: складені курси, 100%, вчасно, відзнаки</span>
+            </div>
+          )
+        ) : leaderboard.length > 0 ? (
           <div className="leaderboard-list">
             {leaderboard.map((row, i) => (
-              <div className={`lb-row${row.id === currentEmployeeId ? " lb-row-self" : ""}`} key={row.id}>
-                <span className="lb-rank">{i + 1}</span>
-                <Avatar name={row.name} src={row.avatarUrl} size="sm" />
-                <span className="lb-name">
-                  {/* Свій рядок: у польових ролей у базі лише посада — беремо ім’я
-                      з localStorage цього пристрою (components/LocalName.tsx). */}
-                  {row.id === currentEmployeeId ? <LocalName dbName={row.name} hasEmail={hasEmail} /> : row.name}
-                  {/* У польових ролей без email ім'я в базі — заглушка з
-                      посади, тоді посада поруч лише дублює текст. */}
-                  {row.position && row.position !== row.name && <span className="lb-pos"> · {row.position}</span>}
-                </span>
-                <span className="lb-score">
-                  {row.normalized != null ? `${row.normalized}%` : `${row.points} балів`}
-                  {row.normalized != null && <span className="lb-pos"> · {row.points} б.</span>}
-                </span>
-              </div>
+              <LeaderRow key={row.id} row={row} rank={i + 1} currentEmployeeId={currentEmployeeId} hasEmail={hasEmail} />
             ))}
           </div>
         ) : (

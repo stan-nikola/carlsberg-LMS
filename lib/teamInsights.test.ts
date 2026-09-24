@@ -21,7 +21,7 @@ const NOW = new Date("2026-09-23T09:00:00Z");
 const day = (n: number) => new Date(NOW.getTime() + n * 24 * 60 * 60 * 1000);
 
 function employee(over: Partial<RawEmployee> & { id: number }): RawEmployee {
-  return { name: `Особа ${over.id}`, avatarUrl: null, managerId: 100, isActive: true, lastSeenAt: NOW, position: { code: "TP", name: "ТП", level: 4 }, ...over };
+  return { name: `Особа ${over.id}`, externalCode: `TP${over.id}`, avatarUrl: null, managerId: 100, isActive: true, lastSeenAt: NOW, position: { code: "TP", name: "ТП", level: 4 }, ...over };
 }
 
 function course(over: Partial<RawCourse> & { id: number }): RawCourse {

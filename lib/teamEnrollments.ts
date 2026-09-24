@@ -10,6 +10,8 @@ import { prisma } from "@/lib/prisma";
 export type RawEmployee = {
   id: number;
   name: string;
+  /** Код співробітника (TECH0071) — керівник знає людей саме по ньому. */
+  externalCode: string | null;
   avatarUrl: string | null;
   managerId: number | null;
   isActive: boolean;
@@ -83,6 +85,7 @@ export async function fetchTeamRaw(employeeIds: number[]): Promise<TeamRaw> {
       select: {
         id: true,
         name: true,
+        externalCode: true,
         avatarUrl: true,
         managerId: true,
         isActive: true,
