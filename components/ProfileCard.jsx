@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getLocalDisplayName } from "@/lib/localName";
 import { MarqueeText } from "@/components/MarqueeText";
@@ -62,7 +61,6 @@ export function ProfileCard({ dbName, hasEmail, levelLabel, avatarUrl = null, ed
   const [busy, setBusy] = useState(false);
   const [avatarError, setAvatarError] = useState("");
   const fileRef = useRef(null);
-  const router = useRouter();
 
   async function uploadAvatar(file) {
     if (!file) return;
@@ -75,13 +73,22 @@ export function ProfileCard({ dbName, hasEmail, levelLabel, avatarUrl = null, ed
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setAvatar(data.url);
-      // Локальний setAvatar оновлює лише цю картку. Аватар у шапці й на
-      // інших сторінках рендериться сервером зі старого RSC у клієнтському
-      // кеші роутера — revalidateSession() на бекенді чистить лише
-      // серверний кеш сесії. router.refresh() скидає клієнтський кеш і
-      // перечитує дерево, тож нове фото з'являється скрізь без F5 (баг на
-      // проді, 2026-09-25: «допомагає лише F5»).
-      router.refresh();
+      // Локальний setAvatar оновлює лише цю картку. getCurrentUser()
+      // (lib/session.js) — "use cache: private": за офіційною докою Next
+      // такий кеш ЖИВЕ ЛИШЕ В ПАМ'ЯТІ БРАУЗЕРА, на сервері не зберігається
+      // взагалі, і кожен маршрут (/hub, /manager, /hub/profile, ...)
+      // викликає getCurrentUser() окремо — тобто в браузері лежить СТІЛЬКИ
+      // незалежних копій цього кешу, скільки маршрутів людина вже
+      // відвідала/попередньо завантажила. router.refresh() скидає лише
+      // копію ПОТОЧНОГО маршруту (профіль) — сусідній /manager, якщо його
+      // App Shell уже сидить у пам'яті з попередньої навігації, лишається
+      // зі старим фото, поки не спливе cacheLife("minutes") сам. Перша
+      // зміна фото за сесію "працювала" лише тому, що /manager ще не був
+      // заздалегідь завантажений; друга — ні (живий тест на проді,
+      // 2026-09-25). Повне перезавантаження стирає ВЕСЬ клієнтський стан
+      // (усі копії разом), тож наступний вхід куди завгодно вже свіжий.
+      window.location.reload();
+      return;
     } catch (err) {
       setAvatarError(err.message || "Не вдалося завантажити фото.");
     } finally {
@@ -96,7 +103,9 @@ export function ProfileCard({ dbName, hasEmail, levelLabel, avatarUrl = null, ed
     try {
       await fetch("/api/profile/avatar", { method: "DELETE" });
       setAvatar(null);
-      router.refresh();
+      // Той самий привід, що й у uploadAvatar вище.
+      window.location.reload();
+      return;
     } finally {
       setBusy(false);
     }
