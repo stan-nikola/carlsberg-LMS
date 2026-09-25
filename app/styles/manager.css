@@ -52,8 +52,17 @@
    з розгорнутою адресною смугою) сторінка робилась нескролюваною, хоча в
    landscape (менша відносна різниця) скрол з'являвся. body:has() —
    вибірково знімаємо це центрування лише для /manager (де в body лежить
-   .manager-shell), /hub і /admin body лишаються як є. */
-body:has(.manager-shell) {
+   .manager-shell), /hub і /admin body лишаються як є.
+   :not([style*="display: none"]) — Next.js Router Cache (Cache Components,
+   "instant navigation") лишає ПОПЕРЕДНІЙ маршрут змонтованим у body, лише
+   схованим інлайновим `style="display: none !important"`, а не видаленим.
+   Голий :has(.manager-shell) бачить і його: клієнтський перехід
+   /manager → /courses/[slug] лишав .manager-shell схованим сиротою в
+   body, і сторінка курсу (сама зовсім не /manager) далі отримувала
+   display:block — курс "прилипав" до лівого краю замість центрування
+   (скарга користувача 2026-09-25). Той самий edge-case однаково вражає
+   ВСІ подібні body/html:has()-перемикачі маршруту в globals.css. */
+body:has(.manager-shell:not([style*="display: none"])) {
   display: block;
   min-height: auto;
   padding: 0;
@@ -69,8 +78,8 @@ body:has(.manager-shell) {
    де медіа-запит вже не діє. :has() тут — вища специфічність за голий
    `html, body` з медіа-запиту, тож перебиває саме для /manager, не
    чіпаючи /hub. */
-html:has(.manager-shell),
-body:has(.manager-shell) {
+html:has(.manager-shell:not([style*="display: none"])),
+body:has(.manager-shell:not([style*="display: none"])) {
   height: auto;
   overflow: visible;
 }

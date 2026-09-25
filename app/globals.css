@@ -124,7 +124,13 @@ a {
    при першому layout, без затримки на JS/гідратацію (раніше тут був клас
    на body, який useEffect ставив уже ПІСЛЯ гідратації — на повільнішому
    завантаженні це давало помітний "стрибок" зі старої рамки у full-bleed). */
-body:has(.adm-shell) {
+/* :not([style*="display: none"]) — виключає сироту попереднього маршруту,
+   яку Next.js Router Cache (instant navigation) лишає схованою в body
+   (display:none !important інлайново, не видаленою). Без цього голий
+   :has(.adm-shell) далі спрацьовував би й після клієнтського переходу з
+   /admin на будь-яку іншу сторінку — той самий клас багу, що зламав
+   центрування курсу через .manager-shell (manager.css). */
+body:has(.adm-shell:not([style*="display: none"])) {
   display: block;
   padding: 0;
   background-image: none;
@@ -137,7 +143,7 @@ body:has(.adm-shell) {
    (auto-hide на macOS/Windows-з-touch) чи вміщується без скролу. Тут
    full-bleed важливіший за захист від "стрибка" — вимикаємо резерв лише
    для /admin. */
-html:has(.adm-shell) {
+html:has(.adm-shell:not([style*="display: none"])) {
   scrollbar-gutter: auto;
 }
 /* Плеєр курсу на десктопі — картка height:100vh, сторінка не скролиться,
@@ -147,7 +153,7 @@ html:has(.adm-shell) {
    (скарга користувача 2026-09-24, повторно). Той самий виняток, що й для
    /admin — тут full-bleed-центрування важливіше за захист від "стрибка",
    якого на цій сторінці однаково немає. */
-html:has(.stage--course-player) {
+html:has(.stage--course-player:not([style*="display: none"])) {
   scrollbar-gutter: auto;
 }
 
@@ -888,7 +894,7 @@ html:has(.stage--course-player) {
      просив прибрати цей зазор («вьюпорт сверху и снизу без отступов»,
      2026-09-14). Бокові поля лишаються (min(1400px,96vw) вище) — картка
      навмисно не full-bleed по ширині. */
-  body:has(.stage--course-player) {
+  body:has(.stage--course-player:not([style*="display: none"])) {
     padding: 0;
   }
   .stage--course-player .course-card {
@@ -904,7 +910,7 @@ html:has(.stage--course-player) {
    на мобільному картка й так 100dvh. Реєстрація мала той самий трюк
    раніше — тепер у неї власний, нефонний десктопний вигляд нижче. */
 @media (min-width: 900px) {
-  body:has(.stage--hub) {
+  body:has(.stage--hub:not([style*="display: none"])) {
     padding: 0;
   }
   .stage--hub .course-card {
