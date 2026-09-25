@@ -709,6 +709,9 @@ export function CoursePlayer({
   plan = null,
   // Назва модуля, коли людина обрала в плані саме його (?module=<id>).
   singleModuleTitle = null,
+  // Id того ж модуля — окремий слот прогресу в localStorage, щоб
+  // відновлення одиночного модуля не плуталось із повною сесією.
+  singleModuleId = null,
   hasEmail = true,
   // Режим прев'ю в /admin: той самий плеєр від початку до кінця, але
   // БЕЗ жодного запису — ні в БД, ні в localStorage. Ключ прогресу в
@@ -733,7 +736,14 @@ export function CoursePlayer({
   // показувати його ще раз означає «нічого не сталося». Для звичайної
   // сесії вступ лишається. Спрацьовує при монтуванні — page.js перемонтовує
   // плеєр по key на кожну зміну модуля.
-  const [idx, setIdx] = useState(singleModuleTitle && screens.length > 0 ? introIdx + 1 : introIdx);
+  // Одиночний модуль стартує одразу з першого екрана (вступ — це те, звідки
+  // натиснули «Почати»); повна сесія — зі вступу.
+  const initialIdx = singleModuleTitle && screens.length > 0 ? introIdx + 1 : introIdx;
+  const [idx, setIdx] = useState(initialIdx);
+  // Слот прогресу в localStorage. Одиночний модуль (?module=N) має власний
+  // суфікс: у нього інший набір екранів, ніж у повної сесії, і спільний слот
+  // означав би, що одне відновлення затирає інше під тим самим slug.
+  const storageKey = singleModuleId ? `${course.slug}__m${singleModuleId}` : course.slug;
   // Напрямок анімованого в'їзду картки екрана (2026-09-19, "супер плеєр
   // курсів") — «Далі»/продовження модуля в'їжджають знизу, «Назад»/
   // перескладання в'їжджають зверху (course-player.css
@@ -983,12 +993,11 @@ export function CoursePlayer({
   const [resumePrompt, setResumePrompt] = useState(null);
   const sessionKey = screens.map((s) => s.id).join("-");
   useEffect(() => {
-    // Одиночний модуль (?module=N) збережений прогрес не читає: у
-    // localStorage лежить idx ПОВНОЇ сесії курсу, і в сесії з одного
-    // модуля він показує в порожнечу або одразу на екран завершення.
-    if (previewMode || singleModuleTitle) return;
-    const saved = loadProgress(course.slug, sessionKey);
-    if (saved && typeof saved.idx === "number" && saved.idx > introIdx) {
+    // Одиночний модуль тепер теж відновлюється — у власному слоті storageKey
+    // (не плутається з повною сесією). Прев'ю /admin нічого не читає.
+    if (previewMode) return;
+    const saved = loadProgress(storageKey, sessionKey);
+    if (saved && typeof saved.idx === "number" && saved.idx > initialIdx) {
       setResumePrompt(saved);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1003,7 +1012,7 @@ export function CoursePlayer({
   }
 
   function handleResumeRestart() {
-    if (!previewMode) clearProgress(course.slug);
+    if (!previewMode) clearProgress(storageKey);
     setResumePrompt(null);
   }
 
@@ -1021,16 +1030,14 @@ export function CoursePlayer({
       skipFirstSaveRef.current = false;
       return;
     }
-    // …і не пише його: інакше індекси одномодульної сесії отруїли б
-    // відновлення повної (той самий ключ у localStorage). Модуль короткий —
-    // якщо вийшли посередині, він просто починається заново.
+    // Одиночний модуль пише у власний storageKey — не отруює повну сесію.
     // idx > introIdx: на вступі зберігати нічого, а запис {idx:0} затирав
     // би справжній збережений прогрес, поки діалог «продовжити?» ще
     // відкритий (у dev StrictMode ефект спрацьовує двічі — стенд, 2026-09-22).
-    if (!previewMode && !singleModuleTitle && idx > introIdx && idx !== completeIdx) {
-      saveProgress(course.slug, idx, answers, sessionKey);
+    if (!previewMode && idx > introIdx && idx !== completeIdx) {
+      saveProgress(storageKey, idx, answers, sessionKey);
     }
-  }, [idx, answers, course.slug, completeIdx, singleModuleTitle, sessionKey]);
+  }, [idx, answers, storageKey, completeIdx, introIdx, sessionKey, previewMode]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1184,7 +1191,7 @@ export function CoursePlayer({
     );
 
     setResult({ scoreRaw, scoreMax, scorePercent, passed, submitting: true, submitError: null });
-    if (!previewMode) clearProgress(course.slug);
+    if (!previewMode) clearProgress(storageKey);
 
     // Останній модуль курсу теж фіксуємо як складений/ні — РАЗОМ із
     // /submit в одній транзакції (app/api/courses/[slug]/submit/route.js),
@@ -1315,7 +1322,7 @@ export function CoursePlayer({
     // цього) — виходимо в хаб, звідки видно план і час наступної спроби.
     const retryBlocked = !moduleCheckpoint.passed && moduleCheckpoint.retry?.canRetryNow === false;
     if (moduleCheckpoint.sessionEnd || retryBlocked) {
-      if (!previewMode) clearProgress(course.slug);
+      if (!previewMode) clearProgress(storageKey);
       router.push("/hub");
       return;
     }
@@ -1349,7 +1356,7 @@ export function CoursePlayer({
   }
 
   function handleRetake() {
-    if (!previewMode) clearProgress(course.slug);
+    if (!previewMode) clearProgress(storageKey);
     setAnswers({});
     setResult(null);
     startedAtRef.current = new Date().toISOString();
@@ -1365,7 +1372,7 @@ export function CoursePlayer({
   /** Вийти з плеєра на план курсу (сторінка курсу без ?module=): сервер
    *  сам вирішить, показати план із датами відкриття чи наступну сесію. */
   function goToPlan() {
-    if (!previewMode) clearProgress(course.slug);
+    if (!previewMode) clearProgress(storageKey);
     router.push(`/courses/${course.slug}`);
     router.refresh();
   }

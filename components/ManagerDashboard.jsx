@@ -713,18 +713,27 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     );
     if (!grid) return undefined;
     gridRef.current = grid;
-    if (storedGrid.length > 0) grid.load(storedGrid, false);
-    else grid.compact();
+    // Є збережена розкладка — застосовуємо ТОЧНО її й БІЛЬШЕ НЕ чіпаємо.
+    // compact() тут запускати не можна: він переупаковує картки в лівий
+    // верх, руйнуючи розстановку керівника (будь-який навмисний проміжок
+    // «схлопується»), а подія change одразу перезаписує localStorage цією
+    // упакованою версією — тобто збережений вибір губиться на першому ж
+    // перезавантаженні (баг на проді, 2026-09-25: «до F5 стоять правильно,
+    // після — з'їжджають»). compact доречний ЛИШЕ для новоствореної
+    // розкладки без збереження — щоб заповнити дірки під короткими
+    // картками після першого заміру висот.
+    const fresh = storedGrid.length === 0;
+    if (!fresh) grid.load(storedGrid, false);
     // Показуємо картки лише КОЛИ розкладка вже стала: init + load + перший
     // замір висот під вміст відбулись, але без анімації й під
     // visibility:hidden (.mgr-charts до .is-ready). Два кадри — щоб
-    // sizeToContent (він міряє в наступному кадрі) встиг і не лишив
-    // «дірок» під короткими картками; після цього вмикаємо анімацію, тож
-    // подальші перетягування/ресайз плавні, а перше відкриття — ні.
+    // sizeToContent (він міряє в наступному кадрі) встиг; після цього
+    // вмикаємо анімацію, тож подальші перетягування/ресайз плавні, а
+    // перше відкриття — ні.
     let revealRaf = requestAnimationFrame(() => {
       revealRaf = requestAnimationFrame(() => {
         if (!grid.el) return;
-        grid.compact();
+        if (fresh) grid.compact();
         grid.setAnimation(true);
         el.classList.add("is-ready");
       });

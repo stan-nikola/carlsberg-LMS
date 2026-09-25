@@ -325,6 +325,9 @@ export default async function CoursePage({ params, searchParams }) {
       // Людина сама обрала цей модуль у плані — плеєр каже про це прямо,
       // щоб не здавалося, ніби курс «скоротився».
       singleModuleTitle={singleModule ? singleModule.title : null}
+      // Окремий слот прогресу для одиночного модуля (?module=N), щоб
+      // відновлення не плуталось із прогресом повної сесії (той самий slug).
+      singleModuleId={singleModule ? singleModule.id : null}
     />
   );
 }

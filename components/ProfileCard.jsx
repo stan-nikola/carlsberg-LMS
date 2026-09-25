@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getLocalDisplayName } from "@/lib/localName";
 import { MarqueeText } from "@/components/MarqueeText";
@@ -61,6 +62,7 @@ export function ProfileCard({ dbName, hasEmail, levelLabel, avatarUrl = null, ed
   const [busy, setBusy] = useState(false);
   const [avatarError, setAvatarError] = useState("");
   const fileRef = useRef(null);
+  const router = useRouter();
 
   async function uploadAvatar(file) {
     if (!file) return;
@@ -73,6 +75,13 @@ export function ProfileCard({ dbName, hasEmail, levelLabel, avatarUrl = null, ed
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setAvatar(data.url);
+      // Локальний setAvatar оновлює лише цю картку. Аватар у шапці й на
+      // інших сторінках рендериться сервером зі старого RSC у клієнтському
+      // кеші роутера — revalidateSession() на бекенді чистить лише
+      // серверний кеш сесії. router.refresh() скидає клієнтський кеш і
+      // перечитує дерево, тож нове фото з'являється скрізь без F5 (баг на
+      // проді, 2026-09-25: «допомагає лише F5»).
+      router.refresh();
     } catch (err) {
       setAvatarError(err.message || "Не вдалося завантажити фото.");
     } finally {
@@ -87,6 +96,7 @@ export function ProfileCard({ dbName, hasEmail, levelLabel, avatarUrl = null, ed
     try {
       await fetch("/api/profile/avatar", { method: "DELETE" });
       setAvatar(null);
+      router.refresh();
     } finally {
       setBusy(false);
     }
