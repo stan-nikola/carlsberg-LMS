@@ -61,11 +61,45 @@ export default function TelegramMiniAppPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const tg = (window as { Telegram?: { WebApp?: { ready?: () => void; expand?: () => void; initData?: string } } }).Telegram?.WebApp;
-    tg?.ready?.();
-    tg?.expand?.();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setInitData(tg?.initData || "");
+    // SDK-скрипт (app/tg/layout.tsx) вантажиться strategy="afterInteractive" —
+    // тобто вже ПІСЛЯ монтування цього компонента, не до нього. Опитуємо,
+    // поки window.Telegram.WebApp не з'явиться, замість читати його
+    // одноразово тут-таки (спіймано живим тестом на проді, 2026-09-28:
+    // без цього initData завжди був порожній, навіть у самому Telegram).
+    let cancelled = false;
+    let attempts = 0;
+    const tryRead = () => {
+      const tg = (
+        window as {
+          Telegram?: { WebApp?: { ready?: () => void; expand?: () => void; disableVerticalSwipes?: () => void; initData?: string } };
+        }
+      ).Telegram?.WebApp;
+      if (tg) {
+        tg.ready?.();
+        tg.expand?.();
+        // Без цього свайп вниз по списку курсів/команди Telegram сприймає
+        // як жест "згорнути Mini App" і перехоплює його ДО того, як він
+        // дійде до звичайного скролу сторінки, — сама сторінка при цьому
+        // виглядає так, ніби просто не скролиться (живий тест, 2026-09-28:
+        // портретна орієнтація ловила саме цей жест, у landscape Telegram
+        // його не чіпає, тому там скролило нормально). Bot API 7.7+;
+        // старіші клієнти метод просто не мають — optional chaining.
+        tg.disableVerticalSwipes?.();
+        if (!cancelled) setInitData(tg.initData || "");
+        return;
+      }
+      attempts += 1;
+      if (attempts >= 40) {
+        // ~4с і нічого — це справді не Telegram (звичайний браузер).
+        if (!cancelled) setInitData("");
+        return;
+      }
+      setTimeout(tryRead, 100);
+    };
+    tryRead();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
