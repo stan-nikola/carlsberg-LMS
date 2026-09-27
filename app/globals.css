@@ -810,6 +810,16 @@ html:has(.stage--course-player:not([style*="display: none"])) {
     height: 100%;
     overflow: hidden;
   }
+  /* Mini App (app/tg) — звичайна довга сторінка без власної внутрішньої
+     зони скролу (на відміну від .hub-viewport/.cp-viewport/.reg-viewport
+     вище): їй потрібен саме той зовнішній скрол body, який решта правил
+     тут навмисно вимикає. Без цього винятку список курсів/команди довший
+     за один екран просто обрізався внизу без жодного способу докрутити
+     (скарга користувача, 2026-09-28, живий тест у Telegram). */
+  body:has(.tg-root) {
+    height: auto;
+    overflow: visible;
+  }
   body {
     padding: 0;
     align-items: stretch;
