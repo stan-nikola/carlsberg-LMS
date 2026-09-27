@@ -69,10 +69,22 @@ export default function TelegramMiniAppPage() {
     let cancelled = false;
     let attempts = 0;
     const tryRead = () => {
-      const tg = (window as { Telegram?: { WebApp?: { ready?: () => void; expand?: () => void; initData?: string } } }).Telegram?.WebApp;
+      const tg = (
+        window as {
+          Telegram?: { WebApp?: { ready?: () => void; expand?: () => void; disableVerticalSwipes?: () => void; initData?: string } };
+        }
+      ).Telegram?.WebApp;
       if (tg) {
         tg.ready?.();
         tg.expand?.();
+        // Без цього свайп вниз по списку курсів/команди Telegram сприймає
+        // як жест "згорнути Mini App" і перехоплює його ДО того, як він
+        // дійде до звичайного скролу сторінки, — сама сторінка при цьому
+        // виглядає так, ніби просто не скролиться (живий тест, 2026-09-28:
+        // портретна орієнтація ловила саме цей жест, у landscape Telegram
+        // його не чіпає, тому там скролило нормально). Bot API 7.7+;
+        // старіші клієнти метод просто не мають — optional chaining.
+        tg.disableVerticalSwipes?.();
         if (!cancelled) setInitData(tg.initData || "");
         return;
       }
