@@ -38,7 +38,7 @@ export const NOTIFICATION_CATEGORIES: NotificationCategoryMeta[] = [
   {
     key: "team",
     label: "Команда",
-    hint: "Для керівників: щоденний підсумок по підлеглих",
+    hint: "Для керівників: підлеглий завершив/провалив курс чи отримав відзнаку, і щоденний підсумок",
     icon: "👥",
   },
   {
@@ -73,6 +73,17 @@ export const TYPE_CATEGORY: Record<string, NotificationCategoryKey> = {
   manager_praise: "courses",
   badge_awarded: "badges",
   subordinate_enrollment_overdue: "team",
+  // Миттєві події про підлеглого керівнику (2026-09-28, рішення
+  // користувача: лише реальні дискретні події — завершив/провалив курс,
+  // отримав відзнаку; "розпочав курс" і зміну active/inactive свідомо НЕ
+  // додано — це або занадто часто (спам), або взагалі не подія в
+  // моменті, а порахований стан). "team", не "courses"/"badges" — та сама
+  // логіка, що вже в manager_praise: це про підлеглого, не про власний
+  // прогрес отримувача, тож окремий перемикач від власних сповіщень про
+  // курси/відзнаки.
+  subordinate_course_completed: "team",
+  subordinate_course_failed: "team",
+  subordinate_badge_awarded: "team",
   team_digest: "team",
   broadcast: "news",
 };
