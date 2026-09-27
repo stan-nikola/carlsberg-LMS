@@ -599,6 +599,29 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     }
   }
 
+  // Клік по СМУЗІ нативного вертикального скролбару всередині картки
+  // (список, таблиця «Люди × курси» — .mgr-chart-card > .mgr-matrix-wrap/ul,
+  // overflow:auto) репортить target як сам прокручуваний контейнер: нативний
+  // скролбар — не DOM-вузол, відрізнити «взяв повзунок» від «взяв картку»
+  // інакше не можна. Йдемо від target угору до межі картки, шукаючи
+  // прокручуваного предка, і перевіряємо, чи X-координата влучає в його
+  // праву смугу шириною зі скролбар (offsetWidth-clientWidth). Без цього
+  // тягання повзунка починало довге натискання й картка «трусилась», ніби
+  // ось-ось піде в перетягування (скарга користувача, 2026-09-27).
+  function isScrollbarPointerDown(e) {
+    let node = e.target;
+    while (node instanceof Element && !node.matches("[data-card-id]")) {
+      const cs = getComputedStyle(node);
+      const scrollsY = (cs.overflowY === "auto" || cs.overflowY === "scroll") && node.scrollHeight > node.clientHeight;
+      const scrollbarWidth = node.offsetWidth - node.clientWidth;
+      if (scrollsY && scrollbarWidth > 0 && e.clientX >= node.getBoundingClientRect().right - scrollbarWidth) {
+        return true;
+      }
+      node = node.parentElement;
+    }
+    return false;
+  }
+
   // Довге натискання на картку вмикає режим перетягування — як на іконку
   // в iOS. Саме перетягування далі веде gridstack (сітка стає
   // не-static в ефекті нижче); наступне натискання вже тягне картку.
@@ -608,6 +631,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     // Посилання й кнопки всередині картки — це клік, не «взяти картку».
     if (e.target.closest("a, button, input, select")) return;
+    if (isScrollbarPointerDown(e)) return;
     const { clientX, clientY } = e;
     const timer = setTimeout(() => {
       longPressRef.current = null;
@@ -749,6 +773,19 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         // Без localStorage розкладка живе до перезавантаження.
       }
     });
+    // Картка, яку тягнуть/ресайзять, сама пропускає 300ms CSS-transition
+    // (.ui-draggable-dragging/.ui-resizable-resizing в gridstack.min.css) —
+    // а СУСІДИ, яких вона живо виштовхує (float:false, гравітація рахується
+    // на кожен mousemove, не лише на відпускання), ні. Кожен зсув сусіда
+    // під час тягання перезапускає його ж transition, і оскільки mousemove
+    // сипле оновлення набагато частіше за 300ms — transition раз у раз
+    // обривається на середині й стартує заново, картка «трясеться» замість
+    // плавного руху (скарга користувача, 2026-09-26: тряска саме під час
+    // розтягування картки за ширину). Вимикаємо анімацію на весь грід на
+    // час активного жесту (як і setAnimation(true) нижче в reveal —
+    // той самий перемикач), вмикаємо назад на відпускання.
+    grid.on("dragstart resizestart", () => grid.setAnimation(false));
+    grid.on("dragstop resizestop", () => grid.setAnimation(true));
     // Ширина секції міняється плавно (згортання бічної панелі — 250ms
     // анімації, вікно тягнуть мишею), а власний throttle gridstack ловить
     // лише ПЕРШИЙ кадр зміни й міг пропустити кінцеву ширину — картки
