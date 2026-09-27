@@ -9,8 +9,9 @@ const REASON_PILL: Record<PersonSegment, string> = {
   overdue: "status-pill-fail",
   behind: "status-pill-alert",
   not_started: "status-pill-neutral",
-  inactive: "status-pill-neutral",
+  inactive: "status-pill-fail",
   on_track: "status-pill-success",
+  done: "status-pill-neutral",
 };
 
 /**

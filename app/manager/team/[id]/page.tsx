@@ -75,7 +75,7 @@ export default async function ManagerPersonPage({ params, searchParams }: { para
               — рядок із п'яти «0» нічого не каже. */}
           <div className="mgr-person-pills">
             <SegmentPill segment={person.segment} />
-            <span className={`mgr-badge${person.inactive ? " mgr-badge-overdue" : ""}`}>Останній вхід: {person.lastSeenLabel}</span>
+            <span className={`mgr-badge${person.segment === "inactive" ? " mgr-badge-overdue" : ""}`}>Останній вхід: {person.lastSeenLabel}</span>
             <span className={`mgr-badge${allPassed ? " mgr-badge-success" : ""}`}>Складено: {passedCount} з {c.total}</span>
             {c.failed > 0 && <span className="mgr-badge mgr-badge-overdue">Не складено: {c.failed}</span>}
             {c.inProgress > 0 && <span className="mgr-badge">В процесі: {c.inProgress}</span>}
@@ -91,7 +91,7 @@ export default async function ManagerPersonPage({ params, searchParams }: { para
         ) : (
           <RemindButton
             recipients={[recipient]}
-            reason={person.segment && person.segment !== "on_track" ? person.segment : c.failed > 0 ? "failed" : "general"}
+            reason={person.segment && person.segment !== "on_track" && person.segment !== "done" ? person.segment : c.failed > 0 ? "failed" : "general"}
             className="btn btn-primary mgr-team-remind"
             disabled={c.total === 0}
           />

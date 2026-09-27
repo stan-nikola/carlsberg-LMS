@@ -96,8 +96,36 @@ describe("сегмент людини — worst-wins", () => {
     const bar = statusBar(people, rows);
     expect(bar.noEnrollments).toBe(1);
     expect(bar.total).toBe(1);
-    expect(bar.segments.find((s) => s.key === "on_track")?.count).toBe(1);
+    expect(bar.segments.find((s) => s.key === "done")?.count).toBe(1);
     expect(bar.segments.reduce((s, x) => s + x.count, 0)).toBe(bar.total);
+  });
+
+  it("«неактивний» — тепер лише коли є що доробити; усе складено й у нормі — «done»", () => {
+    const data = raw({
+      employees: [
+        employee({ id: 1, lastSeenAt: day(-15) }), // мовчить 14+ днів, курс провалено до кінця — проблема
+        employee({ id: 2, lastSeenAt: null }), // ніколи не заходив, курс не пройдено — проблема
+        employee({ id: 3, lastSeenAt: day(-15) }), // мовчить 14+ днів, але все складено — не проблема
+        employee({ id: 4 }), // активний, усе складено — не проблема
+      ],
+      courses: [course({ id: 1 })],
+      enrollments: [
+        enrollment({ id: 1, employeeId: 1, courseId: 1, status: "completed", passed: false, scorePercent: 40, completedAt: day(-20) }),
+        enrollment({ id: 2, employeeId: 2, courseId: 1, status: "in_progress" }),
+        enrollment({ id: 3, employeeId: 3, courseId: 1, status: "completed", passed: true, scorePercent: 90, completedAt: day(-20) }),
+        enrollment({ id: 4, employeeId: 4, courseId: 1, status: "completed", passed: true, scorePercent: 100, completedAt: day(-1) }),
+      ],
+    });
+    const people = buildPeople(buildTeamRows(data, NOW), data, NOW);
+    const byId = new Map(people.map((p) => [p.id, p]));
+    expect(byId.get(1)?.segment).toBe("inactive");
+    expect(byId.get(1)?.activityLabel).toBe("Не заходив(ла) 14+ днів");
+    expect(byId.get(2)?.segment).toBe("inactive");
+    expect(byId.get(2)?.activityLabel).toBe("Ще не заходив(ла) на платформу");
+    expect(byId.get(3)?.segment).toBe("done");
+    expect(byId.get(3)?.activityLabel).toBe("Був(ла) 14+ днів тому");
+    expect(byId.get(4)?.segment).toBe("done");
+    expect(byId.get(4)?.activityLabel).toBe("Активний(на)");
   });
 
   it("полоса дає ДВА числа: людей у сегменті і курсів у цьому стані", () => {

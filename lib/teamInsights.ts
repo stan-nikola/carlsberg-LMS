@@ -23,7 +23,7 @@ export const TREND_WEEKS = 6;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export type PersonSegment = "overdue" | "behind" | "not_started" | "inactive" | "on_track";
+export type PersonSegment = "overdue" | "behind" | "not_started" | "inactive" | "on_track" | "done";
 export type CellStatus = "passed" | "failed" | "overdue" | "behind" | "in_progress" | "not_started";
 
 export type TeamRow = {
@@ -77,6 +77,10 @@ export type TeamPerson = {
   inactive: boolean;
   /** null — призначень немає взагалі (у полосу статусів не входить). */
   segment: PersonSegment | null;
+  /** Заповнено лише для "inactive"/"done" — активність людини як окрема
+   *  фраза (2026-09-28, «неактивний» розділили на: реально проблемний
+   *  (червоний) і просто «усе здано, тиша не тривожна» (сірий)). */
+  activityLabel: string | null;
   counts: PersonCounts;
   urgency: number;
   /** Індекси тижнів (0 = цей тиждень), коли людина складала модулі. */
@@ -89,6 +93,7 @@ export const SEGMENT_META: Record<PersonSegment, { label: string }> = {
   not_started: { label: "Не почали" },
   inactive: { label: "Неактивні" },
   on_track: { label: "За графіком" },
+  done: { label: "Виконано" },
 };
 
 /** 1 курс / 2 курси / 5 курсів. */
@@ -123,7 +128,7 @@ export function reasonLabel(kind: PersonSegment, count: number): string {
   return "за графіком";
 }
 
-export const SEGMENT_ORDER: PersonSegment[] = ["overdue", "behind", "not_started", "inactive", "on_track"];
+export const SEGMENT_ORDER: PersonSegment[] = ["overdue", "behind", "not_started", "inactive", "on_track", "done"];
 
 function iso(d: Date | null | undefined): string | null {
   return d ? new Date(d).toISOString() : null;
@@ -250,15 +255,38 @@ function personFrom(e: RawEmployee, rows: TeamRow[], weeks: Set<number> | undefi
 
   const lastSeen = e.lastSeenAt ? new Date(e.lastSeenAt) : null;
   const inactive = !lastSeen || now.getTime() - lastSeen.getTime() > INACTIVE_DAYS * DAY_MS;
+  // «Усе здано на прохідний бал» — не лише unfinished===0: курс, пройдений
+  // до кінця, але НЕ складений (failed) теж лишає реальну проблему, тож не
+  // рахується «зробленим» (рішення користувача, 2026-09-28).
+  const allPassing = unfinished === 0 && counts.failed === 0;
 
   let segment: PersonSegment | null = null;
   if (counts.total > 0) {
     if (counts.overdue > 0) segment = "overdue";
     else if (counts.behind > 0) segment = "behind";
     else if (counts.notStarted === counts.total) segment = "not_started";
-    else if (inactive && unfinished > 0) segment = "inactive";
+    // «Неактивний» — тепер справді проблемний стан (є що доробити/
+    // перескласти, і людина або ніколи не заходила, або мовчить 14+ днів):
+    // раніше сюди потрапляв лише unfinished>0, і людина, що провалила
+    // ЄДИНИЙ курс до кінця й затихла, помилково лишалась «на графіку».
+    else if (inactive && !allPassing) segment = "inactive";
+    else if (allPassing) segment = "done";
     else segment = "on_track";
   }
+
+  const neverSeen = lastSeen == null;
+  const activityLabel =
+    segment === "inactive"
+      ? neverSeen
+        ? "Ще не заходив(ла) на платформу"
+        : "Не заходив(ла) 14+ днів"
+      : segment === "done"
+        ? inactive
+          ? neverSeen
+            ? "Ще не заходив(ла)"
+            : "Був(ла) 14+ днів тому"
+          : "Активний(на)"
+        : null;
 
   return {
     id: e.id,
@@ -273,8 +301,9 @@ function personFrom(e: RawEmployee, rows: TeamRow[], weeks: Set<number> | undefi
     lastSeenLabel: lastSeen ? formatRelativeTime(lastSeen, now) : "ще не заходив(ла)",
     inactive,
     segment,
+    activityLabel,
     counts,
-    urgency: counts.overdue * 3 + counts.behind * 2 + counts.notStarted + (inactive && unfinished > 0 ? 1 : 0),
+    urgency: counts.overdue * 3 + counts.behind * 2 + counts.notStarted + (segment === "inactive" ? 1 : 0),
     activeWeeks: weeks ? Array.from(weeks).sort((a, b) => a - b) : [],
   };
 }
@@ -301,7 +330,8 @@ export function statusBar(people: TeamPerson[], rows: TeamRow[]): { segments: St
     behind: unfinished.filter((r) => !r.isOverdue && r.schedule === "behind").length,
     not_started: unfinished.filter((r) => !r.isOverdue && r.schedule !== "behind" && r.status === "not_started").length,
     inactive: null,
-    on_track: rows.filter((r) => r.status === "completed" || (!r.isOverdue && r.schedule !== "behind" && r.status !== "not_started")).length,
+    on_track: unfinished.filter((r) => !r.isOverdue && r.schedule !== "behind" && r.status !== "not_started").length,
+    done: rows.filter((r) => r.status === "completed").length,
   };
   const segments = SEGMENT_ORDER.map((key) => ({
     key,
@@ -313,8 +343,12 @@ export function statusBar(people: TeamPerson[], rows: TeamRow[]): { segments: St
   return { segments, total: people.length - noEnrollments, noEnrollments };
 }
 
+/** attentionTop() ніколи не породжує "on_track"/"done" — це не проблемні
+ *  стани, туди людина не потрапляє (urgency === 0, фільтр вище). */
+export type AttentionKind = "overdue" | "behind" | "not_started" | "inactive";
+
 export type AttentionReason = {
-  kind: PersonSegment;
+  kind: AttentionKind;
   label: string;
   /** Скільки курсів у цьому стані (для «неактивний» — 0). */
   count: number;
@@ -342,7 +376,7 @@ export function attentionTop(people: TeamPerson[], rows: TeamRow[], limit = ATTE
     .map((person) => {
       const mine = (rowsByEmployee.get(person.id) || []).slice().sort((a, b) => (a.dueDate || "9").localeCompare(b.dueDate || "9"));
       const reasons: AttentionReason[] = [];
-      const pick = (kind: PersonSegment, test: (r: TeamRow) => boolean, count: number) => {
+      const pick = (kind: AttentionKind, test: (r: TeamRow) => boolean, count: number) => {
         const r = mine.find(test);
         if (!r) return;
         reasons.push({
@@ -358,10 +392,10 @@ export function attentionTop(people: TeamPerson[], rows: TeamRow[], limit = ATTE
       pick("overdue", (r) => r.isOverdue, person.counts.overdue);
       pick("behind", (r) => r.schedule === "behind", person.counts.behind);
       if (person.counts.notStarted > 0) pick("not_started", (r) => r.status === "not_started", person.counts.notStarted);
-      if (person.inactive && person.segment !== "on_track" && person.counts.total > person.counts.completed) {
+      if (person.segment === "inactive") {
         reasons.push({
           kind: "inactive",
-          label: `не заходив(ла) ${person.lastSeenLabel === "ще не заходив(ла)" ? "жодного разу" : `з ${person.lastSeenLabel}`}`,
+          label: person.activityLabel || "неактивний",
           count: 0,
           courseId: null,
           courseSlug: null,

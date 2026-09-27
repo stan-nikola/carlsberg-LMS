@@ -752,10 +752,12 @@ body:has(.manager-shell:not([style*="display: none"])) {
   padding: 0 6px;
   white-space: nowrap;
 }
-/* Кольори сегментів — «світлофор без червоного» + сірий (CLAUDE.md):
-   прострочено — таки червоний (це вже факт, не «спробуй ще»), відстає —
-   бурштин, не почав — синій «доступно», неактивний — сірий, на графіку —
-   зелений. */
+/* Кольори сегментів: прострочено — червоний (це вже факт, не «спробуй
+   ще»), відстає — бурштин, не почав — синій «доступно», на графіку —
+   зелений. «Неактивні» (2026-09-28) — тепер справді проблемний стан (є що
+   доробити/перескласти, і людина мовчить 14+ днів або й не заходила
+   взагалі) — теж червоний; «усе здано на прохідний бал» переїхало в
+   окремий сірий «done» — інформаційний стан, не привід турбуватись. */
 .is-overdue.mgr-status-seg,
 .mgr-status-dot.is-overdue,
 .is-overdue .mgr-status-dot {
@@ -772,12 +774,16 @@ body:has(.manager-shell:not([style*="display: none"])) {
 }
 .is-inactive.mgr-status-seg,
 .is-inactive .mgr-status-dot {
-  background: var(--ink-soft);
+  background: var(--cb-fail);
 }
 .is-on_track.mgr-status-seg,
 .is-on_track .mgr-status-dot {
   background: var(--cb-success);
   color: var(--ink);
+}
+.is-done.mgr-status-seg,
+.is-done .mgr-status-dot {
+  background: var(--ink-soft);
 }
 .mgr-status-legend {
   list-style: none;

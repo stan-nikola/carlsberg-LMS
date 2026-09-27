@@ -5,8 +5,12 @@ const SEGMENT_PILL: Record<PersonSegment, string> = {
   overdue: "status-pill-fail",
   behind: "status-pill-alert",
   not_started: "status-pill-neutral",
-  inactive: "status-pill-neutral",
+  // "Неактивні" — тепер справді проблемний стан (є що доробити/перескласти
+  // й людина мовчить), тож червоний, а не сірий (рішення користувача,
+  // 2026-09-28). "Усе здано" переїхало в окремий сірий "done".
+  inactive: "status-pill-fail",
   on_track: "status-pill-success",
+  done: "status-pill-neutral",
 };
 
 /** Статус людини одним словом — той самий .status-pill, що й скрізь. */

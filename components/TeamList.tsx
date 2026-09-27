@@ -183,7 +183,7 @@ export function TeamList({
                   <td className={`mgr-num${p.counts.overdue ? " is-bad" : ""}`}>{p.counts.overdue || "—"}</td>
                   <td className={`mgr-num${p.counts.behind ? " is-warn" : ""}`}>{p.counts.behind || "—"}</td>
                   <td className="mgr-num">{p.counts.avgScore != null ? `${p.counts.avgScore}%` : "—"}</td>
-                  <td className={p.inactive ? "is-warn" : undefined}>{p.lastSeenLabel}</td>
+                  <td className={p.segment === "inactive" ? "is-warn" : undefined}>{p.lastSeenLabel}</td>
                 </tr>
               ))}
             </tbody>

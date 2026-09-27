@@ -122,8 +122,9 @@ const SEGMENT_FILL: Record<PersonSegment, { fill: string; ink: string }> = {
   overdue: { fill: RED, ink: "FFFFFFFF" },
   behind: { fill: "FFF0B429", ink: "FF212833" },
   not_started: { fill: "FFD5DDE0", ink: "FF212833" },
-  inactive: { fill: "FF5C6B73", ink: "FFFFFFFF" },
+  inactive: { fill: RED, ink: "FFFFFFFF" },
   on_track: { fill: GREEN, ink: "FF212833" },
+  done: { fill: "FF5C6B73", ink: "FFFFFFFF" },
 };
 const CELL_META: Record<CellStatus, { label: string; mark: string; fill: string }> = {
   passed: { label: "Складено", mark: "✓", fill: "FFC9EFDA" },
