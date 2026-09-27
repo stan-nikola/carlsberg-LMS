@@ -48,6 +48,24 @@ function courseUrl(slug: string) {
   return `${window.location.origin}/courses/${slug}`;
 }
 
+/**
+ * Звичайна навігація (`<a href>`/`location.href`) усередині Mini App
+ * впирається в обмеження власного WebView Telegram: спроба перейти на
+ * `/go` (там-таки intent:// на Android) впала з помилкою на кшталт
+ * "Unknown URL scheme" — WebView Mini App просто не вміє в non-http(s)
+ * навігацію, на відміну від звичайного вбудованого браузера бота (живий
+ * тест користувача в Android-Telegram, 2026-09-28). Офіційний спосіб
+ * вийти з Mini App у зовнішній браузер — саме WebApp.openLink(), він
+ * працює на рівні самого клієнта Telegram, а не через DOM-навігацію
+ * вебвʼю, і за докою відкриває "зовнішній браузер". Викликати можна лише
+ * у відповідь на дію користувача (клік) — тут це й є клік по кнопці.
+ */
+function openExternalLink(url: string) {
+  const tg = (window as { Telegram?: { WebApp?: { openLink?: (u: string, o?: { try_instant_view?: boolean }) => void } } }).Telegram?.WebApp;
+  if (tg?.openLink) tg.openLink(url, { try_instant_view: false });
+  else window.location.href = url;
+}
+
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   completed: { label: "Складено", cls: "ok" },
   in_progress: { label: "У процесі", cls: "neutral" },
@@ -129,10 +147,15 @@ function NotLinked() {
       <h1>CarLS</h1>
       <p style={{ marginTop: 12 }}>
         Спочатку зареєструйтесь у CarLS і підключіть Telegram у профілі —
-        {ios ? " відкрийте застосунок з головного екрана, розділ «Профіль»." : (
+        {ios ? (
+          " відкрийте застосунок з головного екрана, розділ «Профіль»."
+        ) : (
           <>
             {" "}
-            <a href={`${typeof window !== "undefined" ? window.location.origin : ""}/hub/profile`}>перейдіть у профіль</a>.
+            <button type="button" className="tg-link-btn" onClick={() => openExternalLink(`${window.location.origin}/hub/profile`)}>
+              перейдіть у профіль
+            </button>
+            .
           </>
         )}
       </p>
@@ -183,9 +206,13 @@ function EmployeeScreen({ name, courses }: { name: string; courses: EmployeeCour
                 (ios ? (
                   <span className="tg-row-note">Відкрийте застосунок CarLS з головного екрана й перейдіть у цей курс.</span>
                 ) : (
-                  <a className="tg-row-action" href={`/go?to=${encodeURIComponent(courseUrl(c.slug))}`}>
+                  <button
+                    type="button"
+                    className="tg-row-action"
+                    onClick={() => openExternalLink(`${window.location.origin}/go?to=${encodeURIComponent(courseUrl(c.slug))}`)}
+                  >
                     Продовжити
-                  </a>
+                  </button>
                 ))}
             </div>
           );
@@ -195,9 +222,11 @@ function EmployeeScreen({ name, courses }: { name: string; courses: EmployeeCour
   );
 }
 
+type RemindState = "sent" | "already" | "error";
+
 function ManagerScreen({ name, people }: { name: string; people: TeamPersonRow[] }) {
   const attention = people.filter((p) => p.segment === "overdue" || p.segment === "behind" || p.segment === "not_started");
-  const [sent, setSent] = useState<Record<number, boolean>>({});
+  const [state, setState] = useState<Record<number, RemindState>>({});
   const [busy, setBusy] = useState<number | null>(null);
 
   async function remind(personId: number, reason: string) {
@@ -210,7 +239,16 @@ function ManagerScreen({ name, people }: { name: string; people: TeamPersonRow[]
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ initData, employeeId: personId, reason }),
       });
-      if (res.ok) setSent((s) => ({ ...s, [personId]: true }));
+      const data = await res.json().catch(() => ({}));
+      // "Успішно" (200) не завжди означає, що повідомлення реально пішло —
+      // денний дедуп (lib/managerReminders.ts, один рядок на людину/курс/
+      // день) мовчки пропускає повтор, і раніше кнопка все одно казала
+      // "Надіслано ✓" — людина бачила фальшивий успіх, а повідомлення не
+      // приходило (скарга користувача, 2026-09-28: "оно не отправляется").
+      const s: RemindState = !res.ok ? "error" : data.sent > 0 ? "sent" : "already";
+      setState((prev) => ({ ...prev, [personId]: s }));
+    } catch {
+      setState((prev) => ({ ...prev, [personId]: "error" }));
     } finally {
       setBusy(null);
     }
@@ -251,11 +289,19 @@ function ManagerScreen({ name, people }: { name: string; people: TeamPersonRow[]
               {needsReminder && (
                 <button
                   type="button"
-                  className="tg-row-action"
-                  disabled={busy === p.id || sent[p.id]}
+                  className={`tg-row-action${state[p.id] === "already" ? " is-muted" : ""}`}
+                  disabled={busy === p.id || state[p.id] === "sent"}
                   onClick={() => remind(p.id, p.segment as string)}
                 >
-                  {sent[p.id] ? "Надіслано ✓" : busy === p.id ? "…" : "Нагадати"}
+                  {state[p.id] === "sent"
+                    ? "Надіслано ✓"
+                    : state[p.id] === "already"
+                      ? "Вже надіслано сьогодні"
+                      : state[p.id] === "error"
+                        ? "Не вдалося, спробувати ще раз"
+                        : busy === p.id
+                          ? "…"
+                          : "Нагадати"}
                 </button>
               )}
             </div>

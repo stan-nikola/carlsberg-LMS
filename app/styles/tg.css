@@ -128,8 +128,25 @@
   opacity: 0.55;
   cursor: default;
 }
+/* Денний дедуп (lib/managerReminders.ts) — не помилка, тож не червоний
+   "bad", просто нейтральний сигнал "уже було сьогодні". */
+.tg-row-action.is-muted {
+  background: var(--line);
+  color: var(--ink-soft);
+}
 .tg-row-note {
   font-size: 12px;
   color: var(--ink-soft);
   line-height: 1.4;
+}
+/* Текстове посилання всередині абзацу (NotLinked) — виглядає як звичайний
+   лінк, а не як кнопка, хоча технічно кнопка: openLink() (2026-09-28)
+   можна викликати лише у відповідь на клік, а звичайний <a href> у
+   вебʼю Mini App падає з "Unknown URL scheme" на не-http(s) цілях і
+   взагалі ненадійний для переходу в зовнішній браузер. */
+.tg-link-btn {
+  all: unset;
+  color: var(--cb-secondary);
+  text-decoration: underline;
+  cursor: pointer;
 }
