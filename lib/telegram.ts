@@ -139,6 +139,30 @@ export function webhookUrl(base: string): string {
   return `${base.replace(/\/$/, "")}/api/telegram/webhook`;
 }
 
+export function miniAppUrl(base: string): string {
+  return `${base.replace(/\/$/, "")}/tg`;
+}
+
+export type MenuButton = { type: string; text?: string; web_app?: { url: string } };
+
+/** Поточна кнопка меню бота (той самий "☰"/значок зліва від поля вводу
+ *  в приваних чатах) — щоб адмінка показувала, чи вже налаштовано. */
+export function getMenuButton() {
+  return telegramApi<MenuButton>("getChatMenuButton");
+}
+
+/**
+ * Кнопка меню бота відкриває Mini App (app/tg) — постійний, завжди
+ * доступний вхід у швидкий огляд (2026-09-28), на відміну від кнопки
+ * "Відкрити" під конкретним повідомленням. Без chat_id — дефолт для ВСІХ
+ * приватних чатів з ботом одразу, окремо на кожного не потрібно.
+ */
+export function setMenuButton(base: string) {
+  return telegramApi<boolean>("setChatMenuButton", {
+    menu_button: { type: "web_app", text: "CarLS", web_app: { url: miniAppUrl(base) } },
+  });
+}
+
 /** Реєструє webhook на base; secret_token Telegram шле в заголовку кожного апдейту. */
 export function setWebhook(base: string) {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;

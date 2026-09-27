@@ -24,6 +24,8 @@ type Data = {
   expectedWebhookUrl: string | null;
   webhook: { url: string; pending_update_count: number; last_error_date?: number; last_error_message?: string } | null;
   webhookError: string | null;
+  expectedMiniAppUrl: string | null;
+  menuButtonUrl: string | null;
   links: LinkRow[];
   inbound: InboundRow[];
 };
@@ -69,7 +71,13 @@ export function AdminTelegram() {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`);
-      setNotice(action === "webhook" ? `Webhook увімкнено: ${d.url}` : "Тестове повідомлення доставлено");
+      setNotice(
+        action === "webhook"
+          ? `Webhook увімкнено: ${d.url}`
+          : action === "menu_button"
+            ? `Кнопку меню увімкнено: ${d.url}`
+            : "Тестове повідомлення доставлено"
+      );
       await load();
     } catch (err) {
       setNotice("Помилка: " + (err as Error).message);
@@ -110,6 +118,7 @@ export function AdminTelegram() {
   if (!data) return <p className="admin-hint"><SpinnerIcon /> Завантаження Telegram…</p>;
 
   const webhookOk = Boolean(data.webhook?.url) && (!data.expectedWebhookUrl || data.webhook?.url === data.expectedWebhookUrl);
+  const menuButtonOk = Boolean(data.menuButtonUrl) && (!data.expectedMiniAppUrl || data.menuButtonUrl === data.expectedMiniAppUrl);
 
   return (
     <>
@@ -141,6 +150,10 @@ export function AdminTelegram() {
           </dd>
           <dt>Адреса застосунку</dt>
           <dd>{data.base || "невідома — задайте APP_URL"}</dd>
+          <dt>Кнопка меню (Mini App)</dt>
+          <dd className={menuButtonOk ? "adm-tg-ok" : "adm-tg-bad"}>
+            {data.menuButtonUrl ? `${data.menuButtonUrl}${menuButtonOk ? "" : " (не збігається з адресою застосунку)"}` : "не увімкнено"}
+          </dd>
           <dt>Підключено</dt>
           <dd>{data.links.length} співробітників</dd>
         </dl>
@@ -157,6 +170,15 @@ export function AdminTelegram() {
             title={!data.base ? "Потрібен APP_URL" : undefined}
           >
             {busy === "webhook" ? <SpinnerIcon /> : webhookOk ? "Перереєструвати webhook" : "Увімкнути webhook"}
+          </button>
+          <button
+            type="button"
+            className="admin-btn admin-btn-primary"
+            onClick={() => post("menu_button")}
+            disabled={busy !== null || !data.configured || !data.base}
+            title={!data.base ? "Потрібен APP_URL" : undefined}
+          >
+            {busy === "menu_button" ? <SpinnerIcon /> : menuButtonOk ? "Перевстановити кнопку Mini App" : "Увімкнути кнопку Mini App"}
           </button>
         </div>
       </section>

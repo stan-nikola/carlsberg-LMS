@@ -33,6 +33,7 @@ const ACTION_LABELS = {
   "design.save": "Збережено дизайн-токени для всіх",
   "design.reset": "Скинуто дизайн-токени до дефолтів",
   "telegram.webhook": "Увімкнено Telegram webhook",
+  "telegram.menu_button": "Увімкнено кнопку меню Mini App",
   "telegram.unlink": "Відключено Telegram",
   "telegram.test": "Тест у Telegram",
 };
