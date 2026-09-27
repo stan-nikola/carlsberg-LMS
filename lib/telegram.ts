@@ -56,11 +56,16 @@ export type TelegramPayload = { title?: string | null; message: string; url?: st
 
 function buildSendBody(chatId: string, payload: TelegramPayload) {
   const open = absoluteUrl(appBaseUrl(), payload.url);
+  // Пряме посилання відкривало вбудований браузер Telegram, а не
+  // встановлений PWA (скарга користувача, 2026-09-28) — /go напряму не
+  // веде нікуди, лише намагається "вирватись" у Chrome на Android
+  // (app/go/route.ts), звідки Android вже сам віддає посилання PWA.
+  const wrapped = open ? `${appBaseUrl()}/go?to=${encodeURIComponent(open)}` : null;
   return {
     chat_id: chatId,
     text: formatTelegramMessage(payload),
     parse_mode: "HTML",
-    ...(open ? { reply_markup: { inline_keyboard: [[{ text: "Відкрити", url: open }]] } } : {}),
+    ...(wrapped ? { reply_markup: { inline_keyboard: [[{ text: "Відкрити", url: wrapped }]] } } : {}),
   };
 }
 
