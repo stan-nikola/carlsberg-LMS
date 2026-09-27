@@ -477,8 +477,15 @@ export function ScriptScreen({ component, screenNumber, onGateProgress, onZoomIm
       peekScrollTo(null, { keepVisible: advanceRef.current, minShift: 4 });
     } else {
       // Репліки скінчились, кнопки більше нема — показуємо низ діалогу
-      // разом із підказкою, що екран дочитано.
-      scrollToEnd(wrapRef.current);
+      // разом із підказкою, що екран дочитано. НЕ scrollToEnd(): той
+      // крутить .cp-viewport до самого кінця — якщо на цьому ж екрані
+      // після діалогу стоїть ще один компонент (напр. тест-питання,
+      // стек кількох Component на одному Screen), різко перескакувало
+      // повз кінець самого діалогу одразу до питань унизу (скарга
+      // користувача, 2026-09-28: "скролит сильно в низ… к вопросам").
+      // peekScrollTo із keepVisible показує саме НИЗ ДІАЛОГУ, той самий
+      // прийом, що для кнопки "Наступна репліка" вище.
+      peekScrollTo(null, { keepVisible: wrapRef.current, minShift: 4 });
     }
   }, [revealed, readOnly]);
 
