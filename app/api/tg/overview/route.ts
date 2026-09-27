@@ -8,6 +8,7 @@ import { getManagerTeamRows } from "@/lib/managerOverview";
 import { isOverdue } from "@/lib/progress";
 import { formatDate } from "@/lib/coursePlan";
 import { SEGMENT_META } from "@/lib/teamInsights";
+import { dateKey } from "@/lib/notificationLogic";
 
 const prisma = prismaUntyped as PrismaClient;
 
@@ -43,6 +44,22 @@ export async function POST(request: Request) {
 
   if (isManagerTier(employee)) {
     const { people } = await getManagerTeamRows(employee.id);
+    const needsReminder = people.filter((p) => p.segment === "overdue" || p.segment === "behind" || p.segment === "not_started");
+    // Той самий dedupeKey, що lib/managerReminders.ts (courseId завжди
+    // null тут — Mini App нагадує "загалом", без конкретного курсу).
+    // Показуємо стан "вже надіслано сьогодні" ОДРАЗУ при завантаженні,
+    // а не після марного натискання "Нагадати" й відповіді сервера —
+    // раніше дізнавались про денний ліміт лише постфактум (скарга
+    // користувача, 2026-09-28).
+    const now = new Date();
+    const todayKeys = needsReminder.map((p) => `reminder:${employee.id}:${p.id}:all:${dateKey(now)}`);
+    const already = todayKeys.length
+      ? new Set(
+          (await prisma.notification.findMany({ where: { dedupeKey: { in: todayKeys } }, select: { dedupeKey: true } })).map(
+            (n) => n.dedupeKey
+          )
+        )
+      : new Set<string | null>();
     return NextResponse.json({
       linked: true as const,
       role: "manager" as const,
@@ -56,6 +73,7 @@ export async function POST(request: Request) {
           segment: p.segment,
           segmentLabel: p.segment ? SEGMENT_META[p.segment].label : null,
           counts: p.counts,
+          remindedToday: already.has(`reminder:${employee.id}:${p.id}:all:${dateKey(now)}`),
         })),
     });
   }
