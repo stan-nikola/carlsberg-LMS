@@ -56,11 +56,16 @@ export type TelegramPayload = { title?: string | null; message: string; url?: st
 
 function buildSendBody(chatId: string, payload: TelegramPayload) {
   const open = absoluteUrl(appBaseUrl(), payload.url);
+  // Пряме посилання відкривало вбудований браузер Telegram, а не
+  // встановлений PWA (скарга користувача, 2026-09-28) — /go напряму не
+  // веде нікуди, лише намагається "вирватись" у Chrome на Android
+  // (app/go/route.ts), звідки Android вже сам віддає посилання PWA.
+  const wrapped = open ? `${appBaseUrl()}/go?to=${encodeURIComponent(open)}` : null;
   return {
     chat_id: chatId,
     text: formatTelegramMessage(payload),
     parse_mode: "HTML",
-    ...(open ? { reply_markup: { inline_keyboard: [[{ text: "Відкрити", url: open }]] } } : {}),
+    ...(wrapped ? { reply_markup: { inline_keyboard: [[{ text: "Відкрити", url: wrapped }]] } } : {}),
   };
 }
 
@@ -132,6 +137,30 @@ export function getWebhookInfo() {
 
 export function webhookUrl(base: string): string {
   return `${base.replace(/\/$/, "")}/api/telegram/webhook`;
+}
+
+export function miniAppUrl(base: string): string {
+  return `${base.replace(/\/$/, "")}/tg`;
+}
+
+export type MenuButton = { type: string; text?: string; web_app?: { url: string } };
+
+/** Поточна кнопка меню бота (той самий "☰"/значок зліва від поля вводу
+ *  в приваних чатах) — щоб адмінка показувала, чи вже налаштовано. */
+export function getMenuButton() {
+  return telegramApi<MenuButton>("getChatMenuButton");
+}
+
+/**
+ * Кнопка меню бота відкриває Mini App (app/tg) — постійний, завжди
+ * доступний вхід у швидкий огляд (2026-09-28), на відміну від кнопки
+ * "Відкрити" під конкретним повідомленням. Без chat_id — дефолт для ВСІХ
+ * приватних чатів з ботом одразу, окремо на кожного не потрібно.
+ */
+export function setMenuButton(base: string) {
+  return telegramApi<boolean>("setChatMenuButton", {
+    menu_button: { type: "web_app", text: "CarLS", web_app: { url: miniAppUrl(base) } },
+  });
 }
 
 /** Реєструє webhook на base; secret_token Telegram шле в заголовку кожного апдейту. */

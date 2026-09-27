@@ -69,3 +69,53 @@ export function absoluteUrl(base: string | null | undefined, url: string | null 
   if (!base) return null;
   return `${base.replace(/\/$/, "")}${url.startsWith("/") ? url : `/${url}`}`;
 }
+
+export type TelegramWebAppUser = { id: number; first_name?: string; last_name?: string; username?: string };
+
+/**
+ * Перевірка `initData` Mini App (Telegram Web Apps, офіційний алгоритм
+ * core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app):
+ *   secret_key = HMAC_SHA256(key: "WebAppData", data: bot_token)
+ *   hash       = hex(HMAC_SHA256(key: secret_key, data: data_check_string))
+ * data_check_string — усі поля, КРІМ hash, відсортовані за ключем, рядки
+ * `key=value` через "\n". auth_date перевіряємо на свіжість окремо —
+ * підпис сам по собі не має терміну дії, Telegram лишає це нам.
+ */
+export function verifyInitData(
+  initData: string | null | undefined,
+  botToken: string | undefined,
+  maxAgeSec = 86400,
+  now = Date.now()
+): { ok: true; user: TelegramWebAppUser } | { ok: false } {
+  if (!initData || !botToken) return { ok: false };
+
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash || !/^[0-9a-f]{64}$/i.test(hash)) return { ok: false };
+  params.delete("hash");
+
+  const dataCheckString = [...params.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}=${v}`)
+    .join("\n");
+
+  const secretKey = createHmac("sha256", "WebAppData").update(botToken).digest();
+  const computedHash = createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
+
+  const hashBuf = Buffer.from(hash, "hex");
+  const computedBuf = Buffer.from(computedHash, "hex");
+  if (hashBuf.length !== computedBuf.length || !timingSafeEqual(hashBuf, computedBuf)) return { ok: false };
+
+  const authDate = Number(params.get("auth_date"));
+  if (!authDate || now - authDate * 1000 > maxAgeSec * 1000) return { ok: false };
+
+  const userRaw = params.get("user");
+  if (!userRaw) return { ok: false };
+  try {
+    const user = JSON.parse(userRaw);
+    if (!user || typeof user.id !== "number") return { ok: false };
+    return { ok: true, user };
+  } catch {
+    return { ok: false };
+  }
+}

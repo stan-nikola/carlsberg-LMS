@@ -6,9 +6,12 @@ import { audit } from "@/lib/audit";
 import {
   appBaseUrl,
   getMe,
+  getMenuButton,
   getWebhookInfo,
   isTelegramConfigured,
+  miniAppUrl,
   sendTelegramToEmployee,
+  setMenuButton,
   setWebhook,
   telegramBotUsername,
   webhookUrl,
@@ -27,7 +30,7 @@ export async function GET() {
   if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const configured = isTelegramConfigured();
-  const [links, inbound, me, webhook] = await Promise.all([
+  const [links, inbound, me, webhook, menuButton] = await Promise.all([
     prisma.telegramLink.findMany({
       orderBy: { linkedAt: "desc" },
       include: { employee: { select: { id: true, name: true, externalCode: true, position: { select: { name: true } } } } },
@@ -39,6 +42,7 @@ export async function GET() {
     }),
     configured ? getMe() : null,
     configured ? getWebhookInfo() : null,
+    configured ? getMenuButton() : null,
   ]);
 
   const base = appBaseUrl();
@@ -50,6 +54,8 @@ export async function GET() {
     expectedWebhookUrl: base ? webhookUrl(base) : null,
     webhook: webhook?.ok ? webhook.result : null,
     webhookError: webhook && !webhook.ok ? webhook.description : null,
+    expectedMiniAppUrl: base ? miniAppUrl(base) : null,
+    menuButtonUrl: menuButton?.ok && menuButton.result?.web_app?.url ? menuButton.result.web_app.url : null,
     links: links.map((l) => ({
       employeeId: l.employeeId,
       name: l.employee.name,
@@ -85,6 +91,15 @@ export async function POST(request: Request) {
     if (!r.ok) return NextResponse.json({ error: r.description }, { status: 400 });
     await audit("telegram.webhook", "telegram", null, { url: webhookUrl(base) });
     return NextResponse.json({ ok: true, url: webhookUrl(base) });
+  }
+
+  if (body.action === "menu_button") {
+    const base = typeof body.base === "string" && /^https:\/\//.test(body.base) ? body.base : appBaseUrl();
+    if (!base) return NextResponse.json({ error: "Не знаю публічної адреси: задайте APP_URL" }, { status: 400 });
+    const r = await setMenuButton(base);
+    if (!r.ok) return NextResponse.json({ error: r.description }, { status: 400 });
+    await audit("telegram.menu_button", "telegram", null, { url: miniAppUrl(base) });
+    return NextResponse.json({ ok: true, url: miniAppUrl(base) });
   }
 
   if (body.action === "test") {
