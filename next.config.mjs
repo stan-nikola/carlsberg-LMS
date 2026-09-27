@@ -11,11 +11,11 @@
 // джерел і закриває clickjacking (frame-ancestors). XSS у самому коді
 // застосунку не знайдено (аудит: жодного dangerouslySetInnerHTML) — CSP
 // тут другий шар захисту, не єдиний.
-function buildCsp({ frameAncestors = "'none'" } = {}) {
+function buildCsp({ frameAncestors = "'none'", extraScriptSrc = "" } = {}) {
   const isDev = process.env.NODE_ENV === "development";
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${extraScriptSrc}`,
     "style-src 'self' 'unsafe-inline'",
     // blob:/data: — Next.js own recommended default (next/image optimizer,
     // og-image тощо); *.public.blob.vercel-storage.com — фото уроків
@@ -95,6 +95,32 @@ const nextConfig = {
         headers: [
           { key: "Content-Security-Policy", value: buildCsp({ frameAncestors: "'self'" }) },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        ],
+      },
+      // Mini App (app/tg) — той самий сайт, показаний у вебʼю Telegram
+      // (2026-09-28, lib/telegramLogic.ts verifyInitData). Нативні
+      // застосунки Android/iOS/десктоп вантажують сторінку у власному
+      // WebView, не як iframe у веб-сторінці, — frame-ancestors на них не
+      // впливає. Але Telegram Web (web.telegram.org) справді вкладає Mini
+      // App в <iframe> звичайної веб-сторінки, і без дозволу тут загальне
+      // правило (frame-ancestors 'none') глушило б показ порожнім екраном
+      // — той самий клас проблеми, що вже вирішено для /guide вище.
+      // ponytail: якщо Telegram колись віддасть Mini App з іншого домену
+      // (напр. піддомену k./webk./webz.), сюди ж додати ще один origin —
+      // живою перевіркою на web.telegram.org це не зловлено, лиш
+      // задокументовано з офіційної специфікації Bot API.
+      {
+        source: "/tg/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: buildCsp({ frameAncestors: "https://web.telegram.org", extraScriptSrc: " https://telegram.org" }),
+          },
+          // X-Frame-Options НЕ перебиваємо: "ALLOW-FROM" з реальних браузерів
+          // прибрано роками тому, валідної заміни під один конкретний origin
+          // нема. Лишаємо загальний DENY з блоку "/(.*)" вище — не проблема:
+          // де є CSP frame-ancestors, усі сучасні браузери (де й живе
+          // web.telegram.org) саме її й слухають, X-Frame-Options ігнорують.
         ],
       },
     ];

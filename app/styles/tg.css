@@ -1,0 +1,135 @@
+/* Mini App CarLS (app/tg) — токени ті самі, що й у решті застосунку
+   (app/styles/tokens.css, globals.css уже підключені корінним layout).
+   Верстка мобайл-фьорст в один стовпчик — вікно Mini App завжди вузьке
+   (телефон, або компактне вікно tdesktop), сітки тут не потрібні. */
+.tg-root {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  min-height: 100dvh;
+  background: var(--surface);
+}
+.tg-loading,
+.tg-empty {
+  text-align: center;
+  color: var(--ink-soft);
+  padding: 40px 12px;
+  font-size: 14px;
+}
+.tg-head {
+  margin-bottom: 16px;
+}
+.tg-head h1 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--cb-primary);
+}
+.tg-head p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+}
+/* Смуга-підсумок нагорі: усе гаразд / щось горить — одразу видно, не
+   гортаючи список (2026-09-28, «якщо все добре — нічого робити не треба»). */
+.tg-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-card, 10px);
+  border: var(--border-w) solid var(--line);
+  margin-bottom: 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.tg-summary.is-ok {
+  background: color-mix(in srgb, var(--cb-success) 12%, var(--surface));
+  color: var(--cb-primary);
+  border-color: color-mix(in srgb, var(--cb-success) 40%, var(--line));
+}
+.tg-summary.is-attention {
+  background: color-mix(in srgb, var(--cb-alert) 16%, var(--surface));
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--cb-alert) 45%, var(--line));
+}
+.tg-summary .ico {
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.tg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tg-row {
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card, 10px);
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tg-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.tg-row-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.tg-row-meta {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.tg-pill {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.tg-pill.ok {
+  background: color-mix(in srgb, var(--cb-success) 18%, var(--surface));
+  color: var(--cb-primary);
+}
+.tg-pill.warn {
+  background: color-mix(in srgb, var(--cb-alert) 22%, var(--surface));
+  color: var(--ink);
+}
+.tg-pill.bad {
+  background: #ffd9d9;
+  color: #8a1414;
+}
+.tg-pill.neutral {
+  background: var(--line);
+  color: var(--ink-soft);
+}
+.tg-row-action {
+  margin-top: 2px;
+  align-self: flex-start;
+  border: none;
+  background: var(--cb-secondary);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-btn, 8px);
+  cursor: pointer;
+}
+.tg-row-action:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.tg-row-note {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
