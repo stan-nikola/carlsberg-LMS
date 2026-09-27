@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
   if (isManagerTier(employee)) {
     const { people } = await getManagerTeamRows(employee.id);
-    const needsReminder = people.filter((p) => p.segment === "overdue" || p.segment === "behind" || p.segment === "not_started");
+    const needsReminder = people.filter((p) => p.segment === "overdue" || p.segment === "behind" || p.segment === "not_started" || p.segment === "inactive");
     // Той самий dedupeKey, що lib/managerReminders.ts (courseId завжди
     // null тут — Mini App нагадує "загалом", без конкретного курсу).
     // Показуємо стан "вже надіслано сьогодні" ОДРАЗУ при завантаженні,
@@ -72,6 +72,7 @@ export async function POST(request: Request) {
           positionName: p.positionName,
           segment: p.segment,
           segmentLabel: p.segment ? SEGMENT_META[p.segment].label : null,
+          activityLabel: p.activityLabel,
           counts: p.counts,
           remindedToday: already.has(`reminder:${employee.id}:${p.id}:all:${dateKey(now)}`),
         })),

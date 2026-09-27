@@ -27,22 +27,24 @@ type TeamPersonRow = {
   id: number;
   name: string;
   positionName: string | null;
-  segment: "overdue" | "behind" | "not_started" | "inactive" | "on_track" | null;
+  segment: "overdue" | "behind" | "not_started" | "inactive" | "on_track" | "done" | null;
   segmentLabel: string | null;
+  activityLabel: string | null;
   counts: { total: number; completed: number; overdue: number; inProgress: number; notStarted: number; failed: number };
   remindedToday: boolean;
 };
 
-// Кожен сегмент — свій колір, не три довільно зведені групи (раніше
-// "inactive" потрапляв у ту саму гілку, що й "on_track", і показувався
-// зеленим — скарга користувача, 2026-09-28: неактивні мають бути сірими,
-// не зеленими, зелений — це саме "за графіком").
+// Кожен сегмент — свій колір. "inactive" (2026-09-28) — тепер справді
+// проблемний стан (є що доробити/перескласти, і людина мовчить 14+ днів
+// або й не заходила взагалі) — яскраво-червоний, як і "overdue"; "усе
+// здано на прохідний бал" — окремий сірий "done", не привід турбуватись.
 const SEGMENT_PILL_CLASS: Record<NonNullable<TeamPersonRow["segment"]>, string> = {
   overdue: "bad",
   behind: "warn",
   not_started: "warn",
-  inactive: "neutral",
+  inactive: "bad",
   on_track: "ok",
+  done: "neutral",
 };
 type Overview =
   | { linked: false }
@@ -102,7 +104,15 @@ export default function TelegramMiniAppPage() {
     const tryRead = () => {
       const tg = (
         window as {
-          Telegram?: { WebApp?: { ready?: () => void; expand?: () => void; disableVerticalSwipes?: () => void; initData?: string } };
+          Telegram?: {
+            WebApp?: {
+              ready?: () => void;
+              expand?: () => void;
+              disableVerticalSwipes?: () => void;
+              requestFullscreen?: () => void;
+              initData?: string;
+            };
+          };
         }
       ).Telegram?.WebApp;
       if (tg) {
@@ -116,6 +126,11 @@ export default function TelegramMiniAppPage() {
         // його не чіпає, тому там скролило нормально). Bot API 7.7+;
         // старіші клієнти метод просто не мають — optional chaining.
         tg.disableVerticalSwipes?.();
+        // На iPhone екран без цього займав не всю ширину (скарга
+        // користувача, 2026-09-28) — expand() розгортає лише по висоті,
+        // а не fullscreen. Bot API 8.0+; старіші клієнти метод не мають і
+        // мовчки ігнорують виклик (fullscreenFailed-подія, не виняток).
+        tg.requestFullscreen?.();
         if (!cancelled) setInitData(tg.initData || "");
         return;
       }
@@ -238,7 +253,7 @@ function EmployeeScreen({ name, courses }: { name: string; courses: EmployeeCour
 type RemindState = "sent" | "already" | "error";
 
 function ManagerScreen({ name, people }: { name: string; people: TeamPersonRow[] }) {
-  const attention = people.filter((p) => p.segment === "overdue" || p.segment === "behind" || p.segment === "not_started");
+  const attention = people.filter((p) => p.segment === "overdue" || p.segment === "behind" || p.segment === "not_started" || p.segment === "inactive");
   const [state, setState] = useState<Record<number, RemindState>>(() =>
     Object.fromEntries(people.filter((p) => p.remindedToday).map((p) => [p.id, "already" as const]))
   );
@@ -291,12 +306,12 @@ function ManagerScreen({ name, people }: { name: string; people: TeamPersonRow[]
       <div className="tg-list">
         {people.map((p) => {
           const cls = p.segment ? SEGMENT_PILL_CLASS[p.segment] : "neutral";
-          const needsReminder = p.segment === "overdue" || p.segment === "behind" || p.segment === "not_started";
+          const needsReminder = p.segment === "overdue" || p.segment === "behind" || p.segment === "not_started" || p.segment === "inactive";
           return (
             <div className="tg-row" key={p.id}>
               <div className="tg-row-top">
                 <span className="tg-row-title">{p.name}</span>
-                <span className={`tg-pill ${cls}`}>{p.segmentLabel}</span>
+                <span className={`tg-pill ${cls}`}>{p.activityLabel || p.segmentLabel}</span>
               </div>
               <span className="tg-row-meta">
                 {p.positionName || "—"} · складено {p.counts.completed}/{p.counts.total}

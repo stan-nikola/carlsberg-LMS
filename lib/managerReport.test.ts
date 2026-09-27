@@ -48,6 +48,7 @@ function person(id: number, over: Partial<TeamPerson> = {}): TeamPerson {
     lastSeenLabel: "щойно",
     inactive: false,
     segment: "on_track",
+    activityLabel: null,
     counts: counts({ total: 1, completed: 1 }),
     urgency: 0,
     activeWeeks: [],
