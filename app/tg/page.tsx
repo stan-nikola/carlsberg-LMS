@@ -30,6 +30,19 @@ type TeamPersonRow = {
   segment: "overdue" | "behind" | "not_started" | "inactive" | "on_track" | null;
   segmentLabel: string | null;
   counts: { total: number; completed: number; overdue: number; inProgress: number; notStarted: number; failed: number };
+  remindedToday: boolean;
+};
+
+// Кожен сегмент — свій колір, не три довільно зведені групи (раніше
+// "inactive" потрапляв у ту саму гілку, що й "on_track", і показувався
+// зеленим — скарга користувача, 2026-09-28: неактивні мають бути сірими,
+// не зеленими, зелений — це саме "за графіком").
+const SEGMENT_PILL_CLASS: Record<NonNullable<TeamPersonRow["segment"]>, string> = {
+  overdue: "bad",
+  behind: "warn",
+  not_started: "warn",
+  inactive: "neutral",
+  on_track: "ok",
 };
 type Overview =
   | { linked: false }
@@ -226,7 +239,9 @@ type RemindState = "sent" | "already" | "error";
 
 function ManagerScreen({ name, people }: { name: string; people: TeamPersonRow[] }) {
   const attention = people.filter((p) => p.segment === "overdue" || p.segment === "behind" || p.segment === "not_started");
-  const [state, setState] = useState<Record<number, RemindState>>({});
+  const [state, setState] = useState<Record<number, RemindState>>(() =>
+    Object.fromEntries(people.filter((p) => p.remindedToday).map((p) => [p.id, "already" as const]))
+  );
   const [busy, setBusy] = useState<number | null>(null);
 
   async function remind(personId: number, reason: string) {
@@ -275,7 +290,7 @@ function ManagerScreen({ name, people }: { name: string; people: TeamPersonRow[]
 
       <div className="tg-list">
         {people.map((p) => {
-          const cls = p.segment === "overdue" ? "bad" : p.segment === "behind" || p.segment === "not_started" ? "warn" : "ok";
+          const cls = p.segment ? SEGMENT_PILL_CLASS[p.segment] : "neutral";
           const needsReminder = p.segment === "overdue" || p.segment === "behind" || p.segment === "not_started";
           return (
             <div className="tg-row" key={p.id}>
