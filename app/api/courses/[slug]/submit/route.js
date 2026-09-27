@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { syncEnrollmentEvents } from "@/lib/rating";
 import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
+import { notifySubordinateCourseResult } from "@/lib/notifications";
 
 /**
  * POST /api/courses/:slug/submit
@@ -147,6 +148,21 @@ export async function POST(request, { params }) {
     await syncEnrollmentEvents(enrollment.id);
   } catch (err) {
     console.warn("[rating] course completion:", err?.message);
+  }
+
+  // Керівнику — миттєво (2026-09-28, рішення користувача), best-effort:
+  // збій доставки сповіщення не має чіпати вже записаний результат курсу.
+  try {
+    await notifySubordinateCourseResult(employee.manager?.id ?? null, {
+      enrollmentId: enrollment.id,
+      employeeId: employee.id,
+      employeeName: employee.name,
+      courseTitle: course.title,
+      passed,
+      completedAt,
+    });
+  } catch (err) {
+    console.warn("[notifications] subordinate course result:", err?.message);
   }
 
   return NextResponse.json({ ok: true });
