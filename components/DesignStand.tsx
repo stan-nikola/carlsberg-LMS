@@ -128,11 +128,15 @@ export function DesignStand() {
 
   return (
     <div className="admin-page ds-page">
-      <h1>Дизайн-система</h1>
-      <p className="admin-subtitle">
-        Кожен елемент праворуч — живий компонент застосунку. Регулятори міняють токени в цьому браузері одразу на всіх сторінках (прев’ю);
-        «Зберегти для всіх» робить набір спільним для всіх користувачів без деплою. Кольори тут не змінюються.
-      </p>
+      <div className="adm-page-head">
+        <div>
+          <h1>Дизайн-система</h1>
+          <p className="admin-subtitle">
+            Кожен елемент праворуч — живий компонент застосунку. Регулятори міняють токени в цьому браузері одразу на всіх сторінках (прев’ю);
+            «Зберегти для всіх» робить набір спільним для всіх користувачів без деплою. Кольори тут не змінюються.
+          </p>
+        </div>
+      </div>
 
       <div className="ds-layout">
         <aside className="ds-controls">
@@ -195,10 +199,10 @@ export function DesignStand() {
               {saving ? <SpinnerIcon /> : null}
               Зберегти для всіх
             </button>
-            <button type="button" className="admin-btn" onClick={reset} disabled={changed === 0}>
+            <button type="button" className="admin-btn adm-btn-secondary" onClick={reset} disabled={changed === 0}>
               Скинути прев’ю
             </button>
-            <button type="button" className="admin-btn admin-btn-danger" onClick={resetForAll} disabled={saving || !saved}>
+            <button type="button" className="admin-btn adm-btn-danger" onClick={resetForAll} disabled={saving || !saved}>
               Дефолти для всіх
             </button>
             <button type="button" className="admin-btn-link" onClick={copy}>
@@ -216,8 +220,8 @@ export function DesignStand() {
           <pre className="ds-css">{toCss(values)}</pre>
         </aside>
 
-        <div className="ds-preview">
-          <section className="adm-card">
+        <div className="ds-preview adm-flow">
+          <section className="adm-card adm-full">
             <div className="adm-card-head">
               <h2>Кнопки</h2>
               <span className="admin-hint">три розміри, одна форма</span>
@@ -225,6 +229,8 @@ export function DesignStand() {
             <div className="ds-row">
               <button type="button" className="admin-btn">Мала</button>
               <button type="button" className="admin-btn admin-btn-primary">Мала основна</button>
+              <button type="button" className="admin-btn adm-btn-secondary">Другорядна</button>
+              <button type="button" className="admin-btn adm-btn-danger">Руйнівна (розділи адмінки)</button>
               <button type="button" className="admin-btn admin-btn-danger">Небезпечна</button>
               <button type="button" className="admin-btn" disabled>Вимкнена</button>
               <button type="button" className="admin-btn-link">Посилання-кнопка</button>
@@ -342,11 +348,12 @@ export function DesignStand() {
             </div>
           </section>
 
-          <section className="adm-card">
+          <section className="adm-card adm-wide">
             <div className="adm-card-head">
               <h2>Таблиця</h2>
               <button type="button" className="admin-btn admin-btn-danger">Видалити обрані (1)</button>
             </div>
+            <div className="adm-table-wrap">
             <table className="admin-table">
               <thead>
                 <tr>
@@ -376,9 +383,10 @@ export function DesignStand() {
                 ))}
               </tbody>
             </table>
+            </div>
           </section>
 
-          <section className="adm-card">
+          <section className="adm-card adm-full">
             <div className="adm-card-head">
               <h2>Картки</h2>
               <span className="admin-hint">compact / base / roomy від одного токена</span>

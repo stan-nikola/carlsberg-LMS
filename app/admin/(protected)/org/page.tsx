@@ -9,7 +9,7 @@ export const instant = false;
 // відповідальна операція, їй не місце в перемикачі поруч зі списком.
 export default function AdminOrgRoute() {
   return (
-    <div className="admin-page">
+    <div className="admin-page adm-page">
       <div className="adm-page-head">
         <div>
           <h1>Оргструктура</h1>

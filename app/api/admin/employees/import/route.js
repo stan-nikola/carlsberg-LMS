@@ -1,11 +1,27 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
-// "xlsx" (SheetJS) не має default export у ESM-збірці (лише іменовані —
-// readFile/read/utils тощо) — на відміну від CommonJS require() у
-// prisma/import-employees.js, де це просто працює через CJS-інтероп.
-// Namespace-імпорт (* as XLSX) дає той самий об'єкт з усіма методами.
-import * as XLSX from "xlsx";
+// exceljs, не "xlsx" (SheetJS 0.18.5 з npm): у тієї версії відомі CVE на
+// розбір підготовленого файла (CVE-2023-30533 prototype pollution,
+// CVE-2024-22363 ReDoS), а виправлені версії в npm так і не вийшли.
+// exceljs і так уже є для експорту. CLI-скрипти prisma/import-*.js
+// лишились на xlsx — вони читають лише власні довірені файли локально.
+import ExcelJS from "exceljs";
 import { requireAdmin } from "@/lib/adminAuth";
+
+const COLUMNS = ["externalCode", "name", "email", "positionCode", "territoryName", "managerExternalCode"];
+
+/** Значення клітинки exceljs → текст (гіперпосилання/пошта, rich text, формула). */
+function cellText(value) {
+  if (value == null) return "";
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "object") {
+    if ("text" in value) return String(value.text ?? "");
+    if ("richText" in value) return value.richText.map((part) => part.text).join("");
+    if ("result" in value) return String(value.result ?? "");
+    return "";
+  }
+  return String(value);
+}
 import { prisma } from "@/lib/prisma";
 
 // POST /api/admin/employees/import — Фаза B2. multipart/form-data, поле
@@ -31,22 +47,25 @@ export async function POST(request) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  let rows;
+  const rows = [];
   try {
-    const wb = XLSX.read(buffer, { type: "buffer" });
-    const sheet = wb.Sheets["Нові співробітники"] || wb.Sheets[wb.SheetNames[0]];
-    rows = XLSX.utils.sheet_to_json(sheet, {
-      header: ["externalCode", "name", "email", "positionCode", "territoryName", "managerExternalCode"],
-      range: 1, // пропустити рядок заголовків
-      defval: "",
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer);
+    const sheet = wb.getWorksheet("Нові співробітники") || wb.worksheets[0];
+    if (!sheet) throw new Error("у файлі немає аркушів");
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // рядок заголовків
+      const record = { rowNumber };
+      COLUMNS.forEach((key, i) => {
+        record[key] = cellText(row.getCell(i + 1).value).trim();
+      });
+      rows.push(record);
     });
-  } catch (err) {
-    return NextResponse.json({ error: "Не вдалося прочитати файл: " + err.message }, { status: 400 });
+  } catch {
+    return NextResponse.json({ error: "Не вдалося прочитати файл: потрібен .xlsx за шаблоном" }, { status: 400 });
   }
 
-  const dataRows = rows
-    .map((r, i) => ({ ...r, rowNumber: i + 2 })) // +2: рядок 1 — заголовок, XLSX 1-indexed
-    .filter((r) => String(r.externalCode || "").trim() || String(r.name || "").trim());
+  const dataRows = rows.filter((r) => r.externalCode || r.name);
 
   if (dataRows.length === 0) {
     return NextResponse.json({ createdCount: 0, skippedRows: [] });

@@ -12,7 +12,7 @@ import { ExcelLivePanel } from "@/components/ExcelLivePanel";
  */
 export function AdminDataPage() {
   return (
-    <div className="admin-page">
+    <div className="admin-page adm-page">
       <div className="adm-page-head">
         <div>
           <h1>Дані</h1>
@@ -20,29 +20,39 @@ export function AdminDataPage() {
         </div>
       </div>
 
-      <div className="card-grid adm-data-grid">
-        <section className="adm-data-card">
-          <h2>Експорт бази</h2>
+      {/* Разові дії (експорт/імпорт) — поруч у першому ряду, жива книга з
+          інструкцією й таблицею токенів — на всю ширину під ними. */}
+      <div className="adm-flow">
+        <section className="adm-card">
+          <div className="adm-card-head">
+            <h2>Експорт бази</h2>
+          </div>
           <p className="admin-subtitle">
             Повний зріз на момент завантаження: співробітники, курси, призначення, спроби. Разовий файл — для
             звіту чи архіву.
           </p>
-          <a className="admin-btn" href="/api/admin/export" style={{ alignSelf: "flex-start" }}>
-            ⬇ Завантажити всю базу (.xlsx)
-          </a>
+          <div className="adm-card-foot">
+            <a className="admin-btn" href="/api/admin/export">
+              ⬇ Завантажити всю базу (.xlsx)
+            </a>
+          </div>
         </section>
 
-        <section className="adm-data-card">
-          <h2>Імпорт співробітників</h2>
+        <section className="adm-card">
+          <div className="adm-card-head">
+            <h2>Імпорт співробітників</h2>
+          </div>
           <EmployeeImportForm />
         </section>
-      </div>
 
-      <section className="adm-data-card adm-data-card-wide">
-        <h2>Жива Excel-книга</h2>
-        {/* Вступ і інструкція — всередині самої панелі, тут не дублюємо. */}
-        <ExcelLivePanel />
-      </section>
+        <section className="adm-card adm-full">
+          <div className="adm-card-head">
+            <h2>Жива Excel-книга</h2>
+          </div>
+          {/* Вступ і інструкція — всередині самої панелі, тут не дублюємо. */}
+          <ExcelLivePanel />
+        </section>
+      </div>
     </div>
   );
 }

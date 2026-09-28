@@ -25,7 +25,9 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   const title = String(body.title || "").trim().slice(0, 80);
   const message = String(body.message || "").trim().slice(0, 500);
-  const url = typeof body.url === "string" && body.url.startsWith("/") ? body.url.slice(0, 200) : null;
+  // Лише шлях нашого ж сайту: `//evil.com` теж «починається з /», а клік по
+  // сповіщенню в service worker розвʼязав би його в чужий домен.
+  const url = typeof body.url === "string" && /^\/(?![/\\])/.test(body.url) ? body.url.slice(0, 200) : null;
   const target = {
     all: body.target?.all === true,
     positionCodes: Array.isArray(body.target?.positionCodes) ? body.target.positionCodes.map(String) : [],

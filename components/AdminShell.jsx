@@ -193,7 +193,11 @@ export function AdminShell({ children, superAdmin = false }) {
         </div>
       </div>
 
-      <main className="adm-main">{children}</main>
+      {/* adm-main--courses — лише «Курси» (каталог + конструктор) лишаються
+          в масштабі 85%, як були: їх верстав сам користувач під цей масштаб.
+          Решта розділів — 100% і резинова сітка (.adm-page). Зум саме на
+          <main>, а не на .adm-shell — сайдбар однаковий у всіх розділах. */}
+      <main className={`adm-main${NAV_ITEMS[0].match(pathname) ? " adm-main--courses" : ""}`}>{children}</main>
     </div>
   );
 }

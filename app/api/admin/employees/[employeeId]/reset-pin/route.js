@@ -22,7 +22,7 @@ export async function POST(request, { params }) {
   });
   if (!employee) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  const result = await requestLoginPin(employee.externalCode);
+  const result = await requestLoginPin(employee.externalCode, "", { forceNew: true });
   if (!result.ok) {
     return NextResponse.json(result, { status: 422 });
   }

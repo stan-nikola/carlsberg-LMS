@@ -12,8 +12,11 @@ import {
   breakdown,
   rankOf,
   normalizeByCohort,
+  passedOnFirstAttempt,
   type RatingEventInput,
 } from "@/lib/ratingLogic";
+
+const MODULE_ATTEMPT_STATS = { passed: true, attemptCount: true, firstPassedAttempt: true } as const;
 
 /**
  * Рейтинг співробітника — журнал RatingEvent + правила/рівні з БД.
@@ -106,7 +109,7 @@ export async function syncEnrollmentEvents(enrollmentId: number) {
   const [enrollment, existing, rules] = await Promise.all([
     prisma.enrollment.findUnique({
       where: { id: enrollmentId },
-      include: { course: { select: { points: true } }, _count: { select: { attempts: true } } },
+      include: { course: { select: { points: true } }, moduleCompletions: { select: MODULE_ATTEMPT_STATS } },
     }),
     prisma.ratingEvent.findMany({ where: { refType: "enrollment", refId: enrollmentId } }),
     getRules(),
@@ -115,7 +118,7 @@ export async function syncEnrollmentEvents(enrollmentId: number) {
     ? computeCourseEvents({
         enrollment,
         course: enrollment.course,
-        attemptNumber: enrollment._count.attempts,
+        firstAttempt: passedOnFirstAttempt(enrollment.moduleCompletions),
         existingKinds: new Set(),
         rules,
       })
@@ -390,22 +393,21 @@ export async function recalculateAll() {
   const [enrollments, awards] = await Promise.all([
     prisma.enrollment.findMany({
       where: { status: "completed", passed: true },
-      include: { course: { select: { points: true } }, _count: { select: { attempts: true } } },
+      include: { course: { select: { points: true } }, moduleCompletions: { select: MODULE_ATTEMPT_STATS } },
     }),
     prisma.employeeBadge.findMany({ include: { badge: { select: { id: true, points: true, kind: true } } } }),
   ]);
   const events: RatingEventInput[] = [];
   for (const e of enrollments) {
     events.push(
-      // Кількість спроб — як є, БЕЗ Math.max(1, …): курс без жодної
-      // записаної спроби (ручна корекція адміна «зарахував офлайн») не має
-      // отримувати бонус «з першої спроби» — доказу першої спроби просто
-      // нема. Те саме число, що й у живому syncEnrollmentEvents, інакше
-      // «Перерахувати все» міняло б бали там, де нічого не змінилось.
+      // Той самий passedOnFirstAttempt, що й у живому syncEnrollmentEvents,
+      // інакше «Перерахувати все» міняло б бали там, де нічого не змінилось.
+      // Курс без модулів-результатів (ручна корекція «зарахував офлайн»)
+      // бонусу «з першої спроби» не отримує — доказу нема.
       ...computeCourseEvents({
         enrollment: e,
         course: e.course,
-        attemptNumber: e._count.attempts,
+        firstAttempt: passedOnFirstAttempt(e.moduleCompletions),
         existingKinds: new Set(),
         rules,
       })

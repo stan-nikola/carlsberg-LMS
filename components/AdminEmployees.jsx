@@ -40,9 +40,11 @@ function EmployeeCreateForm({ onCreated, onCancel }) {
   }
 
   return (
-    <div className="admin-form-section adm-create-panel">
-      <span className="admin-form-section-title">Новий співробітник</span>
-      <div className="admin-form-columns adm-create-columns">
+    <section className="adm-card">
+      <div className="adm-card-head">
+        <h2>Новий співробітник</h2>
+      </div>
+      <div className="adm-field-grid">
         <div className="admin-field">
           <label className="admin-label" htmlFor="newEmpName">
             Ім&apos;я
@@ -68,17 +70,17 @@ function EmployeeCreateForm({ onCreated, onCancel }) {
           <input id="newEmpEmail" type="email" className="admin-input-flex" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
       </div>
-      {error && <p className="admin-error">{error}</p>}
-      <div className="admin-btn-group">
+      <div className="adm-card-foot">
+        {error && <p className="admin-error">{error}</p>}
+        <button className="admin-btn adm-btn-secondary" onClick={onCancel} disabled={saving}>
+          Скасувати
+        </button>
         <button className="admin-btn" disabled={saving || !name.trim() || !externalCode.trim()} onClick={handleCreate}>
           {saving && <SpinnerIcon />}
           Створити
         </button>
-        <button className="admin-btn-link" onClick={onCancel} disabled={saving}>
-          Скасувати
-        </button>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -165,15 +167,17 @@ export function AdminEmployees() {
   }, []);
 
   return (
-    <div className="admin-page">
+    <div className="admin-page adm-page">
       <div className="adm-page-head">
         <div>
           <h1>Співробітники</h1>
           <p className="admin-subtitle">Знайдіть людину за ім&apos;ям або кодом — картка відкриється поруч.</p>
         </div>
-        <button type="button" className="admin-btn" onClick={() => setShowCreate((v) => !v)}>
-          {showCreate ? "Скасувати" : "+ Новий співробітник"}
-        </button>
+        <div className="adm-page-actions">
+          <button type="button" className={`admin-btn${showCreate ? " adm-btn-secondary" : ""}`} onClick={() => setShowCreate((v) => !v)}>
+            {showCreate ? "Скасувати" : "+ Новий співробітник"}
+          </button>
+        </div>
       </div>
 
       {showCreate && (
@@ -187,14 +191,15 @@ export function AdminEmployees() {
         />
       )}
 
-      <div className="adm-filters">
+      <div className="adm-toolbar">
         <input
           className="admin-input-flex"
           placeholder="Ім'я або код (напр. RNE104)…"
+          aria-label="Пошук співробітника за ім'ям або кодом"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <select className="admin-select" value={department} onChange={(e) => setDepartment(e.target.value)}>
+        <select className="admin-select" aria-label="Департамент" value={department} onChange={(e) => setDepartment(e.target.value)}>
           <option value="">Усі департаменти</option>
           {EMPLOYEE_DEPARTMENTS.map((d) => (
             <option key={d} value={d}>
@@ -216,6 +221,7 @@ export function AdminEmployees() {
       ) : employees.length === 0 ? (
         <p className="admin-subtitle">Нікого не знайдено.</p>
       ) : (
+        <div className="adm-table-wrap is-tall">
         <table className="admin-table">
           <thead>
             <tr>
@@ -259,7 +265,7 @@ export function AdminEmployees() {
                       акцентом, щоб адміни/HR читались з першого погляду. */}
                   <span className={`adm-chip${emp.role !== "employee" ? " adm-chip-accent" : ""}`}>{ROLE_LABELS[emp.role] || emp.role}</span>
                 </td>
-                <td>
+                <td className="adm-actions-cell">
                   <span className="adm-emp-chevron" aria-hidden="true">
                     <ChevronIcon />
                   </span>
@@ -268,9 +274,10 @@ export function AdminEmployees() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
       {!q && limit && employees.length === limit && (
-        <p className="admin-hint" style={{ marginTop: 12 }}>
+        <p className="admin-hint">
           Показано перші {limit} за алфавітом — введіть ім&apos;я або код, щоб знайти конкретну людину.
         </p>
       )}

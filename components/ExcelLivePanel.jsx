@@ -77,15 +77,18 @@ export function ExcelLivePanel() {
   }
 
   return (
-    <div className="admin-form-section">
+    <>
       <p className="admin-subtitle">
         Excel сам підключається до бази й оновлюється кнопкою «Оновити все» — без заходу на сайт. Токен персональний
         (прив&apos;язаний до конкретного admin/hr_manager акаунту), а не спільний пароль /admin.
       </p>
 
-      <div className="admin-form-section" style={{ background: "var(--surface-1)", padding: 16 }}>
-        <h3 style={{ fontSize: 14, marginTop: 0 }}>Як підключити (Excel → Power Query)</h3>
-        <ol className="admin-subtitle" style={{ paddingLeft: 20 }}>
+      {/* Інструкція ліворуч, видача токена праворуч — на широкому екрані
+          поруч, на вузькому одне під одним (.adm-split). */}
+      <div className="adm-split">
+      <div className="adm-inset">
+        <h3>Як підключити (Excel → Power Query)</h3>
+        <ol className="admin-subtitle">
           <li>
             Дані → Отримати дані → З інших джерел → З Інтернету (Get Data → From Web), URL: <code>{"{origin}"}/api/data/employees</code>{" "}
             (і так само <code>/api/data/courses</code>, <code>/api/data/enrollments</code> — три окремі запити).
@@ -103,8 +106,8 @@ export function ExcelLivePanel() {
           Завантаження…
         </p>
       ) : (
-        <>
-          <div className="admin-form-columns" style={{ marginTop: 16 }}>
+        <div className="adm-stack">
+          <div className="adm-field-grid">
             <div className="admin-field">
               <label className="admin-label" htmlFor="tokenEmployee">
                 Кому видати токен
@@ -149,17 +152,20 @@ export function ExcelLivePanel() {
           </button>
 
           {justCreatedToken && (
-            <div className="admin-form-section" style={{ borderColor: "var(--green-700)", marginTop: 12 }}>
+            <div className="adm-inset adm-inset-accent">
               <p className="admin-subtitle">
                 <strong>Скопіюйте зараз — повторно показати неможливо (у базі лише хеш):</strong>
               </p>
-              <code style={{ wordBreak: "break-all", display: "block", padding: 8, background: "var(--surface-1)" }}>
-                {justCreatedToken}
-              </code>
+              <code className="adm-code">{justCreatedToken}</code>
             </div>
           )}
+        </div>
+      )}
+      </div>
 
-          <table className="admin-table" style={{ marginTop: 20 }}>
+      {!loading && (
+          <div className="adm-table-wrap">
+          <table className="admin-table">
             <thead>
               <tr>
                 <th>Кому видано</th>
@@ -179,11 +185,11 @@ export function ExcelLivePanel() {
                   <td>{t.label || "—"}</td>
                   <td>{new Date(t.createdAt).toLocaleDateString("uk-UA")}</td>
                   <td>{t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleString("uk-UA") : "ще жодного разу"}</td>
-                  <td>
+                  <td className="adm-actions-cell">
                     {t.revokedAt ? (
                       "відкликано"
                     ) : (
-                      <button className="admin-btn-link" onClick={() => handleRevoke(t.id)}>
+                      <button className="admin-btn adm-btn-danger" onClick={() => handleRevoke(t.id)}>
                         Відкликати
                       </button>
                     )}
@@ -192,8 +198,8 @@ export function ExcelLivePanel() {
               ))}
             </tbody>
           </table>
-        </>
+          </div>
       )}
-    </div>
+    </>
   );
 }

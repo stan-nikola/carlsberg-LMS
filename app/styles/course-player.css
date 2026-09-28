@@ -701,6 +701,13 @@
   background: color-mix(in srgb, var(--danger) 14%, var(--surface-1));
   color: var(--danger);
 }
+/* Відповідь ще не перевірена: іде на сервер або дана без мережі
+   (lib/grading.ts AnswerState). Нейтральний синій «інформація», не
+   зелений/червоний — вердикту ще нема. */
+.q-fb.pending {
+  background: color-mix(in srgb, var(--cb-notification) 10%, var(--surface-1));
+  color: color-mix(in srgb, var(--cb-notification) 70%, var(--cb-black));
+}
 @media (prefers-reduced-motion: reduce) {
   .q-fb {
     animation: none;

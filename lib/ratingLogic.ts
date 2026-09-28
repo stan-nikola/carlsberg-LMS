@@ -27,7 +27,28 @@ export type EnrollmentForRating = {
   scorePercent: number | null;
   completedAt: Date | string | null;
   dueDate: Date | string | null;
+  /** Коли курс уперше склали — від нього «вчасно» (перескладання після дедлайну бали не знімає). */
+  firstPassedAt?: Date | string | null;
 };
+
+export type ModuleAttemptStats = { passed: boolean; attemptCount: number; firstPassedAttempt?: number | null };
+
+/**
+ * «З першої спроби» = КОЖЕН модуль курсу вперше складено на першій спробі
+ * (2026-09-27). Раніше бралась кількість відправок /submit — і п'ять
+ * провалів модуля з фінальним складанням давали +25, а покращення 90→100%
+ * бонус знімало. Рядки до міграції (firstPassedAttempt = null) — лише коли
+ * спроба була одна й вона складена. Без жодного модуля (ручна корекція
+ * «зарахував офлайн») — доказу першої спроби нема, false.
+ */
+export function passedOnFirstAttempt(completions: ModuleAttemptStats[]): boolean {
+  return (
+    completions.length > 0 &&
+    completions.every((c) =>
+      c.firstPassedAttempt != null ? c.firstPassedAttempt === 1 : c.passed && c.attemptCount === 1
+    )
+  );
+}
 export type PointsRow = { employeeId: number; points: number };
 export type CohortRow = PointsRow & { positionId: number | null };
 export type PersonNode = { id: number; managerId: number | null; positionId: number | null };
@@ -60,13 +81,14 @@ const rulePoints = (rules: RatingRuleLike[], key: string): number => {
 export function computeCourseEvents({
   enrollment,
   course,
-  attemptNumber,
+  firstAttempt,
   existingKinds,
   rules,
 }: {
   enrollment: EnrollmentForRating;
   course: { points?: number | null };
-  attemptNumber: number;
+  /** passedOnFirstAttempt(...) по модулях цього enrollment. */
+  firstAttempt: boolean;
   existingKinds: Set<string>;
   rules: RatingRuleLike[];
 }): RatingEventInput[] {
@@ -76,13 +98,12 @@ export function computeCourseEvents({
       ? [{ employeeId: enrollment.employeeId, kind, points, refType: "enrollment", refId: enrollment.id }]
       : [];
   const base = course.points ?? rulePoints(rules, "course_completed");
-  const onTime = Boolean(
-    enrollment.dueDate && enrollment.completedAt && new Date(enrollment.completedAt) <= new Date(enrollment.dueDate)
-  );
+  const passedAt = enrollment.firstPassedAt ?? enrollment.completedAt;
+  const onTime = Boolean(enrollment.dueDate && passedAt && new Date(passedAt) <= new Date(enrollment.dueDate));
   return [
     ...ev("course_completed", base),
     ...ev("course_perfect", enrollment.scorePercent === 100 ? rulePoints(rules, "course_perfect") : 0),
-    ...ev("first_attempt", attemptNumber === 1 ? rulePoints(rules, "first_attempt") : 0),
+    ...ev("first_attempt", firstAttempt ? rulePoints(rules, "first_attempt") : 0),
     ...ev("on_time", onTime ? rulePoints(rules, "on_time") : 0),
   ];
 }

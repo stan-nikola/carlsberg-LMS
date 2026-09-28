@@ -65,7 +65,7 @@ function addHours(date: Date, hours: number): Date {
  * @param rules      правила з resolveRetryRules
  */
 export function retryGate(
-  completion: { passed: boolean; completedAt: Date; attemptCount: number } | null,
+  completion: { passed: boolean; completedAt: Date; attemptCount: number; lastAttemptAt?: Date | null } | null,
   rules: RetryRules,
   now: Date = new Date()
 ): RetryGate {
@@ -99,7 +99,9 @@ export function retryGate(
     return { canRetryNow: true, attemptsLeft: 0, nextAttemptAt: null, attemptsMade: made };
   }
 
-  const opensAt = addHours(completion.completedAt, rules.cooldownHours);
+  // Пауза — від ОСТАННЬОЇ спроби: з 2026-09-27 completedAt тримає час
+  // найкращого результату, а не останнього (lastAttemptAt — міграція).
+  const opensAt = addHours(completion.lastAttemptAt ?? completion.completedAt, rules.cooldownHours);
   if (opensAt <= now) {
     return { canRetryNow: true, attemptsLeft: 0, nextAttemptAt: null, attemptsMade: made };
   }
@@ -127,6 +129,17 @@ export function formatWait(nextAttemptAt: Date, now: Date = new Date()): string 
  * @param size  Module.questionPoolSize
  * @param rand  генератор [0,1) — у тестах підміняється детермінованим
  */
+/**
+ * Зерно пулу питань: стабільне в межах однієї спроби (перезавантаження
+ * сторінки не перетасовує питання — раніше можна було оновлювати, поки не
+ * випадуть легкі, і це заодно стирало збережений прогрес) і нове на кожну
+ * наступну спробу. Сервер (/answer, module-complete) і сторінка плеєра
+ * рахують його однаково — тому перевіряють рівно показані питання.
+ */
+export function poolSeed(enrollmentId: number, moduleId: number, attemptNumber: number): string {
+  return `pool:${enrollmentId}:${moduleId}:${attemptNumber}`;
+}
+
 export function pickQuestionPool(ids: number[], size: number | null | undefined, rand: () => number = Math.random): Set<number> {
   if (!size || size <= 0 || size >= ids.length) return new Set(ids);
   const rest = [...ids];

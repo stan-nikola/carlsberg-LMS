@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronIcon, CheckIcon, XIcon } from "@/components/icons";
-import { isHotspotHit } from "@/lib/componentTypes";
+import { answerFor, isAnswerDone } from "@/lib/grading";
+import { AnswerStatus } from "@/components/AnswerStatus";
 import { peekScrollTo, scrollToEnd } from "@/lib/scrollHints";
 import { nextTimelineTarget } from "@/lib/coursePlayerLogic";
 import { renderRichText, renderRichMarks } from "@/lib/richText";
@@ -1125,13 +1126,21 @@ export function ConfettiBurst({ pieces = 40 }) {
  * тап по зображенню означав би дві різні дії одночасно.
  */
 export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
-  const { kicker, lead, images = [], zones = [], explanation } = component.content || {};
-  const [click, setClick] = useState(null);
+  // Зон у плеєрі немає (lib/grading.ts publicContent, 2026-09-27): місце
+  // кліку йде на сервер, зони й пояснення приходять у розборі після відповіді.
+  const { kicker, lead, images = [] } = component.content || {};
+  const [localClick, setClick] = useState(null);
   // Поки фото не завантажилось, натискати нікуди: людина ще не бачить, що
   // саме шукає, а координати рахувались би по порожньому скелетону — і
   // відповідь записалась би за картинку, якої вона не бачила.
   const [imgReady, setImgReady] = useState(false);
-  const isAnswered = answer !== undefined;
+  const checking = answer?.status === "checking";
+  const graded = typeof answer?.correct === "boolean";
+  const isAnswered = checking || isAnswerDone(answer);
+  const zones = graded ? answer.reveal?.zones || [] : [];
+  const explanation = graded ? answer.reveal?.explanation : null;
+  const stored = answer?.response;
+  const click = localClick || (Number.isFinite(stored?.x) ? { x: stored.x, y: stored.y } : null);
   const image = images.find((img) => img.url);
 
   function handleClick(e) {
@@ -1146,10 +1155,9 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     setClick({ x, y });
-    // Сам розрахунок влучання — у lib/componentTypes.js (isHotspotHit),
-    // щоб його можна було перевірити тестом: тут він жив би всередині
-    // React-компонента, для якого в проєкті немає тестового середовища.
-    onAnswer(isHotspotHit({ x, y }, zones, rect.height / rect.width));
+    // Влучання рахує lib/grading.ts (isHotspotHit усередині) — на сервері в
+    // плеєрі й локально в прев'ю конструктора, тим самим кодом.
+    onAnswer(answerFor("hotspot", component.content, { x, y, aspect: rect.height / rect.width }));
   }
 
   if (!image) {
@@ -1184,7 +1192,7 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
             зовнішньою тінню, обрізаною рамкою кадру). При кількох зонах
             такий прийом не працює: тінь однієї зони приглушила б сусідню,
             тож там лишається просто підсвітка без затемнення. */}
-        {isAnswered &&
+        {graded &&
           zones.map((z, i) => (
             <span
               key={i}
@@ -1194,14 +1202,16 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
           ))}
 
         {click && (
-          <span className={`hs-pin${answer ? " ok" : " bad"}`} style={{ left: `${click.x}%`, top: `${click.y}%` }} />
+          <span className={`hs-pin${graded ? (answer.correct ? " ok" : " bad") : ""}`} style={{ left: `${click.x}%`, top: `${click.y}%` }} />
         )}
       </div>
       {image.caption && <div className="cp-photo-caption">{renderRichMarks(image.caption)}</div>}
 
-      {isAnswered && (
-        <div className={`q-fb show ${answer ? "ok" : "bad"}`}>
-          <b className="q-fb-verdict">{answer ? "Влучно!" : "Не те місце — правильне обведено зеленим."}</b>
+      <AnswerStatus answer={answer} />
+
+      {graded && (
+        <div className={`q-fb show ${answer.correct ? "ok" : "bad"}`}>
+          <b className="q-fb-verdict">{answer.correct ? "Влучно!" : "Не те місце — правильне обведено зеленим."}</b>
           {explanation && <span className="q-fb-explain">{renderRichMarks(explanation)}</span>}
         </div>
       )}

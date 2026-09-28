@@ -12,10 +12,9 @@
   background: var(--surface);
   min-height: 100vh;
   box-sizing: border-box;
-  /* min-height нижче для .adm-shell .admin-page перевизначає це на
-     zoom-компенсований варіант — САМ .admin-page також рендериться на
-     /admin/login (поза .adm-shell, без zoom), де звичайний 100vh лишається
-     правильним, тому базове правило тут займати не можна. */
+  /* min-height нижче для .adm-main--courses .admin-page перевизначає це на
+     zoom-компенсований варіант лише в «Курсах» — у решті розділів і на
+     /admin/login (без zoom) звичайний 100vh лишається правильним. */
   /* БЕЗ min-width і без overflow-x тут навмисно. Раніше тут стояв
      min-width:1120px, розрахований на 3-колоночну форму "Кому
      призначати" — але та форма давно живе в .admin-editor (окремий
@@ -454,23 +453,9 @@
 .adm-shell {
   display: flex;
   flex-direction: column;
-  /* Виміряно (getBoundingClientRect у реальному вьюпорті 900px заввишки):
-     звичайний min-height:100vh тут дає РЕАЛЬНУ висоту лише 765px, не 900 —
-     zoom:85% (нижче) масштабує вже РОЗРАХОВАНУ висоту вниз так само, як і
-     текст, тому 100vh-контейнер після зуму фізично не сягає низу вьюпорта
-     (лишає ~15% порожнього простору знизу). /0.85 наперед компенсує це
-     стискання, щоб after-zoom висота знову дорівнювала рівно 100vh. */
-  min-height: calc(100vh / 0.85);
-  /* -15% усього тексту й розмірів по всій /admin (за проханням
-     користувача, скопом ЛИШЕ на адмінку — не на /hub/register, де в
-     співробітників є власний повзунок --fs-scale, накладення поверх
-     нього урізало б їхній діапазон читабельності). zoom, не
-     transform:scale — zoom бере участь у розкладці (розміри/переноси
-     рахуються вже в масштабованих координатах), transform лише
-     перемальовує піксель на екрані без перерахунку layout, що зламало б
-     переноси тексту й overflow. Підтримка: Chrome/Edge/Safari (в т.ч.
-     iOS) — давно, Firefox — з версії 126 (2024). */
-  zoom: 85%;
+  /* Зум 85% більше не на всій оболонці — лише на <main> розділу «Курси»
+     (.adm-main--courses нижче), тож тут звичайні 100vh. */
+  min-height: 100vh;
   /* .adm-nav-sheet (мобільна шторка) використовує .logout-row/.sheet із
      hub.css — той несе calc(Npx * var(--fs-scale)), реагуючи на
      персональний розмір тексту, який співробітник міг колись виставити
@@ -490,10 +475,8 @@
   background: var(--surface-1);
   position: sticky;
   top: 0;
-  /* Той самий zoom:85%-компенсаційний розрахунок, що й .adm-shell вище —
-     .adm-sidebar задає свою власну height:100vh НЕЗАЛЕЖНО від батька, тож
-     має той самий баг сам по собі (виміряно: 765px замість 900px). */
-  height: calc(100vh / 0.85);
+  /* Сайдбар поза зумом (зум — лише в <main> «Курсів»), тож рівно 100vh. */
+  height: 100vh;
   /* transition лише на width — щоб згортання/розгортання (кнопка нижче)
      не було миттєвим "стрибком" колонки, який зсуває весь конструктор
      праворуч від неї. */
@@ -717,12 +700,24 @@
   flex: 1;
   min-width: 0;
 }
-/* .admin-page всередині .adm-shell — той самий zoom:85%-баг, що вже
-   виправлено на .adm-shell/.adm-sidebar вище (виміряно: 765px замість
-   900px), лише тут скоуплено до вкладеного випадку — сам .admin-page ще
-   рендериться і на /admin/login, поза .adm-shell/без zoom, де базовий
-   100vh (вище) лишається правильним і його займати не можна. */
-.adm-shell .admin-page {
+/* -15% усього тексту й розмірів ЛИШЕ в розділі «Курси» (/admin і
+   /admin/courses/* — каталог і конструктор; AdminShell.jsx ставить клас за
+   pathname). Колись це стояло на всій .adm-shell; решту розділів
+   (2026-09-27) переведено на 100% і резинову сітку (.adm-page нижче), а
+   «Курси» користувач верстав сам під цей масштаб — їх не чіпаємо. zoom, не
+   transform:scale — zoom бере участь у розкладці (розміри/переноси
+   рахуються вже в масштабованих координатах), transform лише перемальовує
+   піксель без перерахунку layout. Підтримка: Chrome/Edge/Safari — давно,
+   Firefox — з 126 (2024). */
+.adm-main--courses {
+  zoom: 85%;
+}
+/* Виміряно (getBoundingClientRect, вьюпорт 900px заввишки): під zoom:85%
+   min-height:100vh дає РЕАЛЬНІ 765px, не 900 — zoom стискає вже
+   розраховану висоту. /0.85 наперед компенсує. Скоуплено на «Курси»: сам
+   .admin-page ще рендериться на /admin/login і в інших розділах без зуму,
+   де базові 100vh правильні. */
+.adm-main--courses .admin-page {
   min-height: calc(100vh / 0.85);
 }
 
@@ -1980,22 +1975,35 @@
   box-shadow: var(--cb-focus-ring);
   border-radius: var(--radius-card);
 }
+/* Посада одразу за ім'ям, а не притиснута до правого краю: на широкому
+   моніторі (сторінка тепер на всю ширину) око інакше перестрибувало
+   ~1500px порожнечі між ім'ям і його посадою. Праворуч — лише дії. */
 .emp-tree-meta {
   color: var(--ink-soft);
-  font-size: 12.5px;
-  margin-left: auto;
+  font-size: 13px;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+@media (hover: hover) {
+  .emp-tree-row:hover {
+    background: var(--surface-1);
+  }
+}
 .emp-tree-root-drop {
-  border: 1px dashed var(--line);
+  border: var(--border-w) dashed var(--line);
   border-radius: var(--radius-card);
   padding: 10px 12px;
-  margin-bottom: 10px;
   color: var(--ink-soft);
   font-size: 12.5px;
   text-align: center;
+}
+
+.emp-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* ---- Швидкі дії в рядку дерева (2026-09-23) ----
@@ -2003,13 +2011,6 @@
    постійно видимі кнопки перетворили б його на стіну тексту. Фокус із
    клавіатури (:focus-within) відкриває їх так само — інакше дії були б
    недосяжні без миші. */
-.emp-tree-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  margin-bottom: 12px;
-}
 .emp-tree-toggle {
   display: inline-flex;
   align-items: center;
@@ -2022,7 +2023,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-left: 12px;
+  margin-left: auto;
+  padding-left: 12px;
   flex-shrink: 0;
   opacity: 0;
   transition: opacity 0.12s ease;
@@ -2048,6 +2050,10 @@
 .emp-tree-rename {
   max-width: 260px;
 }
+/* Поле перейменування в рядку дерева — компактне, як сам рядок. */
+.adm-page .emp-tree-row .admin-input-flex {
+  min-height: var(--btn-h-sm);
+}
 .emp-tree-add {
   padding: 8px 8px 10px;
 }
@@ -2059,7 +2065,8 @@
   margin-top: 4px;
 }
 .emp-tree-add-fields .admin-input-flex {
-  max-width: 200px;
+  flex: 1 1 180px;
+  max-width: 240px;
 }
 
 /* ---- Таблиця типів ачивок (AdminBadges.jsx, Фаза C) — той самий стиль,
@@ -2092,6 +2099,7 @@
   flex-direction: column;
   gap: 2px;
   flex: 1;
+  min-width: 0;
 }
 
 /* ---- Рядки призначених курсів на картці співробітника
@@ -2764,62 +2772,294 @@
   pointer-events: none;
 }
 
-/* ===================== /admin/employees, /admin/org, /admin/data =====================
-   Переосмислення сторінки співробітників (2026-09-15): заголовок з дією
-   праворуч, фільтри одним рядом, рядки — кнопки без форм усередині,
-   картка — бічною панеллю (components/EmployeeDrawer.tsx). Дерево й
-   робота з базою — окремі сторінки (/admin/org, /admin/data). */
+/* ===================== Розділи адмінки, крім «Курсів» — резинова розкладка =====================
+   2026-09-27, прохання користувача: «читабельно, кнопки й поля в одному
+   стилі, інформацію розподілити на весь екран, розмітка резинова». Жодних
+   бібліотек і жодних сіток під конкретну сторінку — кілька примітивів у
+   дусі Every Layout (Stack / Cluster / Switcher) і правил дашбордів
+   Atlassian/Carbon (підсумок і головна дія — зверху; пов'язані керування —
+   разом; один крок відступів скрізь):
+     .adm-page       — сторінка: уся ширина вьюпорта, гумові поля, стек
+                       блоків з одним кроком --adm-gap;
+     .adm-page-head  — заголовок і підзаголовок ліворуч, головна дія праворуч;
+     .adm-toolbar    — пошук/фільтри одним рядом над таблицею;
+     .adm-flow       — картки розділу поруч, скільки влазить, і кожен ряд
+                       заповнений до краю (flex-grow — без дірок, які лишає
+                       auto-fit-сітка, коли картки різної ширини);
+     .adm-field-grid — поля форми колонками auto-fit, підпис над полем;
+     .adm-table-wrap — горизонтальний скрол таблиці, липка шапка довгих.
+   Атоми — ті самі .admin-btn/.admin-input-flex/.admin-select, лише
+   нормалізовані В МЕЖАХ .adm-page (одна висота --btn-h-md для поля й
+   кнопки в ряду, підпис без capitalize). «Курси» (.adm-main--courses) і
+   /manager ці правила не бачать — там .admin-* як були.
+   .ds-page (стенд /admin/design) бере лише розкладку сторінки, БЕЗ
+   нормалізації атомів: стенд показує .admin-btn тощо рівно такими, як вони
+   в «Курсах» і /manager. */
+.adm-page,
+.ds-page {
+  --adm-gap: clamp(16px, 1.4vw, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--adm-gap);
+  padding: clamp(16px, 2vw, 32px) clamp(16px, 2vw, 32px) 48px;
+}
+/* Крок між блоками дає gap; власні зовнішні відступи дітей
+   (.admin-subtitle{margin-bottom:28px} тощо, писані під звичайний потік)
+   його подвоювали б. */
+.adm-page > *,
+.ds-page > * {
+  margin-block: 0;
+}
 
 /* Заголовок сторінки: h1 + підзаголовок ліворуч, головна дія праворуч. */
 .adm-page-head {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px 16px;
-  margin-bottom: 16px;
+  gap: 12px 24px;
 }
 .adm-page-head h1 {
   margin: 0;
+  font-size: clamp(22px, 1.1vw + 14px, 28px);
+  line-height: 1.2;
 }
 .adm-page-head .admin-subtitle {
-  margin-top: 4px;
+  margin: 6px 0 0;
+  max-width: 90ch;
 }
-
-/* Фільтри одним рядом: пошук тягнеться, але не на весь екран; select —
-   по вмісту (раніше .admin-select розтягувався на всю ширину сторінки —
-   виглядало як зламана форма). */
-.adm-filters {
+/* margin-left:auto, а не space-between батька: коли дії переносяться на
+   власний рядок, space-between для єдиного елемента = flex-start, і кнопки
+   прилипали б ліворуч (той самий урок, що .mgr-page-header-actions). */
+.adm-page-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  margin-left: auto;
 }
-.adm-filters .admin-input-flex {
-  flex: 1 1 260px;
-  max-width: 420px;
-}
-.adm-filters .admin-select {
-  width: auto;
-  flex: 0 0 auto;
+.adm-page-actions .admin-hint {
+  max-width: 48ch;
+  text-align: right;
 }
 
-/* Форма створення — на всю ширину, три поля в ряд (не 1:1:2, як у форми
-   курсу — тут поля рівноцінні). */
-.adm-create-panel {
-  border: var(--border-w) solid var(--line);
-  border-radius: var(--radius-card);
+/* Пошук і фільтри одним рядом: пошук тягнеться, але не на весь екран;
+   select — по вмісту (на всю ширину він виглядав як зламана форма). */
+.adm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+.adm-page .adm-toolbar .admin-input-flex {
+  flex: 1 1 260px;
+  max-width: 480px;
+}
+.adm-page .adm-toolbar .admin-select {
+  flex: 0 1 auto;
+  width: auto;
+}
+
+/* Картки поруч (Switcher): кожна бере --adm-col як базу й доростає до
+   краю ряду. min(100%, …) — щоб у вузькій шухляді база не виходила за
+   край. .adm-wide — удвічі жадібніша (таблиці, довгі форми), .adm-full —
+   завжди окремий ряд. */
+.adm-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--adm-gap, 16px);
+}
+.adm-flow > * {
+  flex: 1 1 min(100%, var(--adm-col, 360px));
+  min-width: 0;
+  margin: 0;
+}
+.adm-flow > .adm-wide {
+  flex: 2 1 min(100%, calc(var(--adm-col, 360px) * 1.75));
+}
+.adm-flow > .adm-full {
+  flex-basis: 100%;
+}
+
+/* ---- Атоми в межах .adm-page ---- */
+.adm-page .admin-label {
+  font-size: 12.5px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.adm-page .admin-hint {
+  opacity: 1;
+}
+.adm-page .admin-subtitle {
+  margin-bottom: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+/* Поле на всю ширину своєї клітинки і тієї ж висоти, що кнопка поруч.
+   font-size 16px з базового правила лишається — анти-зум iOS. */
+.adm-page .admin-input-flex,
+.adm-page .admin-select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--btn-h-md);
+  padding: 0 var(--btn-px-sm);
+  background: var(--surface);
+  color: var(--ink);
+}
+.adm-page .admin-textarea {
+  box-sizing: border-box;
+  padding: 10px var(--btn-px-sm);
+  font-family: inherit;
+  line-height: 1.45;
+}
+.adm-page .admin-input-flex:disabled,
+.adm-page .admin-select:disabled {
   background: var(--surface-1);
-  padding: var(--card-pad);
-  margin-bottom: 16px;
+  color: var(--ink-soft);
 }
-.adm-create-columns {
-  grid-template-columns: repeat(3, minmax(160px, 1fr));
+.adm-page input[type="file"] {
+  max-width: 100%;
+  font: inherit;
+  font-size: 13.5px;
 }
-.adm-create-columns > .admin-field + .admin-field {
-  padding-left: 0;
-  border-left: none;
+.adm-page .admin-checkbox {
+  min-height: var(--btn-h-sm);
+  color: var(--ink);
+  font-weight: 500;
+  font-size: 13.5px;
+  white-space: normal;
+}
+.adm-page .admin-checkbox input {
+  width: 16px;
+  height: 16px;
+}
+.adm-page .admin-checkbox-grid {
+  max-height: 220px;
+  gap: 2px 20px;
+}
+/* Кнопка — та сама .admin-btn, що в «Курсах» і в /manager (колір, форма,
+   hover), лише розмір md: вона стоїть в одному ряду з полями --btn-h-md. */
+.adm-page .admin-btn {
+  box-sizing: border-box;
+  min-height: var(--btn-h-md);
+  padding: 0 var(--btn-px-md);
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+/* Базова вимкнена — білий текст на 10%-сірому, майже нечитабельно. */
+.adm-page .admin-btn:disabled {
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  cursor: not-allowed;
+}
+/* У рядку таблиці/списку — компактний sm, інакше рядки роздуває. */
+.adm-page .admin-badge-list .admin-btn,
+.adm-page .admin-table .admin-btn,
+.adm-page .admin-table .admin-input-flex,
+.adm-page .admin-table .admin-select {
+  min-height: var(--btn-h-sm);
+  padding-inline: var(--btn-px-sm);
+}
+
+/* Варіанти кнопки — НОВІ класи (не .admin-btn-danger: той у «Курсах»
+   виглядає як червоне посилання й там має лишитись як є). Головна дія
+   картки — звичайна .admin-btn (одна на картку); решта — другорядна
+   (контур кольором бренду, як .btn-secondary-full); руйнівна — контур
+   червоним, ніколи не заливкою основної. Текст червоної — затемнений
+   --cb-fail: чистий #f45f5e на білому дає ~3:1, нижче норми для тексту. */
+.admin-btn.adm-btn-secondary {
+  background: transparent;
+  color: var(--cb-primary);
+  border-color: var(--cb-primary);
+}
+.admin-btn.adm-btn-danger {
+  background: transparent;
+  color: color-mix(in srgb, var(--cb-fail) 70%, var(--cb-black));
+  border-color: currentColor;
+}
+@media (hover: hover) {
+  .admin-btn.adm-btn-secondary:hover:not(:disabled) {
+    filter: none;
+    background: var(--cb-primary-tint);
+  }
+  .admin-btn.adm-btn-danger:hover:not(:disabled) {
+    filter: none;
+    background: var(--cb-fail-light);
+  }
+}
+.admin-btn.adm-btn-secondary:disabled,
+.admin-btn.adm-btn-danger:disabled {
+  background: transparent;
+  color: var(--ink-soft);
+  border-color: var(--line);
+}
+
+/* Дотик або вузький екран — цілі не менші за 40px. */
+@media (max-width: 899px), (pointer: coarse) {
+  .adm-page .iconbtn {
+    width: var(--btn-h-md);
+    height: var(--btn-h-md);
+  }
+  .adm-page .admin-badge-list .admin-btn,
+  .adm-page .admin-table .admin-btn,
+  .adm-page .admin-table .admin-input-flex,
+  .adm-page .admin-table .admin-select {
+    min-height: var(--btn-h-md);
+  }
+  .adm-page .admin-btn-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--btn-h-md);
+  }
+}
+
+/* ---- Таблиці в межах .adm-page ----
+   Обгортка скролить широку таблицю вбік замість горизонтального скролу
+   всієї сторінки. .is-tall — довгий список (співробітники, журнал): власна
+   висота й липка шапка. overflow:clip на самій таблиці (замість hidden з
+   базового правила) — hidden робив би таблицю скрол-контейнером, і
+   sticky-шапка липла б до неї самої, тобто нікуди. */
+.adm-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.adm-table-wrap.is-tall {
+  max-height: min(72vh, 960px);
+  overflow: auto;
+}
+.adm-page .admin-table {
+  overflow: clip;
+  font-size: 14px;
+}
+.adm-table-wrap.is-tall .admin-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+/* Числа — праворуч і однакової ширини цифр, щоб розряди стояли стовпчиком.
+   Через .admin-table: базове `.admin-table th/td {text-align:left}` інакше
+   сильніше за голий клас. */
+.admin-table .adm-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Дії рядка — в один ряд і без переносу: клітинка .adm-actions-cell
+   стискається до min-content, і flex-wrap склав би кнопки стовпчиком. */
+.adm-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.adm-page .admin-table td.adm-actions-cell {
+  width: 1%;
+  white-space: nowrap;
 }
 
 /* Колонки списку без ролі-select і кнопки PIN: ім'я / код / департамент /
@@ -2894,8 +3134,8 @@
   top: 0;
   right: 0;
   height: 100%;
-  width: min(780px, 100%);
-  padding: 12px 28px 40px;
+  width: min(820px, 100%);
+  padding: 0 clamp(16px, 3vw, 28px) 40px;
   background: var(--surface);
   box-shadow: var(--shadow-lg);
   overflow-y: auto;
@@ -2926,54 +3166,20 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 0 10px;
-  margin: 0 0 8px;
+  padding: 10px 0;
   background: var(--surface);
   border-bottom: var(--border-w) solid var(--line);
 }
-.adm-detail-compact h1 {
-  font-size: 22px;
-}
-/* У панелі 2/3-колонкові форми картки не мають місця — по одній. */
-.adm-detail-compact .admin-form-columns {
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.adm-detail-compact .admin-form-columns > .admin-form-section + .admin-form-section {
-  padding-left: 0;
-  border-left: none;
-}
-
-/* ---- /admin/data: картки розділів на спільній сітці .card-grid ---- */
-.adm-data-grid {
-  --card-min: 320px;
-  --card-gap: 16px;
-}
-.adm-data-card {
+/* Картка в шухляді — той самий стек, що й .adm-page (крок --adm-gap
+   успадковується від сторінки позаду), лише без полів сторінки. */
+.adm-detail-compact {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: var(--card-pad-roomy);
-  border: var(--border-w) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--surface);
-  box-shadow: var(--card-shadow);
+  gap: var(--adm-gap, 16px);
+  padding-top: 8px;
 }
-.adm-data-card h2 {
-  margin: 0;
-  font-size: 15px;
-}
-.adm-data-card-wide {
-  margin-top: 16px;
-}
-/* У панелі секції картки (Основне / Керівник / Ачивки / Підпорядкування /
-   Курси) йдуть упритул — на повній сторінці їх розносив зовнішній відступ
-   .admin-page, у компактному режимі його немає. Лінія + відступ між
-   сусідніми секціями, щоб «Зберегти» не впирався в заголовок «Керівник». */
-.adm-detail-compact > .adm-card + .adm-card {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: var(--border-w) solid var(--line);
+.adm-detail-compact h1 {
+  font-size: 22px;
 }
 
 /* ---- /admin/org: кнопка розгортання вузла дерева ----
@@ -3027,33 +3233,45 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.admin-audit-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.admin-audit-toolbar .admin-input-flex {
-  max-width: 320px;
-}
 /* /admin/org?focus=<id> — вузол, з картки якого прийшли */
 .emp-tree-row-focus {
   background: var(--green-tint);
   box-shadow: inset 3px 0 0 var(--green-700);
 }
 
-/* /admin/badges: дії в рядку та панель масової видачі під рядком */
+/* /admin/badges: дії в рядку та панель масової видачі під рядком.
+   Колонки фіксованої ширини — у всіх рядках кнопки стоять одна під одною
+   (auto-типи мають лише «Редагувати», решта клітинок порожні). */
 .admin-badge-actions {
+  --badge-act: var(--iconbtn-md);
   display: grid;
-  grid-template-columns: 32px repeat(3, var(--iconbtn-md));
+  grid-template-columns: repeat(3, var(--badge-act));
   align-items: center;
-  justify-items: end;
+  justify-content: end;
   gap: 6px;
-  white-space: nowrap;
 }
-.admin-badge-count {
-  justify-self: start;
-  font-weight: 600;
+@media (max-width: 899px), (pointer: coarse) {
+  .admin-badge-actions {
+    --badge-act: var(--btn-h-md);
+  }
+}
+.admin-badge-ico {
+  font-size: 22px;
+  line-height: 1;
+}
+/* Редагування типу прямо в рядку: поля стовпчиком у клітинці «Назва». */
+.admin-badge-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Короткі значення (emoji, бали) — поле по змісту, а не на всю клітинку. */
+.adm-page .adm-input-icon {
+  max-width: 72px;
+  text-align: center;
+}
+.adm-page .adm-input-short {
+  max-width: 160px;
 }
 .iconbtn.is-active {
   background: var(--surface);
@@ -3068,45 +3286,25 @@
     border-color: var(--danger);
   }
 }
-.admin-link-danger {
-  color: var(--danger);
-}
 .admin-badge-award {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 14px 16px 16px 66px;
+  /* Відступ зліва = під назвою, повз колонку іконки; на вузькому — менший. */
+  padding: 14px 16px 16px clamp(16px, 4vw, 66px);
   background: var(--surface-1);
   border-top: var(--border-w) solid var(--line);
 }
 
 /* ===================== /admin/rating (components/AdminRating.jsx) =====================
-   Правила — картками з перемикачем і полем балів, рівні — драбинкою,
-   перерахунок — окремою «небезпечною» секцією. */
-.rt-admin-section {
-  margin-top: 22px;
-  padding: var(--card-pad-roomy);
-  border: var(--border-w) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--surface);
-}
-.rt-admin-section-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px 16px;
-  margin-bottom: 12px;
-}
-.rt-admin-section-head h2 {
-  margin: 0;
-  font-size: 16px;
-}
+   Секції — звичайні .adm-card (раніше свій .rt-admin-section, копія того
+   самого); правила — картками з перемикачем і полем балів, рівні —
+   драбинкою, перерахунок — окремою «небезпечною» карткою. */
 .rt-rule-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  grid-auto-rows: 1fr;
   gap: 12px;
-  margin-bottom: 10px;
 }
 .rt-rule-card {
   display: flex;
@@ -3129,7 +3327,7 @@
 }
 .rt-rule-hint {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-soft);
   line-height: 1.4;
   flex: 1;
@@ -3197,7 +3395,7 @@
 }
 .rt-level-ladder {
   list-style: none;
-  margin: 0 0 8px;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -3242,19 +3440,6 @@
   flex: 1 1 180px;
   max-width: 320px;
 }
-.rt-admin-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-}
-.rt-admin-danger {
-  border-color: color-mix(in srgb, var(--cb-fail) 40%, var(--line));
-}
-.rt-admin-danger p {
-  margin: 0 0 12px;
-}
 
 /* /admin/notifications — історія з чекбоксами і кнопкою видалення */
 .adm-bc-table th:first-child,
@@ -3276,19 +3461,22 @@
 /* ===================== Картки розділів (адмінка) =====================
    Один патерн для картки співробітника, розсилки тощо (2026-09-15, «усе
    врозкид»): секція = картка з шапкою (назва + короткий підсумок/дія),
-   полями в auto-fit сітці і футером з діями праворуч. */
+   полями в auto-fit сітці і футером з діями праворуч. Відступи МІЖ
+   картками дає контейнер (.adm-page / .adm-flow gap), не сама картка —
+   інакше в ряду сусіди з'їжджали на ці margin. */
 .adm-card {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
   padding: var(--card-pad-roomy);
   border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
   box-shadow: var(--card-shadow);
-}
-.adm-card + .adm-card {
-  margin-top: 16px;
+  /* break-word, не anywhere: anywhere зменшує min-content і таблиця в
+     картці ламала б слова по літері замість скролу вбік. */
+  overflow-wrap: break-word;
 }
 .adm-card-head {
   display: flex;
@@ -3299,18 +3487,21 @@
 }
 .adm-card-head h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
 }
 .adm-card-head .admin-hint {
   margin: 0;
 }
+/* margin-top:auto — у картках однакової висоти (ряд .adm-flow) дії
+   притиснуті донизу й стоять на одному рівні в сусідніх картках. */
 .adm-card-foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px 12px;
+  margin-top: auto;
   padding-top: 12px;
   border-top: var(--border-w) solid var(--line);
 }
@@ -3318,12 +3509,80 @@
 .adm-card-foot .admin-hint {
   margin: 0 auto 0 0;
 }
+/* Поле, що стоїть у футері поруч із кнопкою (напр. «Обрати курс…»). */
+.adm-page .adm-card-foot .adm-foot-field {
+  flex: 1 1 240px;
+  max-width: 420px;
+}
+/* Руйнівна секція (перерахунок рейтингу тощо) — червонувата рамка. */
+.adm-card-danger {
+  border-color: color-mix(in srgb, var(--cb-fail) 40%, var(--line));
+}
+/* Вставка всередині картки (інструкція, щойно створений токен). */
+.adm-inset {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--card-pad);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+}
+.adm-inset h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.adm-inset ol {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.adm-inset-accent {
+  border-color: var(--green-700);
+  background: var(--green-tint);
+}
+.adm-code {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--radius-input);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  word-break: break-all;
+}
+/* Дві колонки всередині картки (інструкція | форма), складаються в одну,
+   коли ширини бракує. */
+.adm-split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 16px 24px;
+  align-items: start;
+}
+.adm-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.adm-stack > .adm-field-grid,
+.adm-stack > .admin-field {
+  align-self: stretch;
+}
+/* Крок між полями в картці дає її gap — власний margin-bottom поля
+   (писаний під звичайний потік форми) його подвоював би. */
+.adm-card > .admin-field,
+.adm-stack > .admin-field {
+  margin-bottom: 0;
+}
 /* Поля — рівні колонки по ширині, без ручних @media (min(100%, …) —
    щоб у вузькій панелі-шухляді колонка не виходила за край). */
 .adm-field-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: 12px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 14px 20px;
 }
 .adm-field-grid .admin-field {
   margin-bottom: 0;
@@ -3337,9 +3596,6 @@
 }
 /* Шапка картки співробітника: ім'я, код, статус і керівник одним рядком
    чипів під заголовком. */
-.adm-detail-head {
-  margin-bottom: 18px;
-}
 .adm-detail-head h1 {
   margin: 8px 0 6px;
 }
@@ -3368,6 +3624,33 @@
 .adm-manager-row b {
   font-weight: 600;
 }
+/* Результати пошуку нового керівника — рядки-кнопки (було інлайновими
+   стилями в EmployeeDetail.jsx). Рамка прозора в спокої — ховер лише
+   фарбує її, без стрибка розміру. */
+.adm-pick-list {
+  margin: 0;
+}
+.adm-pick-list .admin-block-list-link {
+  width: 100%;
+  min-height: var(--btn-h-md);
+  padding: 7px 9px;
+  border: var(--border-w) solid transparent;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.adm-pick-list .admin-block-list-link:hover {
+  border-color: var(--green-700);
+}
+.adm-pick-list .admin-block-list-link:focus-visible {
+  outline: none;
+  border-color: var(--green-700);
+  box-shadow: var(--cb-focus-ring);
+}
+.adm-page > .admin-btn-link {
+  align-self: flex-start;
+}
 /* Форма розсилки: підсумок «кому» і лічильник символів у підказках. */
 .adm-bc-form .admin-textarea {
   width: 100%;
@@ -3375,7 +3658,7 @@
 }
 .adm-link-row {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1.4fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 8px;
 }
 
@@ -3426,30 +3709,24 @@
   white-space: nowrap;
 }
 
-/* Ряд коротких карток: поруч, коли є місце; в шухляді — стовпчиком. */
-.adm-card-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
-  gap: 16px;
-  margin-top: 16px;
-}
-.adm-card-row .adm-card {
-  margin-top: 0;
-}
-.adm-card-row + .adm-card {
-  margin-top: 16px;
-}
-
-/* /admin/design — стенд дизайн-системи (components/DesignStand.tsx) */
+/* /admin/design — стенд дизайн-системи (components/DesignStand.tsx).
+   Розкладка сторінки — спільна з .adm-page (див. .ds-page там). */
 .ds-layout {
   display: grid;
-  grid-template-columns: minmax(240px, 300px) 1fr;
+  grid-template-columns: minmax(260px, 320px) 1fr;
   gap: 16px;
   align-items: start;
 }
-@media (max-width: 900px) {
+/* 1100, а не 900: від 900px поруч іще й сайдбар адмінки (190px), і прев'ю
+   праворуч лишалось ~400px. Стовпчиком регулятори не липнуть — інакше
+   їхній блок висотою в екран їхав би поверх прев'ю. */
+@media (max-width: 1100px) {
   .ds-layout {
     grid-template-columns: 1fr;
+  }
+  .ds-layout > .ds-controls {
+    position: static;
+    max-height: none;
   }
 }
 .ds-controls {
@@ -3473,7 +3750,7 @@
 }
 .ds-group-preset {
   width: auto;
-  min-height: 26px;
+  min-height: var(--iconbtn-sm);
   padding: 2px 6px;
   font-size: 11.5px;
 }
@@ -3520,14 +3797,11 @@
   border-radius: var(--radius-card);
   white-space: pre-wrap;
 }
+/* Прев'ю — картки поруч (.adm-flow у розмітці), ширша база: у кожній
+   ряд атомів, їм тісно в 360px. */
 .ds-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  --adm-col: 480px;
   min-width: 0;
-}
-.ds-preview > .adm-card {
-  margin-top: 0;
 }
 .ds-row {
   display: flex;
@@ -3616,17 +3890,12 @@
 .adm-tg-ok {
   color: var(--green-700);
 }
+/* Затемнений --cb-fail: чистий на білому ~3:1, нижче норми для тексту. */
 .adm-tg-bad {
-  color: var(--danger);
+  color: color-mix(in srgb, var(--cb-fail) 70%, var(--cb-black));
 }
-.adm-tg-search {
-  max-width: 320px;
-}
-.adm-tg-actions {
-  white-space: nowrap;
-}
-.adm-tg-actions .iconbtn + .iconbtn {
-  margin-left: 4px;
+.adm-page .adm-tg-search {
+  flex: 0 1 320px;
 }
 .adm-card-head h2 svg {
   width: 18px;

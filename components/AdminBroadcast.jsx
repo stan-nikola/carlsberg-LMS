@@ -111,12 +111,19 @@ export function AdminBroadcast({ children = null }) {
   }
 
   return (
-    <div className="admin-page">
-      <h1>Сповіщення</h1>
-      <p className="admin-subtitle">
-        Ручна розсилка в центр сповіщень, push на пристрої і Telegram. Нові курси, дедлайни та відзнаки розсилаються автоматично.
-      </p>
+    <div className="admin-page adm-page">
+      <div className="adm-page-head">
+        <div>
+          <h1>Сповіщення</h1>
+          <p className="admin-subtitle">
+            Ручна розсилка в центр сповіщень, push на пристрої і Telegram. Нові курси, дедлайни та відзнаки розсилаються автоматично.
+          </p>
+        </div>
+      </div>
 
+      {/* Форма й історія — поруч на широкому екрані; блоки Telegram
+          (children, components/AdminTelegram.tsx) у тому ж потоці нижче. */}
+      <div className="adm-flow">
       <form className="adm-card adm-bc-form" onSubmit={send}>
         <div className="adm-card-head">
           <h2>Нова розсилка</h2>
@@ -136,6 +143,7 @@ export function AdminBroadcast({ children = null }) {
           <div className="adm-link-row">
             <select
               className="admin-select"
+              aria-label="Курс"
               value={courses.some((c) => form.url === `/courses/${c.slug}`) ? form.url : ""}
               onChange={(e) => setForm({ ...form, url: e.target.value })}
             >
@@ -150,7 +158,7 @@ export function AdminBroadcast({ children = null }) {
                 </optgroup>
               ))}
             </select>
-            <input className="admin-input-flex" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="або свій шлях: /hub/learn" />
+            <input className="admin-input-flex" aria-label="Свій шлях" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="або свій шлях: /hub/learn" />
           </div>
         </div>
         <div className="admin-field">
@@ -193,17 +201,17 @@ export function AdminBroadcast({ children = null }) {
         )}
         <div className="adm-card-foot">
           {result && <p className="admin-hint">{result}</p>}
-          <button type="submit" className="admin-btn admin-btn-primary" disabled={sending || (!form.all && form.positionCodes.length === 0) || (!form.push && !form.telegram)}>
+          <button type="submit" className="admin-btn" disabled={sending || (!form.all && form.positionCodes.length === 0) || (!form.push && !form.telegram)}>
             {sending ? <SpinnerIcon /> : "Надіслати"}
           </button>
         </div>
       </form>
 
-      <section className="adm-card" style={{ marginTop: 16 }}>
+      <section className="adm-card adm-wide">
       <div className="adm-card-head">
         <h2>Історія</h2>
         {selected.size > 0 && (
-          <button type="button" className="admin-btn admin-btn-danger" onClick={() => removeBroadcasts([...selected])} disabled={deleting}>
+          <button type="button" className="admin-btn adm-btn-danger" onClick={() => removeBroadcasts([...selected])} disabled={deleting}>
             {deleting && <SpinnerIcon />}
             Видалити обрані ({selected.size})
           </button>
@@ -212,6 +220,7 @@ export function AdminBroadcast({ children = null }) {
       {history.length === 0 ? (
         <p className="admin-hint">Ще нічого не надсилали.</p>
       ) : (
+        <div className="adm-table-wrap">
         <table className="admin-table adm-bc-table">
           <thead>
             <tr>
@@ -228,9 +237,9 @@ export function AdminBroadcast({ children = null }) {
               <th>Коли</th>
               <th>Заголовок</th>
               <th>Кому</th>
-              <th>Отримали</th>
-              <th>Push</th>
-              <th>Telegram</th>
+              <th className="adm-num">Отримали</th>
+              <th className="adm-num">Push</th>
+              <th className="adm-num">Telegram</th>
               <th />
             </tr>
           </thead>
@@ -258,10 +267,10 @@ export function AdminBroadcast({ children = null }) {
                   <div className="admin-hint">{b.message}</div>
                 </td>
                 <td>{b.targetSummary}</td>
-                <td>{b.sentCount}</td>
-                <td>{(b.channels || "push,telegram").includes("push") ? b.pushed : "—"}</td>
-                <td>{(b.channels || "push,telegram").includes("telegram") ? b.telegramSent : "—"}</td>
-                <td>
+                <td className="adm-num">{b.sentCount}</td>
+                <td className="adm-num">{(b.channels || "push,telegram").includes("push") ? b.pushed : "—"}</td>
+                <td className="adm-num">{(b.channels || "push,telegram").includes("telegram") ? b.telegramSent : "—"}</td>
+                <td className="adm-actions-cell">
                   <button type="button" className="iconbtn iconbtn-danger" title="Видалити" aria-label="Видалити" onClick={() => removeBroadcasts([b.id])} disabled={deleting}>
                     <XIcon />
                   </button>
@@ -270,9 +279,11 @@ export function AdminBroadcast({ children = null }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
       </section>
       {children}
+      </div>
     </div>
   );
 }

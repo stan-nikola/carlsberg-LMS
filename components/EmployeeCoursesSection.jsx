@@ -9,6 +9,13 @@ const STATUS_LABELS = {
   completed: "Завершено",
   overdue: "Прострочено",
 };
+// Стани призначення — спільна статус-пілюля (.status-pill, globals.css),
+// як у хабі й кабінеті керівника; «не розпочато» — нейтральна базова.
+const STATUS_PILL = {
+  in_progress: "status-pill-alert",
+  completed: "status-pill-success",
+  overdue: "status-pill-fail",
+};
 
 /**
  * Вкладка "Курси" на детальній картці співробітника (Фаза D) — список
@@ -90,7 +97,7 @@ export function EmployeeCoursesSection({ employeeId }) {
   }
 
   return (
-    <section className="adm-card">
+    <section className="adm-card adm-full">
       <div className="adm-card-head">
         <h2>Курси</h2>
         <span className="admin-hint">{enrollments.length ? `призначено: ${enrollments.length}` : "нічого не призначено"}</span>
@@ -99,12 +106,13 @@ export function EmployeeCoursesSection({ employeeId }) {
       {enrollments.length === 0 ? (
         <p className="admin-subtitle">Ще жодного курсу не призначено.</p>
       ) : (
-        <table className="admin-table" style={{ marginTop: 8 }}>
+        <div className="adm-table-wrap">
+        <table className="admin-table">
           <thead>
             <tr>
               <th>Курс</th>
               <th>Статус</th>
-              <th>Бал</th>
+              <th className="adm-num">Бал</th>
               <th />
             </tr>
           </thead>
@@ -122,14 +130,16 @@ export function EmployeeCoursesSection({ employeeId }) {
                     {e.course.title}
                     {e.adminNote && <div className="admin-hint">Ручна корекція: {e.adminNote}</div>}
                   </td>
-                  <td>{STATUS_LABELS[e.status] || e.status}</td>
-                  <td>{e.scorePercent != null ? `${e.scorePercent}%` : "—"}</td>
                   <td>
-                    <span style={{ display: "flex", gap: 6 }}>
-                      <button className="admin-btn-link" onClick={() => setEditingId(e.id)}>
+                    <span className={`status-pill ${STATUS_PILL[e.status] || ""}`}>{STATUS_LABELS[e.status] || e.status}</span>
+                  </td>
+                  <td className="adm-num">{e.scorePercent != null ? `${e.scorePercent}%` : "—"}</td>
+                  <td className="adm-actions-cell">
+                    <span className="adm-row-actions">
+                      <button className="admin-btn adm-btn-secondary" onClick={() => setEditingId(e.id)}>
                         Скорегувати
                       </button>
-                      <button className="admin-btn-link" onClick={() => handleUnassign(e.id, e.course.title)}>
+                      <button className="admin-btn adm-btn-danger" onClick={() => handleUnassign(e.id, e.course.title)}>
                         Зняти
                       </button>
                     </span>
@@ -139,11 +149,17 @@ export function EmployeeCoursesSection({ employeeId }) {
             )}
           </tbody>
         </table>
+        </div>
       )}
 
       <div className="adm-card-foot">
         {error && <p className="admin-error">{error}</p>}
-        <select className="admin-select" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} style={{ maxWidth: 320 }}>
+        <select
+          className="admin-select adm-foot-field"
+          aria-label="Курс для призначення"
+          value={selectedCourseId}
+          onChange={(e) => setSelectedCourseId(e.target.value)}
+        >
           <option value="">Обрати курс…</option>
           {assignableCourses.map((c) => (
             <option key={c.id} value={c.id}>
@@ -200,14 +216,14 @@ function EnrollmentEditRow({ enrollment, onSaved, onCancel }) {
 
   return (
     <div className="admin-enrollment-row-edit">
-      <div className="admin-form-columns">
+      <div className="adm-field-grid">
         <div className="admin-field">
-          <label className="admin-label">Курс</label>
+          <span className="admin-label">Курс</span>
           <p className="admin-subtitle">{enrollment.course.title}</p>
         </div>
         <div className="admin-field">
-          <label className="admin-label">Статус</label>
-          <select className="admin-select" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <label className="admin-label" htmlFor={`enr${enrollment.id}Status`}>Статус</label>
+          <select id={`enr${enrollment.id}Status`} className="admin-select" value={status} onChange={(e) => setStatus(e.target.value)}>
             {Object.entries(STATUS_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
@@ -215,33 +231,31 @@ function EnrollmentEditRow({ enrollment, onSaved, onCancel }) {
             ))}
           </select>
         </div>
-      </div>
-      <div className="admin-form-columns">
         <div className="admin-field">
-          <label className="admin-label">Бал, %</label>
-          <input className="admin-input-flex" type="number" min="0" max="100" value={scorePercent} onChange={(e) => setScorePercent(e.target.value)} />
+          <label className="admin-label" htmlFor={`enr${enrollment.id}Score`}>Бал, %</label>
+          <input id={`enr${enrollment.id}Score`} className="admin-input-flex" type="number" min="0" max="100" value={scorePercent} onChange={(e) => setScorePercent(e.target.value)} />
         </div>
         <div className="admin-field">
-          <label className="admin-label">Дата завершення</label>
-          <input className="admin-input-flex" type="date" value={completedAt} onChange={(e) => setCompletedAt(e.target.value)} />
+          <label className="admin-label" htmlFor={`enr${enrollment.id}Done`}>Дата завершення</label>
+          <input id={`enr${enrollment.id}Done`} className="admin-input-flex" type="date" value={completedAt} onChange={(e) => setCompletedAt(e.target.value)} />
         </div>
         <div className="admin-field">
-          <label className="admin-label">Дедлайн</label>
-          <input className="admin-input-flex" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <label className="admin-label" htmlFor={`enr${enrollment.id}Due`}>Дедлайн</label>
+          <input id={`enr${enrollment.id}Due`} className="admin-input-flex" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        </div>
+        <div className="admin-field admin-field-wide">
+          <label className="admin-label" htmlFor={`enr${enrollment.id}Note`}>Причина ручної корекції (обов&apos;язково)</label>
+          <input id={`enr${enrollment.id}Note`} className="admin-input-flex" value={adminNote} onChange={(e) => setAdminNote(e.target.value)} placeholder="напр. Пройшов офлайн, підтверджено керівником" />
+          {error && <p className="admin-error">{error}</p>}
         </div>
       </div>
-      <div className="admin-field">
-        <label className="admin-label">Причина ручної корекції (обов&apos;язково)</label>
-        <input className="admin-input-flex" value={adminNote} onChange={(e) => setAdminNote(e.target.value)} placeholder="напр. Пройшов офлайн, підтверджено керівником" />
-      </div>
-      {error && <p className="admin-error">{error}</p>}
-      <div className="admin-btn-group">
+      <div className="adm-row-actions">
+        <button className="admin-btn adm-btn-secondary" onClick={onCancel} disabled={saving}>
+          Скасувати
+        </button>
         <button className="admin-btn" disabled={saving} onClick={handleSave}>
           {saving && <SpinnerIcon />}
           Зберегти
-        </button>
-        <button className="admin-btn-link" onClick={onCancel} disabled={saving}>
-          Скасувати
         </button>
       </div>
     </div>

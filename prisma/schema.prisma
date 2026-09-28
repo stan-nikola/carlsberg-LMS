@@ -97,6 +97,10 @@ model Employee {
   /// на пошту керівника (employee.manager.email) — див. lib/auth.js.
   loginPin     String?
   pinIssuedAt  DateTime?
+  /// Версія сесій (2026-09-27): зашита в підписану cookie (lib/session.js).
+  /// Адмін збільшує її при деактивації / зміні пошти чи ролі — і всі
+  /// видані раніше сесії людини одразу перестають діяти.
+  sessionVersion Int      @default(0)
   /// Момент першого успішного входу (перше підтвердження PIN) — те, що в
   /// legacy показувалось як profile.registeredAt. createdAt тут не підходить:
   /// той проставляється, коли адмін заводить рядок Employee, а не коли
@@ -350,6 +354,7 @@ model Module {
 
   screens     Screen[]
   completions ModuleCompletion[]
+  attempts    ModuleAttempt[]
 }
 
 /// Факт складання модуля конкретним співробітником (в рамках конкретного
@@ -399,8 +404,64 @@ model ModuleCompletion {
   /// числом — там і далі показується орієнтовна оцінка з
   /// lib/estimateTime.js, як і для ще не пройдених модулів).
   durationSeconds      Int?
+  /// Час ОСТАННЬОЇ спроби (2026-09-27). З переходом на «найкращий результат
+  /// перемагає» scorePercent/passed/completedAt тримають НАЙКРАЩУ спробу, а
+  /// гальмо перескладання (lib/retryPolicy.ts retryGate) рахує паузу від
+  /// останньої — тому окреме поле. null — рядки до цієї міграції, там
+  /// completedAt і так була останньою спробою.
+  lastAttemptAt        DateTime?
+  /// Номер спроби, на якій модуль ВПЕРШЕ склали (1 = з першого разу) —
+  /// правило рейтингу «з першої спроби». null — ще не складено або рядок
+  /// записано до цієї міграції.
+  firstPassedAttempt   Int?
 
   @@unique([enrollmentId, moduleId])
+}
+
+/// Одна спроба модуля з перевіркою на сервері (2026-09-27, аудит S-C1). До
+/// цього бал рахував браузер, а сервер записував присланий `scorePercent` як
+/// є, — будь-хто з devtools «складав» курс на 100%. Тепер кожна відповідь
+/// перевіряється на сервері в момент відповіді (POST /api/courses/:slug/answer)
+/// і пишеться сюди; відкрита спроба (finishedAt = null) у модуля одна —
+/// змінити вже дану відповідь не можна, а покинута спроба продовжується, а не
+/// починається заново з чистого аркуша. module-complete закриває спробу й
+/// рахує бал лише з того, що записано тут.
+model ModuleAttempt {
+  id              Int             @id @default(autoincrement())
+  enrollmentId    Int
+  enrollment      Enrollment      @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  moduleId        Int
+  module          Module          @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  /// 1-based: ModuleCompletion.attemptCount на момент початку + 1. Від нього ж
+  /// детерміновано вибирається пул питань (lib/retryPolicy.ts).
+  attemptNumber   Int
+  startedAt       DateTime        @default(now())
+  finishedAt      DateTime?
+  /// UUID із браузера: повторна відправка того самого завершення (офлайн-черга,
+  /// друга вкладка) повертає вже записаний результат, а не рахує нову спробу.
+  clientAttemptId String?         @unique
+  scoreRaw        Int?
+  scoreMax        Int?
+  scorePercent    Int?
+  passed          Boolean?
+  answers         AttemptAnswer[]
+
+  @@index([enrollmentId, moduleId])
+}
+
+/// Відповідь на одне питання в межах спроби — перевірена сервером у момент
+/// відповіді. Первинний ключ (спроба, питання): відповісти двічі не можна.
+model AttemptAnswer {
+  attemptId   Int
+  attempt     ModuleAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  componentId Int
+  component   Component     @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  /// Сира відповідь людини (вибрані варіанти / порядок / пари / точка на фото).
+  response    Json
+  correct     Boolean
+  answeredAt  DateTime      @default(now())
+
+  @@id([attemptId, componentId])
 }
 
 /// Екран курсу — те, що співробітник реально бачить і гортає "Далі"/"Назад"
@@ -499,6 +560,7 @@ model Component {
   /// Відповіді співробітників на це питання — аналітика складності
   /// (частка правильних) у конструкторі.
   questionAnswers QuestionAnswer[]
+  attemptAnswers  AttemptAnswer[]
 }
 
 // ---------------------------------------------------------------------
@@ -553,6 +615,15 @@ model Enrollment {
   attempts          EnrollmentAttempt[]
   questionAnswers   QuestionAnswer[]
   moduleCompletions ModuleCompletion[]
+  moduleAttempts    ModuleAttempt[]
+
+  /// Коли курс ВПЕРШЕ склали (2026-09-27): правило рейтингу «вчасно»
+  /// рахується від нього, а не від completedAt останнього перескладання —
+  /// інакше покращення результату після дедлайну знімало бали «вчасно».
+  firstPassedAt DateTime?
+  /// Коли курс став простроченим — дайджест керівнику бере «нові
+  /// прострочення» звідси, а не з updatedAt (той міняє будь-яка правка).
+  overdueAt     DateTime?
 
   /// Аудит-слід ручної корекції адміном (Фаза D адмінки) — чому статус/бал
   /// був змінений вручну (напр. "пройшов офлайн, підтверджено керівником").
@@ -766,6 +837,9 @@ model AdminApiToken {
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?
+  /// Термін дії (2026-09-27, рік від створення). null — токени, видані до
+  /// цього поля: вони працюють далі, щоб не зламати вже налаштовану книгу.
+  expiresAt  DateTime?
 }
 
 // ---------------------------------------------------------------------

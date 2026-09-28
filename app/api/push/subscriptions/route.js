@@ -8,12 +8,26 @@ import { getCurrentUser } from "@/lib/session";
 // іншим кодом), upsert переприв'язує його до нового власника — інакше
 // push з чужими курсами прийшов би не тій людині.
 
+// Лише справжні push-сервіси браузерів: сервер сам шле POST на endpoint
+// (lib/webPush.js), і довільний https://-адрес робив із нас проксі для
+// запитів на будь-який хост (SSRF, аудит 2026-09-27).
+const PUSH_HOSTS = /(^|\.)(fcm\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.apple\.com)$/i;
+
+function isPushEndpoint(endpoint) {
+  try {
+    const url = new URL(endpoint);
+    return url.protocol === "https:" && PUSH_HOSTS.test(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function parseSubscription(body) {
   const s = body?.subscription;
   const endpoint = s?.endpoint;
   const p256dh = s?.keys?.p256dh;
   const auth = s?.keys?.auth;
-  if (typeof endpoint !== "string" || !endpoint.startsWith("https://")) return null;
+  if (typeof endpoint !== "string" || !isPushEndpoint(endpoint)) return null;
   if (typeof p256dh !== "string" || typeof auth !== "string") return null;
   return { endpoint, p256dh, auth };
 }
@@ -32,7 +46,7 @@ export async function POST(request) {
     // pushsubscriptionchange у service worker: старий endpoint помер —
     // прибираємо його, щоб не слати в порожнечу.
     if (typeof body.replacesEndpoint === "string") {
-      await tx.pushSubscription.deleteMany({ where: { endpoint: body.replacesEndpoint } });
+      await tx.pushSubscription.deleteMany({ where: { endpoint: body.replacesEndpoint, employeeId: employee.id } });
     }
     await tx.pushSubscription.upsert({
       where: { endpoint: sub.endpoint },

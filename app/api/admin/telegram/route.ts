@@ -78,14 +78,24 @@ export async function GET() {
   });
 }
 
+/**
+ * База — APP_URL / Vercel production URL; власну (тунель) у body.base можна
+ * передати лише поза продом — Telegram не достукається до localhost. На проді
+ * довільна база дозволяла б одним запитом з адмін-сесії перевісити webhook
+ * на чужий хост і отримати TELEGRAM_WEBHOOK_SECRET у заголовку (аудит,
+ * 2026-09-27).
+ */
+function resolveBase(body: { base?: unknown }): string | null {
+  if (process.env.NODE_ENV !== "production" && typeof body.base === "string" && /^https:\/\//.test(body.base)) return body.base;
+  return appBaseUrl();
+}
+
 export async function POST(request: Request) {
   if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = await request.json().catch(() => ({}));
 
   if (body.action === "webhook") {
-    // База — APP_URL / Vercel production URL; локально можна передати
-    // свою (тунель) у body.base — Telegram не достукається до localhost.
-    const base = typeof body.base === "string" && /^https:\/\//.test(body.base) ? body.base : appBaseUrl();
+    const base = resolveBase(body);
     if (!base) return NextResponse.json({ error: "Не знаю публічної адреси: задайте APP_URL" }, { status: 400 });
     const r = await setWebhook(base);
     if (!r.ok) return NextResponse.json({ error: r.description }, { status: 400 });
@@ -94,7 +104,7 @@ export async function POST(request: Request) {
   }
 
   if (body.action === "menu_button") {
-    const base = typeof body.base === "string" && /^https:\/\//.test(body.base) ? body.base : appBaseUrl();
+    const base = resolveBase(body);
     if (!base) return NextResponse.json({ error: "Не знаю публічної адреси: задайте APP_URL" }, { status: 400 });
     const r = await setMenuButton(base);
     if (!r.ok) return NextResponse.json({ error: r.description }, { status: 400 });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requestLoginPin } from "@/lib/auth";
 import { isDemoLoginEnabled, isDemoCode } from "@/lib/demoLogin";
+import { clientIp, hitRateLimit, tooManyRequests } from "@/lib/loginThrottle";
 
 /**
  * POST /api/auth/register
@@ -37,6 +38,18 @@ export async function POST(request) {
     }
     recipientOverride = demoEmail;
   }
+
+  // Кожен виклик — це лист (сотруднику або його керівнику): без ліміту
+  // цикл запитів засипав би пошту й за годину вичерпав денну квоту Gmail
+  // SMTP, зламавши вхід усій компанії. Свіжий PIN (lib/auth.js) при
+  // повторі не перегенеровується, тож чужі запити не «збивають» код
+  // справжньому власнику.
+  const [perCode, perIp] = await Promise.all([
+    hitRateLimit(`pinreq:${externalCode.toLowerCase()}`, 5, 60 * 60 * 1000),
+    hitRateLimit(`ip-pinreq:${clientIp(request)}`, 60, 60 * 60 * 1000),
+  ]);
+  const limited = !perCode.allowed ? perCode : !perIp.allowed ? perIp : null;
+  if (limited) return tooManyRequests(limited.retryAt, "rate_limited");
 
   const result = await requestLoginPin(externalCode, name, { recipientOverride });
   const status = result.ok

@@ -46,19 +46,21 @@ export function EmployeeImportForm({ onImported }: Props) {
     }
   }
 
+  // Фрагмент, а не власна обгортка: форма живе всередині .adm-card на
+  // /admin/data, і дії мають стати в її футер (.adm-card-foot) — на одному
+  // рівні з «Експортом» у сусідній картці того ж ряду.
   return (
-    <div className="admin-form-section">
+    <>
       <p className="admin-subtitle">
         Тільки додавання нових співробітників (за кодом) — існуючих не чіпає. Заповніть шаблон і завантажте
         файл.
       </p>
-      {/* Файл-завантаження (xlsx) — звичайний <a href>, не <Link>, щоб браузер
-          сам ініціював завантаження; той самий патерн, що /api/manager/export. */}
-      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-      <a className="admin-btn-link" href="/api/admin/employees/import-template">
-        ⬇ Завантажити шаблон (.xlsx)
-      </a>
-      <input type="file" accept=".xlsx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+      <div className="admin-field">
+        <label className="admin-label" htmlFor="employeeImportFile">
+          Файл (.xlsx)
+        </label>
+        <input id="employeeImportFile" type="file" accept=".xlsx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+      </div>
       {error && <p className="admin-error">{error}</p>}
       {result && (
         <div className="admin-hint">
@@ -74,12 +76,18 @@ export function EmployeeImportForm({ onImported }: Props) {
           )}
         </div>
       )}
-      <div className="admin-btn-group">
+      <div className="adm-card-foot">
+        {/* Файл-завантаження (xlsx) — звичайний <a href>, не <Link>, щоб браузер
+            сам ініціював завантаження; той самий патерн, що /api/manager/export. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a className="admin-btn adm-btn-secondary" href="/api/admin/employees/import-template">
+          ⬇ Завантажити шаблон (.xlsx)
+        </a>
         <button className="admin-btn" disabled={!file || uploading} onClick={handleUpload}>
           {uploading && <SpinnerIcon />}
           Імпортувати
         </button>
       </div>
-    </div>
+    </>
   );
 }

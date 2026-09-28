@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { confirmLoginPin } from "@/lib/auth";
+import { confirmLoginPin, invalidateLoginPin } from "@/lib/auth";
 import { createSession } from "@/lib/session";
-import { checkThrottle, pinThrottleKey, recordFailure, recordSuccess } from "@/lib/loginThrottle";
+import { clientIp, hitRateLimit, pinThrottleKey, recordSuccess, registerAttempt, settleFailure, tooManyRequests } from "@/lib/loginThrottle";
 
 /**
  * POST /api/auth/confirm
@@ -25,24 +25,29 @@ export async function POST(request) {
     );
   }
 
-  // Лічильник — лише на сам код (не на введений PIN), і лише на реальну
-  // спробу вгадати PIN (invalid_pin нижче) — щоб перебір 10 000 варіантів
-  // 4-значного PIN (lib/auth.js) упирався в блокування, а не тривав
-  // необмежено. not_found/deactivated/pin_expired лічильник не чіпають —
-  // це не спроба вгадати PIN, а зовсім інша відповідь.
+  // Загальний ліміт на IP — проти перебору PIN по багатьох кодах одразу
+  // (по 5 спроб на кожен). Щедрий: мобільні оператори ховають за одним IP
+  // (CGNAT) багато чужих людей.
+  const ipLimit = await hitRateLimit(`ip-confirm:${clientIp(request)}`, 100, 15 * 60 * 1000);
+  if (!ipLimit.allowed) return tooManyRequests(ipLimit.retryAt);
+
+  // Спроба рахується ДО перевірки (lib/loginThrottle.ts) — інакше паралельна
+  // пачка запитів проскакувала повз ліміт.
   const throttleKey = pinThrottleKey(externalCode);
-  const throttle = await checkThrottle(throttleKey);
-  if (throttle.locked) {
-    return NextResponse.json(
-      { ok: false, error: "locked", retryAt: throttle.retryAt },
-      { status: 429, headers: { "Retry-After": String(Math.ceil((throttle.retryAt.getTime() - Date.now()) / 1000)) } }
-    );
-  }
+  const attempt = await registerAttempt(throttleKey);
+  if (!attempt.allowed) return tooManyRequests(attempt.retryAt);
 
   const result = await confirmLoginPin(externalCode, pin);
   if (!result.ok) {
     if (result.error === "invalid_pin") {
-      await recordFailure(throttleKey);
+      const settled = await settleFailure(throttleKey, attempt.attempt);
+      // Після 5 помилок цей PIN більше не діє зовсім — навіть коли
+      // блокування мине, вгадувати далі той самий PIN сенсу нема: потрібен
+      // новий лист. Без цього PIN жив 12 годин і перебирався «по 5 за 15 хв».
+      if (settled.locked) {
+        await invalidateLoginPin(externalCode);
+        return tooManyRequests(settled.retryAt, "locked_new_pin_required");
+      }
     }
     // pin_expired — тоже 401 (не найдено что-то отдельное, PIN просто
     // больше не действителен), но полезно как отдельный код ошибки для UI.
@@ -51,7 +56,7 @@ export async function POST(request) {
   }
 
   await recordSuccess(throttleKey);
-  await createSession(result.employee.id);
+  await createSession(result.employee.id, result.employee.sessionVersion);
 
   return NextResponse.json({
     ok: true,

@@ -3,23 +3,24 @@
 import { useMemo, useState } from "react";
 import { QuestionIcon, ChevronIcon, CheckIcon, XIcon, GripIcon } from "@/components/icons";
 import { ScreenMedia } from "@/components/ScreenComponents";
-import { shuffleArray } from "@/lib/coursePlayerLogic";
 import { renderRichMarks } from "@/lib/richText";
 import { useDragReorder } from "@/lib/useDragReorder";
+import { answerFor, isAnswerDone, viewContent, type AnswerState } from "@/lib/grading";
+import { AnswerStatus } from "@/components/AnswerStatus";
 
 type Img = { url: string; caption?: string };
 type QuestionProps = {
-  component: { title?: string | null; content?: Record<string, unknown> };
+  component: { id: number | string; title?: string | null; content?: Record<string, unknown> };
   screenNumber?: number;
-  /** undefined — ще не відповідали; true/false — результат. */
-  answer?: boolean;
-  onAnswer: (correct: boolean) => void;
+  /** lib/grading.ts AnswerState: undefined — ще не відповідали. */
+  answer?: AnswerState;
+  onAnswer: (answer: AnswerState) => void;
   onZoomImage?: (img: { src: string; alt: string }) => void;
   questionNumber?: number;
   questionTotal?: number;
 };
-type OrderItem = { text?: string };
-type MatchPair = { left?: string; right?: string };
+type Keyed = { key: string; text: string };
+type RevealPair = { leftKey: string; rightKey: string; left: string; right: string };
 
 /**
  * Питання, де відповідь — не вибір із варіантів (2026-09-17).
@@ -94,34 +95,35 @@ function QuestionHeader({
  * рядки, поки не збере потрібний порядок, і натискає «Перевірити».
  */
 export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZoomImage, questionNumber, questionTotal }: QuestionProps) {
-  const c = (component.content || {}) as { items?: OrderItem[]; lead?: string; images?: Img[]; explanation?: string };
-  const items = c.items || [];
-  const { lead, images, explanation } = c;
-  // Перемішуємо один раз при монтуванні — інакше порядок стрибав би на
-  // кожен рух (а рухи тут і є суттю завдання).
-  const [order, setOrder] = useState(() => {
-    const idx = items.map((_: OrderItem, i: number) => i);
-    // Гарантія, що перемішане НЕ збігається з правильним: інакше в
-    // завданні з двох кроків людина в половині випадків «вже склала».
-    const shuffled = shuffleArray(idx);
-    if (idx.length > 1 && shuffled.every((v, i) => v === idx[i])) return [...shuffled].reverse();
-    return shuffled;
-  });
-  const isAnswered = answer !== undefined;
+  // Кроки вже перемішані (lib/grading.ts publicContent: гарантовано НЕ в
+  // правильному порядку — інакше в завданні з двох кроків людина в половині
+  // випадків «вже склала») і під непрозорими key: правильний порядок у
+  // браузер не потрапляє, його повертає сервер у розборі після відповіді.
+  const view = useMemo(() => viewContent("ordering", component.content, component.id), [component.content, component.id]);
+  const items = useMemo(() => (view.items || []) as Keyed[], [view]);
+  const itemByKey = useMemo(() => new Map(items.map((it) => [it.key, it])), [items]);
+  const { lead, images } = view as { lead?: string; images?: Img[] };
+  const checking = answer?.status === "checking";
+  const graded = typeof answer?.correct === "boolean";
+  const isAnswered = checking || isAnswerDone(answer);
+  const [draft, setDraft] = useState<string[]>(() => items.map((it) => it.key));
+  const answeredOrder = (answer?.response as { order?: string[] } | undefined)?.order;
+  const order = isAnswered && Array.isArray(answeredOrder) ? answeredOrder : draft;
+  const reveal = graded ? (answer!.reveal as { items?: Keyed[]; explanation?: string } | null) : null;
+  const correctOrder = reveal?.items || [];
+  const explanation = reveal?.explanation;
 
   // Перетягування — lib/useDragReorder.ts: та сама механіка, що й у
-  // конструкторі (components/AdminCourseEditor.jsx OrderingFields), тут
-  // застосована до масиву ПОЗИЦІЙ (order), а не самих кроків: крок №2
-  // лишається кроком №2, міняється лише МІСЦЕ, на якому він стоїть.
-  const { containerRef, containerProps, registerRow, dragId, dragDeltaY, moveByKeyboard } = useDragReorder({
+  // конструкторі (components/AdminCourseEditor.jsx OrderingFields).
+  const { containerRef, containerProps, registerRow, dragId, dragDeltaY, moveByKeyboard } = useDragReorder<string>({
     ids: order,
-    onReorder: setOrder,
+    onReorder: setDraft,
     disabled: isAnswered,
   });
 
   function check() {
     if (isAnswered) return;
-    onAnswer(order.every((v, i) => v === i));
+    onAnswer(answerFor("ordering", component.content, { order: draft }));
   }
 
   return (
@@ -138,41 +140,42 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
       />
 
       <ol className="q-order" ref={containerRef as React.RefObject<HTMLOListElement>} {...containerProps}>
-        {order.map((itemIndex, pos) => {
-          const correctHere = isAnswered && itemIndex === pos;
-          const isDragging = dragId === itemIndex;
+        {order.map((key, pos) => {
+          const correctHere = graded && correctOrder[pos]?.key === key;
+          const isDragging = dragId === key;
+          const text = itemByKey.get(key)?.text;
           return (
             <li
-              key={itemIndex}
-              ref={registerRow(itemIndex)}
+              key={key}
+              ref={registerRow(key)}
               data-drag-row
-              className={`q-order-row${isAnswered ? (correctHere ? " is-correct" : " is-wrong") : ""}${isDragging ? " is-dragging" : ""}`}
+              className={`q-order-row${graded ? (correctHere ? " is-correct" : " is-wrong") : ""}${isDragging ? " is-dragging" : ""}`}
               style={isDragging ? { transform: `translateY(${dragDeltaY}px)` } : undefined}
             >
               <span className="q-order-num">{pos + 1}</span>
-              <span className="q-order-text">{renderRichMarks(items[itemIndex]?.text)}</span>
+              <span className="q-order-text">{renderRichMarks(text)}</span>
               {!isAnswered && (
                 <button
                   type="button"
                   className="q-order-handle"
                   data-drag-handle
-                  aria-label={`Перетягніть, щоб змінити місце кроку «${items[itemIndex]?.text || pos + 1}» — або керуйте стрілками вгору/вниз`}
+                  aria-label={`Перетягніть, щоб змінити місце кроку «${text || pos + 1}» — або керуйте стрілками вгору/вниз`}
                   // Клавіатурна альтернатива драгу (WCAG «dragging movements»):
                   // фокус на ручці, стрілки рухають крок без жодного жесту.
                   onKeyDown={(e) => {
                     if (e.key === "ArrowUp") {
                       e.preventDefault();
-                      moveByKeyboard(itemIndex, -1);
+                      moveByKeyboard(key, -1);
                     } else if (e.key === "ArrowDown") {
                       e.preventDefault();
-                      moveByKeyboard(itemIndex, 1);
+                      moveByKeyboard(key, 1);
                     }
                   }}
                 >
                   <GripIcon />
                 </button>
               )}
-              {isAnswered && (
+              {graded && (
                 <span className="q-order-mark" aria-hidden="true">
                   {correctHere ? <CheckIcon /> : <XIcon />}
                 </span>
@@ -188,12 +191,14 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
         </button>
       )}
 
-      {isAnswered && (
-        <div className={`q-fb show ${answer ? "ok" : "bad"}`}>
-          <b className="q-fb-verdict">{answer ? "Правильно! Порядок вірний." : "Порядок неправильний."}</b>
-          {!answer && (
+      <AnswerStatus answer={answer} />
+
+      {graded && (
+        <div className={`q-fb show ${answer!.correct ? "ok" : "bad"}`}>
+          <b className="q-fb-verdict">{answer!.correct ? "Правильно! Порядок вірний." : "Порядок неправильний."}</b>
+          {!answer!.correct && correctOrder.length > 0 && (
             <span className="q-fb-explain">
-              Правильна послідовність: {items.map((it) => it.text).filter(Boolean).join(" → ")}
+              Правильна послідовність: {correctOrder.map((it) => it.text).filter(Boolean).join(" → ")}
             </span>
           )}
           {explanation && <span className="q-fb-explain">{renderRichMarks(explanation)}</span>}
@@ -209,61 +214,64 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
  * Повторний тап по лівому знімає його пару.
  */
 export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZoomImage, questionNumber, questionTotal }: QuestionProps) {
-  const c = (component.content || {}) as { pairs?: MatchPair[]; lead?: string; images?: Img[]; explanation?: string };
-  // useMemo, а не просто `c.pairs || []`: новий порожній масив на кожен
-  // рендер міняв би залежність useMemo нижче, і права колонка
-  // перемішувалась би заново при кожному тапі.
-  const pairs = useMemo(() => c.pairs || [], [c.pairs]);
-  const { lead, images, explanation } = c;
-  const rightOrder = useMemo(() => {
-    const idx = pairs.map((_: MatchPair, i: number) => i);
-    const shuffled = shuffleArray(idx);
-    if (idx.length > 1 && shuffled.every((v, i) => v === idx[i])) return [...shuffled].reverse();
-    return shuffled;
-  }, [pairs]);
-  // { [leftIndex]: rightIndex }
-  const [links, setLinks] = useState<Record<number, number>>({});
-  const [activeLeft, setActiveLeft] = useState<number | null>(null);
-  const isAnswered = answer !== undefined;
+  // Ліва колонка — як у конструкторі, права — вже перемішана й під
+  // непрозорими key (lib/grading.ts publicContent): які пари правильні,
+  // браузер дізнається лише з розбору після відповіді.
+  const view = useMemo(() => viewContent("matching", component.content, component.id), [component.content, component.id]);
+  const lefts = (view.lefts || []) as Keyed[];
+  const rights = (view.rights || []) as Keyed[];
+  const { lead, images } = view as { lead?: string; images?: Img[] };
+  const checking = answer?.status === "checking";
+  const graded = typeof answer?.correct === "boolean";
+  const isAnswered = checking || isAnswerDone(answer);
+  // { [leftKey]: rightKey }
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const answeredLinks = (answer?.response as { links?: Record<string, string> } | undefined)?.links;
+  const links = isAnswered && answeredLinks ? answeredLinks : draft;
+  const [activeLeft, setActiveLeft] = useState<string | null>(null);
+  const reveal = graded ? (answer!.reveal as { pairs?: RevealPair[]; explanation?: string } | null) : null;
+  const revealPairs = reveal?.pairs || [];
+  const correctRightOf = new Map(revealPairs.map((p) => [p.leftKey, p.rightKey]));
+  const explanation = reveal?.explanation;
 
-  function pickLeft(i: number) {
+  function pickLeft(key: string) {
     if (isAnswered) return;
-    if (links[i] !== undefined) {
+    if (draft[key] !== undefined) {
       // Тап по вже зіставленому рядку знімає пару — інакше помилку
       // неможливо виправити, не почавши все спочатку.
-      setLinks((prev) => {
+      setDraft((prev) => {
         const next = { ...prev };
-        delete next[i];
+        delete next[key];
         return next;
       });
-      setActiveLeft(i);
+      setActiveLeft(key);
       return;
     }
-    setActiveLeft(activeLeft === i ? null : i);
+    setActiveLeft(activeLeft === key ? null : key);
   }
 
-  function pickRight(rightIndex: number) {
+  function pickRight(rightKey: string) {
     if (isAnswered || activeLeft === null) return;
-    setLinks((prev) => {
+    setDraft((prev) => {
       const next = { ...prev };
       // Праву частину не можна віддати двом лівим одразу.
-      for (const key of Object.keys(next)) if (next[Number(key)] === rightIndex) delete next[Number(key)];
-      next[activeLeft] = rightIndex;
+      for (const k of Object.keys(next)) if (next[k] === rightKey) delete next[k];
+      next[activeLeft] = rightKey;
       return next;
     });
     setActiveLeft(null);
   }
 
-  const allLinked = Object.keys(links).length === pairs.length;
+  const allLinked = Object.keys(draft).length === lefts.length;
 
   function check() {
     if (isAnswered) return;
-    onAnswer(pairs.every((_, i) => links[i] === i));
+    onAnswer(answerFor("matching", component.content, { links: draft }));
   }
 
   /** Який номер пари показати біля елемента — щоб зв'язок було видно без ліній. */
-  function badgeFor(leftIndex: number) {
-    return links[leftIndex] === undefined ? null : Object.keys(links).indexOf(String(leftIndex)) + 1;
+  function badgeFor(leftKey: string) {
+    return links[leftKey] === undefined ? null : Object.keys(links).indexOf(leftKey) + 1;
   }
 
   return (
@@ -294,40 +302,40 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
 
       <div className="q-match">
         <ul className="q-match-col">
-          {pairs.map((p, i) => {
-            const linked = links[i] !== undefined;
-            const correct = isAnswered && links[i] === i;
+          {lefts.map((left) => {
+            const linked = links[left.key] !== undefined;
+            const correct = graded && links[left.key] === correctRightOf.get(left.key);
             return (
-              <li key={i}>
+              <li key={left.key}>
                 <button
                   type="button"
-                  className={`q-match-item${activeLeft === i ? " is-active" : ""}${linked ? " is-linked" : ""}${
-                    isAnswered ? (correct ? " is-correct" : " is-wrong") : ""
+                  className={`q-match-item${activeLeft === left.key ? " is-active" : ""}${linked ? " is-linked" : ""}${
+                    graded ? (correct ? " is-correct" : " is-wrong") : ""
                   }`}
-                  onClick={() => pickLeft(i)}
+                  onClick={() => pickLeft(left.key)}
                   disabled={isAnswered}
                 >
-                  <span>{renderRichMarks(p.left)}</span>
-                  {linked && <b className="q-match-badge">{badgeFor(i)}</b>}
+                  <span>{renderRichMarks(left.text)}</span>
+                  {linked && <b className="q-match-badge">{badgeFor(left.key)}</b>}
                 </button>
               </li>
             );
           })}
         </ul>
         <ul className="q-match-col">
-          {rightOrder.map((rightIndex) => {
-            const ownerLeft = Object.keys(links).find((k) => links[Number(k)] === rightIndex);
+          {rights.map((right) => {
+            const ownerLeft = Object.keys(links).find((k) => links[k] === right.key);
             const linked = ownerLeft !== undefined;
             return (
-              <li key={rightIndex}>
+              <li key={right.key}>
                 <button
                   type="button"
                   className={`q-match-item${linked ? " is-linked" : ""}`}
-                  onClick={() => pickRight(rightIndex)}
+                  onClick={() => pickRight(right.key)}
                   disabled={isAnswered || activeLeft === null}
                 >
-                  <span>{renderRichMarks(pairs[rightIndex]?.right)}</span>
-                  {linked && <b className="q-match-badge">{badgeFor(Number(ownerLeft))}</b>}
+                  <span>{renderRichMarks(right.text)}</span>
+                  {linked && <b className="q-match-badge">{badgeFor(ownerLeft!)}</b>}
                 </button>
               </li>
             );
@@ -341,13 +349,15 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
         </button>
       )}
 
-      {isAnswered && (
-        <div className={`q-fb show ${answer ? "ok" : "bad"}`}>
-          <b className="q-fb-verdict">{answer ? "Правильно! Усі пари вірні." : "Не всі пари вірні."}</b>
-          {!answer && (
+      <AnswerStatus answer={answer} />
+
+      {graded && (
+        <div className={`q-fb show ${answer!.correct ? "ok" : "bad"}`}>
+          <b className="q-fb-verdict">{answer!.correct ? "Правильно! Усі пари вірні." : "Не всі пари вірні."}</b>
+          {!answer!.correct && (
             <ul className="q-fb-options">
-              {pairs.map((p, i) => (
-                <li key={i} className={links[i] === i ? "is-correct" : "is-wrong"}>
+              {revealPairs.map((p) => (
+                <li key={p.leftKey} className={links[p.leftKey] === p.rightKey ? "is-correct" : "is-wrong"}>
                   <b>{renderRichMarks(p.left)}</b>
                   <span>{renderRichMarks(p.right)}</span>
                 </li>

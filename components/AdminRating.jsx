@@ -80,7 +80,7 @@ export function AdminRating() {
 
   if (loading)
     return (
-      <div className="admin-page">
+      <div className="admin-page adm-page">
         <p className="admin-subtitle">
           <SpinnerIcon /> Завантаження…
         </p>
@@ -95,7 +95,7 @@ export function AdminRating() {
   const maxPerCourse = pts("course_completed") + pts("course_perfect") + pts("first_attempt") + pts("on_time");
 
   return (
-    <div className="admin-page rt-admin">
+    <div className="admin-page adm-page rt-admin">
       <div className="adm-page-head">
         <div>
           <h1>Рейтинг</h1>
@@ -103,10 +103,20 @@ export function AdminRating() {
             Бали лише за перевірений результат: складений курс, 100%, перша спроба, вчасно, відзнаки. Штрафів немає — прострочення просто не дає бонусу «вчасно». Період — весь час.
           </p>
         </div>
+        {/* Збереження — у шапці сторінки, як головна дія розділу: воно
+            стосується обох карток нижче (ваги й рівні), а не якоїсь однієї. */}
+        <div className="adm-page-actions">
+          {!dirty && !msg && <span className="admin-hint">Змін немає</span>}
+          {msg && <span className="admin-hint">{msg}</span>}
+          <button type="button" className="admin-btn" onClick={save} disabled={saving || !dirty}>
+            {saving ? <SpinnerIcon /> : "Зберегти зміни"}
+          </button>
+        </div>
       </div>
 
-      <section className="rt-admin-section">
-        <div className="rt-admin-section-head">
+      <div className="adm-flow">
+      <section className="adm-card adm-full">
+        <div className="adm-card-head">
           <h2>Ваги подій</h2>
           <span className="admin-hint">Максимум за один курс зараз: <b>{maxPerCourse}</b> балів</span>
         </div>
@@ -131,8 +141,8 @@ export function AdminRating() {
         <p className="admin-hint">Бали за конкретну відзнаку — у розділі «Відзнаки та винагороди», за конкретний курс — у формі курсу (поле «Бали рейтингу»).</p>
       </section>
 
-      <section className="rt-admin-section">
-        <div className="rt-admin-section-head">
+      <section className="adm-card adm-wide">
+        <div className="adm-card-head">
           <h2>Рівні</h2>
           <span className="admin-hint">Рівень визначається сумою балів; перший завжди від 0.</span>
         </div>
@@ -149,7 +159,7 @@ export function AdminRating() {
               </span>
               <input className="admin-input-flex rt-level-name" value={l.label} onChange={(e) => updLevel(i, { label: e.target.value })} aria-label="Назва рівня" />
               {i > 0 ? (
-                <button type="button" className="admin-btn-link admin-link-danger" onClick={() => removeLevel(i)}>
+                <button type="button" className="admin-btn adm-btn-danger" onClick={() => removeLevel(i)}>
                   Прибрати
                 </button>
               ) : (
@@ -158,30 +168,28 @@ export function AdminRating() {
             </li>
           ))}
         </ol>
-        <button type="button" className="admin-btn-link" onClick={addLevel}>
-          + Додати рівень
-        </button>
+        <div className="adm-card-foot">
+          <button type="button" className="admin-btn adm-btn-secondary" onClick={addLevel}>
+            + Додати рівень
+          </button>
+        </div>
       </section>
 
-      <div className="rt-admin-actions">
-        <button type="button" className="admin-btn admin-btn-primary" onClick={save} disabled={saving || !dirty}>
-          {saving ? <SpinnerIcon /> : "Зберегти зміни"}
-        </button>
-        {!dirty && !msg && <span className="admin-hint">Змін немає</span>}
-        {msg && <span className="admin-hint">{msg}</span>}
-      </div>
-
-      <section className="rt-admin-section rt-admin-danger">
-        <div className="rt-admin-section-head">
+      <section className="adm-card adm-card-danger">
+        <div className="adm-card-head">
           <h2>Перерахунок</h2>
         </div>
         <p className="admin-hint">
           Ваги діють на нові нарахування. Щоб застосувати їх до всього, що вже пройдено, журнал стирається і будується заново за поточними правилами по всіх складених курсах і виданих відзнаках. Місця в рейтингу зміняться у всіх.
         </p>
-        <button type="button" className="admin-btn admin-btn-danger" onClick={recalculate} disabled={recalc || dirty} title={dirty ? "Спершу збережіть зміни" : undefined}>
-          {recalc ? <SpinnerIcon /> : "Перерахувати все"}
-        </button>
+        <div className="adm-card-foot">
+          {dirty && <span className="admin-hint">Спершу збережіть зміни</span>}
+          <button type="button" className="admin-btn adm-btn-danger" onClick={recalculate} disabled={recalc || dirty} title={dirty ? "Спершу збережіть зміни" : undefined}>
+            {recalc ? <SpinnerIcon /> : "Перерахувати все"}
+          </button>
+        </div>
       </section>
+      </div>
     </div>
   );
 }

@@ -55,12 +55,16 @@ export function AdminAudit() {
   }, [targetType, q]);
 
   return (
-    <div className="admin-page">
-      <h1>Журнал дій</h1>
-      <p className="admin-subtitle">Усі зміни з адмін-панелі: призначення, корекції, відзнаки, ваги рейтингу, токени. Лише читання.</p>
+    <div className="admin-page adm-page">
+      <div className="adm-page-head">
+        <div>
+          <h1>Журнал дій</h1>
+          <p className="admin-subtitle">Усі зміни з адмін-панелі: призначення, корекції, відзнаки, ваги рейтингу, токени. Лише читання.</p>
+        </div>
+      </div>
 
-      <div className="admin-audit-toolbar">
-        <select className="admin-select" value={targetType} onChange={(e) => setTargetType(e.target.value)}>
+      <div className="adm-toolbar">
+        <select className="admin-select" aria-label="Тип об'єкта" value={targetType} onChange={(e) => setTargetType(e.target.value)}>
           <option value="">Усі об&apos;єкти</option>
           {(data?.types || []).map((t) => (
             <option key={t} value={t}>
@@ -68,7 +72,7 @@ export function AdminAudit() {
             </option>
           ))}
         </select>
-        <input className="admin-input-flex" placeholder="Дія, напр. badge…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="admin-input-flex" placeholder="Дія, напр. badge…" aria-label="Пошук за дією" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
 
       {!data ? (
@@ -79,6 +83,7 @@ export function AdminAudit() {
         <p className="admin-hint">Записів поки нема.</p>
       ) : (
         <>
+          <div className="adm-table-wrap is-tall">
           <table className="admin-table admin-audit-table">
             <thead>
               <tr>
@@ -109,6 +114,7 @@ export function AdminAudit() {
               ))}
             </tbody>
           </table>
+          </div>
           {data.entries.length >= data.limit && <p className="admin-hint">Показано останні {data.limit} записів.</p>}
         </>
       )}

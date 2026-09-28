@@ -28,7 +28,10 @@ export async function GET() {
     configured,
     botUsername: telegramBotUsername(),
     link,
-    linkUrl: configured && !link ? deepLink(telegramBotUsername(), signLinkToken(employee.id, process.env.SESSION_SECRET || "")) : null,
+    linkUrl:
+      configured && !link && process.env.SESSION_SECRET
+        ? deepLink(telegramBotUsername(), signLinkToken(employee.id, process.env.SESSION_SECRET))
+        : null,
   });
 }
 

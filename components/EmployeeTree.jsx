@@ -345,14 +345,14 @@ export function EmployeeTree() {
   if (error) return <p className="admin-error">{error}</p>;
 
   return (
-    <div>
-      <div className="emp-tree-toolbar">
+    <div className="emp-tree">
+      <div className="adm-toolbar">
         <input
           className="admin-input-flex"
           placeholder="Пошук по дереву…"
+          aria-label="Пошук по дереву"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          style={{ maxWidth: 360 }}
         />
         <label className="emp-tree-toggle">
           <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
@@ -451,7 +451,7 @@ function AddSubordinateForm({ managerId, managerName, depth, onCreated, onCancel
           {saving && <SpinnerIcon />}
           Створити
         </button>
-        <button type="button" className="admin-btn-link" onClick={onCancel} disabled={saving}>
+        <button type="button" className="admin-btn adm-btn-secondary" onClick={onCancel} disabled={saving}>
           Скасувати
         </button>
       </div>
