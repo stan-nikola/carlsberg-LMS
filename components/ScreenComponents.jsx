@@ -1202,7 +1202,12 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
           ))}
 
         {click && (
-          <span className={`hs-pin${graded ? (answer.correct ? " ok" : " bad") : ""}`} style={{ left: `${click.x}%`, top: `${click.y}%` }} />
+          // Пін — та сама «крапля», що й кружечок у тесті: тоне, поки
+          // перевіряємо, виринає кольором вердикту (лише для щойно даної відповіді).
+          <span
+            className={`hs-pin${graded ? (answer.correct ? " ok" : " bad") : ""}${checking ? " is-checking" : graded && localClick ? " is-verdict" : ""}`}
+            style={{ left: `${click.x}%`, top: `${click.y}%` }}
+          />
         )}
       </div>
       {image.caption && <div className="cp-photo-caption">{renderRichMarks(image.caption)}</div>}

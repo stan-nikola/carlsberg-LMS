@@ -575,7 +575,8 @@
   border: 2px solid var(--line);
   flex-shrink: 0;
   position: relative;
-  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 .opt-mark.chk {
   border-radius: var(--radius-xs);
@@ -615,42 +616,118 @@
   align-items: center;
   justify-content: center;
 }
-/* Перевірка відповіді: кружечок лишається білим, по його краю крутиться
-   тонке кільце — той самий прийом і колір, що в аватара, поки вантажиться
-   фото (hub.css .avatar::after, @keyframes avatar-spin). Селектор із
-   .opt.selected — щоб перебити галочку «обрано» в .opt-mark.chk::after. */
-.opt.selected .opt-mark.is-checking {
-  background: var(--surface);
-  border-color: var(--line);
+/* Перевірка відповіді — «крапля у воду» (2026-10-03, рішення користувача,
+   замість спінера): поки сервер перевіряє, кружечок обраного варіанта
+   «тоне», від нього розходиться хвиля; з вердиктом він пружинить назад уже
+   з галочкою чи хрестиком і пускає хвилю кольору вердикту. Анімація триває
+   стільки ж, скільки звична відповідь сервера (~0,2 с), тож очікування
+   читається як реакція на тап. Якщо мережа повільна — хвилі повторюються.
+   Хвиля — ::before: ::after у .chk уже зайнятий галочкою «обрано».
+   Той самий прийом — на кнопці «Перевірити» і на піні гарячої точки нижче. */
+.opt-mark.is-checking,
+.hs-pin.is-checking {
+  transform: scale(0.68);
+  box-shadow: inset 0 0 0 3px var(--cb-overlay-25);
 }
-.opt.selected .opt-mark.is-checking::after {
+.opt-mark.is-checking::before,
+.opt-mark.is-verdict::before,
+.hs-pin.is-checking::before,
+.hs-pin.is-verdict::before {
   content: "";
   position: absolute;
-  inset: -4px;
-  width: auto;
-  height: auto;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  border-top-color: var(--cb-secondary);
-  transform: none;
-  animation: avatar-spin 0.8s linear infinite;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid var(--cb-secondary);
+  opacity: 0;
+  pointer-events: none;
 }
-@media (prefers-reduced-motion: reduce) {
-  .opt.selected .opt-mark.is-checking::after {
-    animation-duration: 2.4s;
+.opt-mark.is-checking::before,
+.hs-pin.is-checking::before {
+  animation: dropRipple 0.9s var(--ease-out) infinite;
+}
+.opt-mark.is-verdict,
+.hs-pin.is-verdict {
+  animation: dropPop 0.42s cubic-bezier(0.3, 1.7, 0.5, 1);
+}
+.opt-mark.is-verdict::before,
+.hs-pin.is-verdict::before {
+  animation: dropRipple 0.55s var(--ease-out);
+}
+.opt.wrong .opt-mark.is-verdict::before,
+.hs-pin.bad.is-verdict::before {
+  border-color: var(--danger);
+}
+.hs-pin.is-checking {
+  background: var(--cb-secondary);
+}
+.hs-pin.is-checking::before,
+.hs-pin.is-verdict::before {
+  border-color: var(--cb-white);
+}
+@keyframes dropRipple {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
   }
 }
-/* Спінер перевірки для питань без кружечків (порядок, пари, гаряча точка). */
-.q-checking {
-  display: flex;
-  justify-content: center;
-  padding: 10px 0;
-  color: var(--green-700);
+@keyframes dropPop {
+  0% {
+    transform: scale(0.68);
+  }
+  60% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
-.q-checking .admin-spinner {
-  width: 20px;
-  height: 20px;
-  margin: 0;
+/* Кнопка «Перевірити» (порядок, пари, кілька правильних): лишається на
+   місці, «втискається» і пускає хвилю з центру, доки йде перевірка. */
+.btn-primary-full.is-checking {
+  position: relative;
+  overflow: hidden;
+  transform: translateY(2px) scale(0.98);
+  filter: brightness(85%);
+  pointer-events: none;
+}
+.btn-primary-full.is-checking::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  border: 2px solid var(--cb-white);
+  opacity: 0;
+  pointer-events: none;
+  animation: dropRippleWide 0.9s var(--ease-out) infinite;
+}
+@keyframes dropRippleWide {
+  0% {
+    transform: scale(0.3);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .opt-mark.is-checking::before,
+  .opt-mark.is-verdict::before,
+  .hs-pin.is-checking::before,
+  .hs-pin.is-verdict::before,
+  .btn-primary-full.is-checking::after,
+  .opt-mark.is-verdict,
+  .hs-pin.is-verdict {
+    animation: none;
+  }
 }
 .q-visually-hidden {
   position: absolute;
@@ -2685,6 +2762,7 @@
   border: 2px solid var(--cb-white);
   box-shadow: var(--shadow-sm);
   pointer-events: none;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 .hs-pin.ok {
   background: var(--cb-secondary);

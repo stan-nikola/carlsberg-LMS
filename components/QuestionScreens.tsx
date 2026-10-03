@@ -188,8 +188,13 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
         })}
       </ol>
 
-      {!isAnswered && (
-        <button type="button" className="btn-primary-full q-order-check" onClick={check}>
+      {(!isAnswered || checking) && (
+        <button
+          type="button"
+          className={`btn-primary-full q-order-check${checking ? " is-checking" : ""}`}
+          onClick={check}
+          aria-busy={checking}
+        >
           <span className="btn-label">Перевірити</span>
         </button>
       )}
@@ -389,8 +394,14 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
         </ul>
       </div>
 
-      {!isAnswered && (
-        <button type="button" className="btn-primary-full" onClick={check} disabled={!allLinked}>
+      {(!isAnswered || checking) && (
+        <button
+          type="button"
+          className={`btn-primary-full${checking ? " is-checking" : ""}`}
+          onClick={check}
+          disabled={!allLinked}
+          aria-busy={checking}
+        >
           <span className="btn-label">{allLinked ? "Перевірити" : "Зіставте всі пари"}</span>
         </button>
       )}
