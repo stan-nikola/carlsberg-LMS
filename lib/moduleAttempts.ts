@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { Prisma, PrismaClient } from "@/app/generated/prisma";
 import { prisma as prismaUntyped } from "@/lib/prisma";
-import { isScored } from "@/lib/componentTypes";
+import { isScored, SCORED_COMPONENT_TYPES } from "@/lib/componentTypes";
 import { canStartModuleAttempt } from "@/lib/courseContent";
 import { gradeResponse, publicContent, revealFor, seededRandom, type KeyOf } from "@/lib/grading";
 import { formatWait, pickQuestionPool, poolSeed, resolveRetryRules, retryGate } from "@/lib/retryPolicy";
@@ -123,9 +123,9 @@ const MODULE_META = {
 } as const;
 
 const MODULE_SCREENS = {
-  orderBy: { order: "asc" },
-  select: { components: { orderBy: { order: "asc" }, select: { id: true, type: true, content: true } } },
-} as const;
+  orderBy: [{ order: "asc" }, { id: "asc" }],
+  select: { components: { orderBy: [{ order: "asc" }, { id: "asc" }], select: { id: true, type: true, content: true } } },
+} satisfies Prisma.ScreenFindManyArgs;
 
 /**
  * Курс, призначення, вміст модуля й сесія — паралельно, а не по черзі: кожен
@@ -203,11 +203,111 @@ export type AnswerResult =
   | { ok: true; correct: boolean; reveal: Record<string, unknown>; response: unknown; alreadyAnswered: boolean }
   | { ok: false; status: number; error: string };
 
+type AnswerBody = { enrollmentId?: unknown; moduleId?: unknown; componentId?: unknown; response?: unknown };
+
+/**
+ * Оцінювані питання модуля ОДНИМ запитом, у порядку плеєра (екран, потім
+ * компонент) — Prisma з вкладеним select ходить у базу тричі по черзі
+ * (модуль → екрани → компоненти). Порожньо — модуля нема в цьому курсі.
+ * Список типів — одним рядковим параметром, а не Prisma.join: у dev клієнт
+ * бази живе в globalThis між HMR і фрагмент з нового екземпляра модуля не
+ * впізнає (запит мовчки не знаходив жодного питання).
+ */
+async function loadModuleQuestions(slug: string, moduleId: number) {
+  const rows = await prisma.$queryRaw<{ questionPoolSize: number | null; id: number | null; type: string | null; content: unknown }[]>`
+    SELECT m."questionPoolSize", c.id, c.type::text AS type, c.content
+    FROM "Module" m
+    JOIN "Course" co ON co.id = m."courseId" AND co.slug = ${slug}
+    LEFT JOIN "Screen" s ON s."moduleId" = m.id
+    LEFT JOIN "Component" c ON c."screenId" = s.id AND c.type::text = ANY(string_to_array(${SCORED_COMPONENT_TYPES.join(",")}, ','))
+    WHERE m.id = ${moduleId}::int
+    ORDER BY s."order", s.id, c."order", c.id`;
+  if (rows.length === 0) return null;
+  const components = rows.filter((r) => r.id != null) as ComponentLike[];
+  // modulePool бере лише плаский порядок компонентів — один «екран» еквівалентний.
+  return { id: moduleId, questionPoolSize: rows[0].questionPoolSize, screens: [{ components }] };
+}
+
+/**
+ * Відповідь на питання. Звичайний випадок — спроба модуля вже відкрита:
+ * призначення (разом із перевіркою сесії), питання модуля й відкрита спроба
+ * читаються паралельно, далі коротка транзакція «замок → вставка». Разом —
+ * 5 послідовних звернень до бази замість 8 (2026-10-03). Перша відповідь
+ * спроби (спробу ще треба відкрити з перевіркою порядку/пауз) іде повним
+ * шляхом answerOpeningAttempt.
+ */
 export async function answerQuestion(
-  employeeId: number | Promise<number | null>,
+  claims: { employeeId: number; version: number } | null,
   slug: string,
-  body: { enrollmentId?: unknown; moduleId?: unknown; componentId?: unknown; response?: unknown }
+  body: AnswerBody
 ): Promise<AnswerResult> {
+  if (!claims) return { ok: false, status: 401, error: "Unauthorized" };
+  const enrollmentId = Number(body.enrollmentId);
+  const moduleId = Number(body.moduleId);
+  const componentId = Number(body.componentId);
+  if (![enrollmentId, moduleId, componentId].every(Number.isInteger)) {
+    // Порожній запит прогріву з плеєра (CoursePlayer.jsx): будимо з'єднання з базою, нічого не пишемо.
+    await prisma.$queryRaw`SELECT 1`;
+    return { ok: false, status: 404, error: "Question not found" };
+  }
+  if (body.response == null || typeof body.response !== "object") return { ok: false, status: 400, error: "response is required" };
+  if (!acceptableResponse(body.response)) return { ok: false, status: 400, error: "response too large" };
+
+  const [enrollment, courseModule, open] = await Promise.all([
+    prisma.enrollment.findFirst({
+      where: { id: enrollmentId, course: { slug }, employee: { id: claims.employeeId, isActive: true, sessionVersion: claims.version } },
+      select: { id: true, status: true },
+    }),
+    loadModuleQuestions(slug, moduleId),
+    prisma.moduleAttempt.findFirst({ where: { enrollmentId, moduleId, finishedAt: null }, orderBy: { id: "desc" } }),
+  ]);
+  if (!enrollment) {
+    // 401 для відкликаної сесії — плеєр тоді кладе відповідь у чергу, як і раніше.
+    const alive = await prisma.employee.count({ where: { id: claims.employeeId, isActive: true, sessionVersion: claims.version } });
+    return alive ? { ok: false, status: 404, error: "Enrollment not found" } : { ok: false, status: 401, error: "Unauthorized" };
+  }
+  if (!courseModule) return { ok: false, status: 404, error: "Module not found" };
+  const component = courseModule.screens[0].components.find((c) => c.id === componentId);
+  if (!component) return { ok: false, status: 404, error: "Question not found" };
+  if (!open) return answerOpeningAttempt(claims.employeeId, slug, body);
+  if (!modulePool(courseModule, enrollmentId, open.attemptNumber).has(componentId)) {
+    return { ok: false, status: 409, error: "Це питання не входить у поточну спробу — оновіть сторінку." };
+  }
+
+  const keyOf = serverKeyOf(componentId, enrollmentId);
+  const content = component.content as Record<string, unknown>;
+  const correct = gradeResponse(component.type, content, body.response, keyOf);
+  const outcome = await prisma.$transaction(async (tx) => {
+    await lockModule(tx, enrollmentId, moduleId);
+    // Після замка — свіжий знімок: у спробу, яку щойно закрило завершення
+    // модуля (воно тримає той самий замок), відповідь уже не потрапить.
+    const inserted = await tx.$executeRaw`
+      INSERT INTO "AttemptAnswer" ("attemptId", "componentId", "response", "correct")
+      SELECT ${open.id}::int, ${componentId}::int, ${JSON.stringify(body.response)}::jsonb, ${correct}
+      WHERE EXISTS (SELECT 1 FROM "ModuleAttempt" WHERE id = ${open.id}::int AND "finishedAt" IS NULL)
+      ON CONFLICT ("attemptId", "componentId") DO NOTHING`;
+    if (inserted === 1) {
+      if (enrollment.status === "not_started") {
+        await tx.enrollment.update({ where: { id: enrollmentId }, data: { status: "in_progress" } });
+      }
+      return { correct, response: body.response, alreadyAnswered: false };
+    }
+    const existing = await tx.attemptAnswer.findUnique({ where: { attemptId_componentId: { attemptId: open.id, componentId } } });
+    return existing ? { correct: existing.correct, response: existing.response, alreadyAnswered: true } : null;
+  });
+  // Спробу закрили між читанням і вставкою — далі як із першою відповіддю нової спроби.
+  if (!outcome) return answerOpeningAttempt(claims.employeeId, slug, body);
+  return {
+    ok: true,
+    correct: outcome.correct,
+    response: outcome.response,
+    alreadyAnswered: outcome.alreadyAnswered,
+    reveal: revealFor(component.type, content, keyOf, outcome.correct, outcome.response),
+  };
+}
+
+/** Повний шлях: спроба модуля ще не відкрита — відкриваємо її з перевіркою порядку, пауз і гальма. */
+async function answerOpeningAttempt(employeeId: number, slug: string, body: AnswerBody): Promise<AnswerResult> {
   const ctx = await loadContext(employeeId, slug, Number(body.enrollmentId), Number(body.moduleId));
   if (!ctx.ok) return { ok: false, status: ctx.status, error: ctx.message };
   const componentId = Number(body.componentId);
