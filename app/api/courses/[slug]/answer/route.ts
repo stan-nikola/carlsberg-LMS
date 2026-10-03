@@ -12,11 +12,15 @@ import { answerQuestion } from "@/lib/moduleAttempts";
  * у браузері до цього моменту немає (lib/grading.ts publicContent).
  */
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const employee = await getCurrentUser();
-  if (!employee) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const startedAt = performance.now();
+  // Сесія вантажиться паралельно з курсом/модулем (lib/moduleAttempts.ts
+  // loadContext), а не перед ними — менше послідовних запитів до бази.
+  const employeeId = getCurrentUser().then((e) => e?.id ?? null);
   const { slug } = await params;
   const body = await request.json().catch(() => ({}));
-  const result = await answerQuestion(employee.id, slug, body);
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
-  return NextResponse.json(result);
+  const result = await answerQuestion(employeeId, slug, body);
+  // Server-Timing — видно в DevTools → Network, скільки займає перевірка на сервері.
+  const headers = { "Server-Timing": `answer;dur=${Math.round(performance.now() - startedAt)}` };
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status, headers });
+  return NextResponse.json(result, { headers });
 }

@@ -344,6 +344,9 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
                 червоний — хрестик, обидві «промальовуються» тим самим
                 MorphRevealIcon, що вже є в плані курсу й у статус-бейджі. */}
             <span className={`opt-mark${questionType === "multi" ? " chk" : ""}`} aria-hidden={!graded}>
+              {/* Поки сервер перевіряє — спінер у кружечку обраного варіанта,
+                  потім на його місці промальовується галочка чи хрестик. */}
+              {checking && selected.includes(opt.key) && <SpinnerIcon />}
               {graded && revealByKey.get(opt.key) && (revealByKey.get(opt.key).correct || selected.includes(opt.key)) && (
                 <MorphRevealIcon
                   shape={revealByKey.get(opt.key)?.correct ? "check" : "x"}
@@ -365,7 +368,7 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
         </button>
       )}
 
-      <AnswerStatus answer={answer} />
+      <AnswerStatus answer={answer} quiet />
 
       {graded && (
         <div className={`q-fb show ${answer.correct ? "ok" : "bad"}`}>
@@ -940,6 +943,19 @@ export function CoursePlayer({
     () => screens.flatMap((s) => s.components.filter(isScored).map((c) => c.id)),
     [screens]
   );
+
+  // Прогрів перевірки відповідей: коли на поточному чи наступному екрані є
+  // питання, заздалегідь «будимо» серверну функцію й з'єднання з базою (порожній
+  // запит, сервер відповідає 404 без запису). Інакше перший тап по відповіді
+  // після паузи чекав холодного старту — ~1–2 с до вердикту. Не частіше разу на хвилину.
+  const lastWarmRef = useRef(0);
+  useEffect(() => {
+    if (previewMode || !enrollmentId) return;
+    const hasQuestion = [screens[idx - 1], screens[idx]].some((sc) => sc?.components.some(isScored));
+    if (!hasQuestion || Date.now() - lastWarmRef.current < 60_000) return;
+    lastWarmRef.current = Date.now();
+    fetch(`/api/courses/${course.slug}/answer`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+  }, [idx, screens, previewMode, enrollmentId, course.slug]);
 
   const moduleSegments = useMemo(() => buildModuleSegments(screens), [screens]);
 

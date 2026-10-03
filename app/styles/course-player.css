@@ -615,6 +615,34 @@
   align-items: center;
   justify-content: center;
 }
+/* Спінер перевірки всередині кружечка: білий на зеленому «обрано». */
+.opt-mark .admin-spinner {
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  vertical-align: 0;
+  color: var(--cb-white);
+}
+/* Спінер перевірки для питань без кружечків (порядок, пари, гаряча точка). */
+.q-checking {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+  color: var(--green-700);
+}
+.q-checking .admin-spinner {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+.q-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 .opt-mark-ico {
   color: var(--cb-white);
   /* Щоб штрих не «витікав» за межі 17px кружечка на тонких екранах. */
