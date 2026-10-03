@@ -59,6 +59,23 @@
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+/* Телефон/планшет (сенсор): текст не виділяється — довгий тап по кнопці,
+   рядку «Порядку кроків» чи парі інакше відкривав лупу й меню «Копіювати»
+   замість дії. Поля вводу лишаються виділюваними. Десктоп (миша) не чіпаємо. */
+@media (hover: none) and (pointer: coarse) {
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  input,
+  textarea,
+  [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+}
 html {
   /* Резервує місце під вертикальний скролбар завжди, навіть коли контент
      ще не переповнює viewport — інакше поява/зникнення скролбару (напр.

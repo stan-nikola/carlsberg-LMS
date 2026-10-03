@@ -9,7 +9,7 @@ import { consumeProgressDirty } from "@/lib/progressDirty";
 import { NotificationBell } from "@/components/NotificationBell";
 import { SettingsSheet } from "@/components/SettingsSheet";
 import { usePullToRefresh } from "@/components/usePullToRefresh";
-import { prepareLogout } from "@/lib/logoutCleanup";
+import { finishLogout, prepareLogout } from "@/lib/logoutCleanup";
 
 // Згорнутий сайдбар — особиста зручність, localStorage (як в AdminShell).
 const SIDEBAR_COLLAPSED_KEY = "manager-sidebar-collapsed";
@@ -112,8 +112,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   async function handleLogout() {
     if (!(await prepareLogout())) return;
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/register");
-    router.refresh();
+    finishLogout();
   }
 
   // Поки що єдине джерело маркера "нове" — недавно призначені курси, але

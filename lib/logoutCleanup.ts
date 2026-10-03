@@ -29,3 +29,19 @@ export async function prepareLogout(): Promise<boolean> {
   navigator.serviceWorker?.controller?.postMessage({ type: "purge" });
   return true;
 }
+
+/**
+ * Після виходу — повне перезавантаження, а не клієнтський перехід: кеш
+ * даних у браузері ("use cache: private") і стан екранів (Next зберігає
+ * його між переходами) інакше переживали вихід — новий співробітник бачив
+ * аватарку попереднього й відкриту шторку налаштувань.
+ */
+export function finishLogout(): void {
+  try {
+    sessionStorage.clear();
+  } catch {
+    /* сховище недоступне */
+  }
+  document.cookie = "carls_shell=; path=/; max-age=0";
+  window.location.replace("/register");
+}

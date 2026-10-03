@@ -145,15 +145,17 @@ describe("mandatoryProgress", () => {
     const now = new Date("2026-09-15");
     const r = mandatoryProgress(
       [
-        { isMandatory: true, status: "completed", dueDate: new Date("2026-09-01") },
+        { isMandatory: true, status: "completed", passed: true, dueDate: new Date("2026-09-01") },
         { isMandatory: true, status: "in_progress", dueDate: new Date("2026-09-10") },
+        // Завершено, але НЕЗАЛІК — не пройдено, і дедлайн уже минув.
+        { isMandatory: true, status: "completed", passed: false, dueDate: new Date("2026-09-05") },
         { isMandatory: true, status: "not_started", dueDate: new Date("2026-09-30") },
         { isMandatory: true, status: "not_started", dueDate: new Date("2026-09-20") },
         { isMandatory: false, status: "not_started", dueDate: new Date("2026-09-16") },
       ],
       now
     );
-    expect(r).toEqual({ total: 4, completed: 1, overdue: 1, nextDue: new Date("2026-09-20") });
+    expect(r).toEqual({ total: 5, completed: 1, overdue: 2, nextDue: new Date("2026-09-20") });
   });
 });
 

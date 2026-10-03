@@ -9,7 +9,7 @@ import { PlatformBrand } from "@/components/PlatformBrand";
 import { consumeProgressDirty } from "@/lib/progressDirty";
 import { NotificationBell } from "@/components/NotificationBell";
 import { usePullToRefresh } from "@/components/usePullToRefresh";
-import { prepareLogout } from "@/lib/logoutCleanup";
+import { finishLogout, prepareLogout } from "@/lib/logoutCleanup";
 
 const TABS = [
   { href: "/hub", label: "Головна", Icon: HomeIcon },
@@ -114,8 +114,7 @@ export function HubShell({ children, isAdmin = false }) {
   async function handleLogout() {
     if (!(await prepareLogout())) return;
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/register");
-    router.refresh();
+    finishLogout();
   }
 
   return (
