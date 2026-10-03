@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/session";
+import { getSessionClaims } from "@/lib/session";
 import { answerQuestion } from "@/lib/moduleAttempts";
 
 /**
@@ -13,12 +13,12 @@ import { answerQuestion } from "@/lib/moduleAttempts";
  */
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const startedAt = performance.now();
-  // Сесія вантажиться паралельно з курсом/модулем (lib/moduleAttempts.ts
-  // loadContext), а не перед ними — менше послідовних запитів до бази.
-  const employeeId = getCurrentUser().then((e) => e?.id ?? null);
+  // Лише підпис cookie, без бази: активність і версію сесії перевіряє запит
+  // призначення всередині answerQuestion (lib/moduleAttempts.ts).
+  const claims = await getSessionClaims();
   const { slug } = await params;
   const body = await request.json().catch(() => ({}));
-  const result = await answerQuestion(employeeId, slug, body);
+  const result = await answerQuestion(claims, slug, body);
   // Server-Timing — видно в DevTools → Network, скільки займає перевірка на сервері.
   const headers = { "Server-Timing": `answer;dur=${Math.round(performance.now() - startedAt)}` };
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status, headers });
