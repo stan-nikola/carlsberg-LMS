@@ -25,7 +25,6 @@ export default async function ManagerProfilePage() {
         <div className="mgr-profile-main">
           <ProfileCard
             dbName={employee.name}
-            hasEmail={Boolean(employee.email)}
             externalCode={employee.externalCode}
             levelLabel={levelLabel}
             avatarUrl={employee.avatarUrl}

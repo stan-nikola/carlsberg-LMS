@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, GearIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
@@ -77,6 +77,11 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   // дефолтний router.refresh(): {children} тепер завжди справжня поточна
   // сторінка.
   const { pull, threshold } = usePullToRefresh();
+
+  // Підказка для redirects() у next.config.mjs: /hub -> /manager до рендера.
+  useEffect(() => {
+    document.cookie = "carls_shell=manager; path=/; max-age=31536000; samesite=lax";
+  }, []);
 
   useLayoutEffect(() => {
     try {

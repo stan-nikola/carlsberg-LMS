@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CourseIcon, ChevronIcon, CertificateIcon, SpinnerIcon } from "@/components/icons";
@@ -8,7 +8,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { courseTileStatus, isRecentlyAssigned, isOverdue, moduleProgress } from "@/lib/progress";
 import { pluralize } from "@/lib/pluralize";
 import { HintDot } from "@/components/HintDot";
-import { getLocalDisplayName } from "@/lib/localName";
 import { downloadCertificate } from "@/lib/downloadCertificate";
 
 /**
@@ -23,23 +22,8 @@ import { downloadCertificate } from "@/lib/downloadCertificate";
  * складено/не складено/доступний/заблоковано) — вхід у сам плеєр окремою
  * дією нижче.
  */
-export function CourseTile({ course, enrollment, description, inProgressDescription, hasEmail = true }) {
+export function CourseTile({ course, enrollment, description, inProgressDescription }) {
   const router = useRouter();
-  // Сертифікат генерується на сервері (route.js, pdfkit) з Employee.name —
-  // для співробітників без email це заглушка з посади/території (див.
-  // lib/localName.js), а справжнє ім'я лежить лише в localStorage цього
-  // пристрою. Сервер його принципово не зберігає, тому передаємо як
-  // query-параметр разового GET-запиту на завантаження (не пишеться в БД,
-  // читається лише всередині цього одного запиту) — той самий підхід, що
-  // ProfileCard/GreetingHeading уже роблять для екранного імені.
-  const [certName, setCertName] = useState("");
-  useEffect(() => {
-    if (!hasEmail) {
-      const local = getLocalDisplayName();
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (local) setCertName(local);
-    }
-  }, [hasEmail]);
   // Раніше — звичайний <a href="...certificate">: на мобільному/PWA це
   // відкривало PDF прямо у вкладці замість завантаження, без жодної
   // навігації назад (реальна скарга користувача). Тепер тягнемо файл
@@ -51,7 +35,7 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
     setCertDownloading(true);
     setCertDownloadError("");
     try {
-      await downloadCertificate(course.slug, certName);
+      await downloadCertificate(course.slug);
     } catch (err) {
       setCertDownloadError(err.message || "Не вдалося завантажити сертифікат.");
     } finally {

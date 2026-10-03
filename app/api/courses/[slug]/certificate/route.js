@@ -140,23 +140,12 @@ function buildCertificatePdf({ employeeName, courseTitle, completedAt, scorePerc
 // користувач повернув назад: "Сертификат только 100% пройденый курс". Той
 // самий критерій, що в lib/achievements.ts і в статусі сертифіката в плані
 // курсу (lib/coursePlan.ts).
-export async function GET(request, { params }) {
+export async function GET(_request, { params }) {
   const { slug } = await params;
   const employee = await getCurrentUser();
   if (!employee) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
 
-  // Для співробітників БЕЗ email у базі Employee.name — заглушка з посади/
-  // території (див. lib/localName.js), не особисте ім'я: те, що людина
-  // сама ввела, лежить лише в localStorage її пристрою і на сервер інакше
-  // не потрапляє. ?name= — саме той локальний підпис, переданий клієнтом
-  // РАЗОВО для цього PDF (components/CourseTile.jsx, CourseReview.jsx) —
-  // не пишеться в БД, використовується лише в межах цього одного запиту.
-  // Ігнорується для співробітників З email (менеджерський шар) — їхнє
-  // Employee.name уже справжнє, підміняти його довільним query-рядком не
-  // потрібно й небезпечно (хтось міг би підставити чуже ім'я в URL).
-  const { searchParams } = new URL(request.url);
-  const localName = !employee.email ? (searchParams.get("name") || "").trim().slice(0, 100) : "";
-  const employeeName = localName || employee.name;
+  const employeeName = employee.name;
 
   const course = await prisma.course.findUnique({ where: { slug } });
   if (!course) return new Response(JSON.stringify({ error: "Course not found" }), { status: 404 });

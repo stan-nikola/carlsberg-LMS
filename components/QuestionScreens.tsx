@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { QuestionIcon, ChevronIcon, CheckIcon, XIcon, GripIcon } from "@/components/icons";
 import { ScreenMedia } from "@/components/ScreenComponents";
 import { renderRichMarks } from "@/lib/richText";
@@ -273,6 +273,37 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
   function badgeFor(leftKey: string) {
     return links[leftKey] === undefined ? null : Object.keys(links).indexOf(leftKey) + 1;
   }
+  const pairClass = (leftKey: string) => (links[leftKey] === undefined ? "" : ` pair-${(badgeFor(leftKey)! - 1) % 6}`);
+
+  // Після перевірки праві елементи стають навпроти своїх пар: порядок міняємо
+  // в DOM, а переїзд малюємо FLIP-ом (старе положення -> нове).
+  const rightsView = (() => {
+    if (!isAnswered) return rights;
+    const pos = (rightKey: string) => {
+      const owner = Object.keys(links).find((k) => links[k] === rightKey);
+      return owner === undefined ? Number.MAX_SAFE_INTEGER : lefts.findIndex((l) => l.key === owner);
+    };
+    return [...rights].sort((a, b) => pos(a.key) - pos(b.key));
+  })();
+  const rightRefs = useRef(new Map<string, HTMLLIElement>());
+  const prevTops = useRef(new Map<string, number>());
+  const slid = useRef(false);
+  useLayoutEffect(() => {
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    rightRefs.current.forEach((el, key) => {
+      const top = el.offsetTop;
+      const prev = prevTops.current.get(key);
+      if (isAnswered && !slid.current && !reduced && prev !== undefined && Math.abs(prev - top) > 1) {
+        el.style.transition = "none";
+        el.style.transform = `translateY(${prev - top}px)`;
+        void el.offsetHeight;
+        el.style.transition = "transform 0.9s cubic-bezier(0.45, 0.05, 0.3, 1)";
+        el.style.transform = "";
+      }
+      prevTops.current.set(key, top);
+    });
+    if (isAnswered) slid.current = true;
+  });
 
   return (
     <>
@@ -309,7 +340,7 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
               <li key={left.key}>
                 <button
                   type="button"
-                  className={`q-match-item${activeLeft === left.key ? " is-active" : ""}${linked ? " is-linked" : ""}${
+                  className={`q-match-item${activeLeft === left.key ? " is-active" : ""}${linked ? " is-linked" : ""}${pairClass(left.key)}${
                     graded ? (correct ? " is-correct" : " is-wrong") : ""
                   }`}
                   onClick={() => pickLeft(left.key)}
@@ -323,14 +354,23 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
           })}
         </ul>
         <ul className="q-match-col">
-          {rights.map((right) => {
+          {rightsView.map((right) => {
             const ownerLeft = Object.keys(links).find((k) => links[k] === right.key);
             const linked = ownerLeft !== undefined;
+            const rightCorrect = graded && linked && correctRightOf.get(ownerLeft!) === right.key;
             return (
-              <li key={right.key}>
+              <li
+                key={right.key}
+                ref={(el) => {
+                  if (el) rightRefs.current.set(right.key, el);
+                  else rightRefs.current.delete(right.key);
+                }}
+              >
                 <button
                   type="button"
-                  className={`q-match-item${linked ? " is-linked" : ""}`}
+                  className={`q-match-item${linked ? " is-linked" : ""}${linked ? pairClass(ownerLeft!) : ""}${
+                    graded ? (rightCorrect ? " is-correct" : " is-wrong") : ""
+                  }`}
                   onClick={() => pickRight(right.key)}
                   disabled={isAnswered || activeLeft === null}
                 >

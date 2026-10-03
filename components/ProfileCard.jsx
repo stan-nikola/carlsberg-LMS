@@ -2,20 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { getLocalDisplayName } from "@/lib/localName";
 import { MarqueeText } from "@/components/MarqueeText";
 import { Avatar } from "@/components/Avatar";
 import { CameraIcon, SpinnerIcon, XIcon } from "@/components/icons";
 
 /**
  * Аватар + ім'я + код + рівень (.profile-card, і на Home, і на Профіль).
- * Для співробітників без email (hasEmail=false) підміняє ім'я з БД
- * (заглушка посади/території з імпорту) на те, що людина сама ввела при
- * вході — воно лежить тільки в localStorage цього пристрою, на сервері
- * взагалі не зберігається. Тому це Client Component: на сервері рендериться
- * dbName (SSR), після монтування в браузері підміняється, якщо є локальне
- * значення - без цього довелось би тягнути localStorage на сервер, що
- * неможливо.
  */
 // Фліп аватара — вітальний жест: він має статись РІВНО один раз за
 // завантаження сторінки. Модульний прапорець, а не CSS-анімація на класі:
@@ -25,7 +17,7 @@ import { CameraIcon, SpinnerIcon, XIcon } from "@/components/icons";
 let avatarFlipPlayed = false;
 
 /**
- * @param {{ dbName: string, hasEmail: boolean, levelLabel: string,
+ * @param {{ dbName: string, levelLabel: string,
  *   avatarUrl?: string | null, editable?: boolean, href?: string }} props
  * `href` (лише на Home, `/hub/achievements?highlight=rating`) — уся
  * картка стає посиланням туди; лише коли не `editable` — усередині
@@ -34,8 +26,8 @@ let avatarFlipPlayed = false;
  * 2026-09-22) прибрано зовсім третьою ітерацією того самого дня —
  * повна картка рейтингу вже є на "Досягнення", куди клік і веде.
  */
-export function ProfileCard({ dbName, hasEmail, levelLabel, avatarUrl = null, editable = false, href }) {
-  const [displayName, setDisplayName] = useState(dbName);
+export function ProfileCard({ dbName, levelLabel, avatarUrl = null, editable = false, href }) {
+  const displayName = dbName;
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -110,17 +102,6 @@ export function ProfileCard({ dbName, hasEmail, levelLabel, avatarUrl = null, ed
       setBusy(false);
     }
   }
-
-  useEffect(() => {
-    // Lazy useState-ініціалізатор тут не підходить: цей компонент
-    // рендериться і на сервері (SSR), де localStorage відсутній —
-    // значення можна прочитати лише в ефекті, після монтування на клієнті.
-    if (!hasEmail) {
-      const local = getLocalDisplayName();
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (local) setDisplayName(local);
-    }
-  }, [hasEmail]);
 
   const CardTag = href ? Link : "div";
 

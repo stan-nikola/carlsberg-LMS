@@ -1,0 +1,2168 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CarLS — як проходить навчання</title>
+<style>
+  /* Шрифт застосунку (public/fonts/carlsberg). Поза сайтом — системний fallback. */
+  @font-face{font-family:"Carlsberg Sans";src:url(/fonts/carlsberg/CarlsbergSans-Light.woff2) format("woff2");font-weight:300;font-display:swap}
+  @font-face{font-family:"Carlsberg Sans";src:url(/fonts/carlsberg/CarlsbergSans-Bold.woff2) format("woff2");font-weight:700;font-display:swap}
+  @font-face{font-family:"Carlsberg Sans";src:url(/fonts/carlsberg/CarlsbergSans-Black.woff2) format("woff2");font-weight:900;font-display:swap}
+  :root{
+    --bg:#f3f7f4; --ink:#0f1f17; --soft:#5b6b64; --line:#dde6e0; --tint:#e6f5ec;
+    --brand:#00321e; --brand2:#0f6b44; --accent:#17b169; --ok:#1bd665; --info:#4b87c5; --gold:#ffca2b; --bad:#f45f5e; --lock:#a9b8b0;
+    --mono:#4d7196;
+    --ease:cubic-bezier(.22,.9,.3,1); --spring:cubic-bezier(.34,1.56,.64,1);
+    --font:"Carlsberg Sans",-apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);font-weight:300;-webkit-font-smoothing:antialiased;overflow:hidden}
+  b,strong{font-weight:700}
+  button{font:inherit;color:inherit}
+
+  /* ---------- живий фон: плаваючі плями фірмових кольорів ---------- */
+  .aura{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+  .aura i{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;animation:drift 18s ease-in-out infinite alternate}
+  .aura i:nth-child(1){width:60vmax;height:60vmax;left:-20vmax;top:-25vmax;background:radial-gradient(circle,#17b169,transparent 65%)}
+  .aura i:nth-child(2){width:50vmax;height:50vmax;right:-22vmax;top:10vmax;background:radial-gradient(circle,#ffca2b,transparent 65%);opacity:.35;animation-duration:22s;animation-delay:-6s}
+  .aura i:nth-child(3){width:55vmax;height:55vmax;left:5vmax;bottom:-30vmax;background:radial-gradient(circle,#4b87c5,transparent 65%);opacity:.3;animation-duration:26s;animation-delay:-12s}
+  @keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(6vmax,4vmax) scale(1.12)}}
+
+  /* ---------- оболонка ---------- */
+  .tour{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:10px;
+    padding:max(10px,env(safe-area-inset-top)) clamp(16px,15vw,96px) max(12px,env(safe-area-inset-bottom));overflow-y:auto;overflow-x:hidden}
+  .hdr{width:100%;position:relative;display:flex;align-items:center;justify-content:center;gap:10px;flex:none;margin-top:clamp(0px,3.7vh,30px)}
+  .hdr h1{flex:0 1 min(80vw,calc(100% - 92px));text-align:center;font-size:clamp(16px,1.5vw,22px);font-weight:900;line-height:1.2;color:var(--brand)}
+  .hdr h1 small{display:block;font-weight:300;color:var(--soft);font-size:clamp(12.5px,1.05vw,16px);margin-top:2px;max-height:3em;overflow:hidden;transition:opacity .4s,max-height .4s,margin .4s}
+  .t-nx{display:none}
+  .hdr.nx .t-main{display:none}
+  .hdr.nx .t-nx{display:inline-block;background:linear-gradient(135deg,#ff9a1f,#f26a00);color:#fff;font-size:13px;line-height:1.3;font-weight:900;padding:.55em 1.1em;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+  .hdr h1 small.gone{opacity:0;max-height:0;margin-top:0}
+  .vg{position:absolute;right:4px;top:43%;transform:translateY(-50%);z-index:5;display:flex;flex-direction:column;align-items:center;gap:10px;transition:opacity .3s}
+  .tour:has(.phone.landp) .vg{opacity:0;pointer-events:none}
+  .vg .mu{border:0;background:none;color:var(--brand);font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0}
+  .vg .mu .ic{flex:none;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.9);box-shadow:0 2px 8px rgba(0,50,30,.16);font-size:19px;position:relative;display:grid;place-items:center}
+  .vg .mu .lb{writing-mode:vertical-rl;font-size:12px;font-weight:800;line-height:1.25;color:var(--brand);max-height:170px}
+  .vg .mu.off .ic{opacity:.6}
+  .vg .mu.hint .ic{animation:muBlink 1.1s ease-in-out infinite}
+  @keyframes muBlink{0%,100%{box-shadow:0 0 0 0 rgba(0,106,62,0);opacity:1}50%{box-shadow:0 0 0 8px rgba(0,106,62,.28);opacity:.5}}
+  @media (prefers-reduced-motion:reduce){.vg .mu.hint .ic{animation:none;box-shadow:0 0 0 3px rgba(0,106,62,.4)}}
+  .vg .mu.off .ic::after{content:"";position:absolute;left:10px;right:10px;top:50%;height:2px;background:currentColor;transform:rotate(-40deg)}
+  .vg input{writing-mode:vertical-lr;direction:rtl;width:24px;height:84px;margin:0;padding:0;accent-color:var(--brand);cursor:pointer;background:none}
+  .x{position:absolute;right:0;top:50%;transform:translateY(-50%);flex:none;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.8);color:var(--brand);font-size:17px;display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,50,30,.12)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ---------- телефон ---------- */
+  .stage{position:relative;flex:1 1 0;min-height:0;width:100%;padding-top:14px;display:flex;justify-content:center;align-items:center;container-type:size}
+  .phone{--w:min(calc(100vw - 92px),calc(100cqh * 390 / 848));
+    width:var(--w);aspect-ratio:390/848;position:relative;border-radius:calc(var(--w) * .165);background:#0a0a0a;
+    padding:calc(var(--w) * .024);border:1.5px solid #3a3a3c;
+    box-shadow:0 30px 60px -25px rgba(0,50,30,.55),0 0 0 1px rgba(0,0,0,.25),0 0 80px -10px rgba(23,177,105,.35);
+    user-select:none;-webkit-user-select:none;touch-action:pan-y;cursor:grab;transition:transform .7s var(--spring)}
+  .phone.tiltL{transform:perspective(1200px) rotateY(8deg) rotateX(2deg)}
+  .phone.tiltR{transform:perspective(1200px) rotateY(-8deg) rotateX(2deg)}
+  .phone.landp{transform:rotate(-90deg) scale(var(--ls,.6))}
+  .screen{position:absolute;inset:calc(var(--w) * .024);overflow:hidden;border-radius:calc(var(--w) * .14);background:#fff;container-type:size}
+  .island{position:absolute;top:calc(var(--w) * .024 + 1.3%);left:50%;width:32%;height:4.3%;transform:translateX(-50%);background:#000;border-radius:999px;z-index:30;pointer-events:none}
+  .layer{position:absolute;inset:0;opacity:0;visibility:hidden;transform:translateX(14%) scale(.94);filter:blur(3px);background:var(--bg);display:flex;flex-direction:column;
+    transition:opacity .45s var(--ease),transform .7s var(--spring),filter .45s,visibility 0s .5s}
+  .layer.on{opacity:1;visibility:visible;transform:none;filter:none;transition:opacity .45s var(--ease),transform .7s var(--spring),filter .45s}
+  .layer.back{transform:translateX(-14%) scale(.94)}
+  .screen.paused *,.screen.paused *::before,.screen.paused *::after{animation-play-state:paused!important}
+
+  /* поява елементів: .in / .pop стартують, коли шар отримує .play; затримка — --d */
+  .in{opacity:0}
+  .play .in{animation:inUp .7s var(--spring) var(--d,0s) both}
+  .pop{opacity:0}
+  .play .pop{animation:pop .6s var(--spring) var(--d,0s) both}
+  @keyframes inUp{from{opacity:0;transform:translateY(5cqw) scale(.97)}to{opacity:1;transform:none}}
+  @keyframes pop{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:scale(1)}}
+
+  /* ---------- спільні елементи екранів ---------- */
+  .sb{flex:none;height:12cqw;display:flex;align-items:flex-end;justify-content:space-between;padding:0 8cqw 1.8cqw;font-size:3.8cqw;font-weight:700}
+  .sb .r{display:flex;gap:1.4cqw;align-items:center}
+  .sb i{display:block;height:2.6cqw;background:currentColor;border-radius:.5cqw}
+  .sb .s{width:4.4cqw;clip-path:polygon(0 70%,20% 70%,20% 100%,0 100%,27% 45%,47% 45%,47% 100%,27% 100%,54% 20%,74% 20%,74% 100%,54% 100%,80% 0,100% 0,100% 100%,80% 100%)}
+  .sb .b{width:6cqw;border-radius:.8cqw;opacity:.85}
+  .brandtop{background:var(--brand);color:#fff}
+  .ah{flex:none;display:flex;align-items:center;gap:2.6cqw;padding:2.4cqw 5cqw 3.4cqw;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff}
+  .ah .ico{width:8.4cqw;height:8.4cqw;border-radius:2.4cqw;background:#fff;display:grid;place-items:center;flex:none;box-shadow:0 1cqw 2cqw rgba(0,0,0,.2)}
+  .ah .ico img{width:74%;height:74%}
+  .ah .t{font-size:4.3cqw;font-weight:900;line-height:1.15}
+  .ah .t small{display:block;font-weight:300;font-size:3.1cqw;opacity:.85}
+  .body{flex:1;min-height:0;padding:4cqw 5cqw;display:flex;flex-direction:column;gap:3cqw;overflow:hidden}
+  .btn{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:1.6cqw;min-height:12cqw;border-radius:3.4cqw;
+    background:linear-gradient(135deg,#1bd665,#17b169 55%,#0f8f55);color:#fff;font-weight:900;font-size:4.2cqw;flex:none;box-shadow:0 1.6cqw 4cqw -1cqw rgba(23,177,105,.55)}
+  .btn::after{content:"";position:absolute;top:0;bottom:0;width:30%;left:-40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);animation:shine 2.8s ease-in-out 1.2s infinite}
+  @keyframes shine{0%,60%{left:-40%}100%{left:130%}}
+  .btn.dark{background:linear-gradient(135deg,var(--brand2),var(--brand));box-shadow:0 1.6cqw 4cqw -1cqw rgba(0,50,30,.5)}
+  .pressed{animation:press .45s var(--spring)}
+  @keyframes press{0%{transform:scale(1)}30%{transform:scale(.92)}100%{transform:scale(1)}}
+  .chip{display:inline-flex;align-items:center;gap:1cqw;padding:.9cqw 2.6cqw;border-radius:999px;font-size:2.9cqw;font-weight:900;background:var(--tint);color:#0b7a45}
+  .chip.gold{background:linear-gradient(135deg,#ffe07a,#ffca2b);color:#5a3d00;box-shadow:0 1cqw 3cqw -1cqw rgba(255,202,43,.8)}
+  .card{background:#fff;border-radius:4cqw;padding:3.6cqw 4cqw;box-shadow:0 1.4cqw 4cqw -1cqw rgba(0,50,30,.14)}
+  .muted{color:var(--soft)}
+  .demo{position:absolute;right:3cqw;bottom:2.4cqw;font-size:2.4cqw;color:var(--soft);background:rgba(255,255,255,.9);padding:.4cqw 1.6cqw;border-radius:999px;z-index:5}
+
+  /* палець, хвиля, конфетті, «+бали» */
+  .finger{position:absolute;left:50%;top:120%;width:11cqw;height:11cqw;margin:-5.5cqw 0 0 -5.5cqw;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,255,255,.9) 30%,rgba(255,255,255,.45) 70%);border:.6cqw solid rgba(0,50,30,.5);box-shadow:0 1.4cqw 3cqw rgba(0,0,0,.28);
+    z-index:25;pointer-events:none;transition:left .5s var(--ease),top .5s var(--ease),transform .2s,opacity .3s;opacity:0}
+  .finger.show{opacity:1}
+  .finger.down{transform:scale(.78)}
+  .finger.drag{transition:left .55s cubic-bezier(.4,0,.2,1),top .55s cubic-bezier(.4,0,.2,1),opacity .3s}
+  .ripple{position:absolute;width:12cqw;height:12cqw;margin:-6cqw 0 0 -6cqw;border-radius:50%;border:.8cqw solid rgba(23,177,105,.7);z-index:24;pointer-events:none;opacity:0}
+  .ripple.go{animation:ripple .7s ease-out}
+  @keyframes ripple{from{opacity:1;transform:scale(.3)}to{opacity:0;transform:scale(3)}}
+  .confetti{position:absolute;width:1.8cqw;height:3cqw;border-radius:.4cqw;z-index:26;pointer-events:none;animation:conf 1.3s cubic-bezier(.2,.7,.4,1) forwards}
+  @keyframes conf{0%{transform:translate(0,0) rotate(0);opacity:1}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--r));opacity:0}}
+  .fall{position:absolute;height:2.6cqw;border-radius:.4cqw;z-index:26;pointer-events:none;opacity:0;animation:fall 3s cubic-bezier(.3,.1,.6,1) both}
+  @keyframes fall{0%{opacity:1;transform:translate(0,0) rotate(0)}25%{transform:translate(var(--sway),60cqw) rotate(calc(var(--r) * .3))}100%{opacity:.9;transform:translate(calc(var(--sway) * -1),240cqw) rotate(var(--r))}}
+  .floatup{position:absolute;z-index:26;pointer-events:none;font-weight:900;font-size:5cqw;color:#0b7a45;text-shadow:0 .4cqw 0 #fff;animation:floatup 1.4s var(--ease) forwards;white-space:nowrap}
+  @keyframes floatup{0%{opacity:0;transform:translate(-50%,0) scale(.6)}20%{opacity:1;transform:translate(-50%,-4cqw) scale(1.1)}100%{opacity:0;transform:translate(-50%,-16cqw) scale(1)}}
+
+  /* ---------- 1. Monolit Agent ---------- */
+  .mono{background:#fff}
+  .mono .sb{background:var(--mono);color:#fff}
+  .mono .mh{flex:none;background:linear-gradient(180deg,#5b7fa6,#4a6d91);color:#fff;font-size:5cqw;font-weight:700;padding:2cqw 5cqw 4cqw;font-family:-apple-system,"Segoe UI",Roboto,sans-serif}
+  .mono .mb{flex:1;padding:5cqw;display:flex;flex-direction:column;gap:1.4cqw;font-family:-apple-system,"Segoe UI",Roboto,sans-serif}
+  .mono .ml{font-size:3.3cqw;color:#6b7580;margin-top:2.2cqw}
+  .mono .mv{font-size:3.9cqw;color:#35587f;font-weight:700;line-height:1.3}
+  .mono .mbox{border:.4cqw solid #35587f;border-radius:1.6cqw;padding:2.4cqw 3cqw;font-size:3.5cqw;color:#35587f;margin-top:.6cqw}
+  .mono .old{display:flex;align-items:center;gap:2cqw;margin-top:2cqw;font-size:3cqw;color:#a33}
+  .mono .old i{width:8cqw;height:10cqw;background:#e25849;border-radius:.8cqw;position:relative}
+  .mono .old i::after{content:"";position:absolute;right:0;top:0;border-style:solid;border-width:0 2.4cqw 2.4cqw 0;border-color:transparent #fff #b53b2f transparent}
+  .play.mono .old{animation:strike .5s ease 1.3s both}
+  @keyframes strike{to{opacity:.35;transform:scale(.9);filter:grayscale(1)}}
+  .mono .pdfslot{position:relative;margin-top:3cqw;min-height:22cqw}
+  .mono .pdf{position:absolute;left:0;top:0;display:flex;align-items:center;gap:3cqw;transition:opacity .4s,transform .5s var(--ease)}
+  .mono .pdf i{width:12cqw;height:15cqw;background:#e25849;border-radius:1cqw;position:relative;display:block;transition:box-shadow .3s}
+  .mono .pdf i::after{content:"";position:absolute;right:0;top:0;border-style:solid;border-width:0 3.4cqw 3.4cqw 0;border-color:transparent #fff #b53b2f transparent}
+  .mono .pdf .was{font-size:3.4cqw;font-weight:900;color:#c0392b;opacity:0;transform:translateX(-2cqw);transition:all .4s var(--ease);font-family:var(--font)}
+  .mono .pdfslot.hl .pdf i{box-shadow:0 0 0 1.2cqw #fff,0 0 0 2.2cqw #e25849;animation:pdfPulse 1s ease-in-out infinite}
+  .mono .pdfslot.hl .was{opacity:1;transform:none}
+  @keyframes pdfPulse{50%{box-shadow:0 0 0 1.2cqw #fff,0 0 0 3.6cqw rgba(226,88,73,.35)}}
+  .mono .pdfslot.swap .pdf{opacity:0;transform:scale(.6) rotate(-8deg)}
+  .mono .pdfslot .mlink{position:absolute;left:0;right:0;top:0;opacity:0;transform:scale(.8);transition:opacity .4s .15s,transform .6s var(--spring) .15s}
+  .mono .pdfslot.swap .mlink{opacity:1;transform:none}
+  .mono .mlink{margin-top:3cqw;display:flex;align-items:center;gap:3cqw;padding:3.4cqw;border-radius:4cqw;background:linear-gradient(135deg,#eafaf1,#d8f6e5);border:.5cqw solid var(--accent);color:var(--brand);font-family:var(--font);box-shadow:0 2cqw 5cqw -2cqw rgba(23,177,105,.6)}
+  .mono .mlink img{width:11cqw;height:11cqw;border-radius:2.8cqw;background:#fff;padding:1cqw;flex:none;box-shadow:0 .8cqw 2cqw rgba(0,50,30,.15)}
+  .mono .mlink b{display:block;font-size:3.9cqw;font-weight:900}
+  .mono .mlink span{font-size:2.9cqw;color:var(--soft)}
+  .mono .mlink i{margin-left:auto;font-style:normal;font-size:7cqw;color:var(--accent);animation:nudge 1.2s ease-in-out infinite}
+  @keyframes nudge{50%{transform:translateX(1.4cqw)}}
+  .mono .mlink.glow{animation:glow 1.1s ease-in-out 2}
+  @keyframes glow{50%{box-shadow:0 0 0 3cqw rgba(23,177,105,.22),0 2cqw 5cqw -2cqw rgba(23,177,105,.6)}}
+  .mono .mf{flex:none;background:#4a6d91;color:#fff;text-align:center;font-weight:700;font-size:4.6cqw;padding:4cqw 0 6cqw;font-family:-apple-system,"Segoe UI",Roboto,sans-serif}
+
+  /* ---------- 2. Привітання ---------- */
+  .welcome .hero{flex:none;background:linear-gradient(150deg,var(--brand) 0%,var(--brand2) 70%,#17b169 130%);color:#fff;padding:3cqw 6cqw 10cqw;position:relative;overflow:hidden}
+  .welcome .hero::before,.welcome .hero::after{content:"";position:absolute;border-radius:50%;border:5cqw solid rgba(255,255,255,.08)}
+  .welcome .hero::before{right:-14cqw;top:-12cqw;width:50cqw;height:50cqw;animation:spinS 20s linear infinite}
+  .welcome .hero::after{right:18cqw;bottom:-20cqw;width:30cqw;height:30cqw;border-color:rgba(255,202,43,.18)}
+  @keyframes spinS{to{transform:rotate(360deg)}}
+  .welcome .logo{width:13cqw;height:13cqw;border-radius:3.6cqw;background:#fff;display:grid;place-items:center;margin-bottom:4cqw;box-shadow:0 1.6cqw 3cqw rgba(0,0,0,.25)}
+  .welcome .logo img{width:76%}
+  .welcome h2{font-size:8.4cqw;font-weight:900;line-height:1.05;display:flex;align-items:center;gap:2cqw}
+  .welcome h2 .wave{display:inline-block;transform-origin:70% 70%}
+  .play.welcome h2 .wave{animation:wave 1.6s ease-in-out .6s 2}
+  @keyframes wave{0%,100%{transform:rotate(0)}15%{transform:rotate(16deg)}30%{transform:rotate(-8deg)}45%{transform:rotate(16deg)}60%{transform:rotate(-4deg)}75%{transform:rotate(10deg)}}
+  .welcome .hero p{font-size:3.7cqw;line-height:1.35;margin-top:2.4cqw;opacity:.92}
+  .welcome .prog{margin:-7cqw 5cqw 0;position:relative;z-index:2}
+  .welcome .big{display:flex;align-items:baseline;gap:2cqw;color:var(--brand)}
+  .welcome .big b{font-size:14cqw;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;background:linear-gradient(135deg,#0f6b44,#17b169);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
+  .welcome .big b.tick{animation:tick .3s var(--spring)}
+  @keyframes tick{40%{transform:scale(1.25)}}
+  .welcome .big span{font-size:4.2cqw;font-weight:900}
+  .welcome .weeks{display:flex;gap:1.4cqw;margin-top:3cqw}
+  .welcome .weeks i{flex:1;height:2.2cqw;border-radius:1cqw;background:#e3ebe6;position:relative;overflow:hidden}
+  .welcome .weeks i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#17b169,#1bd665);transform:scaleX(0);transform-origin:left}
+  .play.welcome .weeks i::after{animation:fillx .35s var(--ease) calc(1.2s + var(--k) * .2s) both}
+  @keyframes fillx{to{transform:scaleX(1)}}
+  .welcome ul{list-style:none;display:flex;flex-direction:column;gap:1.8cqw;margin-top:1cqw}
+  .welcome li{display:flex;gap:2.4cqw;align-items:center;font-size:3.35cqw;font-weight:700}
+  .welcome li i{flex:none;width:6.4cqw;height:6.4cqw;border-radius:1.8cqw;display:grid;place-items:center;font-style:normal;font-size:3.6cqw}
+  .welcome .body{padding-top:3.4cqw}
+
+  /* ---------- 3. Встановлення ---------- */
+  .home{background:linear-gradient(165deg,#062a1c 0%,#0e5a3b 45%,#1c9a60 100%);color:#fff}
+  .home .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8cqw 6cqw;padding:6cqw 7cqw}
+  .home .tl{aspect-ratio:1;border-radius:24%;background:rgba(255,255,255,.16);position:relative;backdrop-filter:blur(4px)}
+  .home .tl::after{content:attr(data-l);position:absolute;left:-40%;right:-40%;top:104%;text-align:center;font-size:2.7cqw;white-space:nowrap;opacity:.9}
+  .home .app{background:#fff;display:grid;place-items:center;opacity:0;box-shadow:0 0 0 0 rgba(255,202,43,.6)}
+  .home .app img{width:72%}
+  .home.reveal .app{animation:drop .8s var(--spring) .2s both,halo 1.6s ease-out 1s 2}
+  @keyframes drop{from{opacity:0;transform:scale(.2) translateY(-120%) rotate(-25deg)}to{opacity:1;transform:none}}
+  @keyframes halo{from{box-shadow:0 0 0 0 rgba(255,202,43,.8)}to{box-shadow:0 0 0 5cqw rgba(255,202,43,0)}}
+  .home .fr{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;z-index:8;opacity:0;transition:opacity .35s,transform .5s var(--ease)}
+  .home .fr.on{opacity:1}
+  .home .fr.sheetf{transform:translateY(40%)}.home .fr.sheetf.on{transform:none}
+  .home .fr.slidef{transform:translateX(30%)}.home .fr.slidef.on{transform:none}
+  .home .fr.out{opacity:0}
+  .home .sheet{margin:auto 5cqw 7cqw;color:var(--ink)}
+  .home .sheet b{display:block;font-size:4.6cqw;font-weight:900;color:var(--brand)}
+  .home .sheet p{font-size:3.3cqw;color:var(--soft);margin:1.4cqw 0 3cqw;line-height:1.35}
+  .home .feats{display:flex;gap:1.4cqw;flex-wrap:wrap;margin-bottom:3cqw}
+
+  /* ---------- 4. Вхід ---------- */
+  .login{background:linear-gradient(180deg,#eaf7f0,#f3f7f4 40%)}
+  .login .body{justify-content:center;gap:3.6cqw}
+  .login .logo{width:17cqw;height:17cqw;border-radius:4.6cqw;background:#fff;box-shadow:0 2cqw 5cqw -1cqw rgba(0,50,30,.25);display:grid;place-items:center;margin:0 auto}
+  .login .logo img{width:74%}
+  .login h3{text-align:center;font-size:6cqw;font-weight:900;color:var(--brand)}
+  .login .field{background:#fff;border:.5cqw solid var(--line);border-radius:3.4cqw;padding:2.4cqw 3.6cqw;transition:border-color .3s,box-shadow .3s}
+  .login .field.focus{border-color:var(--accent);box-shadow:0 0 0 1.4cqw rgba(23,177,105,.15)}
+  .login .field small{display:block;font-size:2.8cqw;color:var(--soft)}
+  .login .field span{font-size:5.4cqw;font-weight:900;letter-spacing:.08em;min-height:6.8cqw;display:block}
+  .login .field.focus span::after{content:"";display:inline-block;width:.5cqw;height:5cqw;background:var(--accent);margin-left:.4cqw;vertical-align:-.6cqw;animation:caret 1s steps(1) infinite}
+  @keyframes caret{50%{opacity:0}}
+  .login .pins{display:flex;gap:2.6cqw;justify-content:center}
+  .login .pins i{width:12.4cqw;height:14.6cqw;border-radius:3.2cqw;background:#fff;border:.5cqw solid var(--line);display:grid;place-items:center;font-style:normal;font-size:7cqw;font-weight:900;color:var(--brand)}
+  .login .pins i.f{border-color:var(--accent);animation:pinf .35s var(--spring)}
+  @keyframes pinf{40%{transform:scale(1.15)}}
+  .login .pins.okk i{background:var(--tint);border-color:var(--ok)}
+  .toast{position:absolute;left:5cqw;right:5cqw;top:14cqw;background:rgba(0,50,30,.94);backdrop-filter:blur(6px);color:#fff;border-radius:3.6cqw;padding:3cqw 3.6cqw;font-size:3.3cqw;line-height:1.3;
+    display:flex;gap:2.4cqw;align-items:center;transform:translateY(-150%) scale(.9);opacity:0;transition:transform .6s var(--spring),opacity .3s;z-index:12;box-shadow:0 2cqw 5cqw rgba(0,0,0,.25)}
+  .toast.show{transform:none;opacity:1}
+  .toast i{flex:none;width:6.4cqw;height:6.4cqw;border-radius:50%;background:var(--ok);display:grid;place-items:center;font-style:normal;font-weight:900;font-size:3.4cqw;color:var(--brand)}
+  .login .pinwrap{opacity:.25;transition:opacity .4s;filter:grayscale(1)}
+  .login .pinwrap.on2{opacity:1;filter:none}
+  .login .pinwrap small{display:block;text-align:center;font-size:2.9cqw;color:var(--soft);margin-bottom:2cqw}
+  .login .pinwrap .pinnote{margin:2.4cqw 0 0;font-size:2.7cqw;line-height:1.35}
+  .login .lab{display:flex;align-items:center;gap:2cqw;font-size:3.4cqw;font-weight:700;margin-bottom:-1.6cqw}
+  .login .info{width:6cqw;height:6cqw;border-radius:50%;background:var(--info);color:#fff;display:grid;place-items:center;font-size:3.4cqw;font-weight:900;font-style:italic;font-family:Georgia,serif;box-shadow:0 0 0 0 rgba(75,135,197,.5)}
+  .play.login .info{animation:infoPing 1.2s ease-out .6s 2}
+  @keyframes infoPing{from{box-shadow:0 0 0 0 rgba(75,135,197,.6)}to{box-shadow:0 0 0 3.4cqw rgba(75,135,197,0)}}
+  .login .field .ph{color:#9aa8a0;font-weight:300;letter-spacing:0}
+  .login .field .ph::after{display:none}
+  /* нижня шторка-підказка — як «Де знайти ваш код?» на екрані реєстрації */
+  .shov{position:absolute;inset:0;z-index:13;background:rgba(0,20,12,0);pointer-events:none;transition:background .4s}
+  .shov.show{background:rgba(0,20,12,.5)}
+  .shsheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:6cqw 6cqw 0 0;padding:2.4cqw 5cqw 7cqw;transform:translateY(105%);transition:transform .65s var(--spring);box-shadow:0 -2cqw 6cqw rgba(0,0,0,.22)}
+  .shov.show .shsheet{transform:none}
+  .shsheet .handle{width:13cqw;height:1.5cqw;border-radius:1cqw;background:#cfd8d3;margin:0 auto 3.4cqw}
+  .shsheet h4{font-size:5.2cqw;font-weight:900;color:var(--brand)}
+  .shsheet p{font-size:3.2cqw;line-height:1.4;color:var(--soft);margin-top:1.6cqw}
+  .shsheet .fn{font-size:2.8cqw}
+  .shimg{position:relative;height:60cqw;border-radius:3.4cqw;overflow:hidden;margin-top:3cqw;box-shadow:0 0 0 .4cqw var(--line)}
+  .shimg .zw{position:relative;transform-origin:60% 9%;transition:transform 1.1s var(--ease)}
+  .shimg.zoom .zw{transform:scale(1.9)}
+  .shimg img{width:100%;display:block}
+  .shimg .hl{position:absolute;left:49.5%;top:7%;width:22.5%;height:5.6%;border-radius:1.6cqw;border:.5cqw solid var(--gold);opacity:0;transition:opacity .4s}
+  .shimg.zoom .hl{opacity:1;animation:hlPulse 1s ease-in-out .9s infinite}
+  @keyframes hlPulse{50%{box-shadow:0 0 0 1.4cqw rgba(255,202,43,.45)}}
+
+  /* ---------- 5. План курсу ---------- */
+  .plan .top{padding:1cqw 5cqw 3.4cqw;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff}
+  .plan .top b{display:block;font-size:5cqw;font-weight:900}
+  .plan .top span{font-size:3cqw;opacity:.85}
+  .plan .meter{display:flex;align-items:center;gap:2cqw;margin-top:2cqw;font-size:2.8cqw;font-weight:700}
+  .plan .meter em{flex:1;height:1.6cqw;border-radius:1cqw;background:rgba(255,255,255,.2);position:relative;overflow:hidden}
+  .plan .meter em::after{content:"";position:absolute;inset:0;width:4%;background:var(--gold);border-radius:1cqw}
+  .plan .rail{flex:none;position:relative;padding:3.4cqw 5cqw 0 5cqw;display:flex;flex-direction:column;gap:2.1cqw}
+  .plan .fin{margin:auto 5cqw 6cqw;display:flex;align-items:center;gap:3cqw;background:linear-gradient(135deg,#fff8e0,#ffefb8);border-radius:3.4cqw;padding:3cqw 3.6cqw;font-size:3.3cqw;font-weight:700;color:#5a3d00}
+  .plan .fin i{font-style:normal;font-size:6cqw}
+  .plan .rail::before{content:"";position:absolute;left:9.4cqw;top:7cqw;bottom:5cqw;width:.8cqw;background:repeating-linear-gradient(180deg,#cfdcd4 0 2cqw,transparent 2cqw 3.4cqw);border-radius:1cqw}
+  .plan .wk{display:flex;gap:3cqw;align-items:center;position:relative}
+  .plan .nd{flex:none;width:9cqw;height:9cqw;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:3.6cqw;color:#fff;background:var(--lock);box-shadow:0 0 0 1cqw var(--bg);z-index:1}
+  .plan .wk .c{flex:1;background:#fff;border-radius:3.2cqw;padding:2cqw 3cqw;box-shadow:0 .8cqw 2.4cqw rgba(0,50,30,.08);min-width:0;display:flex;align-items:center;gap:2cqw}
+  .plan .wk .c div{flex:1;min-width:0}
+  .plan .wk .c b{display:block;font-size:3.3cqw;line-height:1.2}
+  .plan .wk .c span{font-size:2.6cqw;color:var(--soft)}
+  .plan .wk .c em{font-style:normal;font-size:3.4cqw;opacity:.6}
+  .plan .wk.open .nd{background:linear-gradient(135deg,#5b9ad6,#3a6fa8)}
+  .plan .wk.open .c{box-shadow:0 0 0 .6cqw var(--info),0 1.6cqw 4cqw -1cqw rgba(75,135,197,.5)}
+  .plan .wk.locked .c{opacity:.72}
+  .plan .go{display:inline-flex;margin-top:1cqw;font-size:2.8cqw;font-weight:900;color:#fff;background:linear-gradient(135deg,#5b9ad6,#3a6fa8);border-radius:999px;padding:.8cqw 3cqw}
+  .play.plan .wk.open .nd{animation:pulse 1.3s ease-in-out 2s 3}
+  @keyframes pulse{50%{box-shadow:0 0 0 1cqw var(--bg),0 0 0 3.6cqw rgba(75,135,197,.35)}}
+  .play.plan .wk.locked .c em{animation:jiggle .5s ease calc(1.6s + var(--k,0) * .12s)}
+  @keyframes jiggle{25%{transform:rotate(-14deg)}75%{transform:rotate(14deg)}}
+
+  /* ---------- 6. Урок ---------- */
+  .lesson .bar{display:flex;gap:1.2cqw;padding:0 5cqw 3cqw;background:linear-gradient(135deg,var(--brand),var(--brand2))}
+  .lesson .bar i{flex:1;height:1.3cqw;border-radius:1cqw;background:rgba(255,255,255,.25);overflow:hidden;position:relative}
+  .lesson .bar i::after{content:"";position:absolute;inset:0;background:#fff;transform:scaleX(0);transform-origin:left;transition:transform .5s var(--ease)}
+  .lesson .bar i.f::after{transform:scaleX(1)}
+  .lesson .deck{flex:1;position:relative;overflow:hidden}
+  .lesson .rail2{position:absolute;inset:0;display:flex;transition:transform .6s var(--spring)}
+  .lesson .sl{flex:none;width:100%;height:100%;padding:5cqw;display:flex;flex-direction:column;gap:3cqw}
+  .lesson .pic{height:52cqw;border-radius:5cqw;display:grid;place-items:center;color:#fff;font-weight:900;text-align:center;padding:4cqw;position:relative;overflow:hidden;box-shadow:0 2cqw 5cqw -2cqw rgba(0,50,30,.5)}
+  .lesson .pic::before{content:"";position:absolute;width:60cqw;height:60cqw;border-radius:50%;right:-30cqw;top:-30cqw;background:rgba(255,255,255,.08)}
+  .lesson .pic.a{background:linear-gradient(150deg,#00321e,#0f6b44 60%,#17b169)}
+  .lesson .pic.b{background:linear-gradient(150deg,#0f6b44,#17b169 60%,#9be15d)}
+  .lesson .pic.c{background:linear-gradient(150deg,#12305a,#4b87c5 60%,#7cc4ff)}
+  .lesson .pic b{font-size:9.6cqw;line-height:1;position:relative}
+  .lesson .pic small{display:block;font-size:3.4cqw;font-weight:700;opacity:.9;margin-top:1.6cqw;position:relative}
+  .lesson .emo{font-size:11cqw;display:block;margin-bottom:2cqw;position:relative}
+  .lesson .pins3{display:flex;gap:2cqw;justify-content:center;margin-top:3cqw;position:relative}
+  .lesson .pins3 span{background:rgba(255,255,255,.2);border-radius:999px;padding:1cqw 2.6cqw;font-size:3cqw;font-weight:700}
+  .lesson .sl h4{font-size:5cqw;color:var(--brand);font-weight:900}
+  .lesson .sl p{font-size:3.5cqw;line-height:1.4}
+  .lesson .foot{padding:0 5cqw 6cqw}
+
+  /* ---------- 7. Тест ---------- */
+  .quiz .qs{flex:1;position:relative;overflow:hidden}
+  .quiz .q{position:absolute;inset:0;padding:4cqw 5cqw;display:flex;flex-direction:column;gap:2.6cqw;transition:transform .6s var(--spring),opacity .4s}
+  .quiz .q.next{transform:translateX(100%);opacity:0}
+  .quiz .q.gone{transform:translateX(-100%);opacity:0}
+  .quiz .q h4{font-size:5cqw;line-height:1.25;color:var(--brand);font-weight:900}
+  .quiz .opt{display:flex;align-items:center;gap:3cqw;background:#fff;border:.5cqw solid var(--line);border-bottom-width:1.2cqw;border-radius:3.4cqw;padding:3cqw 3.4cqw;font-size:3.9cqw;font-weight:700;transition:border-color .25s,background .25s}
+  .quiz .opt i{flex:none;width:6.4cqw;height:6.4cqw;border-radius:50%;border:.5cqw solid var(--lock);display:grid;place-items:center;font-style:normal;font-size:3.6cqw;color:#fff;font-weight:900}
+  .quiz .opt.ok{border-color:var(--ok);background:#e6fbef}
+  .quiz .opt.ok i{background:var(--ok);border-color:var(--ok)}
+  .quiz .opt.bad{border-color:var(--bad);background:#fdecec;animation:shake .5s}
+  .quiz .opt.bad i{background:var(--bad);border-color:var(--bad)}
+  @keyframes shake{20%,60%{transform:translateX(-2cqw)}40%,80%{transform:translateX(2cqw)}}
+  .quiz .fb{border-radius:3.4cqw;padding:3cqw 3.6cqw;font-size:3.3cqw;line-height:1.4;opacity:0;transform:translateY(4cqw);transition:all .5s var(--spring)}
+  .quiz .fb.show{opacity:1;transform:none}
+  .quiz .fb.good{background:linear-gradient(135deg,#e6fbef,#d3f7e2)}
+  .quiz .fb.good b{color:#0b7a45}
+  .quiz .fb.try{background:#fff4d6}
+  .quiz .fb.try b{color:#8a5f00}
+  .quiz .q{padding-top:6cqw;gap:3cqw}
+  .quiz .opt{padding:3.6cqw 3.6cqw}
+  .quiz .qbtn{margin-top:auto;margin-bottom:4cqw;background:#dfe7e2;color:#8a9a92;box-shadow:none;transition:background .3s,color .3s,box-shadow .3s}
+  .quiz .qbtn::after{display:none}
+  .quiz .qbtn.ready{background:linear-gradient(135deg,#1bd665,#17b169 55%,#0f8f55);color:#fff;box-shadow:0 1.6cqw 4cqw -1cqw rgba(23,177,105,.55)}
+  .quiz .streak{position:absolute;right:4cqw;top:3cqw;font-weight:900;font-size:3.4cqw;color:#e8590c;opacity:0;transform:scale(.4);transition:all .5s var(--spring)}
+  .quiz .streak.show{opacity:1;transform:none}
+
+  /* ---------- Плеєр курсу: стиль платформи (прямі кути, --cb-primary, --cb-support-*) ---------- */
+  .pl{background:#fff;color:#212833}
+  .pl .ptop{flex:none;display:flex;align-items:center;gap:2.4cqw;padding:12.5cqw 4cqw 2.4cqw}
+  .pl .ptop .bk{font-size:6cqw;line-height:1;color:#00321e;font-weight:700}
+  .pl .ptop .ttl{flex:1;min-width:0;font-size:3.1cqw;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pl .ptop .cnt{font-size:2.9cqw;color:#314550;font-variant-numeric:tabular-nums}
+  .pl .pbar{flex:none;height:1.1cqw;background:#d7e0e2}
+  .pl .pbar i{display:block;height:100%;background:#17b169;transition:width .5s var(--ease)}
+  .pl .track{flex:1;position:relative;overflow:hidden}
+  .pl .rw{position:absolute;inset:0;display:flex;transition:transform .55s var(--ease)}
+  .pl .pg{flex:none;width:100%;height:100%;padding:4cqw 4.4cqw;display:flex;flex-direction:column;gap:2.6cqw;overflow:hidden}
+  .pl .ptype{align-self:flex-start;font-size:2.5cqw;font-weight:900;letter-spacing:.07em;text-transform:uppercase;color:#2f6aa6;background:#d5eaff;padding:.8cqw 2.2cqw;border-radius:999px}
+  .pl h5{font-size:4.8cqw;font-weight:900;line-height:1.2}
+  .pl .pg p{font-size:3.2cqw;line-height:1.45;color:#314550}
+  .pl .pimg{width:100%;display:block;border:.3cqw solid #d7e0e2}
+  .pl .gate{font-size:2.8cqw;color:#668494;margin-top:auto}
+  .pl .pnav{flex:none;display:flex;gap:2cqw;padding:3cqw 4cqw 6.4cqw;border-top:.3cqw solid #d7e0e2}
+  .pl .pnav span{min-height:11.4cqw;display:grid;place-items:center;font-weight:700;font-size:3.5cqw}
+  .pl .pnav .b1{flex:0 0 30%;border:.4cqw solid #00321e;color:#00321e}
+  .pl .pnav .b2{flex:1;background:#00321e;color:#fff;transition:background .3s,color .3s}
+  .pl .pnav .b2.dis{background:#d7e0e2;color:#9db3bf}
+  /* інфо-блок */
+  .pl .worth{border:.3cqw solid #ffca2b;background:#fff3d0;padding:2.6cqw 3cqw;font-size:3.1cqw;line-height:1.4}
+  .pl .worth b{display:block}
+  .pl .worth span{display:block;max-height:0;overflow:hidden;opacity:0;transition:max-height .45s var(--ease),opacity .35s,margin .3s}
+  .pl .worth.open span{max-height:20cqw;opacity:1;margin-top:1.2cqw}
+  /* фото та відео */
+  .pl .rub{font-size:2.8cqw;font-weight:900;letter-spacing:.08em;color:#b49132}
+  .pl .vid{position:relative}
+  .pl .vid img{width:100%;display:block}
+  .pl .vid .play{position:absolute;left:50%;top:45%;width:14cqw;height:14cqw;margin:-7cqw 0 0 -7cqw;border-radius:50%;background:rgba(0,50,30,.85);color:#fff;display:grid;place-items:center;font-style:normal;font-size:5cqw;transition:opacity .3s,transform .3s}
+  .pl .vid.playing .play{opacity:0;transform:scale(.6)}
+  .pl .vid .vbar{position:absolute;left:0;right:0;bottom:0;height:1.4cqw;background:rgba(255,255,255,.4)}
+  .pl .vid .vbar i{display:block;height:100%;width:0;background:#17b169}
+  .pl .vid.playing .vbar i{width:70%;transition:width 2.2s linear}
+  /* акордеон */
+  .pl .acc{border:.3cqw solid #d7e0e2;padding:2.4cqw 3cqw;font-size:3.3cqw}
+  .pl .acc b{display:flex;justify-content:space-between;align-items:center;font-weight:700}
+  .pl .acc b i{font-style:normal;color:#17b169;font-size:4.6cqw;transition:transform .3s}
+  .pl .acc span{display:block;max-height:0;overflow:hidden;color:#314550;font-size:3cqw;line-height:1.4;transition:max-height .45s var(--ease),margin .3s}
+  .pl .acc.open{border-color:#17b169}
+  .pl .acc.open b i{transform:rotate(45deg)}
+  .pl .acc.open span{max-height:14cqw;margin-top:1.2cqw}
+  /* фото з точками */
+  .pl .pins4{position:relative}
+  .pl .pins4 img{width:100%;display:block;border:.3cqw solid #d7e0e2}
+  .pl .pn{position:absolute;width:6.4cqw;height:6.4cqw;margin:-3.2cqw 0 0 -3.2cqw;border-radius:50%;background:#00321e;color:#fff;font-style:normal;font-weight:900;font-size:3cqw;display:grid;place-items:center;box-shadow:0 0 0 1cqw rgba(255,255,255,.8)}
+  .pl .pn em{position:absolute;left:50%;bottom:130%;transform:translateX(-50%) scale(.6);white-space:nowrap;background:#212833;color:#fff;font-style:normal;font-weight:700;font-size:2.6cqw;padding:.8cqw 2cqw;opacity:0;transition:all .3s var(--spring)}
+  .pl .pn.on{background:#17b169}
+  .pl .pn.on.show em{opacity:1;transform:translateX(-50%) scale(1)}
+  /* до / після */
+  .pl .ba{position:relative;height:62cqw;border:.3cqw solid #d7e0e2;background:#f0f2f3;overflow:hidden}
+  .pl .ba img{position:absolute;left:50%;top:50%;height:88%;transform:translate(-50%,-50%);transition:opacity .45s,transform .5s var(--ease)}
+  .pl .ba .i2{opacity:0;transform:translate(-20%,-50%)}
+  .pl .ba.flip .i1{opacity:0;transform:translate(-80%,-50%)}
+  .pl .ba.flip .i2{opacity:1;transform:translate(-50%,-50%)}
+  .pl .seg2{display:flex;border:.4cqw solid #00321e}
+  .pl .seg2 span{flex:1;text-align:center;padding:2cqw;font-size:3cqw;font-weight:700;color:#00321e;transition:background .3s,color .3s}
+  .pl .seg2 span.on{background:#00321e;color:#fff}
+  /* таймлайн */
+  .pl .tl7{display:flex;flex-direction:column;gap:1.6cqw;position:relative}
+  .pl .tl7::before{content:"";position:absolute;left:3.1cqw;top:3cqw;bottom:3cqw;width:.6cqw;background:#d7e0e2}
+  .pl .tl7 div{display:flex;align-items:center;gap:3cqw;font-size:3.2cqw;position:relative}
+  .pl .tl7 i{flex:none;width:6.8cqw;height:6.8cqw;border-radius:50%;background:#fff;border:.5cqw solid #9db3bf;color:#668494;font-style:normal;font-weight:900;font-size:3cqw;display:grid;place-items:center;transition:all .3s}
+  .pl .tl7 div.on i{background:#17b169;border-color:#17b169;color:#fff}
+  .pl .tl7 div.on{font-weight:700}
+  /* діалог-скрипт */
+  .pl .chat{display:flex;flex-direction:column;gap:2cqw}
+  .pl .chat .m{max-width:82%;padding:2.4cqw 3cqw;font-size:3.1cqw;line-height:1.35;background:#f0f2f3;align-self:flex-start;opacity:0;transform:translateY(3cqw);transition:all .4s var(--spring)}
+  .pl .chat .m.me{background:#00321e;color:#fff;align-self:flex-end}
+  .pl .chat .m.show{opacity:1;transform:none}
+  .pl .chat .m{border-radius:3.4cqw;border-bottom-left-radius:.8cqw}
+  .pl .chat .m.me{border-bottom-left-radius:3.4cqw;border-bottom-right-radius:.8cqw}
+  /* чек-лист */
+  .pl .chk{display:flex;align-items:center;gap:3cqw;border:.3cqw solid #d7e0e2;padding:3cqw;font-size:3.3cqw;transition:border-color .3s}
+  .pl .chk i{flex:none;width:6cqw;height:6cqw;border:.5cqw solid #9db3bf;display:grid;place-items:center;font-style:normal;color:#fff;font-weight:900;font-size:3.4cqw;transition:all .25s}
+  .pl .chk.done{border-color:#17b169}
+  .pl .chk.done i{background:#17b169;border-color:#17b169}
+  /* питання */
+  .pl .op{display:flex;align-items:center;gap:3cqw;border:.4cqw solid #d7e0e2;padding:3.2cqw;font-size:3.5cqw;font-weight:700;transition:all .25s}
+  .pl .op i{flex:none;width:5.6cqw;height:5.6cqw;border-radius:50%;border:.5cqw solid #9db3bf;display:grid;place-items:center;font-style:normal;color:#fff;font-size:3.2cqw;font-weight:900}
+  .pl .op.sel{border-color:#00321e}
+  .pl .op.sel i{border-color:#00321e;box-shadow:inset 0 0 0 1cqw #fff;background:#00321e}
+  .pl .op.ok{border-color:#1bd665;background:#cdfadf}
+  .pl .op.ok i{background:#1bd665;border-color:#1bd665;box-shadow:none}
+  .pl .op.bad{border-color:#f45f5e;background:#ffe1e1;animation:shake .45s}
+  .pl .op.bad i{background:#f45f5e;border-color:#f45f5e;box-shadow:none}
+  .pl .fbk{padding:2.6cqw 3cqw;font-size:3.1cqw;line-height:1.4;opacity:0;transform:translateY(3cqw);transition:all .4s var(--spring);background:#cdfadf}
+  .pl .fbk.show{opacity:1;transform:none}
+  .pl .fbk.try{background:#fff3d0}
+  /* гаряча точка */
+  .pl .hs{position:relative;overflow:hidden}
+  .pl .hs img{width:100%;display:block;border:.3cqw solid #d7e0e2}
+  .pl .hsm{position:absolute;left:71.5%;top:70%;width:14cqw;height:14cqw;margin:-7cqw 0 0 -7cqw;border-radius:50%;border:.8cqw solid #1bd665;box-shadow:0 0 0 100vmax rgba(33,40,51,0);opacity:0;transform:scale(1.6);transition:all .45s var(--spring)}
+  .pl .hsm.show{opacity:1;transform:none;box-shadow:0 0 0 100vmax rgba(33,40,51,.35)}
+  /* порядок кроків */
+  .pl .ord{display:flex;flex-direction:column;gap:1.8cqw}
+  .pl .ord div{display:flex;align-items:center;gap:2cqw;border:.4cqw solid #d7e0e2;padding:2.6cqw 3cqw;font-size:3.3cqw;font-weight:700;transition:transform .45s var(--spring),border-color .3s,background .3s}
+  .pl .ord div span{flex:1}
+  .pl .ord em{font-style:normal;width:7cqw;height:7cqw;border:.3cqw solid #9db3bf;display:grid;place-items:center;font-size:2.8cqw;color:#314550}
+  .pl .ord.ok div{border-color:#1bd665;background:#cdfadf}
+  /* відповідність */
+  .pl .mt{display:flex;gap:2.4cqw}
+  .pl .mt .col{flex:1;display:flex;flex-direction:column;gap:1.8cqw}
+  .pl .mt span{border:.4cqw solid #d7e0e2;padding:2.6cqw 2.4cqw;font-size:3cqw;font-weight:700;min-height:12cqw;display:flex;align-items:center;transition:border-color .3s,background .3s,box-shadow .3s,transform 1.1s cubic-bezier(.45,.05,.3,1)}
+  .pl .mt span.sel{border-color:#17b169;background:#e8f5ee;box-shadow:0 0 0 .7cqw rgba(23,177,105,.22)}
+  .pl .mt span.pa{border-color:#4b87c5;background:#d5eaff;--h:#4b87c5}
+  .pl .mt span.pb{border-color:#e8862a;background:#ffe8d0;--h:#e8862a}
+  .pl .mt span.pc{border-color:#8a5cc4;background:#eadffa;--h:#8a5cc4}
+  .pl .mt span.pd{border-color:#17b169;background:#e0f5ea;--h:#17b169}
+  .pl .mt span[data-n]::after{content:attr(data-n);margin-left:auto;flex:none;width:6.4cqw;height:6.4cqw;border-radius:50%;background:var(--h,#17b169);color:#fff;font-size:3.4cqw;font-weight:900;display:grid;place-items:center;animation:pop .45s var(--spring) both}
+  .pl .mt.ok span{--h:#1bd665}
+  .pl .mt.ok span{border-color:#1bd665;background:#cdfadf}
+  /* ---------- 8. Результат ---------- */
+  .result{background:radial-gradient(circle at 50% 30%,#e3f9ec,#f3f7f4 60%)}
+  .result .body{align-items:center;text-align:center;justify-content:center}
+  .result .rw{position:relative;width:46cqw}
+  .result svg.ring{width:46cqw;height:46cqw;transform:rotate(-90deg);filter:drop-shadow(0 1.6cqw 3cqw rgba(23,177,105,.35))}
+  .result .ring circle{fill:none;stroke-width:9;stroke-linecap:round}
+  .result .ring .bg{stroke:#dbe8e0}
+  .result .ring .fg{stroke:url(#rg);stroke-dasharray:283;stroke-dashoffset:283}
+  .play.result .ring .fg{animation:ring 1.4s var(--ease) .4s both}
+  @keyframes ring{to{stroke-dashoffset:0}}
+  .result .pct{position:absolute;inset:0;display:grid;place-items:center;font-size:11cqw;font-weight:900;color:var(--brand);font-variant-numeric:tabular-nums}
+  .result h4{font-size:6cqw;font-weight:900;color:var(--brand)}
+  .result .pts{display:flex;gap:2.4cqw;justify-content:center;flex-wrap:wrap}
+  .result .pts .chip{font-size:3.3cqw;padding:1.2cqw 3cqw}
+  .result .badge{position:relative;overflow:hidden}
+  .result .badge::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.8),transparent);transform:skewX(-20deg)}
+  .play.result .badge::after{animation:shine 1.6s ease 2.6s 2}
+  .result .next2{width:100%;text-align:left;display:flex;gap:3cqw;align-items:center}
+  .result .next2 .nd{flex:none;width:8.4cqw;height:8.4cqw;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:900;font-size:3.4cqw}
+
+  /* ---------- Завершення курсу і сертифікат (стиль плеєра: прямі кути, --cb-*) ---------- */
+  .cert{background:#fff;color:#212833}
+  .cert .cc{align-items:center;text-align:center;justify-content:center;gap:2.2cqw}
+  .cert .trophy{width:20cqw;height:20cqw;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;box-shadow:0 4cqw 8cqw -3cqw rgba(27,214,101,.55)}
+  .cert .trophy svg{width:9cqw;height:9cqw}
+  .cert h4{font-size:4.9cqw;font-weight:900;line-height:1.25}
+  .cert .lead{font-size:3.3cqw;color:#314550}
+  .cert .score b{display:block;font-size:6.2cqw;font-weight:900}
+  .cert .score span{font-size:2.8cqw;color:#314550}
+  .cert .saved{font-size:3cqw;color:#314550}
+  .cert .certblock{width:100%;display:flex;flex-direction:column;align-items:center;gap:1.8cqw;border:.3cqw solid #b49132;background:#f3eedf;padding:4cqw 4cqw}
+  .cert .certblock .ci{width:10cqw;height:10cqw;color:#7a6322}
+  .cert .certblock b{font-size:3.6cqw;line-height:1.35}
+  .cert .certblock span{font-size:3cqw;line-height:1.4;color:#314550}
+  .cert .pbtn{width:100%;min-height:12.5cqw;margin-top:1.4cqw;background:#00321e;color:#fff;font-weight:700;font-size:3.8cqw;display:flex;align-items:center;justify-content:center;gap:2cqw}
+  .cert .pbtn span{color:#fff;font-size:inherit;line-height:1.2}
+  .cert .pbtn.busy::before{content:"";width:3.8cqw;height:3.8cqw;border-radius:50%;border:.6cqw solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .pdfview{position:absolute;inset:0;z-index:12;background:#525659;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .6s var(--ease)}
+  .pdfview.show{transform:none}
+  .pvbar{flex:none;display:flex;justify-content:space-between;align-items:center;padding:13cqw 4cqw 3cqw;background:#323639;color:#fff;font-size:3cqw}
+  .pvbar em{font-style:normal;font-size:4.4cqw}
+  .pvpage{flex:1;display:grid;place-items:center;padding:4cqw}
+  .sheetA4{position:relative;width:100%;aspect-ratio:297/210;background:#fff;box-shadow:0 2cqw 6cqw rgba(0,0,0,.4);overflow:hidden;text-align:center;color:#111;
+    outline:.5cqw solid #0b4a34;outline-offset:-2.6cqw;transform:scale(.6);opacity:0;transition:transform .6s var(--spring),opacity .4s}
+  .pdfview.show .sheetA4{transform:none;opacity:1;transition-delay:.3s}
+  .sheetA4::after{content:"";position:absolute;inset:3.6cqw;border:.2cqw solid #b49132;pointer-events:none}
+  .sheetA4 .wm{position:absolute;right:-12%;top:8%;height:85%;opacity:.15}
+  .sheetA4 .lg{display:block;width:5.4cqw;margin:4.6cqw auto 0}
+  .sheetA4 .pn{font-size:1.5cqw;color:#0b4a34;letter-spacing:.12em;font-weight:700;margin-top:.6cqw}
+  .sheetA4 .tg{font-size:1.1cqw;color:#666}
+  .sheetA4 .t1{font-size:4.2cqw;color:#0b4a34;font-weight:900;margin-top:1.4cqw}
+  .sheetA4 .t2{font-size:1.7cqw;color:#333;margin-top:1cqw}
+  .sheetA4 .t3{font-size:3.4cqw;font-weight:900;margin-top:.4cqw}
+  .sheetA4 .t4{font-size:2.6cqw;color:#0b4a34;font-weight:700;margin-top:.4cqw}
+  .sheetA4 .t5{font-size:2cqw;color:#b49132;font-weight:700;margin-top:.6cqw}
+  .sheetA4 .t6{position:absolute;left:0;right:0;bottom:5cqw;font-size:1.4cqw;color:#555}
+  .dl{flex:none;margin:0 4cqw 7cqw;background:#fff;display:flex;gap:3cqw;align-items:center;padding:3cqw 3.4cqw;transform:translateY(40cqw);transition:transform .5s var(--spring)}
+  .dl.show{transform:none}
+  .dl .dlic{font-style:normal;width:9cqw;height:9cqw;background:#00321e;color:#fff;display:grid;place-items:center;font-size:4.6cqw;flex:none}
+  .dl.done .dlic{background:var(--ok)}
+  .dl .dlt{flex:1;min-width:0}
+  .dl b{display:block;font-size:3.1cqw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dlbar{height:1.4cqw;background:#d7e0e2;margin-top:1.6cqw;overflow:hidden}
+  .dlbar i{display:block;height:100%;width:0;background:#17b169;transition:width 1.6s var(--ease)}
+
+  /* ---------- 9. Сповіщення ---------- */
+  .lock{background:linear-gradient(170deg,#051f15 0%,#0b4a31 50%,#17905a 100%);color:#fff}
+  .lock::before{content:"";position:absolute;width:90cqw;height:90cqw;border-radius:50%;left:-30cqw;bottom:-40cqw;background:radial-gradient(circle,rgba(255,202,43,.35),transparent 65%)}
+  .lock .clock{text-align:center;margin-top:6cqw;position:relative}
+  .lock .clock small{display:block;font-size:4cqw;opacity:.85;font-weight:700}
+  .lock .clock b{font-size:21cqw;font-weight:300;line-height:1;letter-spacing:-.02em}
+  .lock .nt{position:relative;margin:3cqw 4cqw 0;background:rgba(255,255,255,.94);color:var(--ink);border-radius:5cqw;padding:3cqw 3.6cqw;display:flex;gap:3cqw;
+    transform:translateY(-70cqw) scale(.9);opacity:0;transition:transform .7s var(--spring),opacity .3s;box-shadow:0 2cqw 6cqw rgba(0,0,0,.3)}
+  .lock .nt.show{transform:none;opacity:1}
+  .lock .nt.buzz{animation:buzz .5s ease}
+  @keyframes buzz{20%,60%{transform:translateX(-1.2cqw) rotate(-1deg)}40%,80%{transform:translateX(1.2cqw) rotate(1deg)}}
+  .lock .nt .ai{flex:none;width:9.6cqw;height:9.6cqw;border-radius:2.6cqw;background:#fff;display:grid;place-items:center;box-shadow:0 0 0 .3cqw var(--line);position:relative}
+  .lock .nt .ai img{width:74%}
+  .lock .nt .ai.tg{background:linear-gradient(135deg,#37aee2,#1e96c8);box-shadow:none;color:#fff;font-weight:900;font-size:4.4cqw}
+  .lock .nt .ai .dot{position:absolute;right:-1cqw;top:-1cqw;width:4.4cqw;height:4.4cqw;border-radius:50%;background:var(--bad);color:#fff;font-size:2.6cqw;font-weight:900;display:grid;place-items:center;box-shadow:0 0 0 .5cqw #fff}
+  .lock .nt .tx{min-width:0;flex:1}
+  .lock .nt .h{display:flex;justify-content:space-between;font-size:2.8cqw;color:var(--soft)}
+  .lock .nt b{display:block;font-size:3.7cqw;margin:.4cqw 0;font-weight:900}
+  .lock .nt p{font-size:3.2cqw;line-height:1.3}
+
+  /* ---------- 10. Польове навчання ---------- */
+  .field .sv{display:flex;align-items:center;gap:2.6cqw}
+  .field .av{width:10cqw;height:10cqw;border-radius:50%;background:linear-gradient(135deg,#5b9ad6,#3a6fa8);color:#fff;display:grid;place-items:center;font-weight:900;font-size:3.4cqw;flex:none;box-shadow:0 0 0 .8cqw #fff,0 1cqw 3cqw rgba(0,0,0,.15)}
+  .field .sv b{font-size:3.7cqw;display:block;font-weight:900}
+  .field .sv span{font-size:2.9cqw;color:var(--soft)}
+  .field .ck{display:flex;align-items:center;gap:3cqw;background:#fff;border-radius:3.4cqw;padding:3cqw 3.4cqw;font-size:3.6cqw;font-weight:700;box-shadow:0 .8cqw 2.4cqw rgba(0,50,30,.07);transition:background .3s}
+  .field .ck i{flex:none;width:6.8cqw;height:6.8cqw;border-radius:2cqw;border:.5cqw solid var(--lock);display:grid;place-items:center;font-style:normal;font-weight:900;color:#fff;font-size:3.8cqw;transition:background .25s,border-color .25s}
+  .field .ck.done{background:#effcf4}
+  .field .ck.done i{background:var(--ok);border-color:var(--ok);animation:pinf .4s var(--spring)}
+  .field .stamp{margin-top:auto;border:.7cqw solid var(--ok);color:#0b7a45;background:rgba(255,255,255,.7);border-radius:3.4cqw;padding:3cqw;text-align:center;font-weight:900;font-size:4.2cqw;opacity:0;transform:scale(2) rotate(-8deg)}
+  .field .stamp.show{animation:slam .5s cubic-bezier(.5,0,.75,0) forwards}
+  @keyframes slam{0%{opacity:0;transform:scale(2) rotate(-8deg)}70%{opacity:1;transform:scale(.95) rotate(-3deg)}100%{opacity:1;transform:scale(1) rotate(-3deg)}}
+  .field .stamp small{display:block;font-weight:700;font-size:3cqw;margin-top:.6cqw}
+
+  /* ---------- 11. Кабінет керівника ---------- */
+  .mgr .row{display:flex;align-items:center;gap:2.6cqw;background:#fff;border-radius:3.4cqw;padding:2.6cqw 3cqw;box-shadow:0 .8cqw 2.4cqw rgba(0,50,30,.07);position:relative}
+  .mgr .row .av{width:8.6cqw;height:8.6cqw;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:900;font-size:3.2cqw;flex:none}
+  .mgr .row .mid{flex:1;min-width:0}
+  .mgr .row b{display:block;font-size:3.4cqw;font-weight:900}
+  .mgr .pb{height:1.8cqw;border-radius:1cqw;background:#e3ebe6;margin-top:1.2cqw;overflow:hidden}
+  .mgr .pb i{display:block;height:100%;border-radius:1cqw;width:0;transition:width 1.2s var(--spring)}
+  .mgr .row .st{font-size:2.7cqw;color:var(--soft);margin-top:.8cqw}
+  .mgr .row.late{box-shadow:0 0 0 .5cqw var(--gold),0 .8cqw 2.4cqw rgba(0,50,30,.07)}
+  .mgr .nudge{flex:none;font-size:2.8cqw;font-weight:900;background:linear-gradient(135deg,#ffe07a,#ffca2b);color:#5a3d00;border-radius:999px;padding:1.4cqw 2.8cqw;box-shadow:0 1cqw 2.4cqw -.6cqw rgba(255,202,43,.9)}
+  .mgr .kpi{display:flex;gap:2cqw}
+  .mgr .kpi div{flex:1;background:#fff;border-radius:3.4cqw;padding:2.4cqw;text-align:center;box-shadow:0 .8cqw 2.4cqw rgba(0,50,30,.07)}
+  .mgr .kpi b{display:block;font-size:6.4cqw;font-weight:900;color:var(--brand)}
+  .mgr .kpi .w b{color:#b07d00}
+  .mgr .kpi span{font-size:2.6cqw;color:var(--soft)}
+  .plane{position:absolute;z-index:26;font-size:6cqw;pointer-events:none;animation:fly 1.2s cubic-bezier(.5,0,.4,1) forwards}
+  @keyframes fly{0%{opacity:1;transform:translate(0,0) rotate(0) scale(1)}100%{opacity:0;transform:translate(22cqw,-60cqw) rotate(-20deg) scale(.5)}}
+
+  /* ---------- 12. Рейтинг і що далі ---------- */
+  .rank .place{display:flex;align-items:center;gap:3cqw}
+  .rank .place b{font-size:13cqw;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;background:linear-gradient(135deg,#0f6b44,#17b169);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .rank .place span{font-size:3.3cqw;color:var(--soft);line-height:1.3}
+  .rank .up{opacity:0;transform:translateY(2cqw)}
+  .rank .up.show{opacity:1;transform:none;transition:all .5s var(--spring)}
+  .rank .lb{display:flex;flex-direction:column;gap:1.6cqw;position:relative}
+  .rank .lb div{display:flex;align-items:center;gap:2.4cqw;background:#fff;border-radius:3cqw;padding:2.2cqw 3cqw;font-size:3.4cqw;font-weight:700;box-shadow:0 .8cqw 2.4cqw rgba(0,50,30,.06);transition:transform .8s var(--spring)}
+  .rank .lb em{font-style:normal;font-weight:900;width:5cqw;color:var(--soft)}
+  .rank .lb .me{background:linear-gradient(135deg,#e6f5ec,#d3f7e2);box-shadow:0 0 0 .6cqw var(--accent),0 1.6cqw 4cqw -1cqw rgba(23,177,105,.5);z-index:2}
+  .rank .lb .me em{color:var(--accent)}
+  .rank .lb span{margin-left:auto;font-weight:900;font-variant-numeric:tabular-nums}
+  .rank .soon{display:flex;flex-direction:column;gap:1.8cqw}
+  .rank .soon h5{font-size:3cqw;color:var(--soft);text-transform:uppercase;letter-spacing:.08em;font-weight:900}
+  .rank .soon div{display:flex;gap:2.4cqw;align-items:center;font-size:3.4cqw;font-weight:700}
+  .rank .soon i{flex:none;width:7.4cqw;height:7.4cqw;border-radius:2.2cqw;display:grid;place-items:center;font-style:normal;font-size:4cqw}
+  .play.rank .btn{animation:pulseB 1.6s ease-in-out 3.6s infinite}
+  @keyframes pulseB{50%{box-shadow:0 0 0 3cqw rgba(23,177,105,.22),0 1.6cqw 4cqw -1cqw rgba(23,177,105,.55)}}
+
+  /* ---------- підпис, прогрес, керування ---------- */
+  .cap{width:100%;flex:none;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px}
+  .cap .segs{align-self:stretch}.cap p{max-width:70ch}
+  .cap>*{flex-shrink:0}
+  .segs{display:flex;gap:4px}
+  .segs button{flex:1;height:6px;border:0;border-radius:3px;background:rgba(0,50,30,.12);padding:0;cursor:pointer;position:relative;overflow:hidden}
+  .segs button i{position:absolute;inset:0;background:linear-gradient(90deg,#17b169,#1bd665);transform-origin:left;transform:scaleX(0)}
+  .segs button.done i{transform:scaleX(1)}
+  .cap .n{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:var(--soft);font-weight:900;letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+  .cap .n .em{font-size:18px;display:inline-block}
+  .cap h2{font-size:clamp(18px,1.6vw,26px);font-weight:900;color:var(--brand);line-height:1.2;text-wrap:balance}
+  .cap p{font-size:clamp(14px,1.2vw,19px);line-height:1.45;color:var(--ink);min-height:4.35em}
+  @media (min-width:600px) and (max-width:899px) and (orientation:portrait){.hdr h1{font-size:22px}.hdr h1 small{font-size:15px}.cap h2{font-size:26px}.cap p{font-size:19px}}
+  @media (min-width:900px),(orientation:landscape) and (min-width:560px){
+    .tour{--lc:min(calc((100dvh - 28px) * 390 / 848),46vw);display:grid;grid-template-columns:var(--lc) minmax(0,1fr);grid-template-rows:auto 1fr auto auto;
+      column-gap:clamp(24px,4vw,72px);row-gap:clamp(12px,2.2vh,24px);align-items:center;justify-content:stretch;
+      padding:max(12px,env(safe-area-inset-top)) clamp(20px,15vw,180px) max(12px,env(safe-area-inset-bottom)) clamp(20px,15vw,180px)}
+    .tour:has(.phone.landp){--lc:min(calc(100dvh - 28px),62vw)}
+    .tour .stage{grid-column:1;grid-row:1/-1;align-self:stretch;width:100%;height:100%;padding:0}
+    .phone{--w:min(100cqw,calc(100cqh * 390 / 848))}
+    .hdr{grid-column:2;grid-row:1;align-self:start;margin:clamp(0px,3.7vh,30px) 0 clamp(4px,1.2vh,10px)}
+    .hdr h1{flex:0 1 calc(100% - 92px);font-size:clamp(17px,1.8vw,30px)}
+    .hdr h1 small{font-size:clamp(13px,1.15vw,19px)}
+    .cap{grid-column:2;grid-row:2;align-self:stretch;height:100%;display:grid;grid-template-rows:1fr auto auto auto 1fr auto;justify-items:center}
+    .cap .n{grid-row:2}.cap h2{grid-row:3}.cap p{grid-row:4;min-height:0}.cap .segs{grid-row:6;width:100%;margin-top:clamp(8px,1.6vh,18px)}
+    .cap h2{font-size:clamp(20px,2.3vw,38px)}
+    .cap p{font-size:clamp(15px,1.45vw,23px);max-width:none}
+    .ctrl{grid-column:2;grid-row:3;align-self:end}
+    .ctrl button{min-height:clamp(48px,7vh,64px)}
+    .ctrl .prev,.ctrl .pp{flex:0 0 clamp(52px,7vh,72px)}
+    .tour:has(.phone.landp) .vg{opacity:1;pointer-events:auto}
+    .vg{position:static;transform:none;grid-column:2;grid-row:4;align-self:end;flex-direction:row;justify-content:center;gap:8px}
+    .vg .mu{flex-direction:row;gap:7px}
+    .vg .mu .lb{writing-mode:horizontal-tb;max-height:none;font-size:clamp(11px,.72vw,13px)}
+    .vg .mu .ic{width:29px;height:29px;font-size:13px}
+    .vg input{writing-mode:horizontal-tb;direction:ltr;width:clamp(66px,8.4vw,120px);height:17px}
+  }
+  @media (max-height:480px) and (orientation:landscape){.hdr h1{font-size:14px}.hdr h1 small{display:none}.cap h2{font-size:16px}.cap p{font-size:12.5px;line-height:1.35}.ctrl button{min-height:40px}.ctrl .prev,.ctrl .pp{flex-basis:44px;min-height:40px}.tour{row-gap:4px}}
+  .cap a{color:var(--info);font-weight:700}
+  .cap .swap{animation:capIn .55s var(--spring) both}
+  .cap .swap:nth-child(3){animation-delay:.05s}.cap .swap:nth-child(4){animation-delay:.1s}
+  @keyframes capIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .cap .em.swap{animation:emIn .6s var(--spring) both}
+  @keyframes emIn{from{opacity:0;transform:scale(.2) rotate(-30deg)}to{opacity:1;transform:none}}
+  .ctrl{width:100%;flex:none;display:flex;justify-content:center;align-items:center;gap:8px}
+  .ctrl button{min-height:48px;border-radius:14px;border:0;cursor:pointer;font-weight:900;font-size:15px;transition:transform .2s var(--spring)}
+  .ctrl button:active{transform:scale(.94)}
+    .ctrl .prev,.ctrl .pp{flex:0 0 52px;background:rgba(255,255,255,.85);color:var(--brand);box-shadow:0 2px 8px rgba(0,50,30,.1)}
+.ctrl .prev{display:grid;place-items:center}
+  .ctrl .prev svg{width:24px;height:24px}
+  .ctrl .next{flex:1 1 0;min-width:150px;background:linear-gradient(135deg,#1bd665,#17b169 55%,#0f8f55);color:#fff;box-shadow:0 8px 20px -8px rgba(23,177,105,.8)}
+  .ctrl .next span{display:inline-block;animation:nudge 1.2s ease-in-out infinite}
+  .ctrl button:disabled{opacity:.4;cursor:default}
+
+
+  /* ---------- Радіуси й висоти — як на проді (дизайн-токени зі стенду /admin/design) ----------
+     Екран ≈ 390 CSS-px завширшки → 1cqw ≈ 3.9px: 24px ≈ 6.15cqw, 19px ≈ 4.9cqw, 13px ≈ 3.3cqw, 50px ≈ 12.8cqw. */
+  .screen{--r-btn:6.15cqw;--r-card:4.9cqw;--r-input:3.3cqw;--btn-h:12.8cqw;--sh:0 .26cqw .52cqw rgba(33,40,51,.15),0 .52cqw 1.54cqw .26cqw rgba(33,40,51,.1)}
+  .btn,.cert .pbtn,.pl .pnav span,.nudge{border-radius:var(--r-btn)!important;min-height:var(--btn-h)}
+  .card,.cert .certblock,.pl .fbk,.pl .ord div,.pl .mt span,.pl .op,.pl .hs,.pl .hs img,.plan .wk .c,.rank .lb div,.field .ck,.dl,.toast,.lock .nt,.sheetA4{border-radius:var(--r-card)}
+  .login .field,.login .pins i,.pl .ord em{border-radius:var(--r-input)}
+  .pl .op,.pl .ord div,.pl .mt span,.rank .lb div,.plan .wk .c,.field .ck,.card{box-shadow:var(--sh)}
+  .pl .op,.pl .ord div,.pl .mt span{border-color:#e8eef0}
+  /* заповнений екран тесту */
+  .pl .pg{gap:3.2cqw}
+  .pl h5{font-size:5.6cqw}
+  .pl .qhint{font-size:3.1cqw;color:#668494;margin-top:-1.4cqw}
+  .pl .op{min-height:15.5cqw;font-size:4.1cqw}
+  .pl .fbk{font-size:3.6cqw;padding:3.6cqw 4cqw}
+  .pl .hs img{height:92cqw;object-fit:cover;object-position:right center}
+  .pl .hsm{left:61%;top:70%}
+  .pl .ord div{min-height:14.5cqw;font-size:3.9cqw}
+  .pl .mt span{min-height:19cqw;font-size:3.7cqw}
+  /* досягнення */
+  .rank .stt{display:flex;gap:2cqw}
+  .rank .stt div{flex:1;background:#fff;border-radius:var(--r-card);box-shadow:var(--sh);padding:2.6cqw 2cqw;text-align:center}
+  .rank .stt b{display:block;font-size:5.4cqw;font-weight:900;color:#00321e}
+  .rank .stt span{font-size:2.6cqw;color:#668494}
+  .rank .sub{font-size:3.2cqw;color:#668494;text-transform:uppercase;letter-spacing:.07em;font-weight:900}
+  .rank .bdg{display:grid;grid-template-columns:1fr 1fr;gap:2cqw}
+  .rank .bdg div{position:relative;display:flex;align-items:center;gap:2cqw;background:#fff;border-radius:var(--r-card);padding:2.6cqw;box-shadow:var(--sh)}
+  .rank .bdg i{font-style:normal;font-size:6cqw}
+  .rank .bdg b{font-size:3cqw;line-height:1.2}
+  .rank .bdg span{position:absolute;right:2cqw;top:1.6cqw;font-size:2.5cqw;font-weight:900;color:#0b7a45}
+  .rank .bdg .lk{opacity:.45;filter:grayscale(1)}
+  .play.rank .bdg .new{animation:pop .6s var(--spring) 2.6s both,glowB 1.2s ease 3.2s 2}
+  @keyframes glowB{50%{box-shadow:0 0 0 1.4cqw rgba(255,202,43,.45)}}
+  .rank .crt{display:flex;align-items:center;gap:3cqw;background:#f3eedf;border:.3cqw solid #b49132;border-radius:var(--r-card);padding:3cqw}
+  .rank .crt i{font-style:normal;font-size:6cqw}
+  .rank .crt div{flex:1}
+  .rank .crt b{display:block;font-size:3.4cqw}
+  .rank .crt span{font-size:2.9cqw;color:#314550}
+  .rank .crt em{font-style:normal;width:9cqw;height:9cqw;border-radius:50%;background:#00321e;color:#fff;display:grid;place-items:center}
+
+  /* ---------- v4: Android-рамка, головна /hub, установка в Chrome, модуль з демо-модуля ---------- */
+  .island{top:calc(var(--w) * .024 + 1.5%);width:3.4%;height:auto;aspect-ratio:1;border-radius:50%}
+  .tfm{display:inline-block;width:7cqw;height:6.5cqw;background:#00321e;-webkit-mask:url(/assets/brand/trefoil-solid-green.png) center/contain no-repeat;mask:url(/assets/brand/trefoil-solid-green.png) center/contain no-repeat;flex:none}
+  /* головна */
+  .hubl{background:#f0f2f3;color:#212833}
+  .hubl .sb{background:#fff}
+  .hubl .appb{flex:none;display:flex;align-items:center;gap:2.2cqw;padding:1cqw 4.4cqw 2.8cqw;background:#fff;box-shadow:0 .3cqw 0 #d7e0e2}
+  .hubl .appb b{font-weight:900;font-size:4.8cqw;color:#00321e;flex:1}
+  .hubl .bell{position:relative;width:7.4cqw;height:7.4cqw;color:#00321e}
+  .hubl .bell svg{width:100%;height:100%}
+  .hubl .bell i{position:absolute;right:-.8cqw;top:-.6cqw;width:4cqw;height:4cqw;border-radius:50%;background:#f45f5e;color:#fff;font-style:normal;font-size:2.4cqw;font-weight:900;display:grid;place-items:center}
+  .hubl .hbody{flex:1;min-height:0;padding:3cqw 3.4cqw;display:flex;flex-direction:column;gap:2.8cqw;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+  .hubl .hbody::-webkit-scrollbar{display:none}
+  .hubl .hbody>*{flex:none}
+  .hubl .kick{font-size:2.9cqw;letter-spacing:.06em;text-transform:uppercase;color:#00321e;font-weight:700}
+  .hubl .pcard{position:relative;overflow:hidden;background:#00321e;color:#fff;border-radius:var(--r-card);padding:4.2cqw;display:flex;flex-direction:column;gap:3cqw;box-shadow:0 3.6cqw 7.7cqw -4cqw rgba(0,50,30,.55)}
+  .hubl .pcard::after{content:"";position:absolute;right:-4.6cqw;top:-5.6cqw;width:34cqw;height:34cqw;background:url(/assets/brand/hops-leaf-small-white.png) no-repeat center/contain;opacity:.2}
+  .hubl .pc-top{display:flex;align-items:center;gap:3.4cqw;position:relative;z-index:1}
+  .hubl .av{width:13.8cqw;height:13.8cqw;border-radius:50%;background:#b49132;color:#3c3322;display:grid;place-items:center;font-weight:900;font-size:4.6cqw;border:.5cqw solid rgba(255,255,255,.5);flex:none}
+  .hubl .av.ph{overflow:hidden;padding:0}
+  .hubl .av.ph svg{width:100%;height:100%;display:block}
+  .hubl .pc-info b{display:block;font-size:4cqw}
+  .hubl .lvl{display:inline-flex;align-items:center;gap:1.3cqw;margin-top:1.3cqw;background:rgba(255,255,255,.1);border-radius:999px;padding:.8cqw 2.6cqw .8cqw 1cqw;font-size:2.8cqw;font-weight:700}
+  .hubl .lvl i{width:3.8cqw;height:3.8cqw;border-radius:50%;background:#b49132;color:#3c3322;display:grid;place-items:center;font-style:normal;font-size:2.3cqw}
+  .hubl .pc-msg{position:relative;z-index:1;font-size:3.2cqw;line-height:1.4}
+  .hubl .pc-msg b{font-size:4.2cqw;color:#ffca2b;display:inline-block}
+  .hubl .pc-msg b.tick{animation:tick .3s var(--spring)}
+  .hubl .weeks{display:flex;gap:1.2cqw;position:relative;z-index:1}
+  .hubl .weeks i{flex:1;height:1.6cqw;border-radius:1cqw;background:rgba(255,255,255,.2);overflow:hidden;position:relative}
+  .hubl .weeks i::after{content:"";position:absolute;inset:0;background:#1bd665;transform:scaleX(0);transform-origin:left}
+  .play.hubl .weeks i::after{animation:fillx .35s var(--ease) calc(1.2s + var(--k) * .2s) both}
+  .wdim{position:absolute;inset:0;background:rgba(0,30,18,.6);opacity:0;z-index:5}
+  .wmodal{position:absolute;left:6cqw;right:6cqw;top:50%;z-index:6;transform:translateY(-50%) scale(.85);opacity:0;background:#fff;border-radius:var(--r-card);padding:6cqw 5cqw;display:flex;flex-direction:column;align-items:center;gap:3cqw;text-align:center;box-shadow:0 6cqw 14cqw -4cqw rgba(0,30,18,.6)}
+  .wm-logo{width:15cqw;height:15cqw;border-radius:4cqw;background:#f0f2f3;display:grid;place-items:center}
+  .wm-logo img{width:76%}
+  .wmodal h3{font-size:5.6cqw;font-weight:900;color:#00321e}
+  .wmodal{max-height:84cqh;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:2.2cqw;padding:5cqw 4.6cqw}
+  .wmodal::-webkit-scrollbar{display:none}
+  .wmodal>*{flex-shrink:0}
+  .wmodal p{font-size:3.3cqw;line-height:1.38;color:#212833}
+  .wm-em{font-weight:900;color:#00321e;background:#ffd23f;border-radius:1.2cqw;padding:.3cqw 1.6cqw;white-space:nowrap}
+  .wm-btn{align-self:stretch;background:var(--accent);color:#fff;font-weight:900;font-size:4.2cqw;padding:3.4cqw 0;border-radius:var(--r-btn,24px);margin-top:1cqw}
+  .play .wdim{animation:wdimIn .4s ease .3s both}
+  .play .wmodal{animation:wmodalIn .6s var(--spring) .55s both}
+  @keyframes wdimIn{to{opacity:1}}
+  @keyframes wmodalIn{to{opacity:1;transform:translateY(-50%) scale(1)}}
+  .hubl .secT h3{font-size:4.2cqw;font-weight:900}
+  .hubl .ctile{background:#fff;border-radius:var(--r-card);box-shadow:var(--sh);padding:3.8cqw;display:flex;flex-direction:column;gap:1.8cqw}
+  .hubl .ct-badges{display:flex;gap:1.4cqw}
+  .hubl .ct-badges span{font-size:2.5cqw;font-weight:900;padding:.6cqw 2.2cqw;border-radius:999px}
+  .hubl .b-new{background:#d5eaff;color:#2f6aa6}
+  .hubl .b-req{background:#fff3d0;color:#8a5f00}
+  .hubl .ct-t{font-size:4.4cqw;font-weight:900}
+  .hubl .ct-due{font-size:2.9cqw;color:#668494}
+  .hubl .ct-bar{height:1.6cqw;border-radius:1cqw;background:rgba(33,40,51,.1);overflow:hidden}
+  .hubl .ct-bar i{display:block;height:100%;width:3%;background:#00321e;border-radius:1cqw}
+  .hubl .ct-prog{font-size:2.8cqw;color:#314550}
+  .hubl .ct-btn{margin-top:1cqw;min-height:var(--btn-h);border-radius:var(--r-btn);background:#00321e;color:#fff;font-weight:700;font-size:3.6cqw;display:grid;place-items:center}
+  .hubl .note{font-size:3cqw;color:#314550;text-align:center;margin-top:auto}
+  .hubl .tabs{flex:none;display:flex;background:#fff;border-top:.3cqw solid #d7e0e2;padding:2cqw 2cqw 5cqw}
+  .hubl .tabs span{flex:1;display:flex;flex-direction:column;align-items:center;gap:.8cqw;color:#9db3bf;font-size:2.5cqw}
+  .hubl .tabs svg{width:6.4cqw;height:6.4cqw}
+  .hubl .tabs .on{color:#00321e;font-weight:900}
+  .hubl .tabs svg{stroke-width:1.8}
+  .hubl .tabs .on svg{stroke-width:2.3}
+  .hubl .pc-msg b.cut{text-decoration:line-through;text-decoration-color:#f45f5e;text-decoration-thickness:.6cqw;opacity:.7}
+  .hubl .weeks i{transition:flex .5s var(--ease),margin .5s var(--ease),opacity .4s}
+  .hubl .weeks i.gone{flex:0 0 0;margin-left:-1.2cqw;opacity:0}
+  .hubl .why5{display:flex;gap:2.6cqw;align-items:flex-start;background:#fff3d0;border:.3cqw solid #ffca2b;border-radius:var(--r-card);padding:3cqw 3.4cqw;opacity:0}
+  .hubl .why5 i{font-style:normal;font-size:5.4cqw;line-height:1}
+  .hubl .why5 b{display:block;font-size:3.6cqw;color:#5a3d00}
+  .hubl .why5 span{display:block;font-size:2.9cqw;line-height:1.4;color:#314550;margin-top:.6cqw}
+  .play.hubl .why5{animation:inUp .7s var(--spring) 2.9s both,glowB 1.2s ease 3.6s 2}
+  .cert .cc{gap:3.2cqw}
+  .cert .trophy{width:24cqw;height:24cqw}
+  .cert h4{font-size:5.8cqw}
+  .cert .lead,.cert .saved{font-size:3.6cqw}
+  .cert .score b{font-size:9cqw}
+  .cert .score span{font-size:3.2cqw}
+  .cert .certblock{padding:5.4cqw 4.6cqw;gap:2.4cqw}
+  .cert .certblock b{font-size:4.1cqw}
+  .cert .certblock span{font-size:3.4cqw}
+  .cert .certblock .ci{width:13cqw;height:13cqw}
+  /* установка в Chrome (Android) */
+  .home .fr.andr{background:#fff;color:#212833;display:flex;flex-direction:column}
+  .home .fr.andr.out{opacity:0;pointer-events:none}
+  .sb.dk{color:#212833}
+  .chrome{flex:none;display:flex;align-items:center;gap:2cqw;padding:2cqw 3cqw;background:#f1f3f4}
+  .chrome .omni{flex:1;min-width:0;display:flex;align-items:center;gap:1.6cqw;background:#fff;border-radius:999px;padding:2.2cqw 3cqw;font-size:3cqw;color:#3c4043;white-space:nowrap;overflow:hidden}
+  .chrome .omni svg{width:3.4cqw;height:3.4cqw;flex:none}
+  .chrome .tabsq{flex:none;width:5.6cqw;height:5.6cqw;border:.5cqw solid #3c4043;border-radius:1.2cqw;display:grid;place-items:center;font-size:2.6cqw;font-weight:700}
+  .chrome .kebab{flex:none;font-size:6cqw;line-height:1;color:#3c4043;padding:0 1.4cqw;font-weight:700}
+  .apg{flex:1;min-height:0;padding:4cqw 5cqw;display:flex;flex-direction:column;justify-content:center;gap:3.6cqw;overflow:hidden}
+  .amenu{position:absolute;right:2cqw;top:13cqw;width:68cqw;background:#fff;border-radius:3cqw;box-shadow:0 2cqw 6cqw rgba(0,0,0,.28);padding:1.6cqw 0;display:flex;flex-direction:column;transform-origin:top right;transform:scale(.6);opacity:0;transition:transform .3s var(--ease),opacity .2s}
+  .amenu.show{transform:none;opacity:1}
+  .amenu span{padding:2.8cqw 4.4cqw;font-size:3.4cqw;color:#202124}
+  .amenu .hl{display:flex;gap:2cqw;align-items:center;font-weight:700;background:#e8f5ee}
+  .amenu .hl i{font-style:normal;color:#17b169;font-size:4cqw}
+  .adlg{position:absolute;inset:0;background:rgba(0,0,0,.4);display:grid;place-items:center;opacity:0;transition:opacity .3s}
+  .adlg.show{opacity:1}
+  .adlg-c{width:82%;background:#fff;border-radius:6cqw;padding:5cqw;transform:scale(.9);transition:transform .35s var(--spring)}
+  .adlg.show .adlg-c{transform:none}
+  .adlg-c>b{font-size:4.6cqw}
+  .adlg-app{display:flex;gap:3cqw;align-items:center;margin:4cqw 0}
+  .tfm.sm{width:10cqw;height:9.3cqw}
+  .adlg-app b{display:block;font-size:3.6cqw}
+  .adlg-app span{font-size:2.8cqw;color:#5f6368}
+  .adlg-b{display:flex;justify-content:flex-end;gap:6cqw;font-size:3.6cqw;font-weight:700;color:#1a73e8}
+  .home .app .tfm{width:68%;height:63%}
+  /* план курсу: ▶ у доступному вузлі, «Почати» текстом */
+  .plan .wk.open .nd svg{width:4cqw;height:4cqw;margin-left:.5cqw}
+  .plan .act{display:block;text-align:center;margin-top:1.4cqw;font-size:2.9cqw!important;font-weight:900;color:#2f6aa6!important}
+  .plan .wk.open .nd{background:#4b87c5}
+  .plan .wk.open .c{background:#d5eaff;box-shadow:0 0 0 .5cqw #4b87c5}
+  .plan .wk.locked .c{background:#f0f2f3;box-shadow:none}
+  .plan .rail{gap:3.2cqw}
+  .plan .wk .c{padding:2.6cqw 3.2cqw}
+  /* модуль з демо-модуля */
+  .pl .lead2{font-size:3.6cqw!important;line-height:1.45;color:#212833}
+  .pl .hs img{height:auto!important;object-fit:fill!important}
+  .pl .hsz{position:absolute;left:50.75%;top:1%;width:49.3%;height:98%;border:.8cqw solid #1bd665;border-radius:3cqw;opacity:0;transition:opacity .3s}
+  .pl .hsz.show{opacity:1;box-shadow:inset 0 0 0 100vmax rgba(27,214,101,.14)}
+  .pl #f2{font-size:3.9cqw}
+  #L7 .pg:nth-child(2) .lead2{font-size:4cqw!important}
+  .pl .hstap{position:absolute;left:75%;top:50%;width:2cqw;height:2cqw}
+  .pl .pinsK{position:relative;border-radius:var(--r-card);overflow:hidden;align-self:center;width:88%}
+  .pl .pinsK img{width:100%;display:block}
+  .pl .pk{position:absolute;width:10cqw;height:10cqw;margin:-5cqw 0 0 -5cqw;border-radius:50%;background:#fff;color:#00321e;font-style:normal;font-weight:900;font-size:4.4cqw;cursor:pointer;display:grid;place-items:center;box-shadow:0 0 0 1.2cqw rgba(255,255,255,.45),0 1cqw 2cqw rgba(0,0,0,.3);animation:pkP 1.6s ease-in-out infinite}
+  @keyframes pkP{50%{box-shadow:0 0 0 3.4cqw rgba(255,255,255,.2),0 1cqw 2cqw rgba(0,0,0,.3)}}
+  .pl .pk.on{background:#17b169;color:#fff;animation:none}
+  .pl .pkcard{background:#fff;border-radius:var(--r-card);box-shadow:var(--sh);padding:3.4cqw;flex:1;min-height:0}
+  .pl .pkcard b{display:block;font-size:3.8cqw;color:#00321e;margin-bottom:1.2cqw}
+  .pl .pkcard span{display:block;font-size:3.1cqw;line-height:1.45;color:#314550}
+  .pl .pkcard.flash{animation:inUp .45s var(--spring)}
+  .pl .ordimg,.pl .mimg{width:100%;border-radius:var(--r-card);display:block;height:34cqw;object-fit:cover;flex:none}
+  .pl .drag{display:flex;flex-direction:column;gap:2cqw}
+  .pl .drag div{display:flex;align-items:center;gap:3cqw;background:#fff;border:.4cqw solid #e8eef0;border-radius:var(--r-card);box-shadow:var(--sh);padding:3.4cqw;font-size:4cqw;font-weight:700;transition:transform .45s var(--spring),box-shadow .2s,background .3s,border-color .3s;position:relative}
+  .pl .drag em{flex:none;width:7.4cqw;height:7.4cqw;border-radius:50%;background:#e8eef0;color:#314550;font-style:normal;font-size:3.4cqw;font-weight:900;display:grid;place-items:center;transition:background .3s,color .3s}
+  .pl .drag span{flex:1}
+  .pl .drag svg{flex:none;width:6cqw;height:6cqw;color:#9db3bf}
+  .pl .drag.ok em{background:#1bd665;color:#fff}
+  .pl .drag div.lift em{background:#17b169;color:#fff}
+  .pl .ordimg.fit{height:auto;object-fit:contain}
+  .pl .drag div{min-height:14.5cqw}
+  .pl .drag div.lift{transition:transform 1.1s cubic-bezier(.45,.05,.3,1),box-shadow .2s,background .3s;box-shadow:0 3cqw 6cqw rgba(0,50,30,.3);z-index:2;background:#f5fcf8;border-color:#17b169}
+  .pl .drag.ok div{border-color:#1bd665;background:#cdfadf}
+  .pl .mt span{min-height:16cqw!important;font-size:3.7cqw!important}
+  .pl .mimg,.pl .ordimg{height:auto!important;object-fit:contain!important}
+  /* сповіщення: аватар бота CarlsON */
+  .lock .nt .ai.bot{padding:0;overflow:hidden;border-radius:50%;background:#000;box-shadow:none}
+  .lock .nt .ai.bot img{width:100%;height:100%;object-fit:cover}
+  /* штамп SV — рівно, без нахилу */
+  .field .stamp{transform:scale(1.6)}
+  @keyframes slam{0%{opacity:0;transform:scale(1.6)}70%{opacity:1;transform:scale(.96)}100%{opacity:1;transform:scale(1)}}
+  /* конфеті — трилистки, як ConfettiBurst у плеєрі */
+  .fall.tref{border-radius:0;-webkit-mask:url(/assets/brand/trefoil-solid-green.png) center/contain no-repeat;mask:url(/assets/brand/trefoil-solid-green.png) center/contain no-repeat;animation-name:trefFall;animation-timing-function:cubic-bezier(.25,.6,.45,1)}
+  @keyframes trefFall{0%{opacity:1;transform:translate3d(0,0,0) rotate(0)}100%{opacity:0;transform:translate3d(var(--drift),240cqw,0) rotate(var(--spin))}}
+  @media (prefers-reduced-motion:reduce){
+    .aura i,.btn::after,.mono .mlink i,.ctrl .next span{animation:none!important}
+    .layer,.finger,.toast,.nt,.quiz .q,.lesson .rail2,.phone{transition-duration:.01ms!important}
+    .play *,.cap .swap{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important}
+    .confetti,.floatup,.plane{display:none}
+  }
+
+  /* ---------- 13. Бали: магазин подарунків, драбина розвитку, AI-асистент ---------- */
+  .shop .bal{flex:none;display:flex;align-items:center;justify-content:space-between;gap:3cqw;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;border-radius:var(--r-card);padding:3.6cqw 4cqw;box-shadow:var(--sh);position:relative}
+  .shop .bal small{display:block;font-size:2.9cqw;opacity:.85}
+  .shop .bal b{display:block;font-size:10cqw;font-weight:900;line-height:1.05;font-variant-numeric:tabular-nums}
+  .shop .goal{flex:1;max-width:50%;font-size:2.9cqw;line-height:1.25}
+  .shop .bar{height:2.2cqw;border-radius:999px;background:rgba(255,255,255,.25);margin-top:1.6cqw;overflow:hidden}
+  .shop .bar i{display:block;height:100%;background:var(--gold);border-radius:999px;transition:width 1s var(--ease)}
+  .shop .gifts{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:2.6cqw}
+  .shop .gf{display:flex;flex-direction:column;gap:1.2cqw;background:#fff;border-radius:var(--r-card);box-shadow:var(--sh);padding:2.4cqw;min-height:0;transition:box-shadow .3s}
+  .shop .gf .im{flex:1;min-height:0;display:grid;place-items:center;border-radius:3.4cqw;font-size:15cqw;background:var(--c);overflow:hidden;position:relative;transition:filter .4s,opacity .4s}
+  .shop .gf .im>img,.shop .gf .im .pic>img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply}
+  .shop .gf:nth-child(2) .im>img{object-fit:cover;mix-blend-mode:normal}
+  .shop .gf .im .pic{position:relative;width:100%;aspect-ratio:var(--ar)}
+  .shop .gf .im .brand{position:absolute;left:var(--x);top:var(--y);width:var(--w);transform:translate(-50%,-50%);background:#fff;border-radius:1cqw;padding:.5cqw .9cqw;box-shadow:0 .3cqw 1cqw rgba(0,0,0,.28)}
+  .shop .gf .im .brand img{display:block;width:100%;height:auto}
+  .shop .gf b{font-size:3.5cqw;line-height:1.15}
+  .shop .gf .pr{font-size:3cqw;font-weight:900;color:#8a6200}
+  .shop .gf .go{flex:none;display:flex;align-items:center;justify-content:center;min-height:8.4cqw;border-radius:var(--r-btn);font-size:3.2cqw;font-weight:900;background:linear-gradient(135deg,#1bd665,#17b169 55%,#0f8f55);color:#fff;font-style:normal}
+  .shop .gf.lk .go{background:#e9eeeb;color:var(--soft)}
+  .shop .gf.lk .im{filter:grayscale(.85);opacity:.55}
+  .shop .gf.hl{box-shadow:0 0 0 .7cqw var(--gold),var(--sh)}
+  .shop .gf.got .go{background:var(--tint);color:#0b7a45}
+  .shop .gf.got{box-shadow:0 0 0 .6cqw var(--accent),var(--sh)}
+  .shop .note{flex:none;display:flex;gap:2cqw;align-items:center;font-size:3cqw;color:var(--soft);line-height:1.3}
+  .shop .stoast{position:absolute;left:5cqw;right:5cqw;bottom:9cqw;background:rgba(0,50,30,.94);color:#fff;border-radius:var(--r-card);padding:3cqw 3.6cqw;font-size:3.3cqw;line-height:1.3;transform:translateY(8cqw);opacity:0;transition:all .5s var(--spring);z-index:6}
+  .shop .stoast.show{transform:none;opacity:1}
+  .career .me{flex:none;display:flex;align-items:center;gap:2cqw;flex-wrap:wrap}
+  .career .lad{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;gap:2cqw}
+  .career .lad::before{content:"";position:absolute;left:7.6cqw;top:5cqw;bottom:5cqw;width:.8cqw;border-radius:99px;background:linear-gradient(to top,var(--accent),var(--line))}
+  .career .rg{position:relative;flex:1;display:flex;align-items:center;gap:3cqw;background:#fff;border-radius:var(--r-card);box-shadow:var(--sh);padding:2.4cqw 3.2cqw;transition:box-shadow .4s,background .4s}
+  .career .rg i{flex:none;width:9cqw;height:9cqw;border-radius:50%;display:grid;place-items:center;background:var(--tint);font-style:normal;font-weight:900;font-size:2.9cqw;color:#0b7a45;box-shadow:0 0 0 1cqw #fff}
+  .career .rg b{display:block;font-size:3.6cqw;line-height:1.15}
+  .career .rg span{font-size:2.9cqw;color:var(--soft)}
+  .career .rg .chip{margin-left:auto}
+  .career .rg.you{background:linear-gradient(135deg,#e6f5ec,#d3f7e2);box-shadow:0 0 0 .6cqw var(--accent),var(--sh)}
+  .career .rg.hl{box-shadow:0 0 0 .7cqw var(--gold),var(--sh);background:#fff8e0}
+  .career .rg.hl i{background:var(--gold);color:#5a3d00}
+  .career .rg.far{opacity:.6}
+  .career .iv{flex:none;display:flex;flex-direction:column;gap:2.4cqw;background:#fff8e0;border:.3cqw solid var(--gold);border-radius:var(--r-card);padding:3.2cqw 3.6cqw}
+  .career .iv .h{display:flex;gap:2.6cqw;align-items:center}
+  .career .iv .h i{font-style:normal;font-size:7cqw}
+  .career .iv .h b{display:block;font-size:3.7cqw;line-height:1.15}
+  .career .iv .h span{font-size:2.9cqw;color:#5a4a1a;line-height:1.25}
+  .career .iv .btn{transition:opacity .3s,background .3s}
+  .career .iv .btn.busy{opacity:.75}
+  .career .iv .btn.done{background:var(--tint);color:#0b7a45;box-shadow:none}
+  .feed .post{flex:none;display:flex;flex-direction:column;gap:2.2cqw;background:#fff;border-radius:var(--r-card);box-shadow:var(--sh);padding:3.2cqw 3.6cqw;transition:box-shadow .4s}
+  .feed .post.done{box-shadow:0 0 0 .6cqw var(--accent),var(--sh)}
+  .feed .pic{flex:none;border-radius:2.4cqw;overflow:hidden;background:#e9eeeb}
+  .feed .pic img{display:block;width:100%;height:auto}
+  .feed .ph{display:flex;align-items:center;gap:2.4cqw}
+  .feed .av{flex:none;width:9cqw;height:9cqw;border-radius:50%;display:grid;place-items:center;background:var(--tint);color:#0b7a45;font-weight:900;font-size:3.2cqw}
+  .feed .ph b{display:block;font-size:3.4cqw;line-height:1.15}
+  .feed .ph span{font-size:2.8cqw;color:var(--soft)}
+  .feed .ph .chip{margin-left:auto;flex:none;transition:background .4s,color .4s}
+  .feed .ph .chip.s2{background:#e3f0ff;color:#1f5fa8}
+  .feed .ph .chip.s3{background:#fff0c2;color:#7a5200}
+  .feed .ph .chip.s4{background:linear-gradient(135deg,#1bd665,#17b169);color:#fff}
+  .feed .ph .chip.no{background:#eceeed;color:#6b7670}
+  .feed .tx{font-size:3.4cqw;line-height:1.35}
+  .feed .stp{display:flex;gap:1.2cqw}
+  .feed .stp i{flex:1;height:1.4cqw;border-radius:99px;background:var(--line);transition:background .5s}
+  .feed .stp i.on{background:var(--accent)}
+  .feed .stl{display:flex;justify-content:space-between;font-size:2.4cqw;color:var(--soft);margin-top:-1cqw}
+  .feed .rx{display:flex;gap:2cqw}
+  .feed .rx .b{flex:1;display:flex;align-items:center;justify-content:center;gap:1.4cqw;min-height:9cqw;border-radius:var(--r-btn);background:#f0f3f1;font-size:3.1cqw;font-weight:900;color:#2b3a33;transition:background .3s,color .3s,box-shadow .3s}
+  .feed .rx .b.on{background:var(--tint);color:#0b7a45;box-shadow:0 0 0 .5cqw var(--accent)}
+  .feed .rx .b em{font-style:normal;font-variant-numeric:tabular-nums}
+  .feed .why{font-size:2.9cqw;color:var(--soft);line-height:1.3}
+  .feed .roles{flex:none;display:flex;flex-direction:column;gap:1.6cqw;background:#fff8e0;border:.3cqw solid var(--gold);border-radius:var(--r-card);padding:2.8cqw 3.4cqw;font-size:3cqw;line-height:1.3;color:#5a4a1a}
+  .feed .roles div{display:flex;gap:2cqw;align-items:flex-start}
+  .feed .roles i{flex:none;font-style:normal}
+  .feed .ftoast{position:absolute;left:5cqw;right:5cqw;bottom:9cqw;background:rgba(0,50,30,.94);color:#fff;border-radius:var(--r-card);padding:3cqw 3.6cqw;font-size:3.3cqw;line-height:1.3;transform:translateY(8cqw);opacity:0;transition:all .5s var(--spring);z-index:6}
+  .feed .ftoast.show{transform:none;opacity:1}
+  .ai .sbar{flex:none;display:flex;align-items:center;gap:2.4cqw;background:#fff;border-radius:999px;box-shadow:var(--sh);padding:3cqw 4cqw;font-size:3.6cqw;min-height:12cqw;border:.4cqw solid transparent;transition:border-color .3s}
+  .ai .sbar.act{border-color:var(--accent)}
+  .ai .sbar .sp{font-size:5cqw}
+  .ai .sbar .ph{color:var(--soft)}
+  .ai .sbar .q{color:var(--ink);font-weight:700}
+  .ai .sbar .cr{display:inline-block;width:.5cqw;height:4.4cqw;background:var(--accent);margin-left:.4cqw;vertical-align:middle;animation:blink 1s steps(1) infinite}
+  .ai .sbar .go{margin-left:auto;flex:none;width:8cqw;height:8cqw;border-radius:50%;display:grid;place-items:center;background:var(--brand2);color:#fff;font-size:4cqw;font-weight:900}
+  .ai .st{opacity:0;transform:translateY(3cqw);transition:opacity .45s var(--ease),transform .6s var(--spring)}
+  .ai .st.show{opacity:1;transform:none}
+  .ai .think{flex:none;display:flex;gap:1.4cqw;align-items:center;font-size:3.1cqw;color:var(--soft)}
+  .ai .think u{width:1.8cqw;height:1.8cqw;border-radius:50%;background:var(--accent);animation:pulseB 1s ease-in-out infinite}
+  .ai .think u:nth-child(2){animation-delay:.15s}
+  .ai .think u:nth-child(3){animation-delay:.3s}
+  .ai .ans{flex:none;background:linear-gradient(135deg,#e6f5ec,#d3f7e2);border-radius:var(--r-card);padding:3.2cqw 3.6cqw;font-size:3.5cqw;line-height:1.35}
+  .ai .src{flex:none;display:flex;align-items:center;gap:3cqw;background:#fff;border-radius:var(--r-card);box-shadow:var(--sh);padding:2.6cqw 3.2cqw}
+  .ai .src i{flex:none;width:10cqw;height:10cqw;border-radius:3cqw;display:grid;place-items:center;background:var(--tint);font-style:normal;font-size:5cqw}
+  .ai .src b{display:block;font-size:3.5cqw;line-height:1.15}
+  .ai .src span{font-size:2.9cqw;color:var(--soft)}
+  .ai .src em{margin-left:auto;font-style:normal;font-weight:900;color:var(--accent);font-size:4cqw}
+  .ai .tips{margin-top:auto;flex:none;display:flex;flex-direction:column;gap:2cqw;padding-bottom:6cqw}
+  .ai .tips small{font-size:3cqw;color:var(--soft)}
+  .ai .tips div{display:flex;flex-wrap:wrap;gap:2cqw}
+  @keyframes blink{50%{opacity:0}}
+  .grow .lg{flex:none;display:flex;flex-direction:column;gap:2.4cqw;background:#fff;border-radius:var(--r-card);box-shadow:var(--sh);padding:3.4cqw 3.8cqw}
+  .grow .lg .h{font-size:3.1cqw;font-weight:900;color:var(--soft);text-transform:uppercase;letter-spacing:.2cqw}
+  .grow .lg .s{font-size:5.2cqw;font-weight:900;line-height:1.2;color:var(--brand2);min-height:6.4cqw}
+  .grow .lg .s.fl{animation:lgin .5s var(--spring)}
+  .thx .body{justify-content:center;align-items:stretch;gap:5cqw;padding-bottom:10cqw}
+  .thx .big{text-align:center;display:flex;flex-direction:column;align-items:center;gap:2.4cqw;margin-bottom:1cqw}
+  .thx .big img{width:26cqw;height:26cqw;border-radius:6cqw;box-shadow:var(--sh)}
+  .thx .big b{font-size:9.6cqw;line-height:1.1;font-weight:900;color:var(--brand2)}
+  .thx .row{display:flex;align-items:center;gap:3cqw;background:#fff;border-radius:var(--r-card);box-shadow:var(--sh);padding:5cqw 4.4cqw}
+  .thx .row{transition:transform .3s,box-shadow .3s}
+  .thx .row.hl{transform:scale(1.03);box-shadow:0 0 0 .6cqw var(--gold),var(--sh)}
+  .thx .row .chip{flex:none;font-size:3.2cqw;padding:1.3cqw 2.6cqw;background:var(--brand2);color:#fff}
+  .thx .row span:last-child{font-size:5.2cqw;font-weight:900;line-height:1.2;color:var(--brand2)}
+  @keyframes lgin{from{opacity:0;transform:translateY(2.4cqw)}to{opacity:1;transform:none}}
+  .grow .lg .c{display:flex;flex-wrap:wrap;gap:2cqw}
+  .grow .lg .chip{font-size:3cqw;padding:1.3cqw 3cqw;transition:background .3s,color .3s}
+  .grow .lg .chip.on{background:var(--brand2);color:#fff}
+  .grow .dlg{flex:none;display:flex;flex-direction:column;gap:1.6cqw;background:#fff;border-radius:var(--r-card);box-shadow:var(--sh);padding:3cqw 3.8cqw}
+  .grow .dlg .h{font-size:3.1cqw;font-weight:900;color:var(--soft);text-transform:uppercase;letter-spacing:.2cqw}
+  .grow .bb{max-width:82%;font-size:3cqw;line-height:1.25;padding:1.8cqw 2.8cqw;border-radius:3.4cqw}
+  .grow .bb.l{align-self:flex-start;background:var(--tint);border-bottom-left-radius:.8cqw}
+  .grow .bb.r{align-self:flex-end;background:var(--brand2);color:#fff;border-bottom-right-radius:.8cqw}
+  .grow .bb.ok{box-shadow:0 0 0 .5cqw var(--gold)}
+  .grow .body{padding-bottom:7cqw}
+  .grow .gtl{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:2.4cqw}
+  .grow .gt{display:flex;flex-direction:column;gap:1cqw;justify-content:center;background:#fff;border-radius:var(--r-card);box-shadow:var(--sh);padding:2.6cqw 3cqw;transition:box-shadow .35s,background .35s}
+  .grow .gt i{font-style:normal;font-size:5.4cqw;line-height:1}
+  .grow .gt b{font-size:3.3cqw;line-height:1.15}
+  .grow .gt span{font-size:2.7cqw;line-height:1.25;color:var(--soft)}
+  .grow .gt.hl{background:#fff8e0;box-shadow:0 0 0 .6cqw var(--gold),var(--sh)}
+
+  /* Вітання (стиль Monolit Agent) */
+  .mono .wrole{display:flex;gap:2cqw;margin-top:3.4cqw;font-family:var(--font)}
+  .mono .wrole span{flex:1;text-align:center;font-size:3cqw;line-height:1.35;font-weight:900;padding:2.2cqw 1cqw;border-radius:var(--r-btn);border:.4cqw solid #35587f;color:#35587f;transition:background .35s,color .35s}
+  .mono .wrole span.on{background:#35587f;color:#fff}
+  .mono .mbox.flash{opacity:1;animation:wpulse .6s var(--spring) both}
+  @keyframes wpulse{from{transform:scale(.96);box-shadow:0 0 0 0 rgba(53,88,127,.45)}to{transform:none;box-shadow:0 0 0 3cqw rgba(53,88,127,0)}}
+  /* Картинка з точками — окремий крок */
+  /* Відео з поворотом у landscape */
+  .vd .vwrap{flex:none;height:56.25cqw}
+  .vd .vp{position:absolute;left:0;top:34cqw;width:100cqw;height:56.25cqw;background:#000;overflow:hidden;z-index:26;transition:left .9s var(--ease),top .9s var(--ease),width .9s var(--ease),height .9s var(--ease),transform .9s var(--ease),border-radius .9s}
+  .vd .vp.land{left:calc(50cqw - 50cqh);top:calc(50cqh - 50cqw);width:100cqh;height:100cqw;transform:rotate(90deg)}
+  .vd .vpost{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:30% 40%}
+  .vd .vp.playing .vpost{animation:kbv 14s linear both}
+  @keyframes kbv{to{transform:scale(1.14) translate(-1.5%,-1%)}}
+  .vd .vbig{position:absolute;left:50%;top:50%;width:15cqw;height:15cqw;margin:-7.5cqw 0 0 -7.5cqw;border-radius:50%;background:rgba(0,50,30,.85);color:#fff;display:grid;place-items:center;font-size:6cqw;transition:opacity .3s,transform .3s}
+  .vd .vp.playing .vbig{opacity:0;transform:scale(.6)}
+  .vd .vtag{position:absolute;left:2.4cqw;top:2.4cqw;font-size:2.4cqw;font-weight:900;background:rgba(0,0,0,.55);color:#fff;padding:.5cqw 1.8cqw;border-radius:999px}
+  .vd .vctl{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:2.4cqw;padding:2cqw 3cqw;background:linear-gradient(0deg,rgba(0,0,0,.7),transparent);color:#fff;font-size:2.8cqw;font-variant-numeric:tabular-nums}
+  .vd .vbar{flex:1;height:1cqw;border-radius:1cqw;background:rgba(255,255,255,.35);overflow:hidden}
+  .vd .vbar i{display:block;height:100%;width:0;background:#17b169;transition:width .25s linear}
+  .vd .vrot{width:8cqw;height:8cqw;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.2);font-size:4.6cqw;font-style:normal}
+  .vd .vp.land .vrot{background:#17b169}
+  .vd .vbody{flex:1;padding:4cqw 4.4cqw;display:flex;flex-direction:column;gap:2.6cqw}
+  .vd .vrows{display:flex;flex-direction:column;gap:2.4cqw;margin-top:1cqw}
+  .vd .vrows div{display:flex;align-items:center;gap:3cqw;padding:3cqw 3.4cqw;border-radius:var(--r-card);background:#fff;box-shadow:var(--sh);font-size:3.3cqw;font-weight:800;color:#00321e}
+  .vd .vrows i{width:8cqw;height:8cqw;border-radius:50%;background:#17b169;color:#fff;display:grid;place-items:center;font-style:normal;font-size:3.6cqw;flex:none}
+  .vd .vbody h5{font-size:4cqw;color:#00321e}
+  .vd .vbody p{font-size:3.2cqw;line-height:1.45;color:#314550}
+  .apg p{text-align:center;font-size:4cqw;font-weight:700;line-height:1.4;color:var(--ink)}
+  /* прокрутка в екрані телефона: дотиком / коліщатком, без видимого скролбара */
+  .body,.apg,.pl .pg{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+  .body::-webkit-scrollbar,.apg::-webkit-scrollbar,.pl .pg::-webkit-scrollbar{display:none}
+  .body>*,.apg>*,.pl .pg>*{flex-shrink:0}
+  .apg,.login .body{justify-content:safe center}
+  #f1 .apg{padding-bottom:26.8cqw}
+</style>
+</head>
+<body>
+<div class="aura" aria-hidden="true"><i></i><i></i><i></i></div>
+
+<div class="tour" id="tour" role="dialog" aria-modal="true" aria-labelledby="tt">
+  <div class="hdr" id="hdr">
+    <h1 id="tt"><span class="t-main">Як проходить навчання в CarLS — від першого повідомлення до доступу до платформи в роботі<small id="ttsub">На прикладі Мерчандайзера: базове навчання, усі модулі за 5 тижнів</small></span><span class="t-nx">Наступні кроки — що ще можна додати для покращення платформи навчання в CarLS</span></h1>
+  </div>
+
+  <div class="stage"><div class="phone" id="phone" aria-label="Анімована демонстрація. Свайп — наступний крок, торкання — пауза">
+    <div class="screen" id="screen">
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#17b169"/><stop offset="1" stop-color="#1bd665"/></linearGradient></defs></svg>
+
+      <!-- 1. Monolit Agent: звична програма, у повідомленні — посилання -->
+      <div class="layer mono" id="L1">
+        <div class="sb"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="mh">Перегляд повідомлення</div>
+        <div class="mb">
+          <div class="ml in" style="--d:.1s">От</div>
+          <div class="mv in" style="--d:.15s">Команда T<span style="font-size:.75em">&amp;</span>D "Карлсберг Україна"</div>
+          <div class="ml in" style="--d:.3s">Тема</div>
+          <div class="mv in" style="--d:.35s">Вітаємо у команді Дистрибутора-партнера компанії "Карлсберг Україна"!</div>
+          <div class="ml in" style="--d:.5s">Текст</div>
+          <div class="mbox in" style="--d:.55s" id="mtext">Ознайомтесь зі вкладеним файлом</div>
+          <div class="pdfslot in" id="pdfslot" style="--d:.7s">
+            <div class="pdf"><i></i><span class="was">Зараз: PDF-файл</span></div>
+            <div class="mlink" id="mlink"><img src="/icons/icon-192.png" alt=""><div><b>Почати навчання в CarLS</b><span>carls-three.vercel.app</span></div><i>›</i></div>
+          </div>
+        </div>
+        <div class="mf">Next</div>
+      </div>
+
+
+      <!-- 1b. Вітальне повідомлення після реєстрації (стиль Monolit Agent, для кожної ролі) -->
+      <div class="layer hubl" id="LW">
+        <div class="sb"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="appb"><span class="tfm"></span><b>CarLS</b><span class="bell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg></span></div>
+        <div class="hbody">
+          <div class="kick">Добрий день, Олено!</div>
+          <div class="pcard">
+            <div class="pc-top"><div class="av ph"><svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" fill="#f3e3c3"/><path d="M22 58c-4-26 8-44 28-44s32 18 28 44c-2 14 2 24 6 32H16c4-8 8-18 6-32z" fill="#5a3522"/><path d="M14 100c2-16 16-24 36-24s34 8 36 24z" fill="#17b169"/><path d="M42 66h16v14c-4 4-12 4-16 0z" fill="#e9b894"/><ellipse cx="50" cy="48" rx="18" ry="21" fill="#f4caa8"/><path d="M31 44c2-15 11-22 21-22 10 0 17 7 19 18-9-1-17-6-22-12-4 8-10 13-18 16z" fill="#6b4029"/><ellipse cx="43" cy="49" rx="2" ry="2.6" fill="#2b1d14"/><ellipse cx="57" cy="49" rx="2" ry="2.6" fill="#2b1d14"/><path d="M40 44.5c2-1.4 4.4-1.4 6 0M54 44.5c1.6-1.4 4-1.4 6 0" stroke="#5a3522" stroke-width="1.2" fill="none" stroke-linecap="round"/><ellipse cx="39.5" cy="56" rx="3.2" ry="2" fill="#f2a08f" opacity=".55"/><ellipse cx="60.5" cy="56" rx="3.2" ry="2" fill="#f2a08f" opacity=".55"/><path d="M44 59c3.6 3.4 8.4 3.4 12 0" stroke="#c0564d" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="32" cy="55" r="1.6" fill="#ffca2b"/><circle cx="68" cy="55" r="1.6" fill="#ffca2b"/></svg></div><div class="pc-info"><b>Олена Коваль</b><span class="lvl"><i>★</i>Стажер</span></div></div>
+          </div>
+          <div class="secT"><h3>Продовжити навчання</h3></div>
+          <div class="ctile">
+            <div class="ct-badges"><span class="b-new">Нове</span><span class="b-req">Обов'язково</span></div>
+            <b class="ct-t">Базове навчання МР</b>
+            <span class="ct-due">Термін до 3 листопада</span>
+            <div class="ct-bar"><i></i></div>
+            <span class="ct-prog">Складено 0 з 7 модулів</span>
+          </div>
+        </div>
+        <div class="tabs">
+          <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4 20 11V20H4Z"/></svg><b>Головна</b></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 22 9 12 14 2 9Z"/><path d="M6 11.5V17c0 1.5 2.8 3 6 3s6-1.5 6-3v-5.5"/></svg><b>Навчання</b></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 14.6 8.6 20.7 9.4 16.2 13.6 17.4 19.7 12 16.9 6.6 19.7 7.8 13.6 3.3 9.4 9.4 8.6Z"/></svg><b>Досягнення</b></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><b>Профіль</b></span>
+        </div>
+        <div class="wdim"></div>
+        <div class="wmodal">
+          <div class="wm-logo"><img src="/icons/icon-192.png" alt=""></div>
+          <h3>Вітаємо в команді!</h3>
+          <p>Вітаємо в команді Дистрибутора-партнера компанії «Карлсберг Україна» (КУ). Ми раді, що ти приєднався до нашої команди мерчандайзерів (МР).</p>
+          <p>Попереду на тебе чекає знайомство з компанією, стандартами роботи та інструментами, які допоможуть швидко адаптуватися на новій посаді та досягти високих результатів.</p>
+          <p>Вже з наступного тижня розпочнеться твоя програма адаптації та базового навчання, розрахована не на 7, а на нашій платформі на <b class="wm-em">5 тижнів</b>.</p>
+          <div class="wm-btn" id="wmf">Почати →</div>
+        </div>
+      </div>
+
+      <!-- 2. Головна (/hub): вітання, картка профілю з трилистком, «Продовжити навчання» -->
+      <div class="layer hubl" id="L2">
+        <div class="sb"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="appb"><span class="tfm"></span><b>CarLS</b><span class="bell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg><i>1</i></span></div>
+        <div class="hbody">
+          <div class="kick in" style="--d:.1s">Добрий день, Олено!</div>
+          <div class="pcard in" style="--d:.2s">
+            <div class="pc-top"><div class="av ph"><svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" fill="#f3e3c3"/><path d="M22 58c-4-26 8-44 28-44s32 18 28 44c-2 14 2 24 6 32H16c4-8 8-18 6-32z" fill="#5a3522"/><path d="M14 100c2-16 16-24 36-24s34 8 36 24z" fill="#17b169"/><path d="M42 66h16v14c-4 4-12 4-16 0z" fill="#e9b894"/><ellipse cx="50" cy="48" rx="18" ry="21" fill="#f4caa8"/><path d="M31 44c2-15 11-22 21-22 10 0 17 7 19 18-9-1-17-6-22-12-4 8-10 13-18 16z" fill="#6b4029"/><ellipse cx="43" cy="49" rx="2" ry="2.6" fill="#2b1d14"/><ellipse cx="57" cy="49" rx="2" ry="2.6" fill="#2b1d14"/><path d="M40 44.5c2-1.4 4.4-1.4 6 0M54 44.5c1.6-1.4 4-1.4 6 0" stroke="#5a3522" stroke-width="1.2" fill="none" stroke-linecap="round"/><ellipse cx="39.5" cy="56" rx="3.2" ry="2" fill="#f2a08f" opacity=".55"/><ellipse cx="60.5" cy="56" rx="3.2" ry="2" fill="#f2a08f" opacity=".55"/><path d="M44 59c3.6 3.4 8.4 3.4 12 0" stroke="#c0564d" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="32" cy="55" r="1.6" fill="#ffca2b"/><circle cx="68" cy="55" r="1.6" fill="#ffca2b"/></svg></div><div class="pc-info"><b>Олена Коваль</b><span class="lvl"><i>★</i>Стажер</span></div></div>
+            <div class="pc-msg">Вітаємо в команді Дистрибутора-партнера компанії «Карлсберг Україна»! Твоя програма адаптації — <b id="wcount">7</b> тижнів.</div>
+            <div class="weeks"><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i><i style="--k:3"></i><i style="--k:4"></i><i style="--k:5"></i><i style="--k:6"></i></div>
+          </div>
+          <div class="secT in" style="--d:.5s"><h3>Продовжити навчання</h3></div>
+          <div class="ctile in" style="--d:.7s">
+            <div class="ct-badges"><span class="b-new">Нове</span><span class="b-req">Обов'язково</span></div>
+            <b class="ct-t">Базове навчання МР</b>
+            <span class="ct-due">Термін до 3 листопада</span>
+            <div class="ct-bar"><i></i></div>
+            <span class="ct-prog">Складено 0 з 7 модулів</span>
+            <div class="ct-btn" id="wbtn">Почати курс</div>
+          </div>
+          <div class="why5"><i>📈</i><div><b>Не швидше, а краще засвоюється</b><span>Це гра: тапаєш, розставляєш, зіставляєш — працює моторика рук, а не лише скрол PDF. Світова практика: геймифікація покращує засвоєння (Sailer &amp; Homner, 2020: g = 0,49).</span></div></div>
+          
+        </div>
+        <div class="tabs">
+          <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4 20 11V20H4Z"/></svg><b>Головна</b></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 22 9 12 14 2 9Z"/><path d="M6 11.5V17c0 1.5 2.8 3 6 3s6-1.5 6-3v-5.5"/></svg><b>Навчання</b></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 14.6 8.6 20.7 9.4 16.2 13.6 17.4 19.7 12 16.9 6.6 19.7 7.8 13.6 3.3 9.4 9.4 8.6Z"/></svg><b>Досягнення</b></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg><b>Профіль</b></span>
+        </div>
+      </div>
+
+      <!-- 3. Встановлення на Android: Chrome → ⋮ → «Додати на головний екран» → «Встановити» -->
+      <div class="layer home" id="L3">
+        <div class="fr on andr" id="f1">
+          <div class="sb dk"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+          <div class="chrome"><span class="omni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>carls-three.vercel.app</span><span class="tabsq">1</span><span class="kebab" id="kebab">⋮</span></div>
+          <div class="apg login">
+            <div class="logo"><img src="/icons/icon-192.png" alt=""></div>
+            <h3>CarLS</h3>
+            <p>Встановіть за гайдом застосунок на свій головний екран і продовжте навчання на платформі CarLS.</p>
+          </div>
+          <div class="amenu" id="amenu">
+            <span>Нова вкладка</span><span>Нова анонімна вкладка</span><span>Історія</span><span>Завантаження</span><span>Закладки</span>
+            <span class="hl" id="addHome"><i>⊕</i>Додати на головний екран</span><span>Налаштування</span>
+          </div>
+          <div class="adlg" id="adlg">
+            <div class="adlg-c">
+              <b>Встановити додаток?</b>
+              <div class="adlg-app"><span class="tfm sm"></span><div><b>CarLS</b><span>carls-three.vercel.app</span></div></div>
+              <div class="adlg-b"><span>Скасувати</span><span class="ok" id="installBtn">Встановити</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="sb"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="grid">
+          <div class="tl" data-l="Камера"></div><div class="tl" data-l="Gmail"></div><div class="tl" data-l="Viber"></div><div class="tl" data-l="Telegram"></div>
+          <div class="tl" data-l="Monolit"></div><div class="tl" data-l="Карти"></div><div class="tl" data-l="Фото"></div>
+          <div class="tl app" id="appIcon" data-l="CarLS"><span class="tfm"></span></div>
+        </div>
+        <div class="card sheet in" style="--d:2.2s">
+          <b>CarLS — на головному екрані</b>
+          <p>Встановлюється на мобільний телефон за кілька секунд, без Play Маркету.</p>
+          <div class="feats"><span class="chip">⚡ 5 секунд</span><span class="chip">📶 без інтернету</span><span class="chip">🔔 сповіщення</span></div>
+          <div class="btn dark" id="ibtn">Відкрити CarLS</div>
+        </div>
+      </div>
+
+      <!-- 4. Реєстрація: код з Monolit Agent (кнопка «i» → підказка) і PIN -->
+      <div class="layer login" id="L4">
+        <div class="sb"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="body">
+          <div class="logo pop"><img src="/icons/icon-192.png" alt=""></div>
+          <h3 class="in" style="--d:.15s">Реєстрація в CarLS</h3>
+          <div class="lab in" style="--d:.3s">Ваш код <span class="info" id="infoBtn">i</span></div>
+          <div class="field in" id="fld" style="--d:.35s"><span id="code" class="ph">Наприклад: MR0000</span></div>
+          <div class="btn in" id="regBtn" style="--d:.45s">Зареєструватись <span>→</span></div>
+          <div class="pinwrap" id="pinwrap"><small>PIN-код підтвердження</small>
+            <div class="pins" id="pins"><i></i><i></i><i></i><i></i></div>
+            <small class="pinnote">PIN-код надіслано вашому керівнику — зверніться до нього. Діє 12 годин.</small></div>
+        </div>
+        <div class="shov" id="shov">
+          <div class="shsheet">
+            <div class="handle" id="handle"></div>
+            <h4>Де знайти ваш код?</h4>
+            <p>Відкрийте застосунок Monolit Agent — ваш код показано поруч із номером версії у верхній частині екрана.</p>
+            <div class="shimg" id="shimg"><div class="zw"><img src="/assets/monolit-code-hint.png" alt="Скріншот Monolit Agent із виділеним кодом"><i class="hl"></i></div></div>
+            <p class="fn">Код виглядає як комбінація літер і цифр у квадратних дужках, наприклад [ml03005].</p>
+          </div>
+        </div>
+        <div class="toast" id="ltoast"><i>✓</i><span>PIN-код надіслано вашому керівнику</span></div>
+      </div>
+
+      <!-- 5. План курсу -->
+      <div class="layer plan" id="L5">
+        <div class="sb brandtop"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="top"><b>Базове навчання МР</b><span>7 модулів за 5 тижнів · наступний відкривається після складання попереднього</span>
+          <div class="meter">0 / 7<em></em>🏁</div></div>
+        <div class="rail">
+          <div class="wk open in" style="--d:.2s"><div class="nd" id="startW1"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z"/></svg></div><div class="c"><div><b>Компанія та асортимент</b><span>до 3 жовтня · ~20 хв</span><span class="act">Почати</span></div></div></div>
+          <div class="wk locked in" style="--d:.32s;--k:0"><div class="nd">2</div><div class="c"><div><b>Робота з Monolit Agent</b><span>після модуля 1</span></div><em>🔒</em></div></div>
+          <div class="wk locked in" style="--d:.44s;--k:1"><div class="nd">3</div><div class="c"><div><b>KPI та преміальна карта</b><span>після модуля 2</span></div><em>🔒</em></div></div>
+          <div class="wk locked in" style="--d:.56s;--k:2"><div class="nd">4</div><div class="c"><div><b>FIT та «Картина успіху» (PicOS)</b><span>після модуля 3</span></div><em>🔒</em></div></div>
+          <div class="wk locked in" style="--d:.68s;--k:3"><div class="nd">5</div><div class="c"><div><b>Тести та польове навчання</b><span>після модуля 4</span></div><em>🔒</em></div></div>
+          <div class="wk locked in" style="--d:.8s;--k:4"><div class="nd">6</div><div class="c"><div><b>Кроки візиту МР та ПН</b><span>після модуля 5</span></div><em>🔒</em></div></div>
+          <div class="wk locked in" style="--d:.92s;--k:5"><div class="nd">7</div><div class="c"><div><b>Фоторозпізнавання та ПН</b><span>після модуля 6</span></div><em>🔒</em></div></div>
+        </div>
+        <div class="fin in" style="--d:1.2s"><i>🎓</i><span>Пригадування краще за перечитування: 61% проти 40% через тиждень (Roediger &amp; Karpicke, 2006)</span></div>
+      </div>
+
+      <!-- 7. Модуль: екрани з «Демо-модуля компонентів взаємодії» (контент — з бази, 1:1) -->
+      <div class="layer pl" id="L7">
+        <div class="ptop"><span class="bk">‹</span><span class="ttl">Модуль 1 · Компанія та асортимент</span><span class="cnt" id="c7">1 / 6</span></div>
+        <div class="pbar"><i id="b7" style="width:16.7%"></i></div>
+        <div class="track"><div class="rw" id="r7">
+          <div class="pg">
+            <span class="ptype">Питання</span>
+            <img class="ordimg" src="tour/carlsberg-ukraine.jpg" alt="">
+            <p class="lead2">Портфель Carlsberg Ukraine — пиво (Львівське, Carlsberg, Kronenbourg), сидр Somersby і Квас Тарас.</p>
+            <h5>До якої категорії належить Somersby?</h5>
+            <p class="qhint">Оберіть одну відповідь</p>
+            <div class="op" id="o1"><i></i>Локальні пивні бренди</div>
+            <div class="op" id="o2"><i></i>Непиво</div>
+            <div class="op" id="o3"><i></i>Імпорт</div>
+            <div class="fbk" id="f1"></div>
+          </div>
+          <div class="pg">
+            <span class="ptype">Hot Spot quiz</span>
+            <p class="lead2">Налити Carlsberg — це справжнє мистецтво. Один із цих келихів наповнений за всіма канонами данських броварів, а інший — суцільна катастрофа для смаку. 👉 Клікни на келих із <b>ПРАВИЛЬНИМ</b> наливом!</p>
+            <p class="qhint">Торкніться келиха на фото</p>
+            <div class="hs" id="hs"><img src="tour/hs-glasses.jpg" alt=""><i class="hsz" id="hsz"></i><i class="hstap" id="hstap"></i></div>
+            <div class="fbk" id="f2"><b>Правильно!</b> Правильно сформована «пивна корона» консервує природну свіжість лагера, упереджує його окиснення та втрату вуглекислого газу, що дозволяє усім рецепторам відчути автентичний хмелевий смак Carlsberg. 👑</div>
+          </div>
+          <div class="pg">
+            <span class="ptype">Діалог · скрипт розмови</span>
+            <p class="lead2">Клієнт заперечує. Оберіть репліку, яка веде розмову далі.</p>
+            <div class="chat">
+              <div class="m" id="dm1">Клієнт: «У мене вже є постачальник. Навіщо мені ще ваш?»</div>
+              <div class="m me" id="dm2">Розумію. А давайте я покажу, що ми можемо запропонувати саме вам?</div>
+              <div class="m" id="dm3">Клієнт: «Ну… покажіть.»</div>
+            </div>
+            <p class="qhint">Оберіть свою репліку</p>
+            <div class="op" id="d1"><i></i>У нас найкращий продукт, інших не треба.</div>
+            <div class="op" id="d2"><i></i>Розумію. А давайте я покажу, що ми можемо запропонувати саме вам?</div>
+            <div class="fbk" id="f3d"></div>
+          </div>
+          <div class="pg">
+            <span class="ptype">Картинка з точками</span>
+            <p class="lead2">Натисни на кожну точку та дізнайся, з чого складається анатомія культової пляшки <b>Kronenbourg</b>.</p>
+            <div class="pinsK"><img src="tour/pins-kronenbourg.jpg" alt="">
+              <i class="pk" id="k1" style="left:58.6%;top:7.2%">1</i>
+              <i class="pk" id="k2" style="left:38.6%;top:34.5%">2</i>
+              <i class="pk" id="k3" style="left:60.7%;top:76.8%">3</i>
+            </div>
+            <div class="pkcard" id="pkcard"><b id="pkt">Торкніться точки</b><span id="pkx"></span></div>
+          </div>
+          <div class="pg">
+            <span class="ptype">Порядок кроків</span>
+            <img class="ordimg fit" src="tour/ord-probably.jpg" alt="">
+            <p class="qhint">Перетягніть рядки в правильному порядку</p>
+            <div class="drag" id="drag">
+              <div><em>1</em><span>the best beer</span><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></div>
+              <div><em>2</em><span>Probably</span><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></div>
+              <div><em>3</em><span>world</span><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></div>
+              <div><em>4</em><span>in the</span><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></div>
+            </div>
+            <div class="fbk" id="f4"><b>Правильно!</b> Probably the best beer in the world.</div>
+          </div>
+          <div class="pg">
+            <span class="ptype">Відповідність</span>
+            <img class="mimg" src="tour/match-brands.jpg" alt="">
+            <p class="qhint">Торкніться бренду ліворуч, потім — пари праворуч</p>
+            <div class="mt">
+              <div class="col"><span id="mL1">Tuborg</span><span id="mL2">Somersby</span><span id="mL3">Kronenbourg</span><span id="mL4">Львівське</span></div>
+              <div class="col"><span id="mR4">Різдвяне</span><span id="mR3">1664 Blanc</span><span id="mR1">Green</span><span id="mR2">Apple Cider</span></div>
+            </div>
+            <div class="fbk" id="f5"><b>Усі пари правильні!</b></div>
+          </div>
+        </div></div>
+        <div class="pnav"><span class="b1">Назад</span><span class="b2 dis" id="n7">Перевірити</span></div>
+      </div>
+
+
+<!-- 7c. Відео: відтворення і поворот у landscape -->
+      <div class="layer pl vd" id="LV">
+        <div class="sb"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="ptop"><span class="bk">‹</span><span class="ttl">Модуль 1 · Компанія та асортимент</span><span class="cnt">Відео</span></div>
+        <div class="pbar"><i style="width:40%"></i></div>
+        <div class="vwrap">
+          <div class="vp" id="vp">
+            <img class="vpost" src="tour/carlsberg-ukraine.jpg" alt="">
+            <span class="vtag">демо-відео</span>
+            <i class="vbig" id="vplay">▶</i>
+            <div class="vctl"><span id="vtime">0:00</span><div class="vbar"><i id="vprog"></i></div><span>0:20</span><i class="vrot" id="vrot">⤢</i></div>
+          </div>
+        </div>
+        <div class="vbody">
+          <span class="ptype in" style="--d:.2s">Відео</span>
+          <h5 class="in" style="--d:.3s">Дивись просто в модулі</h5>
+          <p class="in" style="--d:.4s">Відео відтворюється на екрані модуля. Захотів більше — поверни телефон, і воно відкриється на весь екран.</p>
+          <div class="vrows"><div class="in" style="--d:.55s"><i>▶</i><span>Запуск одним дотиком</span></div><div class="in" style="--d:.7s"><i>⤢</i><span>Поворот — на весь екран</span></div><div class="in" style="--d:.85s"><i>✓</i><span>Після перегляду — наступний екран</span></div></div>
+        </div>
+        <div class="demo">демо · ролик — приклад формату</div>
+      </div>
+
+      <!-- 8. Результат -->
+      <div class="layer result" id="L8">
+        <div class="sb"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="body">
+          <div class="rw"><svg class="ring" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><circle class="fg" cx="50" cy="50" r="45"/></svg><div class="pct" id="pct">0%</div></div>
+          <h4 class="in" style="--d:1.7s">Крок 1 складено! 🎉</h4>
+          <div class="pts"><span class="chip pop" style="--d:2s">4/4 правильних</span><span class="chip pop" style="--d:2.3s">Результат збережено</span></div>
+          <div class="card next2 in" style="--d:2.8s"><div class="nd" style="background:var(--ok)">✓</div><div><b style="font-size:3.4cqw">Модуль 1 · складено</b><br><span class="muted" style="font-size:2.9cqw">керівник уже бачить результат</span></div></div>
+          <div class="card next2 in" style="--d:3.1s"><div class="nd" style="background:linear-gradient(135deg,#5b9ad6,#3a6fa8)">2</div><div><b style="font-size:3.4cqw">Модуль 2 · Monolit Agent</b><br><span class="muted" style="font-size:2.9cqw">відкриється за 2 дні — прийде сповіщення</span></div></div>
+        </div>
+      </div>
+
+      <!-- Завершення курсу і сертифікат (як CompleteScreen + PDF-роут сертифіката) -->
+      <div class="layer cert" id="LC">
+        <div class="sb"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="body cc">
+          <div class="trophy pop" style="--d:.2s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+          <h4 class="in" style="--d:.4s">Бездоганно! Курс пройдено на 100% 🎉</h4>
+          <p class="lead in" style="--d:.5s">Жодної помилки — ви знаєте цей матеріал досконало.</p>
+          <div class="score in" style="--d:.6s"><b>20/20</b><span>правильних (100%)</span></div>
+          <p class="saved in" style="--d:.7s">Результат збережено.</p>
+          <div class="certblock in" style="--d:.9s">
+            <svg class="ci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="1.5"/><path d="M7 9h10M7 12.5h6"/><circle cx="17" cy="17" r="2.6"/><path d="M15.6 19.3L15 22l2-1 2 1-.6-2.7"/></svg>
+            <b>Вам видано сертифікат про проходження курсу</b>
+            <span>PDF із вашим ім'ям, назвою курсу «Базове навчання МР» та датою завершення.</span>
+            <div class="pbtn" id="certBtn"><span id="certLbl">Завантажити сертифікат</span></div>
+          </div>
+        </div>
+        <!-- відкритий PDF -->
+        <div class="pdfview" id="pdfview">
+          <div class="pvbar"><span>Сертифікат_Базове_навчання_МР.pdf</span><em id="pvx">✕</em></div>
+          <div class="pvpage">
+            <div class="sheetA4">
+              <img class="wm" src="/assets/brand/hops-leaf-large-green.png" alt="">
+              <img class="lg" src="/icons/icon-192.png" alt="">
+              <div class="pn">CARLS CARLSBERG LEARNING &amp; SUPPORT</div>
+              <div class="tg">Платформа адаптації та навчання Carlsberg Ukraine</div>
+              <div class="t1">СЕРТИФІКАТ</div>
+              <div class="t2">Цим підтверджується, що</div>
+              <div class="t3">Олена Коваль</div>
+              <div class="t2">успішно опрацював(-ла) курс</div>
+              <div class="t4">Базове навчання МР</div>
+              <div class="t5">зі 100% результатом</div>
+              <div class="t6">Дата завершення: 3 листопада 2026 р.</div>
+            </div>
+          </div>
+          <div class="dl" id="dl"><i class="dlic">⤓</i><div class="dlt"><b id="dlname">Завантаження…</b><div class="dlbar"><i id="dlfill"></i></div></div></div>
+        </div>
+      </div>
+
+      <!-- 9. Сповіщення -->
+      <div class="layer lock" id="L9">
+        <div class="sb"><span></span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="clock"><small>Понеділок, 6 жовтня</small><b>9:00</b></div>
+        <div class="nt" id="n1"><div class="ai"><img src="/icons/icon-192.png" alt=""><span class="dot">1</span></div><div class="tx"><div class="h"><span>CarLS</span><span>зараз</span></div><b>🚀 Модуль 2 відкрито</b><p>Робота з програмою Monolit Agent. Дедлайн — п'ятниця, плануй час.</p></div></div>
+        <div class="nt" id="n2"><div class="ai bot"><img src="tour/carlson-bot.jpg" alt=""></div><div class="tx"><div class="h"><span>Telegram · CarlsON</span><span>ср</span></div><b>⏰ Нагадування</b><p>На модуль 2 лишилось 2 дні. Тисни, щоб продовжити.</p></div></div>
+      </div>
+
+      <!-- 10. Польове навчання -->
+      <div class="layer field" id="L10">
+        <div class="sb brandtop"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="ah"><div class="ico"><img src="/icons/icon-192.png" alt=""></div><div class="t">Польове навчання<small>Модуль 6 · Кроки візиту МР</small></div></div>
+        <div class="body">
+          <div class="sv in" style="--d:.2s"><div class="av">SV</div><div><b>Разом із супервайзером</b><span>у торговій точці, за чек-листом</span></div></div>
+          <div class="ck in" id="c1" style="--d:.4s"><i></i>Кроки візиту МР</div>
+          <div class="ck in" id="c2" style="--d:.5s"><i></i>Викладка за стандартом FIT</div>
+          <div class="ck in" id="c3" style="--d:.6s"><i></i>«Картина успіху» (PicOS)</div>
+          <div class="ck in" id="c4" style="--d:.7s"><i></i>Фото полиці для фоторозпізнавання</div>
+          <div class="stamp" id="stamp">✔ Підтверджено SV · 4 з 4<small>+50 балів · зараховано в профіль</small></div>
+        </div>
+      </div>
+
+      <!-- 12. Рейтинг і що далі -->
+      <div class="layer rank" id="L12">
+        <div class="sb brandtop"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="ah"><div class="ico"><img src="/icons/icon-192.png" alt=""></div><div class="t">Досягнення<small>Рейтинг, відзнаки і сертифікати</small></div></div>
+        <div class="body">
+          <div class="place in" style="--d:.1s"><b id="place">7</b><span>твоє місце серед мерчандайзерів<br><span class="chip up" id="upChip">▲ +2 місця</span></span></div>
+          <div class="lb in" style="--d:.3s" id="lb">
+            <div id="r1"><em>5</em>Олег В.<span>560</span></div>
+            <div id="r2"><em>6</em>Ліна С.<span>550</span></div>
+            <div class="me" id="rme"><em>7</em>Ти<span id="mypts">520</span></div>
+          </div>
+          <div class="stt in" style="--d:1.6s"><div><b>1</b><span>курс складено</span></div><div><b>576</b><span>балів</span></div><div><b>100%</b><span>середній бал</span></div></div>
+          <h5 class="sub in" style="--d:1.9s">Відзнаки</h5>
+          <div class="bdg in" style="--d:2.1s">
+            <div><i>🎉</i><b>Перший вхід</b></div><div><i>🏆</i><b>Курс складено</b></div>
+            <div class="new"><i>🎯</i><b>Без помилок</b><span>+50</span></div><div class="lk"><i>📚</i><b>5 курсів пройдено</b></div>
+          </div>
+          <h5 class="sub in" style="--d:2.4s">Сертифікати</h5>
+          <div class="crt in" style="--d:2.6s"><i>📜</i><div><b>Базове навчання МР</b><span>100% · PDF</span></div><em>⤓</em></div>
+        </div>
+        <div class="demo">демо-дані</div>
+      </div>
+
+      <!-- 13. Бали → магазин подарунків -->
+      <div class="layer shop" id="LS">
+        <div class="sb brandtop"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="ah"><div class="ico"><img src="/icons/icon-192.png" alt=""></div><div class="t">Магазин подарунків<small>Обміняй бали на подарунок від компанії</small></div></div>
+        <div class="body">
+          <div class="bal in" style="--d:.1s"><div><small>Твої бали</small><b id="bal">576</b></div><div class="goal"><span id="goalt">До рюкзака ще 224 бали</span><div class="bar"><i id="goalbar" style="width:72%"></i></div></div></div>
+          <div class="gifts">
+            <div class="gf in" id="gfH" style="--d:.3s;--c:#e3f0ff"><div class="im"><img src="tour/gift-hoodie.webp" alt="Худі CarLS"></div><b>Худі CarLS</b><span class="pr">500 балів</span><i class="go">Обміняти</i></div>
+            <div class="gf lk in" id="gfB" style="--d:.45s;--c:#ffe9d6"><div class="im"><img src="tour/gift-backpack.webp" alt="Рюкзак"></div><b>Рюкзак</b><span class="pr">800 балів</span><i class="go">Ще 224</i></div>
+            <div class="gf in" id="gfC" style="--d:.6s;--c:#fff0c2"><div class="im"><div class="pic" style="--ar:385/519"><img src="tour/gift-candle.jpg" alt="Свічка"><span class="brand" style="--x:28%;--y:58%;--w:27%"><img src="/assets/carlsberg-logo.png" alt="Carlsberg"></span></div></div><b>Свічка</b><span class="pr">150 балів</span><i class="go">Обміняти</i></div>
+            <div class="gf in" id="gfM" style="--d:.75s;--c:#e6f5ec"><div class="im"><div class="pic" style="--ar:1/1"><img src="tour/gift-mug.jpg" alt="Термокружка"><span class="brand" style="--x:55%;--y:86%;--w:27%"><img src="/assets/carlsberg-logo.png" alt="Carlsberg"></span></div></div><b>Термокружка</b><span class="pr">250 балів</span><i class="go">Обміняти</i></div>
+          </div>
+          <div class="note in" style="--d:1s"><span>🎁</span><span>Бали — за курси, відзнаки і рейтинг. Що обміняв — те твоє.</span></div>
+        </div>
+        <div class="stoast" id="stoast">🎉 Подарунок замовлено — свічка. Залишок: 426 балів</div>
+        <div class="demo">демо-дані · асортимент — приклад</div>
+      </div>
+
+      <!-- 14. Бали → співбесіди і кар'єрна драбина -->
+      <div class="layer career" id="LK">
+        <div class="sb brandtop"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="ah"><div class="ico"><img src="/icons/icon-192.png" alt=""></div><div class="t">Розвиток і кар'єра<small>Бали відкривають нові можливості</small></div></div>
+        <div class="body">
+          <div class="me in" style="--d:.1s"><span class="chip gold">576 балів</span><span class="chip">5 місце серед мерчандайзерів</span></div>
+          <div class="lad">
+            <div class="rg far in" style="--d:1.1s"><i>4</i><div><b>ASM</b><span>керівник області</span></div></div>
+            <div class="rg far in" style="--d:.8s"><i>3</i><div><b>SV</b><span>супервайзер</span></div></div>
+            <div class="rg in" id="rgTP" style="--d:.5s"><i>2</i><div><b>ТП</b><span>торговий представник</span></div><span class="chip" id="rgtag" style="display:none">наступний крок</span></div>
+            <div class="rg you in" style="--d:.2s"><i>1</i><div><b>МР</b><span>мерчандайзер</span></div><span class="chip gold">ти тут</span></div>
+          </div>
+          <div class="iv in" style="--d:1.4s">
+            <div class="h"><i>🎤</i><div><b>Співбесіда на посаду ТП</b><span>Бали й місце в рейтингу дають право взяти участь</span></div></div>
+            <div class="btn dark" id="ivbtn"><span id="ivlbl">Записатись на співбесіду</span></div>
+          </div>
+        </div>
+        <div class="demo">демо-дані · умови визначає компанія</div>
+      </div>
+
+      <!-- 15. AI-асистент по базі знань -->
+      <div class="layer ai" id="LA">
+        <div class="sb brandtop"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="ah"><div class="ico"><img src="/icons/icon-192.png" alt=""></div><div class="t">База знань<small>Знайде відповідь за секунди</small></div></div>
+        <div class="body">
+          <div class="sbar in" id="sbar" style="--d:.1s"><span class="sp">✨</span><span class="ph" id="aiph">Запитай AI-асистента…</span><span class="q" id="aiq"></span><span class="go" id="aigo" style="display:none">➤</span></div>
+          <div class="think st" id="aithink"><u></u><u></u><u></u><span>Шукаю в базі знань…</span></div>
+          <div class="ans st" id="aians">Знайшов <b>3 матеріали</b> за твоїм запитом — відкрий потрібний:</div>
+          <div class="src st" id="aisrc1"><i>📘</i><div><b>Стандарти викладки</b><span>Курс · Модуль 2</span></div><em>›</em></div>
+          <div class="src st" id="aisrc2"><i>✅</i><div><b>Чек-ліст візиту</b><span>Польові інструменти</span></div><em>›</em></div>
+          <div class="src st" id="aisrc3"><i>🎬</i><div><b>Викладка на полиці — відео</b><span>База знань · відео</span></div><em>›</em></div>
+          <div class="tips in" style="--d:.6s"><small>Можна питати просто:</small><div><span class="chip">як оформити заявку?</span><span class="chip">де чек-ліст візиту?</span><span class="chip">що таке планограма?</span><span class="chip">коли дедлайн курсу?</span></div></div>
+        </div>
+        <div class="demo">демо-дані · матеріали — приклад</div>
+      </div>
+
+      <!-- 16. Стрічка ноу-хау -->
+      <div class="layer feed" id="LF">
+        <div class="sb brandtop"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="ah"><div class="ico"><img src="/icons/icon-192.png" alt=""></div><div class="t">Практика · ноу-хау<small>Закрита стрічка покращень команди</small></div></div>
+        <div class="body">
+          <div class="post in" id="fpA" style="--d:.1s">
+            <div class="ph"><div class="av">МР</div><div><b>Мерчандайзер</b><span>ідея з полиці · щойно</span></div><span class="chip" id="fsA">Подано</span></div>
+            <div class="tx">Новинки ставлю на рівень очей, а акційний цінник — поруч із ними. Так їх помічають швидше.</div>
+            <div class="pic"><img src="tour/field-display.jpg" alt="Викладка в магазині"></div>
+            <div class="stp" id="fstp"><i class="on"></i><i></i><i></i><i></i></div>
+            <div class="stl"><span>Подано</span><span>Схвалено SV</span><span>У роботі</span><span>Впроваджено</span></div>
+            <div class="rx"><div class="b" id="fb1">👍 Корисно <em id="fn1">12</em></div><div class="b" id="fb2">🚀 Застосую <em id="fn2">4</em></div></div>
+          </div>
+          <div class="post in" id="fpB" style="--d:.5s">
+            <div class="ph"><div class="av">ТП</div><div><b>Торговий представник</b><span>ідея · вчора</span></div><span class="chip no">Відхилено SV</span></div>
+            <div class="tx">Прибрати частину брендів з полиці заради однієї новинки.</div>
+            <div class="pic"><img src="tour/field-shelf.jpg" alt="Полиця в магазині"></div>
+            <div class="why">Коментар SV: це порушує стандарт викладки — ідею не взято.</div>
+          </div>
+          <div class="roles in" style="--d:.9s">
+            <div><i>👥</i><span><b>Колеги</b> реагують — «Корисно» дає автору +1 бал у рейтинг.</span></div>
+            <div><i>🛡️</i><span><b>Супервайзер</b> модерує, <b>керівництво</b> бачить усе.</span></div>
+            <div><i>🏆</i><span>Найкраще стає стандартом для всієї території.</span></div>
+          </div>
+        </div>
+        <div class="ftoast" id="ftoast">🏆 Ідею впроваджено — тепер це стандарт на території</div>
+        <div class="demo">демо-дані · ідеї — приклад</div>
+      </div>
+
+      <!-- 17. Куди росте платформа -->
+      <div class="layer grow" id="LG">
+        <div class="sb brandtop"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="ah"><div class="ico"><img src="/icons/icon-192.png" alt=""></div><div class="t">Куди росте CarLS<small>Одна платформа для всієї групи</small></div></div>
+        <div class="body">
+          <div class="lg in" style="--d:.1s">
+            <div class="h">🌍 Мови й країни групи</div>
+            <div class="s" id="lgs">Вітаємо в команді!</div>
+            <div class="c">
+              <span class="chip on" id="lg0">UA · Українська</span>
+              <span class="chip" id="lg1">MD · Română</span>
+              <span class="chip" id="lg2">KZ · Қазақша</span>
+              <span class="chip" id="lg3">DK · Dansk</span>
+            </div>
+          </div>
+          <div class="dlg in" style="--d:.4s">
+            <div class="h">🗣️ Тренажер діалогів · скрипт розмови</div>
+            <div class="bb l in" style="--d:.8s">Клієнт: «У мене вже є постачальник. Навіщо мені ще ваш?»</div>
+            <div class="bb r in" style="--d:1.6s">Розумію. А давайте я покажу, що ми можемо запропонувати саме вам?</div>
+            <div class="bb l in" style="--d:2.4s">Клієнт: «Ну… покажіть.»</div>
+          </div>
+          <div class="gtl">
+            <div class="gt in" id="gt0" style="--d:3.2s"><i>📸</i><b>Фото-звіт полиці</b><span>ШІ звіряє викладку з еталоном</span></div>
+            <div class="gt in" id="gt1" style="--d:3.4s"><i>🔁</i><b>Слабкі місця</b><span>Система повертає питання, де були помилки</span></div>
+            <div class="gt in" id="gt2" style="--d:3.6s"><i>🚨</i><b>Сигнал керівнику</b><span>Хто застряг у перші тижні</span></div>
+            <div class="gt in" id="gt3" style="--d:3.8s"><i>👥</i><b>Нові ролі</b><span>ТП, SV, ASM — свої програми</span></div>
+            <div class="gt in" id="gt4" style="--d:4s"><i>🚀</i><b>Запуск новинки</b><span>Навчання для всього поля одразу</span></div>
+            <div class="gt in" id="gt5" style="--d:4.2s"><i>🔗</i><b>Автопризначення</b><span>Курс — одразу при прийомі на роботу</span></div>
+          </div>
+        </div>
+        <div class="demo">демо-ідеї · напрямки розвитку</div>
+      </div>
+
+      <!-- 19. Дякуємо за увагу -->
+      <div class="layer grow thx" id="LT">
+        <div class="sb brandtop"><span>9:41</span><span class="r"><i class="s"></i><i class="b"></i></span></div>
+        <div class="body">
+          <div class="big in" style="--d:.2s"><img src="/icons/icon-192.png" alt=""><b>Дякуємо за увагу!</b></div>
+          <div class="row in" id="th1" style="--d:1.8s"><span class="chip">MD · Română</span><span>Vă mulțumim pentru atenție!</span></div>
+          <div class="row in" id="th2" style="--d:2.6s"><span class="chip">KZ · Қазақша</span><span>Назар аударғаныңыз үшін рахмет!</span></div>
+          <div class="row in" id="th3" style="--d:3.4s"><span class="chip">DK · Dansk</span><span>Tak for opmærksomheden!</span></div>
+        </div>
+        <div class="demo">мови для розвитку</div>
+      </div>
+
+      <div class="ripple" id="ripple"></div>
+      <div class="finger" id="finger"></div>
+    </div>
+    <div class="island"></div>
+  </div></div>
+
+  <div class="cap" aria-live="polite">
+    <div class="segs" id="segs"></div>
+    <div class="n" id="num"></div>
+    <h2 id="ctitle"></h2>
+    <p id="ctext"></p>
+  </div>
+
+  <div class="ctrl">
+    <button class="prev" id="prevBtn" aria-label="Попередній крок"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 5 8 12 15 19"/></svg></button>
+    <button class="pp" id="ppBtn" aria-label="Пауза">❚❚</button>
+    <button class="next" id="nextBtn">Далі <span>›</span></button>
+  </div>
+  <div class="vg" id="vg"><button class="mu" id="muBtn" aria-label="Вимкнути музику"><span class="ic" aria-hidden="true">♪</span><span class="lb">Відтворіть фонову музику презентації</span></button><input type="range" id="vol" min="0" max="100" value="60" aria-label="Гучність музики"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var screen = $("#screen"), finger = $("#finger"), ripple = $("#ripple"), phone = $("#phone");
+  function landFit() {
+    var st = phone.parentElement;
+    phone.style.setProperty("--ls", Math.min(st.clientWidth / phone.offsetHeight, (st.clientHeight - 14) / phone.offsetWidth).toFixed(3));
+  }
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var COLORS = ["#17b169", "#1bd665", "#ffca2b", "#4b87c5", "#f45f5e", "#ffffff", "#0f6b44"];
+
+  // Крок: шар, тривалість автопрогравання (мс), емодзі, підпис і сценарій анімації.
+  var STEPS = [
+    { id: "L1", dur: 8600, em: "📩", title: "Monolit Agent лишається — замість PDF кнопка",
+      text: "Команда T<span style=\"font-size:.75em\">&amp;</span>D, як і зараз, надсилає повідомлення в Monolit Agent. Але замість PDF-файлу в ньому — кнопка «Почати навчання в CarLS»: один дотик, і навчання відкривається.",
+      run: function (t) {
+        t.at(1300, function () { $("#pdfslot").classList.add("hl"); });
+        t.at(3700, function () { $("#pdfslot").classList.remove("hl"); $("#pdfslot").classList.add("swap"); $("#mtext").textContent = "Твоє навчання — у застосунку CarLS. Натисни кнопку нижче."; });
+        t.at(4400, function () { $("#mlink").classList.add("glow"); });
+        t.tap(7000, "#mlink");
+      } },
+    { id: "L3", dur: 9200, em: "📲", title: "Встановлення на вашому пристрої",
+      text: "Android, iOS чи комп'ютер — система сама налаштовується під ваш пристрій і показує інструкцію зі встановлення застосунку. На Android: меню → «Додати на головний екран» → «Встановити». <a href=\"install.html\" target=\"_top\">Повна інструкція</a>.",
+      run: function (t) {
+        t.tap(900, "#kebab"); t.at(1100, function () { $("#amenu").classList.add("show"); });
+        t.tap(2700, "#addHome"); t.at(2900, function () { $("#amenu").classList.remove("show"); $("#adlg").classList.add("show"); });
+        t.tap(4500, "#installBtn"); t.at(4700, function () { $("#f1").classList.add("out"); $("#L3").classList.add("reveal"); });
+        t.tap(8200, "#ibtn");
+      } },
+    { id: "L4", dur: 12000, em: "🔐", title: "Реєстрація: код з Monolit Agent і PIN",
+      text: "Де взяти код? Тисни «i» біля поля — знизу з'явиться підказка: код показано в Monolit Agent поруч із номером версії, у квадратних дужках. Далі — «Зареєструватись», і PIN приходить на пошту керівника.",
+      run: function (t) {
+        t.tap(1300, "#infoBtn");
+        t.at(1400, function () { $("#shov").classList.add("show"); });
+        t.at(2500, function () { $("#shimg").classList.add("zoom"); });
+        t.tap(5300, "#handle");
+        t.at(5400, function () { $("#shov").classList.remove("show"); });
+        var code = "ml03005";
+        t.at(6000, function () { var c = $("#code"); c.classList.remove("ph"); c.textContent = ""; $("#fld").classList.add("focus"); });
+        for (var i = 1; i <= code.length; i++) (function (n) { t.at(6000 + n * 150, function () { $("#code").textContent = code.slice(0, n); }); })(i);
+        t.at(7300, function () { $("#fld").classList.remove("focus"); });
+        t.tap(7900, "#regBtn");
+        t.at(8100, function () { $("#ltoast").classList.add("show"); $("#pinwrap").classList.add("on2"); });
+        var pins = document.querySelectorAll("#pins i");
+        for (var j = 0; j < 4; j++) (function (n) { t.at(9100 + n * 280, function () { pins[n].textContent = "•"; pins[n].classList.add("f"); }); })(j);
+        t.at(10400, function () { $("#pins").classList.add("okk"); $("#ltoast span").textContent = "Вхід виконано — вітаємо в CarLS!"; });
+      } },
+    { id: "LW", dur: 10500, em: "🤝", title: "Вітання в команді після реєстрації",
+      text: "Після реєстрації людина одразу потрапляє в CarLS, і поверх кабінету з'являється вітальне вікно: вітання в команді, знайомство з програмою адаптації і головне — замість 7 тижнів у PDF навчання на платформі займе 5 тижнів. Тут показано мерчандайзера (МР); торговий представник отримує своє вітання.",
+      run: function (t) {
+        t.tap(9200, "#wmf");
+      } },
+    { id: "L2", dur: 9000, em: "👋", title: "Головна: 7 модулів за 5 тижнів",
+      text: "Одразу після входу — свій кабінет і курс «Базове навчання МР». Той самий зміст, що зараз іде 7 тижнів, платформа дає за 5 — і він засвоюється краще. Модулі повноцінні, але це гра: людина тапає, розставляє, зіставляє — задіяна моторика рук, а не лише очі, що гортають PDF. За світовою практикою геймифікація помітно покращує засвоєння: метааналіз Sailer &amp; Homner (2020), ефект g = 0,49 для знань.",
+      run: function (t) {
+        t.at(1700, function () { $("#wcount").classList.add("cut"); });
+        t.at(3700, function () { var h = document.querySelector("#L2 .hbody"); h.scrollTo({ top: h.scrollHeight, behavior: "smooth" }); });
+        t.at(2500, function () {
+          var b = $("#wcount"); b.classList.remove("cut", "tick"); b.textContent = "5"; void b.offsetWidth; b.classList.add("tick");
+          var w = document.querySelectorAll("#L2 .weeks i"); w[5].classList.add("gone"); w[6].classList.add("gone");
+        });
+        t.tap(8000, "#wbtn");
+      } },
+    { id: "L5", dur: 11000, em: "🗺️", title: "План курсу: 7 модулів за 5 тижнів",
+      text: "Сім модулів, розкладених на 5 тижнів. Пригадування працює краще за перечитування: у дослідженні Roediger &amp; Karpicke (2006) через тиждень учасники пам’ятали 61% матеріалу проти 40%. Наступний модуль відкривається після складання попереднього й паузи на закріплення — тож навчання йде в правильному порядку, і краще видно послідовність: що за чим іде, навіщо і що з чого випливає.",
+      run: function (t) { t.tap(9800, "#startW1"); } },
+    { id: "L7", dur: 40000, em: "🧠", title: "Модуль: найцікавіші формати платформи",
+      text: "На платформі форматів значно більше — тут показано найцікавіші й найгеймифікованіші: питання з розбором, гаряча точка на фото, діалог-скрипт (обираєш репліку в розмові з клієнтом), картинка з точками (торкаєшся точки на пляшці Kronenbourg — і з’являється пояснення), порядок перетягуванням і відповідність пар. Помилка — одразу підказка, бал рахується автоматично.",
+      run: function (t) {
+        var P = pager(t, "7", 6, 0), n7 = function () { return $("#n7"); };
+        var ready = function (label) { var b = n7(); b.classList.remove("dis"); b.textContent = label; };
+        var reset = function () { var b = n7(); b.classList.add("dis"); b.textContent = "Перевірити"; };
+        // 1. Питання з розбором
+        t.tap(1000, "#o1"); t.at(1100, function () { $("#o1").classList.add("sel"); ready("Перевірити"); });
+        t.tap(1900, "#n7");
+        t.at(2000, function () { var o = $("#o1"); o.classList.remove("sel"); o.classList.add("bad"); o.querySelector("i").textContent = "✕"; var f = $("#f1"); f.className = "fbk try show"; f.innerHTML = "<b>Не зовсім.</b> Somersby — сидр, а не пиво."; reset(); });
+        t.tap(3300, "#o2");
+        t.at(3400, function () { var b = $("#o1"); b.classList.remove("bad"); b.querySelector("i").textContent = ""; var o = $("#o2"); o.classList.add("ok"); o.querySelector("i").textContent = "✓"; var f = $("#f1"); f.className = "fbk show"; f.innerHTML = "<b>Правильно!</b> Somersby — у категорії «Непиво»."; ready("Далі"); t.float("#o2", "+1"); });
+        t.tap(4600, "#n7"); P(4800, 1); t.at(4800, reset);
+        // 2. Hot Spot: правильний келих
+        t.tap(6300, "#hstap");
+        t.at(6400, function () { $("#hsz").classList.add("show"); $("#f2").classList.add("show"); ready("Далі"); t.float("#hstap", "+1"); });
+        t.tap(8200, "#n7"); P(8400, 2); t.at(8400, reset);
+        // 3. Діалог: скрипт розмови, вибір репліки
+        t.at(8700, function () { $("#dm1").classList.add("show"); });
+        t.tap(10200, "#d1");
+        t.at(10300, function () { var o = $("#d1"); o.classList.add("bad"); o.querySelector("i").textContent = "✕"; var f = $("#f3d"); f.className = "fbk try show"; f.innerHTML = "<b>Не зовсім.</b> Так розмова закривається — клієнт не почув нічого для себе."; });
+        t.tap(12100, "#d2");
+        t.at(12200, function () { var b = $("#d1"); b.classList.remove("bad"); b.querySelector("i").textContent = ""; var o = $("#d2"); o.classList.add("ok"); o.querySelector("i").textContent = "✓"; var f = $("#f3d"); f.className = "fbk show"; f.innerHTML = "<b>Правильно!</b> Спершу визнайте позицію клієнта, потім запропонуйте щось конкретне."; $("#dm2").classList.add("show"); t.float("#d2", "+1"); });
+        t.at(13400, function () { $("#dm3").classList.add("show"); ready("Далі"); });
+        t.tap(15900, "#n7"); P(16400, 3); t.at(16400, function () { ready("Далі"); n7().classList.add("dis"); });
+        // 3. Картинка з точками (Kronenbourg) — тексти з демо-модуля
+        var PINS = [
+          ["Кронкорка - Crown cork", "Металева кришка з гофрованим краєм (традиційно 21 зубець) та внутрішнім ущільнювачем. Забезпечує герметичність, утримує тиск вуглекислого газу та захищає пиво від проникнення кисню."],
+          ["Кольєретка - Collarette", "Додаткова етикетка особливої форми яка наклеюється на шийку пляшки. Зазвичай містить логотип бренду, емблему броварні або назву конкретного сорту пива."],
+          ["Головна етикетка - Front label", "Унікальність цієї французької марки полягає у повній відсутності традиційної паперової етикетки на тілі пляшки. Замість неї використовується лаконічне скляне рельєфне тиснення (ембосинг) із великими цифрами «1664» безпосередньо на кобальтово-синій пляшці."]];
+        function pin(n) {
+          $("#k" + (n + 1)).classList.add("on");
+          $("#pkt").textContent = PINS[n][0]; $("#pkx").textContent = PINS[n][1];
+          var c = $("#pkcard"); c.classList.remove("flash"); void c.offsetWidth; c.classList.add("flash");
+          if (n === 2) ready("Далі");
+        }
+        PINS.forEach(function (p, n) {
+          var ms = 17400 + n * 1500;
+          t.tap(ms, "#k" + (n + 1));
+          t.at(ms + 100, function () { pin(n); });
+          $("#k" + (n + 1)).onclick = function () { pin(n); };
+        });
+        t.tap(21600, "#n7"); P(21800, 4); t.at(21800, reset);
+        // 4. Порядок: перетягування рядка пальцем (рядок піднімається, сусід зсувається)
+        var rows = function () { return document.querySelectorAll("#drag div"); };
+        // Як на платформі: палець тримає ручку справа, рядок піднімається, сусіди розступаються;
+        // після відпускання порядок у DOM справді міняється й номери перераховуються.
+        function drag(ms, from, to) {
+          var st = {};
+          t.at(ms - 700, function () { st.g = point(rows()[from].querySelector("svg")); finger.classList.remove("drag"); finger.classList.add("show"); place(st.g.x, st.g.y); });
+          t.at(ms, function () { finger.classList.add("down"); rows()[from].classList.add("lift"); });
+          t.at(ms + 250, function () {
+            var r = rows(), h = r[1].getBoundingClientRect().top - r[0].getBoundingClientRect().top, dir = to < from ? -1 : 1;
+            for (var i = Math.min(from, to); i <= Math.max(from, to); i++) if (i !== from) r[i].style.transform = "translateY(" + (-dir * h) + "px)";
+            r[from].style.transform = "translateY(" + (dir * Math.abs(to - from) * h) + "px)";
+            finger.style.transitionDuration = "1.1s";
+            finger.classList.add("drag"); place(st.g.x, st.g.y + dir * Math.abs(to - from) * h / screen.getBoundingClientRect().height * 100);
+          });
+          t.at(ms + 1500, function () { finger.classList.remove("down"); rows()[from].classList.remove("lift"); finger.style.transitionDuration = ""; });
+          t.at(ms + 1900, function () {
+            var box = $("#drag"), r = [].slice.call(rows()), moved = r.splice(from, 1)[0];
+            r.splice(to, 0, moved);
+            r.forEach(function (row) { row.style.transition = "none"; row.style.transform = ""; box.appendChild(row); });
+            void box.offsetWidth;
+            r.forEach(function (row, k) { row.style.transition = ""; row.querySelector("em").textContent = k + 1; });
+            finger.classList.remove("show", "drag");
+          });
+        }
+        drag(23000, 1, 0);   // «Probably» — нагору
+        drag(25600, 3, 2);   // «in the» — вище за «world»
+        t.at(27700, function () { ready("Перевірити"); });
+        t.tap(28300, "#n7");
+        t.at(28400, function () { $("#drag").classList.add("ok"); [].forEach.call(rows(), function (r) { r.querySelector("em").textContent = "✓"; }); $("#f4").classList.add("show"); ready("Далі"); t.float("#drag", "+1"); });
+        t.tap(29600, "#n7"); P(29800, 5); t.at(29800, reset);
+        // 5. Відповідність: бренд → пара (номер пари на обох елементах, як на платформі)
+        [["#mL1", "#mR1", "pa"], ["#mL2", "#mR2", "pb"], ["#mL3", "#mR3", "pc"], ["#mL4", "#mR4", "pd"]].forEach(function (p, n) {
+          var ms = 30600 + n * 1700;
+          t.tap(ms, p[0]); t.at(ms + 100, function () { $(p[0]).classList.add("sel"); });
+          t.tap(ms + 850, p[1]); t.at(ms + 950, function () { $(p[0]).classList.remove("sel"); $(p[0]).classList.add(p[2]); $(p[1]).classList.add(p[2]); $(p[0]).dataset.n = $(p[1]).dataset.n = n + 1; if (n === 3) ready("Перевірити"); });
+        });
+        t.tap(37700, "#n7");
+        t.at(37800, function () {
+          // Праві стають навпроти своїх пар: зараз порядок R4,R3,R1,R2 → R1,R2,R3,R4.
+          var h = $("#mR3").getBoundingClientRect().top - $("#mR4").getBoundingClientRect().top;
+          $("#mR1").style.transform = "translateY(" + (-2 * h) + "px)";
+          $("#mR2").style.transform = "translateY(" + (-2 * h) + "px)";
+          $("#mR3").style.transform = "translateY(" + h + "px)";
+          $("#mR4").style.transform = "translateY(" + (3 * h) + "px)";
+          document.querySelector("#L7 .mt").classList.add("ok"); $("#f5").classList.add("show"); ready("Завершити модуль"); t.float("#L7 .mt", "+1"); });
+      } },
+    { id: "LV", dur: 11500, em: "🎬", title: "Відео: відтворення і поворот на весь екран",
+      text: "Ще один формат — відео. Запускаєш просто в модулі, а повернувши телефон, дивишся на весь екран у landscape. Ролик тут — демонстрація формату, не справжній урок.",
+      run: function (t) {
+        t.tap(1400, "#vplay");
+        t.at(1500, function () { $("#vp").classList.add("playing"); });
+        for (var k = 1; k <= 40; k++) (function (n) {
+          t.at(1500 + n * 250, function () {
+            var sec = Math.min(20, Math.round(n * 0.25));
+            $("#vprog").style.width = Math.min(100, n * 0.25 / 20 * 100) + "%";
+            $("#vtime").textContent = "0:" + (sec < 10 ? "0" : "") + sec;
+          });
+        })(k);
+        t.tap(4300, "#vrot");
+        t.at(4400, function () { $("#vp").classList.add("land"); phone.classList.add("landp"); landFit(); });
+        t.tapAt(8700, 7, 96.5);
+        t.at(8800, function () { $("#vp").classList.remove("land"); phone.classList.remove("landp"); });
+      } },
+    { id: "L8", dur: 7400, em: "🎉", title: "Результат, бали і наступний крок",
+      text: "Складений модуль видно одразу: бали в рейтинг, відзнака і коли відкриється наступний. Керівник бачить це в ту ж хвилину.",
+      run: function (t) {
+        for (var p = 1; p <= 20; p++) (function (n) { t.at(400 + n * 70, function () { $("#pct").textContent = n * 5 + "%"; }); })(p);
+        t.at(1850, function () { t.rain(40); });
+        
+      } },
+    { id: "LC", dur: 10400, em: "🏅", title: "Курс пройдено на 100% — сертифікат",
+      text: "Якщо курс складено на 100% — конфеті і сертифікат: PDF з ім'ям, назвою курсу і датою завершення. Відкривається одразу й зберігається на телефон.",
+      run: function (t) {
+        t.at(600, function () { t.rain(40); });
+        t.tap(4200, "#certBtn");
+        t.at(4300, function () { $("#certBtn").classList.add("busy"); $("#certLbl").textContent = "Готуємо сертифікат…"; });
+        t.at(5400, function () { $("#pdfview").classList.add("show"); });
+        t.at(6600, function () { $("#dl").classList.add("show"); });
+        t.at(6800, function () { $("#dlfill").style.width = "100%"; });
+        t.at(8600, function () { $("#dl").classList.add("done"); $("#dlname").textContent = "Сертифікат збережено на телефон"; });
+      } },
+    { id: "L12", dur: 8400, em: "🏆", title: "Досягнення і рейтинг",
+      text: "Кожен складений курс дає бали — видно своє місце серед колег своєї посади і як воно росте. Тут же — відзнаки і всі отримані сертифікати.",
+      run: function (t) {
+        t.at(1000, function () {
+          // «Ти» обганяє двох колег: рядок піднімається, інші зсуваються вниз.
+          var h = $("#r1").offsetHeight + 6;
+          $("#rme").style.transform = "translateY(" + (-2 * h) + "px)";
+          $("#r1").style.transform = "translateY(" + h + "px)";
+          $("#r2").style.transform = "translateY(" + h + "px)";
+        });
+        for (var s = 1; s <= 8; s++) (function (n) { t.at(1000 + n * 80, function () { $("#mypts").textContent = 520 + n * 7; }); })(s);
+        t.at(1700, function () {
+          $("#place").textContent = "5"; $("#rme em").textContent = "5"; $("#r1 em").textContent = "6"; $("#r2 em").textContent = "7";
+          $("#upChip").classList.add("show");
+        });
+      } },
+    { id: "L9", dur: 7000, em: "🔔", title: "Автоматична розсилка сама нагадує",
+      text: "Автоматична розсилка — push-сповіщення і повідомлення Telegram-бота CarlsON — повідомляє про відкриті, завершені й незавершені курси та модулі і сама нагадує, коли час проходити навчання або наближається дедлайн. Нічого не пропустиш і зможеш спланувати свій робочий графік.",
+      run: function (t) {
+        t.at(900, function () { $("#n1").classList.add("show"); });
+        t.at(1700, function () { $("#n1").classList.add("buzz"); });
+        t.at(3000, function () { $("#n2").classList.add("show"); });
+        t.at(3800, function () { $("#n2").classList.add("buzz"); });
+      } },
+    { id: "L10", dur: 7800, em: "🧭", title: "Наступний крок: чек-лист польового навчання",
+      text: "Що можна додати далі: після теорії — відпрацювання тих самих навичок у точці разом із SV. Чек-лист у телефоні, результат зараховується в профіль і рейтинг, а не губиться в паперах.",
+      run: function (t) {
+        ["#c1", "#c2", "#c3", "#c4"].forEach(function (s, n) {
+          t.tap(1500 + n * 900, s);
+          t.at(1600 + n * 900, function () { var c = $(s); c.classList.add("done"); c.querySelector("i").textContent = "✓"; });
+        });
+        t.at(5300, function () { $("#stamp").classList.add("show"); });
+        t.at(5700, function () { t.float("#stamp", "+50"); });
+      } },
+    { id: "LS", dur: 9400, em: "🎁", title: "Бали — у подарунки: магазин CarLS",
+      text: "Зароблені бали — не лише цифра в рейтингу: їх можна обміняти на подарунки від компанії. Заходиш у магазин, обираєш — худі, рюкзак, свічку, термокружку — і бали стають реальною річчю. До наступної мрії видно, скільки лишилось. Асортимент на екрані — приклад.",
+      run: function (t) {
+        t.at(1700, function () { $("#gfC").classList.add("hl"); });
+        t.tap(3000, "#gfC");
+        t.at(3100, function () {
+          var c = $("#gfC"); c.classList.remove("hl"); c.classList.add("got"); c.querySelector(".go").textContent = "✓ Замовлено";
+          for (var n = 1; n <= 10; n++) (function (k) { t.at(3100 + k * 60, function () { $("#bal").textContent = 576 - Math.round(150 * k / 10); }); })(n);
+          t.float("#bal", "−150");
+          $("#goalt").textContent = "До рюкзака ще 374 бали"; $("#goalbar").style.width = "53%";
+          var h = $("#gfH"); h.classList.add("lk"); h.querySelector(".go").textContent = "Ще 74";
+          $("#gfB .go").textContent = "Ще 374";
+        });
+        t.at(4300, function () { $("#stoast").classList.add("show"); });
+      } },
+    { id: "LK", dur: 9800, em: "🪜", title: "Бали — у розвиток: співбесіди й кар'єра",
+      text: "Бали і місце в рейтингу — це ще й розвиток: вони дають право взяти участь у співбесіді на вищу посаду. Видно всю драбину — від мерчандайзера до керівника області — і власний наступний крок. Умови й вакансії визначає компанія.",
+      run: function (t) {
+        t.at(2000, function () { $("#rgTP").classList.add("hl"); $("#rgtag").style.display = ""; });
+        t.tap(5200, "#ivbtn");
+        t.at(5300, function () { $("#ivbtn").classList.add("busy"); $("#ivlbl").textContent = "Надсилаємо заявку…"; });
+        t.at(6500, function () { var b = $("#ivbtn"); b.classList.remove("busy"); b.classList.add("done"); $("#ivlbl").textContent = "✓ Заявку подано"; t.float("#ivbtn", "🎯"); });
+      } },
+    { id: "LA", dur: 10400, em: "✨", title: "AI-асистент: відповідь за секунди",
+      text: "Не треба блукати папками бази знань. Вся потрібна інформація лежить в одному місці, а зверху — поле AI-асистента: пишеш простими словами, що шукаєш, і він одразу знаходить потрібні матеріали — курс, чек-ліст, відео. За будь-яким запитом.",
+      run: function (t) {
+        var q = "Де правила викладки на полиці?";
+        t.tap(1200, "#sbar");
+        t.at(1300, function () { $("#sbar").classList.add("act"); $("#aiph").style.display = "none"; $("#aigo").style.display = "grid"; });
+        for (var i = 1; i <= q.length; i++) (function (k) { t.at(1700 + k * 70, function () { $("#aiq").innerHTML = q.slice(0, k) + '<span class="cr"></span>'; }); })(i);
+        var e = 1700 + q.length * 70;
+        t.at(e + 250, function () { $("#aiq").textContent = q; t.tap(0, "#aigo"); });
+        t.at(e + 500, function () { $("#aithink").classList.add("show"); });
+        t.at(e + 1700, function () { $("#aithink").classList.remove("show"); $("#aithink").style.display = "none"; $("#aians").classList.add("show"); });
+        t.at(e + 2100, function () { $("#aisrc1").classList.add("show"); });
+        t.at(e + 2500, function () { $("#aisrc2").classList.add("show"); });
+        t.at(e + 2900, function () { $("#aisrc3").classList.add("show"); });
+      } },
+    { id: "LF", dur: 12000, em: "💡", title: "Стрічка ноу-хау: ідеї з території",
+      text: "Ще одна ідея, яку можна додати: внутрішня закрита стрічка практик. Кожен ділиться покращенням зі своєї ролі — колеги реагують («Корисно», «Застосую»), супервайзер модерує, а керівництво бачить усе. Ідея проходить статуси: подано → схвалено → у роботі → впроваджено, або відхилено з поясненням. Так ноу-хау поширюється «сарафанним радіо», піднімається в рейтингу й застосовується на території. Приклади на екрані — демо.",
+      run: function (t) {
+        t.tap(2200, "#fb1");
+        t.at(2300, function () { $("#fb1").classList.add("on"); $("#fn1").textContent = "13"; t.float("#fb1", "+1"); });
+        t.tap(3800, "#fb2");
+        t.at(3900, function () { $("#fb2").classList.add("on"); $("#fn2").textContent = "5"; });
+        function stage(ms, n, label) { t.at(ms, function () { var p = $("#fstp").children; for (var i = 0; i < n; i++) p[i].classList.add("on"); var c = $("#fsA"); c.textContent = label; c.className = "chip s" + n; }); }
+        stage(5400, 2, "Схвалено SV");
+        stage(7200, 3, "У роботі");
+        stage(9000, 4, "Впроваджено");
+        t.at(9200, function () { $("#fpA").classList.add("done"); $("#ftoast").classList.add("show"); });
+      } },
+    { id: "LG", dur: 12000, em: "🌍", title: "Куди росте CarLS: мови, країни, нові ролі",
+      text: "Платформа не закінчується на онбордингу МР. Тренажер діалогів — скрипти розмов із клієнтом, де відповідь вибирає сам співробітник. Її можна перекласти іншими мовами — наприклад, румунською для Молдови, казахською для Казахстану, данською — і запустити для інших країн групи компаній. А далі: нові ролі (ТП, SV, ASM), фото-звіт полиці з ШІ, повернення складних питань, сигнал керівнику про тих, хто застряг, запуск новинок для всього поля і автопризначення курсу при прийомі на роботу. Усе на екрані — ідеї, а не готові функції.",
+      run: function (t) {
+        var L = ["Вітаємо в команді!", "Bine ai venit în echipă!", "Командаға қош келдіңіз!", "Velkommen til holdet!"];
+        function lang(ms, n) {
+          t.tap(ms, "#lg" + n);
+          t.at(ms + 100, function () {
+            for (var k = 0; k < 4; k++) $("#lg" + k).classList.toggle("on", k === n);
+            var s = $("#lgs"); s.textContent = L[n]; s.classList.remove("fl"); void s.offsetWidth; s.classList.add("fl");
+          });
+        }
+        lang(5000, 1); lang(6400, 2); lang(7800, 3);
+        for (var n = 0; n < 6; n++) (function (k) {
+          t.at(9000 + k * 400, function () { $("#gt" + k).classList.add("hl"); });
+          t.at(9000 + k * 400 + 380, function () { $("#gt" + k).classList.remove("hl"); });
+        })(n);
+      } },
+    { id: "LT", dur: 8000, em: "🙏", title: "Дякуємо за увагу!",
+      text: "Дякуємо за увагу — мовами, на які CarLS може рости далі: українська, молдовська (румунська), казахська та данська.",
+      run: function (t) {
+        for (var k = 1; k < 4; k++) (function (n) { t.at(3500 + n * 800, function () { $("#th" + n).classList.add("hl"); }); t.at(3500 + n * 800 + 700, function () { $("#th" + n).classList.remove("hl"); }); })(k);
+      } }
+  ];
+
+  // Початковий DOM кожного шару: кожен показ кроку стартує з чистого стану.
+  var initial = {};
+  STEPS.forEach(function (s) { initial[s.id] = $("#" + s.id).innerHTML; });
+
+  var cur = -1, elapsed = 0, paused = false, ended = false, events = [], lastTs = null;
+  var segs = $("#segs");
+  STEPS.forEach(function (s, i) {
+    var b = document.createElement("button");
+    b.setAttribute("aria-label", "Крок " + (i + 1) + ": " + s.title);
+    b.innerHTML = "<i></i>";
+    b.onclick = function () { go(i); };
+    segs.appendChild(b);
+  });
+
+  function point(sel) {
+    var el = typeof sel === "string" ? $(sel) : sel;
+    var r = el.getBoundingClientRect(), sr = screen.getBoundingClientRect();
+    return { x: (r.left + r.width / 2 - sr.left) / sr.width * 100, y: (r.top + r.height / 2 - sr.top) / sr.height * 100, el: el };
+  }
+  // Плеєр: гортання сторінок усередині кроку (лічильник, смуга прогресу, «Далі» з гейтом).
+  function pager(t, key, total, offset) {
+    return function (ms, idx, gated) {
+      t.at(ms, function () {
+        $("#r" + key).style.transform = "translateX(" + (-idx * 100) + "%)";
+        $("#c" + key).textContent = (offset + idx + 1) + " / " + total;
+        $("#b" + key).style.width = ((offset + idx + 1) / total * 100) + "%";
+        $("#n" + key).classList.toggle("dis", !!gated);
+      });
+    };
+  }
+  function place(x, y) { finger.style.left = x + "%"; finger.style.top = y + "%"; }
+  function spawn(cls, p, css, text, ms) {
+    var e = document.createElement("div");
+    e.className = cls; e.style.left = p.x + "%"; e.style.top = p.y + "%";
+    for (var k in css) e.style.setProperty(k, css[k]);
+    if (text) e.textContent = text;
+    screen.appendChild(e);
+    setTimeout(function () { e.remove(); }, ms);
+  }
+  function ctx() {
+    return {
+      at: function (ms, fn) { events.push({ t: reduce ? 0 : ms, fn: fn }); },
+      tap: function (ms, sel) {
+        if (reduce) return;
+        this.at(ms - 650, function () { var p = point(sel); finger.classList.remove("drag"); finger.classList.add("show"); place(p.x, p.y); });
+        this.at(ms, function () {
+          var p = point(sel);
+          finger.classList.add("down");
+          p.el.classList.remove("pressed"); void p.el.offsetWidth; p.el.classList.add("pressed");
+          ripple.style.left = p.x + "%"; ripple.style.top = p.y + "%";
+          ripple.classList.remove("go"); void ripple.offsetWidth; ripple.classList.add("go");
+          if (navigator.vibrate && !embeddedSilent) { try { navigator.vibrate(8); } catch (e) {} }
+        });
+        this.at(ms + 220, function () { finger.classList.remove("down"); });
+        this.at(ms + 700, function () { finger.classList.remove("show"); });
+      },
+      tapAt: function (ms, x, y) {
+        if (reduce) return;
+        this.at(ms - 600, function () { finger.classList.remove("drag"); finger.classList.add("show"); place(x, y); });
+        this.at(ms, function () {
+          finger.classList.add("down");
+          ripple.style.left = x + "%"; ripple.style.top = y + "%";
+          ripple.classList.remove("go"); void ripple.offsetWidth; ripple.classList.add("go");
+        });
+        this.at(ms + 220, function () { finger.classList.remove("down"); });
+      },
+      swipe: function (ms, fn) {
+        if (!reduce) {
+          this.at(ms - 600, function () { finger.classList.remove("drag"); finger.classList.add("show"); place(82, 42); });
+          this.at(ms - 150, function () { finger.classList.add("drag", "down"); place(20, 42); });
+          this.at(ms + 450, function () { finger.classList.remove("down", "show"); });
+        }
+        this.at(ms, fn);
+      },
+      confetti: function (sel, n) {
+        if (reduce) return;
+        var p = point(sel);
+        for (var i = 0; i < n; i++) {
+          var a = Math.random() * Math.PI * 2, d = 18 + Math.random() * 28;
+          spawn("confetti", p, {
+            "--dx": Math.cos(a) * d + "cqw", "--dy": (Math.sin(a) * d - 10) + "cqw", "--r": (Math.random() * 720 - 360) + "deg",
+            "background": COLORS[i % COLORS.length], "animation-delay": Math.random() * 0.08 + "s"
+          }, "", 1500);
+        }
+      },
+      // Конфеті, що падає зверху, — лише на завершенні курсу.
+      rain: function (n) {
+        if (reduce) return;
+        var PAL = ["#00321e", "#17b169", "#b49132", "#ffca2b", "#1bd665", "#4b87c5"];
+        for (var i = 0; i < n; i++) {
+          var s = 2.6 + Math.random() * 2.1, spin = (180 + Math.random() * 360) * (Math.random() < .5 ? -1 : 1);
+          spawn("fall tref", { x: Math.random() * 100, y: -4 }, {
+            "--drift": (Math.random() * 20 - 10) + "cqw", "--spin": spin + "deg", "background": PAL[i % PAL.length],
+            "width": s + "cqw", "height": (s * 1417 / 1532) + "cqw",
+            "animation-duration": (3.3 + Math.random() * 1.8) + "s", "animation-delay": Math.random() * 0.9 + "s"
+          }, "", 6400);
+        }
+      },
+      float: function (sel, text) { if (!reduce) spawn("floatup", point(sel), {}, text, 1500); },
+      plane: function (sel) { if (!reduce) spawn("plane", point(sel), {}, "✈️", 1300); }
+    };
+  }
+
+  function go(i) {
+    if (i < 0 || i >= STEPS.length) return;
+    var dir = i > cur ? 1 : -1;
+    cur = i; elapsed = 0; events = []; ended = false;
+    if (window.__tourMusic) window.__tourMusic.step(i);
+    finger.className = "finger"; ripple.className = "ripple"; phone.classList.remove("landp");
+    [].forEach.call(screen.querySelectorAll(".confetti,.fall,.floatup,.plane"), function (e) { e.remove(); });
+    STEPS.forEach(function (s, k) {
+      var el = $("#" + s.id);
+      if (k === i) {
+        el.innerHTML = initial[s.id];
+        el.classList.remove("play", "back");
+        el.classList.add("on");
+        void el.offsetWidth;
+        el.classList.add("play");
+      } else {
+        el.classList.remove("on", "play");
+        el.classList.toggle("back", k < i);
+      }
+    });
+    // Легкий 3D-нахил телефона в бік переходу.
+    if (!reduce) {
+      phone.classList.remove("tiltL", "tiltR"); void phone.offsetWidth;
+      phone.classList.add(dir > 0 ? "tiltR" : "tiltL");
+      setTimeout(function () { phone.classList.remove("tiltL", "tiltR"); }, 380);
+    }
+    STEPS[i].run(ctx());
+    events.sort(function (a, b) { return a.t - b.t; });
+    var s = STEPS[i];
+    $("#num").innerHTML = '<span class="em swap">' + s.em + '</span><span>Крок ' + (i + 1) + " з " + STEPS.length + "</span>";
+    swap("#ctitle", s.title, false); swap("#ctext", s.text, true);
+    $("#ttsub").classList.toggle("gone", i >= 2);
+    $("#hdr").classList.toggle("nx", i >= 12 && i < STEPS.length - 1);
+    $("#prevBtn").disabled = i === 0;
+    $("#nextBtn").innerHTML = i === STEPS.length - 1 ? "Готово ✓" : "Далі <span>›</span>";
+    [].forEach.call(segs.children, function (b, k) { b.classList.toggle("done", k < i); b.firstChild.style.transform = k < i ? "" : "scaleX(0)"; });
+  }
+  function swap(sel, content, html) {
+    var el = $(sel);
+    el.classList.remove("swap"); void el.offsetWidth;
+    if (html) el.innerHTML = content; else el.textContent = content;
+    el.classList.add("swap");
+  }
+
+  function setPaused(p) {
+    paused = p;
+    screen.classList.toggle("paused", p);
+    $("#ppBtn").textContent = p ? "▶" : "❚❚";
+    $("#ppBtn").setAttribute("aria-label", p ? "Продовжити" : "Пауза");
+  }
+
+  // Таймер, а не requestAnimationFrame: rAF зупиняється в прихованих вкладках і
+  // вбудованих фреймах поза екраном, і сценарій «застигав» посеред кроку.
+  function tick() {
+    var ts = performance.now();
+    var dt = lastTs === null ? 0 : Math.min(ts - lastTs, 1000);
+    lastTs = ts;
+    if (!paused && !ended && cur >= 0) {
+      elapsed += dt;
+      while (events.length && events[0].t <= elapsed) events.shift().fn();
+      var s = STEPS[cur];
+      if (!reduce) segs.children[cur].firstChild.style.transform = "scaleX(" + Math.min(elapsed / s.dur, 1) + ")";
+      // Без анімацій — без автопрогравання: людина гортає сама.
+      if (!reduce && elapsed >= s.dur) {
+        if (cur < STEPS.length - 1) go(cur + 1); else { ended = true; setPaused(true); }
+      }
+    }
+  }
+
+  // Керування: кнопки, клавіші, свайп / дотик по телефону.
+  $("#prevBtn").onclick = function () { go(cur - 1); };
+  $("#nextBtn").onclick = function () { if (cur === STEPS.length - 1) close(); else go(cur + 1); };
+  $("#ppBtn").onclick = function () { if (ended) { go(0); setPaused(false); } else setPaused(!paused); };
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowRight") go(cur + 1);
+    else if (e.key === "ArrowLeft") go(cur - 1);
+    else if (e.key === " ") { e.preventDefault(); setPaused(!paused); }
+    else if (e.key === "Escape") close();
+  });
+  var sx = null, sy = null;
+  phone.addEventListener("pointerdown", function (e) { sx = e.clientX; sy = e.clientY; });
+  phone.addEventListener("pointercancel", function () { sx = null; });
+  phone.addEventListener("pointerup", function (e) {
+    if (sx === null) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) go(cur + (dx < 0 ? 1 : -1));
+    else if (Math.abs(dx) < 8 && Math.abs(dy) < 8) setPaused(!paused);
+  });
+
+  // У застосунку тур відкривається в iframe (як інструкція встановлення) — закриття сигналом батьківському вікну.
+  var embedded = window.parent !== window, embeddedSilent = true;
+  function close() { if (embedded) window.parent.postMessage("carls-tour-close", "*"); }
+
+  // Фонова музика — синтезується тут же (Web Audio), без файлів і прав. Змінюється разом із кроком туторіалу:
+  // «енергія» кроку задає темп, щільність нот, бас, хет і кік; секції міняють гармонію; на зміні кроку — дзвіночок.
+  var music = (function () {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    var ac, master, dly, noiseBuf, on = false, timer = null, nextT = 0, userOff = false, openTimer = null;
+    var ENERGY = [0.15, 0.2, 0.3, 0.4, 0.45, 0.5, 0.75, 0.7, 0.9, 1, 0.8, 0.55, 0.5, 0.65, 0.6, 0.7, 0.65, 0.6, 0.3];
+    var SECTIONS = [
+      [[0, 3], [["C", 0], ["A", 1], ["F", 0], ["G", 0]]],
+      [[4, 6], [["F", 0], ["G", 0], ["E", 1], ["A", 1]]],
+      [[7, 10], [["A", 1], ["F", 0], ["C", 0], ["G", 0]]],
+      [[11, 17], [["C", 0], ["G", 0], ["A", 1], ["F", 0]]],
+      [[18, 99], [["F", 0], ["G", 0], ["C", 0], ["C", 0]]]
+    ];
+    var ROOT = { C: 48, D: 50, E: 40, F: 41, G: 43, A: 45 };
+    var step = 0, sec = -1, bar = 0, energy = ENERGY[0], vol = 0.6;
+    var vg = $("#vg"), volEl = $("#vol"), btn = $("#muBtn");
+    function hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+    function note(type, m, t, dur, peak, atk, out) {
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = type; o.frequency.value = hz(m);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(peak, t + atk);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.1);
+    }
+    function hat(t, peak) {
+      var n = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+      n.buffer = noiseBuf; f.type = "highpass"; f.frequency.value = 7000;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+      n.connect(f); f.connect(g); g.connect(master); n.start(t, Math.random() * 0.85); n.stop(t + 0.06);
+    }
+    function kick(t, peak) {
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.3);
+    }
+    function ding(m, t, peak) {
+      [[1, 1, 1.6], [2.76, 0.28, 0.9], [5.4, 0.1, 0.45]].forEach(function (p) {
+        var o = ac.createOscillator(), g = ac.createGain();
+        o.frequency.value = hz(m) * p[0];
+        g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak * p[1], t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + p[2]);
+        o.connect(g); g.connect(master); o.start(t); o.stop(t + p[2] + 0.1);
+      });
+    }
+    function sectionOf(i) {
+      for (var k = 0; k < SECTIONS.length; k++) if (i >= SECTIONS[k][0][0] && i <= SECTIONS[k][0][1]) return k;
+      return 0;
+    }
+    function scheduleBar(t) {
+      var k = sectionOf(step), i;
+      if (k !== sec) { sec = k; bar = 0; }
+      energy += (ENERGY[step] - energy) * 0.6;
+      var e = energy, beat = 0.94 - 0.22 * e, len = beat * 4;
+      var ch = SECTIONS[k][1][bar++ % 4], r = ROOT[ch[0]], minor = ch[1];
+      [r, r + 7, r + (minor ? 15 : 16)].forEach(function (m) { note("triangle", m, t, len + 1.4, 0.036, 1.3, master); });
+      var scale = minor ? [0, 3, 5, 7, 10, 14] : [0, 2, 4, 7, 9, 11], pool = [];
+      for (var o = 36; o <= 96; o += 12) scale.forEach(function (d) { var m = r + (o - 48) + d; if (m >= 60 && m <= 86) pool.push(m); });
+      var pp = 0.3 + 0.5 * e;
+      for (i = 0; i < 8; i++) {
+        if (Math.random() < pp) {
+          var m = pool[Math.floor(Math.random() * pool.length)], at = t + i * beat / 2;
+          note("sine", m, at, 1.8, 0.05 + 0.018 * e, 0.012, master);
+          note("sine", m, at, 1.8, 0.05, 0.012, dly);
+        }
+      }
+      if (e > 0.35) { note("sine", r - 12, t, beat * 1.8, 0.11, 0.02, master); note("sine", r - 12, t + beat * 2, beat * 1.8, 0.09, 0.02, master); }
+      if (e > 0.5) for (i = 0; i < 8; i++) hat(t + i * beat / 2 + (i % 2 ? 0 : 0.003), i % 2 ? 0.014 + 0.016 * e : 0.008);
+      if (e > 0.7) { kick(t, 0.11); kick(t + beat * 2, 0.095); if (e > 0.85) kick(t + beat * 3.5, 0.06); }
+      return t + len;
+    }
+    function pump() { while (nextT < ac.currentTime + 1.5) nextT = scheduleBar(nextT); }
+    function init() {
+      ac = new AC();
+      ac.onstatechange = function () { if (ac.state === "running" && !userOff) { stopGestureWait(); clearTimeout(hintTimer); hintTimer = setTimeout(function () { hint(false); }, 10000); } };
+      var comp = ac.createDynamicsCompressor();
+      comp.connect(ac.destination);
+      master = ac.createGain(); master.gain.value = 0; master.connect(comp);
+      dly = ac.createDelay(1); dly.delayTime.value = 0.52;
+      var fb = ac.createGain(); fb.gain.value = 0.34;
+      dly.connect(fb); fb.connect(dly); dly.connect(master);
+      noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+      var d = noiseBuf.getChannelData(0); for (var j = 0; j < d.length; j++) d[j] = Math.random() * 2 - 1;
+    }
+    function level() { return vol * 1.2; }
+    function ramp(v, s) { var n = ac.currentTime; master.gain.cancelScheduledValues(n); master.gain.setValueAtTime(master.gain.value, n); master.gain.linearRampToValueAtTime(v, n + s); }
+    function set(v, sec) {
+      on = v;
+      btn.classList.toggle("off", !v);
+      btn.setAttribute("aria-label", v ? "Вимкнути музику" : "Увімкнути музику");
+      if (!AC) return;
+      if (v) {
+        if (!ac) init();
+        ac.resume();
+        if (!timer) { nextT = ac.currentTime + 0.1; energy = ENERGY[step]; pump(); timer = setInterval(pump, 400); }
+        ramp(level(), sec || 1.5);
+      } else if (ac) ramp(0, 0.6);
+    }
+    function peek() {
+      vg.classList.add("open");
+      clearTimeout(openTimer);
+      openTimer = setTimeout(function () { vg.classList.remove("open"); }, 2500);
+    }
+    var hintTimer = null;
+    function hint(v) { clearTimeout(hintTimer); btn.classList.toggle("hint", v); }
+    function stopGestureWait() {
+      document.removeEventListener("pointerdown", firstGesture, true);
+      document.removeEventListener("keydown", firstGesture, true);
+      document.removeEventListener("touchstart", firstGesture, true);
+      document.removeEventListener("click", firstGesture, true);
+    }
+    btn.onclick = function () {
+      hint(false);
+      if (on && ac && ac.state !== "running" && !userOff) { ac.resume(); peek(); return; }
+      if (!on && !ac && !userOff) { userOff = true; stopGestureWait(); btn.classList.add("off"); btn.setAttribute("aria-label", "Увімкнути музику"); peek(); return; }
+      if (!on && vol === 0) { vol = 0.6; volEl.value = 60; }
+      userOff = on; set(!on); peek();
+    };
+    volEl.oninput = function () {
+      hint(false); vol = this.value / 100; peek();
+      if (vol === 0) { userOff = true; if (on) set(false); return; }
+      userOff = false;
+      if (!on) set(true); else { if (ac) ac.resume(); ramp(level(), 0.1); }
+    };
+    hint(true);
+    function firstGesture(e) {
+      if (e.target && e.target.closest && e.target.closest("#vg")) return;
+      if (userOff) return;
+      if (!on) set(true, 3); else if (ac) ac.resume();
+    }
+    document.addEventListener("pointerdown", firstGesture, true);
+    document.addEventListener("keydown", firstGesture, true);
+    document.addEventListener("touchstart", firstGesture, true);
+    document.addEventListener("click", firstGesture, true);
+    set(true, 3);
+    return {
+      step: function (i) {
+        var prev = step; step = i;
+        if (!on || !ac || i === prev) return;
+        ding(88, ac.currentTime + 0.05, 0.048);
+      }
+    };
+  })();
+  window.__tourMusic = music;
+
+  go(0);
+  setInterval(tick, 40);
+})();
+</script>
+</body>
+</html>

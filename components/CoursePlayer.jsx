@@ -35,7 +35,6 @@ import { numberComponents, shuffleArray } from "@/lib/coursePlayerLogic";
 import { peekScrollTo } from "@/lib/scrollHints";
 import { isVideoUrl } from "@/lib/videoEmbed";
 import { downloadCertificate } from "@/lib/downloadCertificate";
-import { getLocalDisplayName } from "@/lib/localName";
 
 // Плеєр курсу. Крім info/quiz підтримує інтерактивні компоненти, портовані
 // з попередньої vanilla-JS розробки "8 кроків телесейлінгу": accordion,
@@ -603,20 +602,9 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry, onPlan }) {
   );
 }
 
-function CompleteScreen({ result, onRetake, onPlan, course, hasEmail, previewMode }) {
-  // Ім'я для сертифіката: у співробітників без email Employee.name —
-  // заглушка з посади, справжнє ім'я живе лише в localStorage пристрою
-  // (див. lib/localName.js). Той самий підхід, що і в картці курсу.
-  const [certName, setCertName] = useState("");
+function CompleteScreen({ result, onRetake, onPlan, course, previewMode }) {
   const [certDownloading, setCertDownloading] = useState(false);
   const [certError, setCertError] = useState("");
-
-  useEffect(() => {
-    if (hasEmail) return;
-    const local = getLocalDisplayName();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (local) setCertName(local);
-  }, [hasEmail]);
 
   async function handleDownloadCertificate() {
     // У прев'ю справжній PDF не генеруємо: у автора немає Enrollment на
@@ -628,7 +616,7 @@ function CompleteScreen({ result, onRetake, onPlan, course, hasEmail, previewMod
     setCertDownloading(true);
     setCertError("");
     try {
-      await downloadCertificate(course.slug, certName);
+      await downloadCertificate(course.slug);
     } catch (err) {
       setCertError(err.message || "Не вдалося завантажити сертифікат.");
     } finally {
@@ -825,7 +813,6 @@ export function CoursePlayer({
   // Id того ж модуля — окремий слот прогресу в localStorage, щоб
   // відновлення одиночного модуля не плуталось із повною сесією.
   singleModuleId = null,
-  hasEmail = true,
   // Режим прев'ю в /admin: той самий плеєр від початку до кінця, але
   // БЕЗ жодного запису — ні в БД, ні в localStorage. Ключ прогресу в
   // localStorage у прев'ю той самий, що й у справжнього курсу, тож без
@@ -1454,7 +1441,7 @@ export function CoursePlayer({
     const retryBlocked = !moduleCheckpoint.passed && moduleCheckpoint.retry?.canRetryNow === false;
     if (moduleCheckpoint.sessionEnd || retryBlocked) {
       if (!previewMode) clearProgress(storageKey);
-      router.push("/hub");
+      router.push("/");
       return;
     }
     setNavDirection("forward");
@@ -1624,7 +1611,7 @@ export function CoursePlayer({
                 )}
 
                 {idx === completeIdx && (
-                  <CompleteScreen result={result} onRetake={handleRetake} onPlan={goToPlan} course={course} hasEmail={hasEmail} previewMode={previewMode} />
+                  <CompleteScreen result={result} onRetake={handleRetake} onPlan={goToPlan} course={course} previewMode={previewMode} />
                 )}
               </>
             )}
@@ -1664,7 +1651,7 @@ export function CoursePlayer({
                   </button>
                 )}
                 {idx === completeIdx ? (
-                  <button className="btn btn-primary" onClick={() => (previewMode ? handleRetake() : router.push("/hub"))}>
+                  <button className="btn btn-primary" onClick={() => (previewMode ? handleRetake() : router.push("/"))}>
                     {previewMode ? "Пройти прев'ю ще раз" : "Перейти на головну"}
                   </button>
                 ) : (

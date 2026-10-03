@@ -32,7 +32,6 @@ export default async function HubAchievementsPage({ searchParams }) {
         leaderboardTitle={employee.position ? `Лідери серед ${employee.position.code}` : "Лідери"}
         cohortLabel={employee.position ? `на посаді ${employee.position.code}` : "колег"}
         currentEmployeeId={employee.id}
-        hasEmail={Boolean(employee.email)}
         highlightRating={highlightRating}
         highlightBadgeId={highlightBadgeId}
       />

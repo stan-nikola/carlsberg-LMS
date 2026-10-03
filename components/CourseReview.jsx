@@ -257,7 +257,7 @@ export function CourseReview({
                 {planOnly && plan && (
                   <>
                     <CoursePlanPanel plan={plan} slug={course.slug} />
-                    <button type="button" className="btn btn-primary cp-complete-secondary" onClick={() => router.push("/hub")}>
+                    <button type="button" className="btn btn-primary cp-complete-secondary" onClick={() => router.push("/")}>
                       На головну
                     </button>
                   </>

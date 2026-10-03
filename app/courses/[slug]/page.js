@@ -80,7 +80,7 @@ export default async function CoursePage({ params, searchParams }) {
                 <p className="cp-lead">
                   Цей курс вам поки не призначено. Зверніться до вашого керівника або адміністратора.
                 </p>
-                <Link className="btn btn-primary cp-complete-secondary" href="/hub">
+                <Link className="btn btn-primary cp-complete-secondary" href="/">
                   На головну
                 </Link>
               </div>
@@ -302,7 +302,6 @@ export default async function CoursePage({ params, searchParams }) {
       // Для співробітників без email Employee.name — заглушка з посади;
       // справжнє ім'я лежить лише в localStorage пристрою й передається
       // разово в запит на сертифікат (lib/downloadCertificate.js).
-      hasEmail={Boolean(employee.email)}
       lockedNotice={lockedNotice}
       afterSession={afterSession}
       initialAnswers={initialAnswers}

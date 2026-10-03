@@ -3,18 +3,17 @@ import { LockIcon } from "@/components/icons";
 import { RatingCard } from "@/components/RatingBlocks";
 import { BadgeGrid } from "@/components/BadgeGrid";
 import { CertificateList } from "@/components/CertificateList";
-import { LocalName } from "@/components/LocalName";
 import { Avatar } from "@/components/Avatar";
 
 /** Один рядок лідерборду. `href` — коли заданий, рядок клікабельний (лист
  *  підлеглого в кабінеті керівника); інакше просто показ (у /hub). */
-function LeaderRow({ row, rank, currentEmployeeId, hasEmail, href }) {
+function LeaderRow({ row, rank, currentEmployeeId, href }) {
   const inner = (
     <>
       <span className="lb-rank">{rank}</span>
       <Avatar name={row.name} src={row.avatarUrl} size="sm" />
       <span className="lb-name">
-        {row.id === currentEmployeeId ? <LocalName dbName={row.name} hasEmail={hasEmail} /> : row.name}
+        {row.name}
         {row.position && row.position !== row.name && <span className="lb-pos"> · {row.position}</span>}
       </span>
       <span className="lb-score">
@@ -52,7 +51,6 @@ export function AchievementsPanel({
   leaderboardGroups = null,
   leaderHref = null,
   currentEmployeeId,
-  hasEmail,
   cohortLabel,
   highlightRating = false,
   highlightBadgeId = null,
@@ -101,7 +99,7 @@ export function AchievementsPanel({
       <div className="hub-sec-title">
         <h3>Сертифікати</h3>
       </div>
-      <CertificateList certificates={certificates} hasEmail={hasEmail} />
+      <CertificateList certificates={certificates} />
       </section>
       </div>
 
@@ -121,7 +119,7 @@ export function AchievementsPanel({
                   <h4 className="lb-group-title">{group.positionName}</h4>
                   <div className="leaderboard-list">
                     {group.rows.map((row, i) => (
-                      <LeaderRow key={row.id} row={row} rank={i + 1} currentEmployeeId={currentEmployeeId} hasEmail={hasEmail} href={leaderHref?.(row.id)} />
+                      <LeaderRow key={row.id} row={row} rank={i + 1} currentEmployeeId={currentEmployeeId} href={leaderHref?.(row.id)} />
                     ))}
                   </div>
                 </div>
@@ -137,7 +135,7 @@ export function AchievementsPanel({
         ) : leaderboard.length > 0 ? (
           <div className="leaderboard-list">
             {leaderboard.map((row, i) => (
-              <LeaderRow key={row.id} row={row} rank={i + 1} currentEmployeeId={currentEmployeeId} hasEmail={hasEmail} />
+              <LeaderRow key={row.id} row={row} rank={i + 1} currentEmployeeId={currentEmployeeId} />
             ))}
           </div>
         ) : (
