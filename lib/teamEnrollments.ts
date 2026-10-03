@@ -66,6 +66,8 @@ export type RawAttempt = {
   enrollmentId: number;
   completedAt: Date;
   passed: boolean;
+  durationSeconds?: number | null;
+  activeTimeSeconds?: number | null;
 };
 
 export type TeamRaw = {
@@ -151,7 +153,7 @@ export async function fetchTeamRaw(employeeIds: number[]): Promise<TeamRaw> {
     enrollmentIds.length
       ? prisma.enrollmentAttempt.findMany({
           where: { enrollmentId: { in: enrollmentIds } },
-          select: { enrollmentId: true, completedAt: true, passed: true },
+          select: { enrollmentId: true, completedAt: true, passed: true, durationSeconds: true, activeTimeSeconds: true },
         })
       : [],
   ]);

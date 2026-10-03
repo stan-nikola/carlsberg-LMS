@@ -25,7 +25,6 @@ export async function GET() {
       avatarUrl: employee.avatarUrl,
       levelLabel: overview.levelLabel,
       position: employee.position,
-      enrollments: overview.enrollments,
     },
     team: overview.team,
   });

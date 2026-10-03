@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
 import { isManagerTier, getAllSubordinates } from "@/lib/permissions";
-import { getExportData, getDashboardStats, getHardestQuestions, getTeamTree, getWeeklyTrend } from "@/lib/managerDashboard";
+import { getExportData, dashboardStatsFromRaw, getHardestQuestions, getTeamTree, weeklyTrendFromRaw } from "@/lib/managerDashboard";
 import { fetchTeamRaw } from "@/lib/teamEnrollments";
 import { buildPeople, buildTeamRows } from "@/lib/teamInsights";
 import { buildManagerReport, parseCardIds } from "@/lib/managerReport";
@@ -11,8 +11,8 @@ import { fmtDate } from "@/lib/excelReport";
 // увімкнених карток у порядку керівника), без параметра — усі картки в
 // канонічному порядку. Що саме на листах і чому так — lib/managerReport.ts.
 //
-// Дані рахуються тими самими функціями, що й дашборд (getDashboardStats,
-// getWeeklyTrend, buildTeamRows/buildPeople), але без кешу
+// Дані рахуються тими самими функціями, що й дашборд (dashboardStatsFromRaw,
+// weeklyTrendFromRaw, buildTeamRows/buildPeople), але без кешу
 // getManagerOverview: "use cache: private" живе в рендері сторінки, а
 // звіт — одноразове завантаження, свіжі дані тут важливіші за секунду.
 
@@ -42,14 +42,14 @@ export async function GET(request: Request) {
   const subordinateIds: number[] = await getAllSubordinates(employee.id);
   const now = new Date();
 
-  const [exportData, stats, weeklyTrend, raw, teamTree, hardestQuestions] = await Promise.all([
+  const [exportData, raw, teamTree, hardestQuestions] = await Promise.all([
     getExportData(subordinateIds),
-    getDashboardStats(subordinateIds),
-    getWeeklyTrend(subordinateIds),
     fetchTeamRaw(subordinateIds),
     getTeamTree(employee.id),
     getHardestQuestions(subordinateIds),
   ]);
+  const stats = dashboardStatsFromRaw(raw, subordinateIds.length);
+  const weeklyTrend = weeklyTrendFromRaw(raw, now);
   const rows = buildTeamRows(raw, now);
   const people = buildPeople(rows, raw, now);
 
