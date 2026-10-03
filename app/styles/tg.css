@@ -2,10 +2,30 @@
    (app/styles/tokens.css, globals.css уже підключені корінним layout).
    Верстка мобайл-фьорст в один стовпчик — вікно Mini App завжди вузьке
    (телефон, або компактне вікно tdesktop), сітки тут не потрібні. */
+/* Корінний <body> (globals.css) — рамка для звичайних сторінок: відступи
+   24/14px, flex-центрування й градієнт. Mini App у ній стискався до ширини
+   вмісту з полями по боках (скарга користувача 2026-10-03, «опять не на всю
+   ширину айфона») — тут body без рамки, а .tg-root на всю ширину. */
+body:has(.tg-root) {
+  display: block;
+  padding: 0;
+  background-image: none;
+}
+html:has(.tg-root) {
+  scrollbar-gutter: auto;
+}
+/* Повноекранний режим Telegram (requestFullscreen, app/tg/page.tsx) малює
+   свої кнопки «Закрити» / «⋯» поверх сторінки — заголовок ховався під ними.
+   --tg-safe-area-inset-* (виріз/статус-бар) і --tg-content-safe-area-inset-*
+   (кнопки Telegram) ставить сам telegram-web-app.js; поза Telegram вони
+   порожні й дають 0. */
 .tg-root {
+  box-sizing: border-box;
+  width: 100%;
   max-width: 480px;
   margin: 0 auto;
-  padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  padding: calc(14px + var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px)) 16px
+    calc(24px + var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) + var(--tg-content-safe-area-inset-bottom, 0px));
   min-height: 100dvh;
   background: var(--surface);
 }

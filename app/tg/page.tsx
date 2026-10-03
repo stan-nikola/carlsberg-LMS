@@ -110,6 +110,7 @@ export default function TelegramMiniAppPage() {
               expand?: () => void;
               disableVerticalSwipes?: () => void;
               requestFullscreen?: () => void;
+              isVersionAtLeast?: (version: string) => boolean;
               initData?: string;
             };
           };
@@ -126,11 +127,12 @@ export default function TelegramMiniAppPage() {
         // його не чіпає, тому там скролило нормально). Bot API 7.7+;
         // старіші клієнти метод просто не мають — optional chaining.
         tg.disableVerticalSwipes?.();
-        // На iPhone екран без цього займав не всю ширину (скарга
-        // користувача, 2026-09-28) — expand() розгортає лише по висоті,
-        // а не fullscreen. Bot API 8.0+; старіші клієнти метод не мають і
-        // мовчки ігнорують виклик (fullscreenFailed-подія, не виняток).
-        tg.requestFullscreen?.();
+        // Повноекранний режим (Bot API 8.0+). Вузький екран на iPhone
+        // насправді давала рамка корінного <body> (app/styles/tg.css,
+        // 2026-10-03), а не відсутність fullscreen; відступ під кнопки
+        // Telegram — там же. Перевірка версії: старіший клієнт (і звичайний
+        // браузер, де SDK каже 6.0) на виклик пише помилку в консоль.
+        if (tg.isVersionAtLeast?.("8.0")) tg.requestFullscreen?.();
         if (!cancelled) setInitData(tg.initData || "");
         return;
       }
