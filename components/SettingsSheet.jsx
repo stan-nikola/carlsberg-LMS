@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SettingsGearIcon, LogoutIcon, DownloadIcon } from "@/components/icons";
+import { SettingsGearIcon, LogoutIcon, DownloadIcon, SpinnerIcon } from "@/components/icons";
 import { InstallGuideModal } from "@/components/InstallGuide";
 import { isStandalone } from "@/lib/installGuide";
 import { BottomSheet } from "@/components/BottomSheet";
@@ -28,6 +28,17 @@ export function SettingsSheet({ open, onClose, onLogout }) {
   // сам тільки-но відкрився — скарга користувача, 2026-09-22 ("не
   // закривається на кнопку, всеодно є").
   const [guideOpen, setGuideOpen] = useState(false);
+  // Вихід триває 1–2 с (досилання офлайн-результатів, очищення пристрою) —
+  // без індикатора здавалось, що кнопка не спрацювала.
+  const [loggingOut, setLoggingOut] = useState(false);
+  async function logout() {
+    setLoggingOut(true);
+    try {
+      await onLogout();
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   useEffect(() => {
     let saved = 0;
@@ -127,9 +138,9 @@ export function SettingsSheet({ open, onClose, onLogout }) {
           </p>
 
           {onLogout && (
-            <button className="logout-row" onClick={onLogout}>
-              <LogoutIcon />
-              <span>Вийти з акаунту</span>
+            <button className="logout-row" onClick={logout} disabled={loggingOut} aria-busy={loggingOut}>
+              {loggingOut ? <SpinnerIcon /> : <LogoutIcon />}
+              <span>{loggingOut ? "Виходимо…" : "Вийти з акаунту"}</span>
             </button>
           )}
       </BottomSheet>

@@ -237,16 +237,19 @@ export function computeTeamRating(
   return { byEmployeeId, avg: avgOf(rows), rank: idx === -1 ? null : idx + 1, teams: teams.length };
 }
 
-/** Обов'язкові курси — блок на головній замість «Прогрес адаптації». */
+/** Обов'язкові курси — блок на головній замість «Прогрес адаптації».
+ *  Пройдено = СКЛАДЕНО: завершений курс із незаліком (passed=false) ще треба
+ *  перескласти, тож він не рахується пройденим і може бути простроченим. */
 export function mandatoryProgress(
-  enrollments: Array<{ isMandatory: boolean; status: string; dueDate: Date | string | null }>,
+  enrollments: Array<{ isMandatory: boolean; status: string; passed?: boolean | null; dueDate: Date | string | null }>,
   now: Date = new Date()
 ) {
   const mandatory = enrollments.filter((e) => e.isMandatory);
-  const completed = mandatory.filter((e) => e.status === "completed").length;
-  const overdue = mandatory.filter((e) => e.status !== "completed" && e.dueDate && new Date(e.dueDate) < now).length;
+  const isPassed = (e: { status: string; passed?: boolean | null }) => e.status === "completed" && e.passed === true;
+  const completed = mandatory.filter(isPassed).length;
+  const overdue = mandatory.filter((e) => !isPassed(e) && e.dueDate && new Date(e.dueDate) < now).length;
   const upcoming = mandatory
-    .filter((e) => e.status !== "completed" && e.dueDate && new Date(e.dueDate) >= now)
+    .filter((e) => !isPassed(e) && e.dueDate && new Date(e.dueDate) >= now)
     .map((e) => new Date(e.dueDate as Date | string))
     .sort((a, b) => a.getTime() - b.getTime());
   return { total: mandatory.length, completed, overdue, nextDue: upcoming[0] || null };
