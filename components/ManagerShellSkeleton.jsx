@@ -66,7 +66,11 @@ export function ManagerShellSkeleton() {
       </header>
 
       <main className="mgr-main">
-        <PageSkeleton />
+        {/* Та сама обгортка, що в app/manager/loading.tsx: інакше після
+            резолву сесії скелетон «відступав» усередину контейнера. */}
+        <div className="admin-page manager-page">
+          <PageSkeleton />
+        </div>
       </main>
 
       <nav className="tabbar mgr-tabbar" role="tablist" aria-hidden="true">

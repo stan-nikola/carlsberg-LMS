@@ -20,7 +20,7 @@ async function ManagerGate({ children }) {
     redirect("/register");
   }
   if (!isManagerTier(employee)) {
-    redirect("/hub");
+    redirect("/hub?s=1");
   }
 
   // Маркер "нове" на "Курси" — той самий isRecentlyAssigned (lib/progress.js),
