@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requestLoginPin } from "@/lib/auth";
 import { isDemoLoginEnabled, isDemoCode } from "@/lib/demoLogin";
-import { clientIp, hitRateLimit, tooManyRequests } from "@/lib/loginThrottle";
+import { clientIp, hitRateLimit, normalizeExternalCode, tooManyRequests } from "@/lib/loginThrottle";
 
 /**
  * POST /api/auth/register
@@ -11,11 +11,17 @@ import { clientIp, hitRateLimit, tooManyRequests } from "@/lib/loginThrottle";
  * находит сотрудника по коду и шлёт PIN на почту его руководителя.
  */
 export async function POST(request) {
-  const body = await request.json();
-  const externalCode = (body.externalCode || "").trim();
+  const body = await request.json().catch(() => ({}));
+  const raw = typeof body.externalCode === "string" ? body.externalCode.trim() : "";
 
-  if (!externalCode) {
+  if (!raw) {
     return NextResponse.json({ ok: false, error: "missing_external_code" }, { status: 400 });
+  }
+  // Чужий формат (символи шаблону, задовгий рядок) — як неіснуючий код, без
+  // жодного запиту до бази.
+  const externalCode = normalizeExternalCode(raw);
+  if (!externalCode) {
+    return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   }
 
   // «Тестовий вхід»: PIN на пошту колеги. Дозволено лише коли задано

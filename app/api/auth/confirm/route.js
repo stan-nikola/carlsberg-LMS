@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { confirmLoginPin, invalidateLoginPin } from "@/lib/auth";
 import { createSession } from "@/lib/session";
-import { clientIp, hitRateLimit, pinThrottleKey, recordSuccess, registerAttempt, settleFailure, tooManyRequests } from "@/lib/loginThrottle";
+import { clientIp, hitRateLimit, normalizeExternalCode, pinThrottleKey, recordSuccess, registerAttempt, settleFailure, tooManyRequests } from "@/lib/loginThrottle";
 
 /**
  * POST /api/auth/confirm
@@ -14,15 +14,21 @@ import { clientIp, hitRateLimit, pinThrottleKey, recordSuccess, registerAttempt,
  * устройстве сотрудника, если у него нет email в базе.
  */
 export async function POST(request) {
-  const body = await request.json();
-  const externalCode = (body.externalCode || "").trim();
-  const pin = (body.pin || "").trim();
+  const body = await request.json().catch(() => ({}));
+  const raw = typeof body.externalCode === "string" ? body.externalCode.trim() : "";
+  const pin = typeof body.pin === "string" ? body.pin.trim() : "";
 
-  if (!externalCode || !pin) {
+  if (!raw || !pin) {
     return NextResponse.json(
       { ok: false, error: "missing_external_code_or_pin" },
       { status: 400 }
     );
+  }
+  // Лише літери й цифри — інакше % і _ давали окремий лічильник спроб на
+  // кожне написання того самого коду (lib/loginThrottle.ts).
+  const externalCode = normalizeExternalCode(raw);
+  if (!externalCode) {
+    return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   }
 
   // Загальний ліміт на IP — проти перебору PIN по багатьох кодах одразу

@@ -7,16 +7,19 @@ import { isAdminAuthenticated } from "@/lib/adminSession";
 
 /**
  * GET /api/health — перевірка після деплою (DEPLOY.md): чи жива база.
- * Анонімно — лише {ok, db}. Деталі (остання міграція, які канали й демо-вхід
+ * Анонімно — лише {ok}, без запиту до бази. Деталі (остання міграція, які канали й демо-вхід
  * увімкнені) — тільки з валідною admin-сесією: публічно вони підказували
  * атакуючому, що саме ввімкнено на проді, а текст помилки БД розкривав
  * внутрішню адресу/конфігурацію (аудит 2026-09-27).
  */
 export async function GET() {
+  // Анонімно база не чіпається зовсім: інакше будь-хто частими запитами
+  // будив і тримав Neon увімкненим, вичерпуючи безкоштовну квоту.
+  // Перевірку бази після деплою робить адмін (DEPLOY.md: з admin-сесією).
+  if (!(await isAdminAuthenticated())) return NextResponse.json({ ok: true });
   const startedAt = Date.now();
   try {
     const rows = await prisma.$queryRaw`SELECT migration_name FROM "_prisma_migrations" WHERE finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 1`;
-    if (!(await isAdminAuthenticated())) return NextResponse.json({ ok: true, db: true });
     return NextResponse.json({
       ok: true,
       db: true,

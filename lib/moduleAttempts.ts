@@ -3,7 +3,7 @@ import type { Prisma, PrismaClient } from "@/app/generated/prisma";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { isScored } from "@/lib/componentTypes";
 import { canStartModuleAttempt } from "@/lib/courseContent";
-import { gradeResponse, publicContent, revealContent, seededRandom, type KeyOf } from "@/lib/grading";
+import { gradeResponse, publicContent, revealFor, seededRandom, type KeyOf } from "@/lib/grading";
 import { formatWait, pickQuestionPool, poolSeed, resolveRetryRules, retryGate } from "@/lib/retryPolicy";
 import { syncEnrollmentEvents } from "@/lib/rating";
 import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
@@ -31,12 +31,23 @@ type Tx = Prisma.TransactionClient;
 
 // ---------------------------------------------------------------- ключі й пул
 
-/** Непрозорі key елементів питання (варіанти, кроки, пари) — HMAC, щоб за key не вгадати правильний порядок. */
-export function serverKeyOf(componentId: number): KeyOf {
+/**
+ * Непрозорі key елементів питання (варіанти, кроки, пари) — HMAC, щоб за key
+ * не вгадати правильний порядок. Свої для кожного призначення курсу: інакше
+ * ключі правильних варіантів одного співробітника підходили всім (готова
+ * «шпаргалка» для запитів напряму в API).
+ */
+export function serverKeyOf(componentId: number, enrollmentId: number): KeyOf {
   const secret = process.env.SESSION_SECRET;
   if (!secret) throw new Error("SESSION_SECRET is not set");
   return (kind, index) =>
-    crypto.createHmac("sha256", secret).update(`grade:${componentId}:${kind}:${index}`).digest("base64url").slice(0, 12);
+    crypto.createHmac("sha256", secret).update(`grade:${enrollmentId}:${componentId}:${kind}:${index}`).digest("base64url").slice(0, 12);
+}
+
+/** Відповідь на одне питання — і онлайн, і офлайн (разом із завершенням модуля) — не більше 4000 символів JSON. */
+const MAX_RESPONSE_CHARS = 4000;
+function acceptableResponse(value: unknown): boolean {
+  return value != null && typeof value === "object" && JSON.stringify(value).length <= MAX_RESPONSE_CHARS;
 }
 
 /** Порядок перемішаних кроків/пар — стабільний для людини (відновлення сесії не тасує заново). */
@@ -62,7 +73,7 @@ export function toPlayerComponent<C extends ComponentLike>(component: C, enrollm
   if (!isScored(component)) return component;
   return {
     ...component,
-    content: publicContent(component.type, component.content as Record<string, unknown>, serverKeyOf(component.id), contentSeed(enrollmentId, component.id)),
+    content: publicContent(component.type, component.content as Record<string, unknown>, serverKeyOf(component.id, enrollmentId), contentSeed(enrollmentId, component.id)),
   };
 }
 
@@ -87,7 +98,11 @@ export async function openAttemptAnswers(enrollmentId: number) {
   return Object.fromEntries(
     rows.map((r) => [
       r.componentId,
-      { correct: r.correct, response: r.response, reveal: revealContent(r.component.type, r.component.content as Record<string, unknown>, serverKeyOf(r.componentId)) },
+      {
+        correct: r.correct,
+        response: r.response,
+        reveal: revealFor(r.component.type, r.component.content as Record<string, unknown>, serverKeyOf(r.componentId, enrollmentId), r.correct, r.response),
+      },
     ])
   );
 }
@@ -185,9 +200,9 @@ export async function answerQuestion(
   const component = ctx.courseModule.screens.flatMap((s) => s.components).find((c) => c.id === componentId);
   if (!component || !isScored(component)) return { ok: false, status: 404, error: "Question not found" };
   if (body.response == null || typeof body.response !== "object") return { ok: false, status: 400, error: "response is required" };
-  if (JSON.stringify(body.response).length > 4000) return { ok: false, status: 400, error: "response too large" };
+  if (!acceptableResponse(body.response)) return { ok: false, status: 400, error: "response too large" };
 
-  const keyOf = serverKeyOf(component.id);
+  const keyOf = serverKeyOf(component.id, ctx.enrollment.id);
   const content = component.content as Record<string, unknown>;
   const outcome = await prisma.$transaction(async (tx) => {
     await lockModule(tx, ctx.enrollment.id, ctx.courseModule.id);
@@ -214,7 +229,7 @@ export async function answerQuestion(
     correct: outcome.correct,
     response: outcome.response,
     alreadyAnswered: outcome.alreadyAnswered,
-    reveal: revealContent(component.type, content, keyOf),
+    reveal: revealFor(component.type, content, keyOf, outcome.correct, outcome.response),
   };
 }
 
@@ -282,12 +297,12 @@ export async function finishModuleAttempt(
     // Відповіді, дані без мережі (офлайн), — перевіряємо зараз. Лише питання пулу й лише ще не дані.
     const components = courseModule.screens.flatMap((s) => s.components);
     const fresh = components
-      .filter((c) => pool.has(c.id) && !answered.has(c.id) && payloadAnswers[String(c.id)] != null)
+      .filter((c) => pool.has(c.id) && !answered.has(c.id) && acceptableResponse(payloadAnswers[String(c.id)]))
       .map((c) => ({
         attemptId: attempt.id,
         componentId: c.id,
         response: payloadAnswers[String(c.id)] as Prisma.InputJsonValue,
-        correct: gradeResponse(c.type, c.content as Record<string, unknown>, payloadAnswers[String(c.id)], serverKeyOf(c.id)),
+        correct: gradeResponse(c.type, c.content as Record<string, unknown>, payloadAnswers[String(c.id)], serverKeyOf(c.id, enrollment.id)),
       }));
     if (fresh.length) await tx.attemptAnswer.createMany({ data: fresh, skipDuplicates: true });
     const answers = [...stored, ...fresh];
