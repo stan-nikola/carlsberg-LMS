@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { BottomSheet } from "@/components/BottomSheet";
 import { CourseIcon, PeopleIcon, AchievementsIcon, LogoutIcon, ChevronIcon, RootIcon, DataIcon, BellIcon, TrendIcon, ClockIcon, SlidersIcon } from "@/components/icons";
 
 // Ключ localStorage для згорнутого стану сайдбара — суто персональна
@@ -177,21 +178,13 @@ export function AdminShell({ children, superAdmin = false }) {
         </button>
       </header>
 
-      <div
-        className={`sheet-overlay adm-nav-sheet-overlay${navOpen ? " open" : ""}`}
-        onClick={(event) => {
-          if (event.target === event.currentTarget) setNavOpen(false);
-        }}
-      >
-        <div className="sheet adm-nav-sheet">
-          <div className="sheet-handle" />
+      <BottomSheet open={navOpen} onClose={() => setNavOpen(false)} overlayClassName="adm-nav-sheet-overlay" sheetClassName="adm-nav-sheet">
           {navLinks(() => setNavOpen(false))}
           <button type="button" className="logout-row" onClick={handleLogout}>
             <LogoutIcon />
             <span>Вийти</span>
           </button>
-        </div>
-      </div>
+      </BottomSheet>
 
       {/* adm-main--courses — лише «Курси» (каталог + конструктор) лишаються
           в масштабі 85%, як були: їх верстав сам користувач під цей масштаб.
