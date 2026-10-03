@@ -1,4 +1,7 @@
+import type { PrismaClient } from "@/app/generated/prisma";
+import { prisma as prismaUntyped } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { verifyExportToken } from "@/lib/exportLink";
 import { isManagerTier, getAllSubordinates } from "@/lib/permissions";
 import { getExportData, dashboardStatsFromRaw, getHardestQuestions, getTeamTree, weeklyTrendFromRaw } from "@/lib/managerDashboard";
 import { fetchTeamRaw } from "@/lib/teamEnrollments";
@@ -33,8 +36,26 @@ const CANONICAL_CARD_IDS = [
 ];
 
 
+const prisma = prismaUntyped as PrismaClient;
+
+/**
+ * Хто завантажує: cookie-сесія або ключ `t` з посилання (lib/exportLink.ts) —
+ * вікно з «Готово» на iPhone не має cookie застосунку. Ключ дійсний, лише
+ * поки жива сесія, з якої його видали (sessionVersion), і людина активна.
+ */
+async function exportingEmployee(request: Request) {
+  const fromToken = verifyExportToken(new URL(request.url).searchParams.get("t"));
+  if (fromToken) {
+    return prisma.employee.findFirst({
+      where: { id: fromToken.employeeId, isActive: true, sessionVersion: fromToken.sessionVersion },
+      select: { id: true, name: true, position: true },
+    });
+  }
+  return getCurrentUser();
+}
+
 export async function GET(request: Request) {
-  const employee = await getCurrentUser();
+  const employee = await exportingEmployee(request);
   if (!employee) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   if (!isManagerTier(employee)) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
 

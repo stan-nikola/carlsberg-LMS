@@ -30,6 +30,7 @@ import { EnrollmentRow, formatDuration } from "@/components/EnrollmentRow";
 import { TeamStatusBar } from "@/components/TeamStatusBar";
 import { pluralPeople } from "@/lib/teamInsights";
 import { AttentionList } from "@/components/AttentionList";
+import { useExportLinkToken } from "@/components/useExportLinkToken";
 import { TeamMatrix } from "@/components/TeamMatrix";
 
 // localStorage, не БД (рішення користувача, 2026-09-19) — вибір карток
@@ -437,6 +438,7 @@ function flattenTree(nodes, out = []) {
  * (/api/manager/employees/[id]).
  */
 export function ManagerDashboard({ initialData = null, initialError = false }) {
+  const exportToken = useExportLinkToken();
   // Дані вже прийшли з сервера (app/manager/page.js, lib/managerOverview.js)
   // — loading:false одразу, без окремого клієнтського fetch() і
   // скелетон-спалаху на кожному монтуванні (раніше тут стояв fetch(
@@ -1071,12 +1073,15 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
               iPhone немає панелі браузера — файл відкривався на весь екран
               без «Закрити» і дороги назад. Нове вікно iOS показує поверх
               застосунку з кнопкою «Готово»; на комп'ютері браузер просто
-              завантажує файл і сам закриває порожню вкладку. */}
+              завантажує файл і сам закриває порожню вкладку.
+              t= — у того вікна на iPhone свої cookie, без сесії застосунку;
+              ключ із посилання її заміняє (lib/exportLink.ts). Поки ключ не
+              прийшов — звичайне посилання по cookie (комп'ютер, Android). */}
           <a
             target="_blank"
             rel="noopener"
             className="admin-btn-link mgr-export-link"
-            href={`/api/manager/export?cards=${orderedIds.filter((id) => enabledCards.has(id)).join(",")}`}
+            href={`/api/manager/export?cards=${orderedIds.filter((id) => enabledCards.has(id)).join(",")}${exportToken ? `&t=${encodeURIComponent(exportToken)}` : ""}`}
             title="Завантажити звіт у форматі Excel — листи за увімкненими картками"
             aria-label="Завантажити звіт у форматі Excel"
           >
