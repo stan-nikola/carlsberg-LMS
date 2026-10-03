@@ -1066,8 +1066,15 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           {/* Прямий лінк на /api/manager/export — браузер сам ініціює
               завантаження по Content-Disposition:attachment, без fetch+blob.
               cards= — увімкнені картки в порядку дашборда: звіт повторює
-              екран лист у лист (lib/managerReport.ts). */}
+              екран лист у лист (lib/managerReport.ts).
+              target=_blank (2026-10-03): у встановленому застосунку на
+              iPhone немає панелі браузера — файл відкривався на весь екран
+              без «Закрити» і дороги назад. Нове вікно iOS показує поверх
+              застосунку з кнопкою «Готово»; на комп'ютері браузер просто
+              завантажує файл і сам закриває порожню вкладку. */}
           <a
+            target="_blank"
+            rel="noopener"
             className="admin-btn-link mgr-export-link"
             href={`/api/manager/export?cards=${orderedIds.filter((id) => enabledCards.has(id)).join(",")}`}
             title="Завантажити звіт у форматі Excel — листи за увімкненими картками"
@@ -1229,7 +1236,11 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                     />
                   </div>
                   <span className="mgr-trend-count">{w.count}</span>
-                  <span className="mgr-trend-label">{w.label}</span>
+                  {/* Коротко, в одному стилі з «-1 тиж.»: повне «Цей тиждень» на
+                      телефоні переносилось на два рядки, і стовпчик над ним
+                      зсувався вгору відносно сусідів (2026-10-03). Повний
+                      підпис лишається в підказці й у Excel-звіті. */}
+                  <span className="mgr-trend-label">{w.weekIndex === 0 ? "Цей тиж." : w.label}</span>
                 </Link>
               ))}
             </div>
