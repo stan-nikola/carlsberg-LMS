@@ -8,6 +8,10 @@ import { flushOutbox } from "@/lib/offlineOutbox";
 export function OfflineSync() {
   const router = useRouter();
   useEffect(() => {
+    // Ім'я з форми входу більше не зберігається; прибираємо старий ключ.
+    try {
+      localStorage.removeItem("employee_display_name_v1");
+    } catch {}
     let busy = false;
     async function sync() {
       if (busy) return;

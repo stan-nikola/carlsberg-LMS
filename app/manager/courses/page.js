@@ -31,7 +31,6 @@ export default async function ManagerCoursesPage() {
               course={enrollment.course}
               enrollment={enrollment}
               description={enrollment.course.description || ""}
-              hasEmail={Boolean(employee.email)}
             />
           ))}
         </div>

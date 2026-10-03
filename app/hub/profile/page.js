@@ -26,7 +26,6 @@ export default async function HubProfilePage({ searchParams }) {
 
       <ProfileCard
         dbName={employee.name}
-        hasEmail={Boolean(employee.email)}
         levelLabel={levelLabel}
         avatarUrl={employee.avatarUrl}
         editable

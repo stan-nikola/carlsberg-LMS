@@ -28,7 +28,6 @@ export default async function ManagerPage() {
         id: employee.id,
         name: employee.name,
         externalCode: employee.externalCode,
-        hasEmail: Boolean(employee.email),
         avatarUrl: employee.avatarUrl,
         levelLabel: overview.levelLabel,
         position: employee.position,

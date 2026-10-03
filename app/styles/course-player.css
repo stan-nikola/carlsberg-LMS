@@ -694,8 +694,37 @@
   opacity: 0.85;
 }
 .q-fb.ok {
+  position: relative;
   background: var(--green-tint);
   color: var(--green-900);
+}
+/* «+1» за правильну відповідь: з'являється, пливе вгору й плавно гасне. */
+.q-fb.ok::after {
+  content: "+1";
+  position: absolute;
+  right: 14px;
+  top: 4px;
+  font-weight: 900;
+  font-size: calc(20px * var(--fs-scale));
+  color: var(--green-900);
+  text-shadow: 0 2px 0 var(--surface-1);
+  pointer-events: none;
+  opacity: 0;
+  animation: qPlusOne 1.4s var(--ease-premium) 0.15s both;
+}
+@keyframes qPlusOne {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-14px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-54px) scale(1);
+  }
 }
 .q-fb.bad {
   background: color-mix(in srgb, var(--danger) 14%, var(--surface-1));
@@ -711,6 +740,9 @@
 @media (prefers-reduced-motion: reduce) {
   .q-fb {
     animation: none;
+  }
+  .q-fb.ok::after {
+    display: none;
   }
 }
 
@@ -3448,6 +3480,7 @@
   margin-bottom: calc(14.5px * var(--fs-scale) * 1.5);
 }
 .q-match-col {
+  position: relative;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -3482,6 +3515,21 @@
 }
 .q-match-item.is-linked {
   border-color: var(--cb-secondary);
+}
+/* Кожна пара — свого кольору (на обох елементах і в номері), щоб зв'язок
+   читався без ліній; після перевірки колір змінює вердикт. */
+.q-match-item.pair-0 { --pair: #4b87c5; }
+.q-match-item.pair-1 { --pair: #e8862a; }
+.q-match-item.pair-2 { --pair: #8a5cc4; }
+.q-match-item.pair-3 { --pair: #1a9aa8; }
+.q-match-item.pair-4 { --pair: #d6407a; }
+.q-match-item.pair-5 { --pair: #8a8f1f; }
+.q-match-item[class*="pair-"] {
+  border-color: var(--pair);
+  background: color-mix(in srgb, var(--pair) 14%, var(--surface));
+}
+.q-match-item[class*="pair-"] .q-match-badge {
+  background: var(--pair);
 }
 .q-match-item.is-correct {
   border-color: var(--cb-success);
