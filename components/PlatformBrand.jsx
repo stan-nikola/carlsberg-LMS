@@ -56,7 +56,7 @@ export function PlatformBrand({ size = "sm", stacked = false }) {
         height={height}
         className="platform-brand-logo"
         priority={size === "xl"}
-        loading="eager"
+        loading={size === "xl" ? undefined : "eager"}
         unoptimized
       />
       <span className="platform-brand-text">

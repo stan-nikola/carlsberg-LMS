@@ -28,6 +28,7 @@ export function NotificationBell({ href }) {
   const [unread, setUnread] = useState(0);
   const [ringing, setRinging] = useState(false);
   const prevUnreadRef = useRef(null);
+  const activeRef = useRef(isActive);
   const ringTimeoutRef = useRef(null);
 
   // Спільний тригер — і на нове сповіщення (нижче), і на сам клік по
@@ -39,6 +40,17 @@ export function NotificationBell({ href }) {
     ringTimeoutRef.current = setTimeout(() => setRinging(false), 720);
   }
 
+  // Відкрита сторінка сповіщень сама позначає їх прочитаними (POST у
+  // NotificationCenter) — лічильник гасимо одразу, а не чекаємо хвилинного
+  // опитування, інакше червона цифра висіла й після виходу на інші екрани.
+  useEffect(() => {
+    activeRef.current = isActive;
+    if (!isActive) return;
+    prevUnreadRef.current = 0;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUnread(0);
+  }, [isActive]);
+
   useEffect(() => {
     let alive = true;
     const load = () =>
@@ -46,7 +58,9 @@ export function NotificationBell({ href }) {
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
           if (!alive || !d) return;
-          const next = d.unreadCount;
+          // На сторінці сповіщень вони щойно прочитані — старе число з
+          // паралельного запиту не повертаємо.
+          const next = activeRef.current ? 0 : d.unreadCount;
           if (prevUnreadRef.current != null && next > prevUnreadRef.current) ring();
           prevUnreadRef.current = next;
           setUnread(next);

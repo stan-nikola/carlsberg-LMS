@@ -158,11 +158,15 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   // баг на прототипі, той самий підводний камінь для будь-якого
   // абсолютно спозиціонованого елемента у flex-контейнері).
   useLayoutEffect(() => {
-    const activeHref = NAV_ITEMS.find((t) => isNavActive(pathname, t.href))?.href ?? NAV_ITEMS[0].href;
-    const activeEl = tabRefs.current.get(activeHref);
     const pill = pillRef.current;
     const bar = tabbarRef.current;
-    if (!activeEl || !pill || !bar) return;
+    if (!pill || !bar) return;
+    // Сторінка поза вкладками (сповіщення з дзвоника) — капсулу ховаємо, як
+    // у HubShell, а не лишаємо під «Командою» з неактивною сірою іконкою.
+    const activeHref = NAV_ITEMS.find((t) => isNavActive(pathname, t.href))?.href;
+    pill.style.opacity = activeHref ? "1" : "0";
+    const activeEl = activeHref && tabRefs.current.get(activeHref);
+    if (!activeEl) return;
     const move = () => {
       const barRect = bar.getBoundingClientRect();
       const elRect = activeEl.getBoundingClientRect();
