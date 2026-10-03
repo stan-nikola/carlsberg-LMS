@@ -1,7 +1,4 @@
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { verifyExportToken } from "@/lib/exportLink";
 import { isManagerTier, getAllSubordinates } from "@/lib/permissions";
 import { getExportData, dashboardStatsFromRaw, getHardestQuestions, getTeamTree, weeklyTrendFromRaw } from "@/lib/managerDashboard";
 import { fetchTeamRaw } from "@/lib/teamEnrollments";
@@ -36,26 +33,8 @@ const CANONICAL_CARD_IDS = [
 ];
 
 
-const prisma = prismaUntyped as PrismaClient;
-
-/**
- * Хто завантажує: cookie-сесія або ключ `t` з посилання (lib/exportLink.ts) —
- * вікно з «Готово» на iPhone не має cookie застосунку. Ключ дійсний, лише
- * поки жива сесія, з якої його видали (sessionVersion), і людина активна.
- */
-async function exportingEmployee(request: Request) {
-  const fromToken = verifyExportToken(new URL(request.url).searchParams.get("t"));
-  if (fromToken) {
-    return prisma.employee.findFirst({
-      where: { id: fromToken.employeeId, isActive: true, sessionVersion: fromToken.sessionVersion },
-      select: { id: true, name: true, position: true },
-    });
-  }
-  return getCurrentUser();
-}
-
 export async function GET(request: Request) {
-  const employee = await exportingEmployee(request);
+  const employee = await getCurrentUser();
   if (!employee) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   if (!isManagerTier(employee)) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
 
@@ -87,15 +66,10 @@ export async function GET(request: Request) {
     exportData,
   });
 
-  // inline=1 — iPhone (components/useExportLinkToken.ts): вікно Safari, яке
-  // відкривається зі встановленого застосунку, не вміє завантажувати
-  // (attachment) і лишалось порожнім; на перегляд (inline) iOS показує файл
-  // сам — з «Готово» і «Відкрити в Excel». Решта — звичайне завантаження.
-  const disposition = new URL(request.url).searchParams.get("inline") === "1" ? "inline" : "attachment";
   return new Response(new Blob([buffer as BlobPart]), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `${disposition}; filename="zvit-komandy-${fmtDate(now)}.xlsx"`,
+      "Content-Disposition": `attachment; filename="zvit-komandy-${fmtDate(now)}.xlsx"`,
     },
   });
 }
