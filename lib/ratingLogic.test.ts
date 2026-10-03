@@ -9,6 +9,7 @@ import {
   mandatoryProgress,
   normalizeByCohort,
   computeTeamRating,
+  passedOnFirstAttempt,
   DEFAULT_RULES,
   DEFAULT_LEVELS,
   type RatingEventInput,
@@ -25,23 +26,50 @@ const enr = (over = {}) => ({
 });
 const kinds = (evs: RatingEventInput[]) => evs.map((e) => e.kind);
 
+describe("passedOnFirstAttempt", () => {
+  it("кожен модуль складено з першого разу", () => {
+    expect(passedOnFirstAttempt([{ passed: true, attemptCount: 3, firstPassedAttempt: 1 }, { passed: true, attemptCount: 1, firstPassedAttempt: 1 }])).toBe(true);
+  });
+  it("провал перед складанням — не перша спроба, хоч курс і закрито одним submit", () => {
+    expect(passedOnFirstAttempt([{ passed: true, attemptCount: 5, firstPassedAttempt: 5 }])).toBe(false);
+  });
+  it("рядки до міграції: лише одна складена спроба", () => {
+    expect(passedOnFirstAttempt([{ passed: true, attemptCount: 1, firstPassedAttempt: null }])).toBe(true);
+    expect(passedOnFirstAttempt([{ passed: true, attemptCount: 2, firstPassedAttempt: null }])).toBe(false);
+  });
+  it("без модулів (ручна корекція) — доказу нема", () => {
+    expect(passedOnFirstAttempt([])).toBe(false);
+  });
+});
+
 describe("computeCourseEvents", () => {
+  it("«вчасно» — від першого складання, перескладання після дедлайну бали не знімає", () => {
+    const evs = computeCourseEvents({
+      enrollment: enr({ completedAt: new Date("2026-09-25"), firstPassedAt: new Date("2026-09-12") }),
+      course: {},
+      firstAttempt: false,
+      existingKinds: new Set(),
+      rules: DEFAULT_RULES,
+    });
+    expect(kinds(evs)).toContain("on_time");
+  });
+
   it("складено вчасно з першої спроби на 90% — база + перша спроба + вчасно, без 100%", () => {
-    const evs = computeCourseEvents({ enrollment: enr(), course: { points: null }, attemptNumber: 1, existingKinds: new Set(), rules: DEFAULT_RULES });
+    const evs = computeCourseEvents({ enrollment: enr(), course: { points: null }, firstAttempt: true, existingKinds: new Set(), rules: DEFAULT_RULES });
     expect(kinds(evs)).toEqual(["course_completed", "first_attempt", "on_time"]);
     expect(evs.map((e) => e.points)).toEqual([100, 25, 25]);
     expect(evs[0]).toMatchObject({ employeeId: 42, refType: "enrollment", refId: 7 });
   });
 
   it("не складено — жодних балів (за спробу не платимо)", () => {
-    expect(computeCourseEvents({ enrollment: enr({ passed: false, scorePercent: 60 }), course: {}, attemptNumber: 1, existingKinds: new Set(), rules: DEFAULT_RULES })).toEqual([]);
+    expect(computeCourseEvents({ enrollment: enr({ passed: false, scorePercent: 60 }), course: {}, firstAttempt: true, existingKinds: new Set(), rules: DEFAULT_RULES })).toEqual([]);
   });
 
   it("Course.points перекриває правило; прострочений — без «вчасно», без дедлайну — теж", () => {
-    const late = computeCourseEvents({ enrollment: enr({ completedAt: new Date("2026-09-25") }), course: { points: 300 }, attemptNumber: 2, existingKinds: new Set(), rules: DEFAULT_RULES });
+    const late = computeCourseEvents({ enrollment: enr({ completedAt: new Date("2026-09-25") }), course: { points: 300 }, firstAttempt: false, existingKinds: new Set(), rules: DEFAULT_RULES });
     expect(kinds(late)).toEqual(["course_completed"]);
     expect(late[0].points).toBe(300);
-    const noDue = computeCourseEvents({ enrollment: enr({ dueDate: null }), course: {}, attemptNumber: 2, existingKinds: new Set(), rules: DEFAULT_RULES });
+    const noDue = computeCourseEvents({ enrollment: enr({ dueDate: null }), course: {}, firstAttempt: false, existingKinds: new Set(), rules: DEFAULT_RULES });
     expect(kinds(noDue)).toEqual(["course_completed"]);
   });
 
@@ -50,7 +78,7 @@ describe("computeCourseEvents", () => {
     const evs = computeCourseEvents({
       enrollment: enr({ scorePercent: 100 }),
       course: {},
-      attemptNumber: 3,
+      firstAttempt: false,
       existingKinds: new Set(["course_completed", "on_time"]),
       rules: DEFAULT_RULES,
     });
@@ -59,7 +87,7 @@ describe("computeCourseEvents", () => {
 
   it("вимкнене правило або 0 балів — події нема", () => {
     const rules = DEFAULT_RULES.map((r) => (r.key === "first_attempt" ? { ...r, enabled: false } : r));
-    const evs = computeCourseEvents({ enrollment: enr(), course: {}, attemptNumber: 1, existingKinds: new Set(), rules });
+    const evs = computeCourseEvents({ enrollment: enr(), course: {}, firstAttempt: true, existingKinds: new Set(), rules });
     expect(kinds(evs)).not.toContain("first_attempt");
   });
 });

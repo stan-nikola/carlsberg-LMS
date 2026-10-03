@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { PrismaClient } from "@/app/generated/prisma";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { isTelegramConfigured, replyToChat, telegramBotUsername } from "@/lib/telegram";
-import { parseCommand, verifyLinkToken } from "@/lib/telegramLogic";
+import { parseCommand, secretMatches, verifyLinkToken } from "@/lib/telegramLogic";
 
 const prisma = prismaUntyped as PrismaClient;
 
@@ -21,14 +21,16 @@ const prisma = prismaUntyped as PrismaClient;
  */
 export async function POST(request: Request) {
   if (!isTelegramConfigured()) return NextResponse.json({ ok: false, reason: "not_configured" });
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!secret || request.headers.get("x-telegram-bot-api-secret-token") !== secret) {
+  if (!secretMatches(process.env.TELEGRAM_WEBHOOK_SECRET, request.headers.get("x-telegram-bot-api-secret-token"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const update = await request.json().catch(() => null);
   const msg = update?.message;
   if (!msg?.chat?.id || typeof msg.text !== "string") return NextResponse.json({ ok: true });
+  // Лише особисті чати з ботом: /start <token> у групі прив'язав би групу до
+  // співробітника, і його сповіщення читала б уся група.
+  if (msg.chat.type !== "private") return NextResponse.json({ ok: true });
 
   const chatId = String(msg.chat.id);
   const username: string | null = msg.from?.username || null;
@@ -37,7 +39,8 @@ export async function POST(request: Request) {
   try {
     const cmd = parseCommand(msg.text);
     if (cmd?.cmd === "start") {
-      const employeeId = verifyLinkToken(cmd.arg, process.env.SESSION_SECRET || "");
+      const sessionSecret = process.env.SESSION_SECRET;
+      const employeeId = sessionSecret ? verifyLinkToken(cmd.arg, sessionSecret) : null;
       const employee = employeeId ? await prisma.employee.findFirst({ where: { id: employeeId, isActive: true }, select: { id: true } }) : null;
       if (!employee) {
         await replyToChat(

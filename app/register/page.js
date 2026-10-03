@@ -284,6 +284,8 @@ export default function RegisterPage() {
         setCodeError("Тестовий вхід доступний лише для демо-персон зі списку.");
       } else if (resp.error === "invalid_email") {
         setCodeError("Перевірте адресу пошти.");
+      } else if (resp.error === "rate_limited") {
+        setCodeError(`Забагато запитів коду. Спробуйте ще раз через ${minutesUntil(resp.retryAt)}.`);
       } else {
         setCodeError("Помилка сервера: " + (resp.error || "unknown"));
       }
@@ -326,6 +328,8 @@ export default function RegisterPage() {
         router.refresh();
       } else if (resp.error === "pin_expired") {
         setPinError("Час дії PIN-коду минув (діє 12 годин). Натисніть «Надіслати ще раз».");
+      } else if (resp.error === "locked_new_pin_required") {
+        setPinError(`Забагато невдалих спроб — цей PIN більше не діє. Через ${minutesUntil(resp.retryAt)} натисніть «Надіслати ще раз».`);
       } else if (resp.error === "locked") {
         setPinError(`Забагато невдалих спроб. Спробуйте ще раз через ${minutesUntil(resp.retryAt)}.`);
       } else {
@@ -362,7 +366,9 @@ export default function RegisterPage() {
         setPinError(
           resp.error === "email_send_failed"
             ? "Не вдалося надіслати PIN. Спробуйте ще раз пізніше або зверніться до адміністратора."
-            : "Не вдалося надіслати PIN. Спробуйте ще раз."
+            : resp.error === "rate_limited"
+              ? `Забагато запитів коду. Спробуйте ще раз через ${minutesUntil(resp.retryAt)}.`
+              : "Не вдалося надіслати PIN. Спробуйте ще раз."
         );
       }
     } catch {

@@ -72,6 +72,14 @@ export function absoluteUrl(base: string | null | undefined, url: string | null 
 
 export type TelegramWebAppUser = { id: number; first_name?: string; last_name?: string; username?: string };
 
+/** Порівняння секрету з заголовка за сталий час; незаданий секрет — завжди false. */
+export function secretMatches(expected: string | undefined, provided: string | null | undefined): boolean {
+  if (!expected || !provided) return false;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(provided);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 /**
  * Перевірка `initData` Mini App (Telegram Web Apps, офіційний алгоритм
  * core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app):
@@ -79,12 +87,15 @@ export type TelegramWebAppUser = { id: number; first_name?: string; last_name?: 
  *   hash       = hex(HMAC_SHA256(key: secret_key, data: data_check_string))
  * data_check_string — усі поля, КРІМ hash, відсортовані за ключем, рядки
  * `key=value` через "\n". auth_date перевіряємо на свіжість окремо —
- * підпис сам по собі не має терміну дії, Telegram лишає це нам.
+ * підпис сам по собі не має терміну дії, Telegram лишає це нам. Вікно —
+ * година (було 24): initData, що десь засвітився (лог, скріншот
+ * devtools), довше не відкриває дані команди. Mini App бере свіжий
+ * initData при кожному відкритті.
  */
 export function verifyInitData(
   initData: string | null | undefined,
   botToken: string | undefined,
-  maxAgeSec = 86400,
+  maxAgeSec = 3600,
   now = Date.now()
 ): { ok: true; user: TelegramWebAppUser } | { ok: false } {
   if (!initData || !botToken) return { ok: false };

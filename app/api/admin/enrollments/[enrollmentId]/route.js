@@ -3,6 +3,8 @@ import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { syncEnrollmentEvents } from "@/lib/rating";
+import { endOfKyivDayFromInput } from "@/lib/kyivTime";
+import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
 
 const VALID_STATUSES = ["not_started", "in_progress", "completed", "overdue"];
 
@@ -23,6 +25,18 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: "adminNote is required — поясніть причину ручної корекції" }, { status: 400 });
   }
 
+  const current = await prisma.enrollment.findUnique({
+    where: { id: Number(enrollmentId) },
+    select: {
+      status: true,
+      scorePercent: true,
+      firstPassedAt: true,
+      course: { select: { passThreshold: true } },
+      _count: { select: { moduleCompletions: true } },
+    },
+  });
+  if (!current) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
   const data = { adminNote };
   if ("status" in body) {
     if (!VALID_STATUSES.includes(body.status)) {
@@ -33,7 +47,27 @@ export async function PATCH(request, { params }) {
   if ("scorePercent" in body) data.scorePercent = body.scorePercent === "" ? null : Number(body.scorePercent);
   if ("passed" in body) data.passed = body.passed;
   if ("completedAt" in body) data.completedAt = body.completedAt ? new Date(body.completedAt) : null;
-  if ("dueDate" in body) data.dueDate = body.dueDate ? new Date(body.dueDate) : null;
+  // Дедлайн із форми («2026-10-01») — кінець цього дня за Києвом, а не 03:00
+  // (lib/kyivTime.ts): інакше курс ставав простроченим у сам день дедлайну.
+  if ("dueDate" in body) data.dueDate = body.dueDate ? endOfKyivDayFromInput(String(body.dueDate)) : null;
+
+  // Дедлайн перенесли в майбутнє, а статус лишився «прострочено» (форма
+  // шле поточний статус назад як є) — повертаємо справжній стан. Раніше
+  // курс після продовження дедлайну висів простроченим назавжди (L-4).
+  const statusAfter = data.status ?? current.status;
+  const statusUnchanged = !("status" in body) || body.status === current.status;
+  if (statusAfter === "overdue" && statusUnchanged && data.dueDate && data.dueDate.getTime() > Date.now()) {
+    data.status = current._count.moduleCompletions > 0 ? "in_progress" : "not_started";
+  }
+
+  // «Зараховано вручну» без явного passed: форма його не шле, і курс на 100%
+  // лишався з passed=null — без балів рейтингу й у списку активних, хоча
+  // сертифікат видавався (L-5). Складено = бал не нижче порогу курсу.
+  if (data.status === "completed" && !("passed" in body)) {
+    const score = data.scorePercent ?? current.scorePercent;
+    if (typeof score === "number") data.passed = score >= (current.course.passThreshold ?? 80);
+  }
+  if (data.passed === true && !current.firstPassedAt) data.firstPassedAt = data.completedAt ?? new Date();
 
   const updated = await prisma.enrollment.update({
     where: { id: Number(enrollmentId) },
@@ -59,6 +93,9 @@ export async function PATCH(request, { params }) {
   } catch (err) {
     console.warn("[rating] enrollment correction:", err?.message);
   }
+  // Хаб співробітника кешує призначення — без цього корекцію людина бачила б
+  // із затримкою до кінця кешу.
+  invalidateEmployeeEnrollments();
   await audit("enrollment.update", "enrollment", enrollmentId, { course: updated.course.title, ...data, rating });
   return NextResponse.json({ ...updated, rating });
 }

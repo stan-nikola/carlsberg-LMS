@@ -214,7 +214,7 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
   if (!employee || !form) return null;
 
   return (
-    <div className={compact ? "adm-detail-compact" : "admin-page"}>
+    <div className={compact ? "adm-detail-compact" : "admin-page adm-page"}>
       {!compact && (
         <Link href="/admin/employees" className="admin-btn-link">
           ← До списку співробітників
@@ -237,7 +237,11 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
         </div>
       </div>
 
-      <section className="adm-card">
+      {/* Картки — .adm-flow: на широкому екрані «Керівник», «Підпорядкування»
+          і «Відзнаки» стають в один ряд, у шухляді — стовпчиком. «Основне» і
+          «Курси» — завжди на всю ширину (форма й таблиця). */}
+      <div className="adm-flow">
+      <section className="adm-card adm-full">
         <div className="adm-card-head">
           <h2>Основне</h2>
           <span className="admin-hint">Ім’я з email, код — ключ входу</span>
@@ -341,7 +345,11 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
 
         <div className="adm-card-foot">
           {saveError && <p className="admin-error">{saveError}</p>}
-          <button className="admin-btn-link admin-link-danger" disabled={saving} onClick={handleToggleActive}>
+          <button
+            className={`admin-btn ${employee.isActive ? "adm-btn-danger" : "adm-btn-secondary"}`}
+            disabled={saving}
+            onClick={handleToggleActive}
+          >
             {employee.isActive ? "Деактивувати" : "Активувати"}
           </button>
           <button className="admin-btn" disabled={saving} onClick={handleSave}>
@@ -351,8 +359,6 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
         </div>
       </section>
 
-      {/* Дві короткі картки поруч на широкому екрані, стовпчиком у шухляді. */}
-      <div className="adm-card-row">
       <section className="adm-card">
         <div className="adm-card-head">
           <h2>Керівник</h2>
@@ -371,27 +377,30 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
             <span className="admin-hint">Верхній рівень ієрархії — керівника немає</span>
           )}
           {employee.manager && (
-            <button type="button" className="admin-btn-link" onClick={() => handleReassignManager(null)}>
+            <button type="button" className="admin-btn adm-btn-secondary" onClick={() => handleReassignManager(null)}>
               Прибрати керівника
             </button>
           )}
         </div>
-        <input
-          className="admin-input-flex"
-          placeholder="Змінити керівника: пошук за ім’ям або кодом…"
-          value={managerQuery}
-          onChange={(e) => setManagerQuery(e.target.value)}
-          style={{ maxWidth: 420 }}
-        />
-        {managerSearching && <SpinnerIcon />}
+        <div className="admin-field">
+          <label className="admin-label" htmlFor={`empManagerSearch${employeeId}`}>
+            Змінити керівника {managerSearching && <SpinnerIcon />}
+          </label>
+          <input
+            id={`empManagerSearch${employeeId}`}
+            className="admin-input-flex"
+            placeholder="Пошук за ім’ям або кодом…"
+            value={managerQuery}
+            onChange={(e) => setManagerQuery(e.target.value)}
+          />
+        </div>
         {managerResults.length > 0 && (
-          <ul className="admin-block-list" style={{ marginTop: 8 }}>
+          <ul className="admin-block-list adm-pick-list">
             {managerResults.map((m) => (
               <li key={m.id} className="admin-block-list-item">
                 <button
                   type="button"
                   className="admin-block-list-link"
-                  style={{ width: "100%", textAlign: "left", border: "none", cursor: "pointer" }}
                   onClick={() => handleReassignManager(m.id)}
                 >
                   {m.name} · <span className="mono">{m.externalCode}</span>
@@ -414,11 +423,11 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
           Прямих підлеглих: <b>{employee._count.subordinates}</b>
         </p>
       </section>
-      </div>
 
       <EmployeeBadgesSection employeeId={employeeId} />
 
       <EmployeeCoursesSection employeeId={employeeId} />
+      </div>
     </div>
   );
 }

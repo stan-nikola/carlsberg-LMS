@@ -78,7 +78,7 @@ export function EmployeeBadgesSection({ employeeId }) {
   }
 
   return (
-    <section className="adm-card">
+    <section className="adm-card adm-wide">
       <div className="adm-card-head">
         <h2>Відзнаки та винагороди</h2>
         <span className="admin-hint">{awards.length ? `${awards.length} отримано` : "поки нічого"}</span>
@@ -87,7 +87,7 @@ export function EmployeeBadgesSection({ employeeId }) {
       {awards.length === 0 ? (
         <p className="admin-subtitle">Ще немає жодної відзнаки чи винагороди.</p>
       ) : (
-        <ul className="admin-badge-list" style={{ marginTop: 8 }}>
+        <ul className="admin-badge-list">
           {awards.map((a) => (
             <li key={a.id} className="admin-badge-list-item" title={a.badge.description || ""}>
               <span className="admin-badge-list-ico">{a.badge.icon}</span>
@@ -99,7 +99,7 @@ export function EmployeeBadgesSection({ employeeId }) {
                   {a.note ? ` · ${a.note}` : ""}
                 </span>
               </span>
-              <button className="admin-btn-link" onClick={() => handleRevoke(a.id)}>
+              <button className="admin-btn adm-btn-danger" onClick={() => handleRevoke(a.id)}>
                 Відкликати
               </button>
             </li>

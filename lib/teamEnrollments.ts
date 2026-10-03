@@ -80,8 +80,10 @@ export async function fetchTeamRaw(employeeIds: number[]): Promise<TeamRaw> {
   if (employeeIds.length === 0) return { employees: [], enrollments: [], courses: [], completions: [], attempts: [] };
 
   const [employees, enrollments] = await Promise.all([
+    // Деактивовані не входять у статистику команди (аудит L-11): звільнений
+    // ТП інакше вічно висів «простроченим» у «Потребують уваги».
     prisma.employee.findMany({
-      where: { id: { in: employeeIds } },
+      where: { id: { in: employeeIds }, isActive: true },
       select: {
         id: true,
         name: true,
@@ -95,7 +97,7 @@ export async function fetchTeamRaw(employeeIds: number[]): Promise<TeamRaw> {
       orderBy: { name: "asc" },
     }),
     prisma.enrollment.findMany({
-      where: { employeeId: { in: employeeIds } },
+      where: { employeeId: { in: employeeIds }, employee: { isActive: true } },
       select: {
         id: true,
         employeeId: true,

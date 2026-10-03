@@ -45,7 +45,14 @@ const ICON = "/icons/icon-192.png";
 const DEFAULT_URL = "/hub/notifications";
 
 self.addEventListener("install", () => self.skipWaiting());
-const CACHE = "carls-offline-v1";
+// v2 (2026-09-27): у v1 могли лишитись сторінки /admin і /manager з
+// чужими даними — activate нижче видаляє всі кеші з іншою назвою.
+const CACHE = "carls-offline-v2";
+// Не кешуються ніколи: кабінет керівника, адмінка й профіль — персональні
+// дані, які на спільному телефоні польової команди після виходу одного
+// співробітника відкрились би офлайн наступному (аудит безпеки, S-M3).
+// Офлайн потрібен лише хабу й плеєру курсів.
+const NEVER_CACHE = /^\/(admin|manager)(\/|$)|^\/hub\/profile(\/|$)/;
 const IMAGE_WIDTH = 828; // ширина next/image для precache; офлайн підходить будь-яка закешована
 
 self.addEventListener("activate", (event) =>
@@ -67,6 +74,7 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+  if (NEVER_CACHE.test(url.pathname)) return;
   // RSC-навігація (клієнтський Link-клік) — не перехоплюємо: нехай браузер
   // сам вирішує з власного Router Cache, без вимушеного мережевого
   // round-trip щоразу. Див. великий коментар на початку файла.
@@ -133,6 +141,12 @@ async function staleWhileRevalidate(event, req, url) {
   }
   throw new Error(`staleWhileRevalidate: no cache and network failed for ${url.pathname}`);
 }
+
+// Вихід з акаунта (lib/logoutCleanup.ts): стираємо весь офлайн-кеш, щоб
+// наступний на цьому телефоні не побачив закешованих сторінок попереднього.
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "purge") event.waitUntil(caches.delete(CACHE));
+});
 
 // Плеєр просить закешувати курс наперед: сторінку і фото всіх екранів.
 self.addEventListener("message", (event) => {

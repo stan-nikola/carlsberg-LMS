@@ -41,15 +41,24 @@ export async function GET(request: NextRequest) {
   // Лише той самий origin — інакше /go стає відкритим редиректом (open
   // redirect): хтось міг би розіслати посилання на наш довірений домен,
   // яке насправді веде на фішинговий сайт.
-  const isSameOrigin = (() => {
-    if (!to) return false;
+  //
+  // Ціль збирається з РОЗІБРАНОГО URL (origin + pathname + search + hash —
+  // усе вже percent-encoded), а не з сирого рядка `to`: до 2026-09-27 сирий
+  // `to` проходив перевірку origin, але йшов у href і <script> як є, тож
+  // `…/x</script><script>…` виконувався на нашому домені з cookie жертви
+  // (аудит безпеки, S-H1). Плюс екранування нижче — другий рубіж.
+  const parsed = (() => {
+    if (!to) return null;
     try {
-      return new URL(to).origin === request.nextUrl.origin;
+      return new URL(to);
     } catch {
-      return false;
+      return null;
     }
   })();
-  const target = isSameOrigin ? to! : `${request.nextUrl.origin}/hub`;
+  const safePath = parsed && parsed.origin === request.nextUrl.origin ? parsed.pathname + parsed.search + parsed.hash : "/hub";
+  const target = request.nextUrl.origin + safePath;
+  const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  const js = (s: string) => JSON.stringify(s).replace(/</g, "\\u003c");
   const ua = request.headers.get("user-agent") || "";
   const isAndroid = /Android/i.test(ua);
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
@@ -63,12 +72,12 @@ export async function GET(request: NextRequest) {
     ? `<p>Це повідомлення від CarLS.</p>
   <p>Відкрийте застосунок CarLS зі свого головного екрана — усе, що потрібно, вже чекає там.</p>`
     : `<p>Відкриваємо застосунок…</p>
-  <p>Якщо нічого не сталось за кілька секунд — <a id="fallback" href="${target}">натисніть тут</a>.</p>
+  <p>Якщо нічого не сталось за кілька секунд — <a id="fallback" href="${escapeHtml(target)}">натисніть тут</a>.</p>
   <script>
     ${isAndroid
-      ? `location.replace(${JSON.stringify(intentUrl)});
-    setTimeout(function () { location.replace(${JSON.stringify(target)}); }, 1500);`
-      : `location.replace(${JSON.stringify(target)});`}
+      ? `location.replace(${js(intentUrl)});
+    setTimeout(function () { location.replace(${js(target)}); }, 1500);`
+      : `location.replace(${js(target)});`}
   </script>`;
 
   const html = `<!doctype html>

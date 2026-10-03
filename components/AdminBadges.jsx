@@ -43,16 +43,21 @@ export function AdminBadges() {
   }, []);
 
   return (
-    <div className="admin-page">
-      <h1>Відзнаки та винагороди</h1>
-      <p className="admin-subtitle">
-        Типи відзнак. Автоматичні нараховуються щоденним cron за реальними даними; винагороди видає адмін з картки
-        конкретного співробітника або одразу групі — «Призначити» в рядку.
-      </p>
-
-      <button className="admin-btn" style={{ marginTop: 16, marginBottom: 16 }} onClick={() => setShowCreate((v) => !v)}>
-        + Новий тип винагороди
-      </button>
+    <div className="admin-page adm-page">
+      <div className="adm-page-head">
+        <div>
+          <h1>Відзнаки та винагороди</h1>
+          <p className="admin-subtitle">
+            Типи відзнак. Автоматичні нараховуються щоденним cron за реальними даними; винагороди видає адмін з картки
+            конкретного співробітника або одразу групі — «Призначити» в рядку.
+          </p>
+        </div>
+        <div className="adm-page-actions">
+          <button className={`admin-btn${showCreate ? " adm-btn-secondary" : ""}`} onClick={() => setShowCreate((v) => !v)}>
+            + Новий тип винагороди
+          </button>
+        </div>
+      </div>
 
       {showCreate && (
         <BadgeCreateForm
@@ -70,13 +75,15 @@ export function AdminBadges() {
           Завантаження…
         </p>
       ) : (
+        <div className="adm-table-wrap">
         <table className="admin-table">
           <thead>
             <tr>
               <th>Іконка</th>
               <th>Назва</th>
               <th>Тип</th>
-              <th>Видано разів</th>
+              <th className="adm-num">Видано разів</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -91,6 +98,7 @@ export function AdminBadges() {
           ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );
@@ -126,8 +134,11 @@ function BadgeCreateForm({ onCreated, onCancel }) {
   }
 
   return (
-    <div className="admin-form-section">
-      <div className="admin-form-columns">
+    <section className="adm-card">
+      <div className="adm-card-head">
+        <h2>Новий тип винагороди</h2>
+      </div>
+      <div className="adm-field-grid">
         <div className="admin-field">
           <label className="admin-label" htmlFor="badgeTitle">
             Назва
@@ -138,36 +149,36 @@ function BadgeCreateForm({ onCreated, onCancel }) {
           <label className="admin-label" htmlFor="badgeIcon">
             Іконка (emoji)
           </label>
-          <input id="badgeIcon" className="admin-input-flex" value={icon} onChange={(e) => setIcon(e.target.value)} style={{ maxWidth: 80 }} />
+          <input id="badgeIcon" className="admin-input-flex adm-input-icon" value={icon} onChange={(e) => setIcon(e.target.value)} />
         </div>
         <div className="admin-field">
           <label className="admin-label" htmlFor="badgePoints">
             Бали рейтингу
           </label>
-          <input id="badgePoints" type="number" min="0" className="admin-input-flex" value={points} onChange={(e) => setPoints(e.target.value)} style={{ maxWidth: 100 }} />
+          <input id="badgePoints" type="number" min="0" className="admin-input-flex adm-input-short" value={points} onChange={(e) => setPoints(e.target.value)} />
         </div>
-      </div>
-      <div className="admin-field">
-        <label className="admin-label" htmlFor="badgeDesc">
-          Опис (опційно)
-        </label>
-        <input id="badgeDesc" className="admin-input-flex" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <div className="admin-field admin-field-wide">
+          <label className="admin-label" htmlFor="badgeDesc">
+            Опис (опційно)
+          </label>
+          <input id="badgeDesc" className="admin-input-flex" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
       </div>
       <label className="admin-checkbox">
         <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} />
         Показувати лише тим, кому видано (не світити «заблокованою» у решти)
       </label>
-      {error && <p className="admin-error">{error}</p>}
-      <div className="admin-btn-group">
+      <div className="adm-card-foot">
+        {error && <p className="admin-error">{error}</p>}
+        <button className="admin-btn adm-btn-secondary" onClick={onCancel} disabled={saving}>
+          Скасувати
+        </button>
         <button className="admin-btn" disabled={!title.trim() || saving} onClick={handleCreate}>
           {saving && <SpinnerIcon />}
           Створити
         </button>
-        <button className="admin-btn-link" onClick={onCancel} disabled={saving}>
-          Скасувати
-        </button>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -227,26 +238,29 @@ function BadgeRow({ badge, targets, onUpdated, onDeleted }) {
     return (
       <tr>
         <td>
-          <input className="admin-input-flex" value={icon} onChange={(e) => setIcon(e.target.value)} style={{ maxWidth: 60 }} />
+          <input className="admin-input-flex adm-input-icon" value={icon} onChange={(e) => setIcon(e.target.value)} aria-label="Іконка (emoji)" />
         </td>
-        <td style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <input className="admin-input-flex" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <input className="admin-input-flex" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Опис" />
-          <input type="number" min="0" className="admin-input-flex" value={points} onChange={(e) => setPoints(e.target.value)} placeholder="Бали рейтингу" style={{ maxWidth: 140 }} />
-          <label className="admin-checkbox">
-            <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} />
-            Лише тим, кому видано
-          </label>
+        <td>
+          <div className="admin-badge-edit">
+            <input className="admin-input-flex" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Назва" />
+            <input className="admin-input-flex" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Опис" aria-label="Опис" />
+            <input type="number" min="0" className="admin-input-flex adm-input-short" value={points} onChange={(e) => setPoints(e.target.value)} placeholder="Бали рейтингу" aria-label="Бали рейтингу" />
+            <label className="admin-checkbox">
+              <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} />
+              Лише тим, кому видано
+            </label>
+          </div>
         </td>
         <td>{KIND_LABELS[badge.kind]}</td>
-        <td>
-          <span style={{ display: "flex", gap: 6 }}>
+        <td className="adm-num">{badge._count?.awards ?? 0}</td>
+        <td className="adm-actions-cell">
+          <span className="adm-row-actions">
+            <button className="admin-btn adm-btn-secondary" onClick={() => setEditing(false)} disabled={saving}>
+              Скасувати
+            </button>
             <button className="admin-btn" disabled={saving} onClick={handleSave}>
               {saving && <SpinnerIcon />}
               Зберегти
-            </button>
-            <button className="admin-btn-link" onClick={() => setEditing(false)} disabled={saving}>
-              Скасувати
             </button>
           </span>
         </td>
@@ -257,9 +271,9 @@ function BadgeRow({ badge, targets, onUpdated, onDeleted }) {
   return (
     <>
       <tr>
-        <td style={{ fontSize: 20 }}>{badge.icon}</td>
+        <td className="admin-badge-ico">{badge.icon}</td>
         <td>
-          {badge.title}
+          <b>{badge.title}</b>
           {badge.description && <div className="admin-hint">{badge.description}</div>}
           <div className="admin-hint">
             {badge.points ? `${badge.points} балів рейтингу` : "без балів"}
@@ -267,12 +281,12 @@ function BadgeRow({ badge, targets, onUpdated, onDeleted }) {
           </div>
         </td>
         <td>{KIND_LABELS[badge.kind]}</td>
-        <td>
+        <td className="adm-num">{badge._count?.awards ?? 0}</td>
+        <td className="adm-actions-cell">
         {/* Дії — однакові квадратні кнопки в фіксованих колонках, щоб у
             всіх рядках вони стояли одна під одною (auto-типи мають лише
             «Редагувати», решта клітинок порожні). */}
         <span className="admin-badge-actions">
-          <span className="admin-badge-count">{badge._count?.awards ?? 0}</span>
           <button type="button" className="iconbtn" title="Редагувати" aria-label="Редагувати" onClick={() => setEditing(true)}>
             <PencilIcon />
           </button>
@@ -303,7 +317,7 @@ function BadgeRow({ badge, targets, onUpdated, onDeleted }) {
       </tr>
       {awarding && (
         <tr>
-          <td colSpan={4}>
+          <td colSpan={5}>
             <BadgeAwardPanel
               badge={badge}
               targets={targets}

@@ -1,9 +1,7 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminSession } from "@/lib/adminSession";
-import { checkThrottle, recordFailure, recordSuccess } from "@/lib/loginThrottle";
-
-const THROTTLE_KEY = "admin-login";
+import { clientIp, recordSuccess, registerAttempt, settleFailure, tooManyRequests } from "@/lib/loginThrottle";
 
 /**
  * POST /api/admin/login
@@ -11,15 +9,14 @@ const THROTTLE_KEY = "admin-login";
  *
  * Отдельный вход в /admin по общему паролю (ADMIN_PASSWORD в .env, ключ
  * сюда не пишу — заводится вручную) — не связан с employee PIN-логином.
+ *
+ * Ліміт — на IP, а не один спільний ключ: раніше п'ять невірних паролів
+ * звідки завгодно раз на 15 хвилин тримали замкненими ВСІХ адмінів.
  */
 export async function POST(request) {
-  const throttle = await checkThrottle(THROTTLE_KEY);
-  if (throttle.locked) {
-    return NextResponse.json(
-      { ok: false, error: "locked", retryAt: throttle.retryAt },
-      { status: 429, headers: { "Retry-After": String(Math.ceil((throttle.retryAt.getTime() - Date.now()) / 1000)) } }
-    );
-  }
+  const throttleKey = `admin-login:${clientIp(request)}`;
+  const attempt = await registerAttempt(throttleKey);
+  if (!attempt.allowed) return tooManyRequests(attempt.retryAt);
 
   const body = await request.json();
   const password = String(body.password || "");
@@ -42,11 +39,12 @@ export async function POST(request) {
   // поля/чекбокса — рівень визначає сам пароль.
   const level = matches(process.env.SUPER_ADMIN_PASSWORD) ? "super" : matches(expected) ? "admin" : null;
   if (!level) {
-    await recordFailure(THROTTLE_KEY);
+    const settled = await settleFailure(throttleKey, attempt.attempt);
+    if (settled.locked) return tooManyRequests(settled.retryAt);
     return NextResponse.json({ ok: false, error: "invalid_password" }, { status: 401 });
   }
 
-  await recordSuccess(THROTTLE_KEY);
+  await recordSuccess(throttleKey);
   await createAdminSession(level);
   return NextResponse.json({ ok: true, level });
 }

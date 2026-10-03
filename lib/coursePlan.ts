@@ -472,8 +472,9 @@ export function buildCoursePlan(
   };
 }
 
+/** Дата за Києвом (lib/kyivTime.ts): план рендериться на сервері в UTC, і без зони події 00:00–03:00 показували попередній день. */
 export function formatDate(date: Date): string {
-  return date.toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return date.toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Kyiv" });
 }
 
 /** 6 -> "6 хв", 75 -> "1 год 15 хв". Той самий формат, що вже в кабінеті

@@ -9,6 +9,9 @@ import { ChevronIcon, CertificateIcon, SpinnerIcon, QuestionIcon } from "@/compo
 import { MorphRevealIcon } from "@/components/MorphRevealIcon";
 import { CoursePlanPanel } from "@/components/CoursePlan";
 import { OrderingScreen, MatchingScreen } from "@/components/QuestionScreens";
+import { AnswerStatus } from "@/components/AnswerStatus";
+import { answerFor, isAnswerDone, viewContent } from "@/lib/grading";
+import { newAttemptId } from "@/lib/offlineOutbox";
 import {
   AccordionScreen,
   ChecklistScreen,
@@ -72,6 +75,29 @@ function saveProgress(slug, idx, answers, sessionKey) {
     // ігноруємо — прогрес просто не відновиться після перезавантаження
   }
 }
+
+/**
+ * "Пауза між модулями" (Module.cooldownDays): межі модулів усередині
+ * screens (0-based) — щоразу, як moduleId змінюється між сусідніми
+ * екранами, починається новий сегмент.
+ */
+function buildModuleSegments(screens) {
+  const segments = [];
+  for (let i = 0; i < screens.length; i++) {
+    const moduleId = screens[i].moduleId;
+    const last = segments[segments.length - 1];
+    if (last && last.moduleId === moduleId) {
+      last.endIdx = i;
+    } else {
+      segments.push({ moduleId, moduleTitle: screens[i].moduleTitle, startIdx: i, endIdx: i });
+    }
+  }
+  return segments;
+}
+
+// Час — лише в обробниках подій (Далі, завершення модуля), не в рендері.
+const nowMs = () => Date.now();
+const secondsSince = (startMs) => Math.max(0, Math.round((nowMs() - startMs) / 1000));
 
 function clearProgress(slug) {
   try {
@@ -190,32 +216,49 @@ export function InfoScreen({ component, screenNumber, onZoomImage }) {
   );
 }
 
+/**
+ * Питання з варіантами. Ключів відповідей у плеєрі немає (lib/grading.ts
+ * publicContent, 2026-09-27): вибір іде нагору сирим { selected: [key] },
+ * а правильність і розбір приходять у `answer` від сервера. У прев'ю
+ * конструктора (повний вміст) перевірка локальна — тим самим кодом.
+ * `answer`: undefined | {status:"checking"} | {correct, reveal, response} | {pending, response}.
+ */
 export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomImage, questionNumber, questionTotal }) {
-  const { questionType, options: rawOptions, shuffleOptions, explanation } = component.content;
+  const view = useMemo(() => viewContent("quiz", component.content, component.id), [component.content, component.id]);
+  const { questionType, shuffleOptions } = view;
   // Перемішуємо ОДИН раз при монтуванні: інакше варіанти стрибали б на
   // кожен ререндер (а він тут є — вибір у multi). Порядок живий лише поки
   // екран відкритий; повернувшись пізніше, людина побачить новий — так
   // само поводився legacy-курс.
-  const [options] = useState(() => (shuffleOptions === false ? rawOptions : shuffleArray(rawOptions)));
-  const [selected, setSelected] = useState([]);
-  const isAnswered = answer !== undefined;
+  const [options] = useState(() => (shuffleOptions === false ? view.options : shuffleArray(view.options)));
+  const [picked, setPicked] = useState([]);
+  const checking = answer?.status === "checking";
+  const graded = typeof answer?.correct === "boolean";
+  const isAnswered = checking || isAnswerDone(answer);
+  // Після перезавантаження сторінки власного вибору в стані компонента вже
+  // нема — показуємо той, що записано у відповіді (сервер/відновлення).
+  const selected = isAnswered && Array.isArray(answer?.response?.selected) ? answer.response.selected : picked;
+  const revealByKey = new Map(graded ? (answer.reveal?.options || []).map((o) => [o.key, o]) : []);
+  const explanation = graded ? answer.reveal?.explanation : null;
 
-  function handleSingleClick(index) {
-    if (isAnswered) return;
-    const isCorrect = options[index].correct;
-    onAnswer(isCorrect);
-    setSelected([index]);
+  function submit(keys) {
+    onAnswer(answerFor("quiz", component.content, { selected: keys }));
   }
 
-  function toggleMulti(index) {
+  function handleSingleClick(key) {
     if (isAnswered) return;
-    setSelected((prev) => (prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]));
+    setPicked([key]);
+    submit([key]);
+  }
+
+  function toggleMulti(key) {
+    if (isAnswered) return;
+    setPicked((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   }
 
   function submitMulti() {
     if (isAnswered) return;
-    const allCorrect = options.every((opt, i) => opt.correct === selected.includes(i));
-    onAnswer(allCorrect);
+    submit(picked);
   }
 
   /**
@@ -224,25 +267,27 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
    * треба було обрати»). Правильний обраний варіант теж пояснюємо — його
    * могли вгадати.
    */
-  const optionFeedback = isAnswered
+  const optionFeedback = graded
     ? options
-        .map((opt, index) => {
-          if (!opt.explanation) return null;
-          const chosen = selected.includes(index);
-          if (chosen && !opt.correct) return { index, kind: "is-wrong", text: opt.text, explanation: opt.explanation };
-          if (opt.correct) return { index, kind: "is-correct", text: opt.text, explanation: opt.explanation };
+        .map((opt) => {
+          const r = revealByKey.get(opt.key);
+          if (!r?.explanation) return null;
+          const chosen = selected.includes(opt.key);
+          if (chosen && !r.correct) return { key: opt.key, kind: "is-wrong", text: opt.text, explanation: r.explanation };
+          if (r.correct) return { key: opt.key, kind: "is-correct", text: opt.text, explanation: r.explanation };
           return null;
         })
         .filter(Boolean)
     : [];
 
-  function optionClass(opt, index) {
+  function optionClass(opt) {
     const classes = ["opt"];
     if (isAnswered) {
       classes.push("disabled");
-      if (opt.correct) classes.push("correct");
-      else if (selected.includes(index)) classes.push("wrong");
-    } else if (selected.includes(index)) {
+      const r = revealByKey.get(opt.key);
+      if (r?.correct) classes.push("correct");
+      else if (selected.includes(opt.key)) classes.push(graded ? "wrong" : "selected");
+    } else if (selected.includes(opt.key)) {
       classes.push("selected");
     }
     return classes.join(" ");
@@ -281,12 +326,12 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
       <ScreenMedia images={component.content?.images} title={component.title} onZoomImage={onZoomImage} />
 
       <div className="opt-group">
-        {options.map((opt, index) => (
+        {options.map((opt) => (
           <button
-            key={index}
+            key={opt.key}
             type="button"
-            className={optionClass(opt, index)}
-            onClick={() => (questionType === "multi" ? toggleMulti(index) : handleSingleClick(index))}
+            className={optionClass(opt)}
+            onClick={() => (questionType === "multi" ? toggleMulti(opt.key) : handleSingleClick(opt.key))}
           >
             {/* Маркер вибору — кружечок для одного варіанта, квадратик із
                 галочкою для кількох. Повернуто з legacy-курсу: без нього
@@ -296,11 +341,11 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
                 користувача, 2026-09-23): зелений кружечок — галочка,
                 червоний — хрестик, обидві «промальовуються» тим самим
                 MorphRevealIcon, що вже є в плані курсу й у статус-бейджі. */}
-            <span className={`opt-mark${questionType === "multi" ? " chk" : ""}`} aria-hidden={!isAnswered}>
-              {isAnswered && (opt.correct || selected.includes(index)) && (
+            <span className={`opt-mark${questionType === "multi" ? " chk" : ""}`} aria-hidden={!graded}>
+              {graded && (revealByKey.get(opt.key)?.correct || selected.includes(opt.key)) && (
                 <MorphRevealIcon
-                  shape={opt.correct ? "check" : "x"}
-                  label={opt.correct ? "Правильно" : "Неправильно"}
+                  shape={revealByKey.get(opt.key)?.correct ? "check" : "x"}
+                  label={revealByKey.get(opt.key)?.correct ? "Правильно" : "Неправильно"}
                   size={12}
                   strokeWidth={3}
                   className="opt-mark-ico"
@@ -313,15 +358,17 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
       </div>
 
       {questionType === "multi" && !isAnswered && (
-        <button type="button" className="btn-primary-full" onClick={submitMulti} disabled={selected.length === 0}>
+        <button type="button" className="btn-primary-full" onClick={submitMulti} disabled={picked.length === 0}>
           <span className="btn-label">Перевірити</span>
         </button>
       )}
 
-      {isAnswered && (
-        <div className={`q-fb show ${answer ? "ok" : "bad"}`}>
+      <AnswerStatus answer={answer} />
+
+      {graded && (
+        <div className={`q-fb show ${answer.correct ? "ok" : "bad"}`}>
           <b className="q-fb-verdict">
-            {answer
+            {answer.correct
               ? questionType === "multi"
                 ? "Правильно! Усі варіанти обрано вірно."
                 : "Правильно!"
@@ -339,7 +386,7 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
           {optionFeedback.length > 0 && (
             <ul className="q-fb-options">
               {optionFeedback.map((o) => (
-                <li key={o.index} className={o.kind}>
+                <li key={o.key} className={o.kind}>
                   <b>{renderRichMarks(o.text)}</b>
                   <span>{renderRichMarks(o.explanation)}</span>
                 </li>
@@ -445,8 +492,42 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry, onPlan }) {
   // «М'яке гальмо» перескладання: перші спроби підряд вільні, далі коротка
   // пауза. Поки результат зберігається, кнопку не міняємо — інакше вона
   // блимала б із «спробувати» на «зачекайте» і назад.
-  const retryBlocked = !passed && !saving && retry && retry.canRetryNow === false;
-  const attemptsLeft = !passed && retry && typeof retry.attemptsLeft === "number" ? retry.attemptsLeft : null;
+  const retryBlocked = passed === false && !saving && retry && retry.canRetryNow === false;
+  const attemptsLeft = passed === false && retry && typeof retry.attemptsLeft === "number" ? retry.attemptsLeft : null;
+  // Бал рахує сервер: поки він не відповів (зберігаємо / немає мережі),
+  // вердикту ще нема — не вигадуємо його ні «складено», ні «не складено».
+  const unknown = typeof passed !== "boolean";
+
+  if (unknown) {
+    return (
+      <div className="cp-screen cp-complete">
+        <div className="trophy">
+          <SpinnerIcon />
+        </div>
+        <h2 className="result-title">Модуль «{moduleTitle}» завершено</h2>
+        {saving && (
+          <p className="cp-save-status">
+            <SpinnerIcon />
+            Перевіряємо відповіді…
+          </p>
+        )}
+        {queued && (
+          <>
+            <p className="cp-save-status cp-save-queued">
+              Немає зв&apos;язку — відповіді збережено на пристрої. Результат модуля порахуємо, щойно з&apos;явиться мережа.
+            </p>
+            <p className="cp-note">Наступний модуль зарахується, лише якщо цей буде складено.</p>
+          </>
+        )}
+        {saveError && <p className="cp-save-status cp-save-error">Не вдалося зберегти результат: {saveError}</p>}
+        {!saving && (
+          <button type="button" className="btn-primary-full" onClick={sessionEnd || saveError ? onPlan : onContinue}>
+            <span className="btn-label">{sessionEnd || saveError ? "До плану курсу" : "Продовжити"}</span>
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="cp-screen cp-complete">
@@ -557,6 +638,36 @@ function CompleteScreen({ result, onRetake, onPlan, course, hasEmail, previewMod
 
   if (!result) return null;
   const { scorePercent, scoreRaw, scoreMax, passed, submitting, submitError, queued } = result;
+
+  // Підсумок курсу рахує сервер — поки його нема (перевіряємо / немає
+  // мережі / помилка), без вердикту й без балу.
+  if (typeof passed !== "boolean") {
+    return (
+      <div className="cp-screen cp-complete">
+        <div className="trophy">
+          <SpinnerIcon />
+        </div>
+        <h2 className="result-title">Курс завершено</h2>
+        {submitting && (
+          <p className="cp-save-status">
+            <SpinnerIcon />
+            Перевіряємо відповіді й рахуємо результат…
+          </p>
+        )}
+        {queued && (
+          <p className="cp-save-status cp-save-queued">
+            Немає мережі — відповіді збережено на пристрої. Результат і сертифікат з&apos;являться, щойно відновиться зв&apos;язок.
+          </p>
+        )}
+        {submitError && <p className="cp-save-status cp-save-error">Не вдалося зберегти результат: {submitError}</p>}
+        {!submitting && (
+          <button type="button" className="btn btn-ghost cp-complete-secondary" onClick={onPlan}>
+            До плану курсу
+          </button>
+        )}
+      </div>
+    );
+  }
 
   // Сертифікат = РІВНО 100% (не просто складений курс) — рішення
   // користувача, 2026-09-22: "Сертификат только 100% пройденый курс",
@@ -702,7 +813,9 @@ export function CoursePlayer({
   // Прев'ю (конструктор): усі модулі йдуть підряд, а на межах, де в
   // реальному проходженні є пауза, чекпоінт це пояснює. { [moduleId]: days }
   moduleCooldowns = null,
-  skippedModuleScores = [],
+  // Відповіді незавершених спроб, уже перевірені сервером
+  // (lib/moduleAttempts.ts openAttemptAnswers): { [componentId]: AnswerState }.
+  initialAnswers = null,
   // План курсу для першого екрана (lib/coursePlan.ts, вже у вигляді
   // готових рядків). null — у прев'ю конструктора, де ні призначення, ні
   // дедлайну, ні складених модулів не існує.
@@ -799,7 +912,12 @@ export function CoursePlayer({
     return () => links.forEach((link) => link.remove());
   }, [idx, screens]);
 
-  const [answers, setAnswers] = useState({});
+  // componentId -> AnswerState (lib/grading.ts). Відповіді, які сервер уже
+  // зарахував у незавершеній спробі, — одразу тут: змінити їх однаково не
+  // можна, і показувати порожнє питання означало б обман.
+  const [answers, setAnswers] = useState(() => initialAnswers || {});
+  // Помилка перевірки відповіді (напр. модуль закрито паузою в іншій вкладці).
+  const [answerError, setAnswerError] = useState(null);
   const [result, setResult] = useState(null);
   const [moduleCheckpoint, setModuleCheckpoint] = useState(null);
   // componentId -> скільки елементів гейта вже "зроблено" (відкрито карток,
@@ -833,6 +951,8 @@ export function CoursePlayer({
     [screens]
   );
 
+  const moduleSegments = useMemo(() => buildModuleSegments(screens), [screens]);
+
   // Плаский список усіх компонентів — потрібен, щоб за id знайти сам
   // компонент і спитати в lib/componentTypes.js, чи його гейт уже
   // задоволений (для плавної прокрутки до наступного).
@@ -855,11 +975,59 @@ export function CoursePlayer({
       .slice(segment.startIdx, segment.endIdx + 1)
       .flatMap((s) => s.components.filter(isScored).map((c) => c.id));
     if (quizIds.length === 0 || quizIds[quizIds.length - 1] !== componentId) return false;
-    return quizIds.every((id) => (id === componentId ? isCorrect : answers[id] === true));
+    return quizIds.every((id) => (id === componentId ? isCorrect : answers[id]?.correct === true));
   }
 
-  function handleQuizAnswer(componentId, isCorrect) {
-    setAnswers((a) => ({ ...a, [componentId]: isCorrect }));
+  const moduleIdOfComponent = useMemo(() => {
+    const map = new Map();
+    for (const s of screens) for (const c of s.components) map.set(c.id, s.moduleId);
+    return map;
+  }, [screens]);
+
+  /**
+   * Відповідь від компонента питання (lib/grading.ts AnswerState). У прев'ю
+   * вона вже перевірена локально; у плеєрі — сира, і перевіряє її сервер
+   * (POST /api/courses/:slug/answer): ключів відповідей у браузері немає.
+   * Без мережі відповідь лишається «pending» і перевіряється разом із
+   * завершенням модуля, коли черга дошле його (lib/offlineOutbox.ts).
+   */
+  async function handleQuizAnswer(componentId, payload) {
+    setAnswerError(null);
+    if (typeof payload?.correct === "boolean" || previewMode) {
+      applyGradedAnswer(componentId, payload);
+      return;
+    }
+    setAnswers((a) => ({ ...a, [componentId]: { status: "checking", response: payload.response } }));
+    try {
+      const res = await fetch(`/api/courses/${course.slug}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollmentId, moduleId: moduleIdOfComponent.get(componentId), componentId, response: payload.response }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        applyGradedAnswer(componentId, { correct: data.correct, reveal: data.reveal, response: data.response });
+        return;
+      }
+      // Сесія скінчилась чи сервер упав — відповідь не губимо: вона піде
+      // разом із завершенням модуля, коли все запрацює.
+      if (res.status === 401 || res.status >= 500) throw new TypeError(`HTTP ${res.status}`);
+      const data = await res.json().catch(() => ({}));
+      setAnswers((a) => {
+        const next = { ...a };
+        delete next[componentId];
+        return next;
+      });
+      setAnswerError(data.error || "Не вдалося перевірити відповідь.");
+    } catch {
+      setAnswers((a) => ({ ...a, [componentId]: { pending: true, response: payload.response } }));
+      scrollToNextComponent(componentId);
+    }
+  }
+
+  function applyGradedAnswer(componentId, answer) {
+    const isCorrect = answer.correct === true;
+    setAnswers((a) => ({ ...a, [componentId]: answer }));
     // Відповів — показуємо наступний блок так само, як після гейта
     // (акордеон/чекліст/репліки): фідбек і пояснення лишаються на екрані,
     // а наступне питання/точка виглядає знизу.
@@ -914,14 +1082,16 @@ export function CoursePlayer({
 
   useEffect(() => () => clearTimeout(streakTimerRef.current), []);
 
-  const startedAtRef = useRef(new Date().toISOString());
   // Коли почався ПОТОЧНИЙ модуль (сегмент) — від нього рахується РЕАЛЬНИЙ
   // час на модуль для картки плану курсу (2026-09-17, до цього там завжди
   // стояла лише орієнтовна оцінка). Скидається в goNext() при переході в
-  // наступний сегмент. Той самий рівень точності, що вже є в
-  // startedAtRef вище для курсу в цілому — не намагаємось точніше
-  // враховувати відновлення сесії з localStorage після закриття вкладки.
-  const segmentStartRef = useRef(Date.now());
+  // наступний сегмент. Відновлення сесії з localStorage після закриття
+  // вкладки точніше не враховуємо. Час курсу в цілому тепер — сума часу
+  // модулів на сервері (lib/moduleAttempts.ts finalizeEnrollment).
+  const segmentStartRef = useRef(0);
+  useEffect(() => {
+    segmentStartRef.current = nowMs();
+  }, []);
 
   // Офлайн: просимо SW (public/sw.js) закешувати сторінку курсу і фото всіх
   // екранів наперед — щоб курс, відкритий онлайн, можна було пройти в полі
@@ -935,8 +1105,6 @@ export function CoursePlayer({
     const urls = [location.pathname, ...new Set(found)];
     navigator.serviceWorker.ready.then((reg) => reg.active?.postMessage({ type: "precache", urls })).catch(() => {});
   }, [screens, previewMode]);
-  const activeSecondsRef = useRef(0);
-  const lastTickRef = useRef(Date.now());
 
   // Перехід між екранами (Далі/Назад) міняє контент .cp-viewport через
   // idx, БЕЗ зміни URL (весь курс — одна сторінка) — на відміну від
@@ -998,6 +1166,9 @@ export function CoursePlayer({
     if (previewMode) return;
     const saved = loadProgress(storageKey, sessionKey);
     if (saved && typeof saved.idx === "number" && saved.idx > initialIdx) {
+      // localStorage доступний лише після монтування (SSR) — той самий
+      // виняток, що вже є в SettingsSheet.jsx / AdminShell.jsx.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResumePrompt(saved);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1006,7 +1177,14 @@ export function CoursePlayer({
   function handleResumeContinue() {
     if (resumePrompt) {
       setIdx(resumePrompt.idx);
-      if (resumePrompt.answers) setAnswers(resumePrompt.answers);
+      // Лише завершені стани відповіді: «перевіряємо» від минулого разу вже
+      // не має відповіді сервера, а старий формат (просто true/false, до
+      // 2026-09-27) сервер не бачив — такі питання людина відповість знову.
+      // Відповіді, які сервер уже зарахував (initialAnswers), — поверх.
+      const saved = Object.fromEntries(
+        Object.entries(resumePrompt.answers || {}).filter(([, a]) => a && typeof a === "object" && isAnswerDone(a))
+      );
+      setAnswers({ ...saved, ...(initialAnswers || {}) });
     }
     setResumePrompt(null);
   }
@@ -1039,102 +1217,78 @@ export function CoursePlayer({
     }
   }, [idx, answers, storageKey, completeIdx, introIdx, sessionKey, previewMode]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        activeSecondsRef.current += (Date.now() - lastTickRef.current) / 1000;
-      }
-      lastTickRef.current = Date.now();
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // "Пауза між модулями" (Module.cooldownDays): межі модулів усередині
-  // screens (0-based) — щоразу, як moduleId змінюється між сусідніми
-  // екранами, починається новий сегмент.
-  const moduleSegments = useMemo(() => {
-    const segments = [];
-    for (let i = 0; i < screens.length; i++) {
-      const moduleId = screens[i].moduleId;
-      const last = segments[segments.length - 1];
-      if (last && last.moduleId === moduleId) {
-        last.endIdx = i;
-      } else {
-        segments.push({ moduleId, moduleTitle: screens[i].moduleTitle, startIdx: i, endIdx: i });
-      }
-    }
-    return segments;
-  }, [screens]);
-
-  /** Найдовша серія поспіль правильних відповідей у межах ЦИХ id (порядок
-   * проходження) — той самий підрахунок, що submitResult() робить по
-   * всьому курсу, тут застосований до одного сегмента/модуля. */
-  function longestStreakOf(ids) {
-    let best = 0;
-    let cur = 0;
-    for (const id of ids) {
-      if (answers[id] === true) {
-        cur += 1;
-        if (cur > best) best = cur;
-      } else {
-        cur = 0;
-      }
-    }
-    return best;
+  function segmentQuestionIds(segment) {
+    return screens.slice(segment.startIdx, segment.endIdx + 1).flatMap((s) => s.components.filter(isScored).map((c) => c.id));
   }
 
-  function scoreForSegment(segment) {
-    const rangeIds = screens
-      .slice(segment.startIdx, segment.endIdx + 1)
-      .flatMap((s) => s.components.filter(isScored).map((c) => c.id));
-    const scoreRaw = rangeIds.filter((id) => answers[id] === true).length;
-    // Поштучні відповіді — для аналітики складності питань у конструкторі.
-    const perQuestion = rangeIds
-      .filter((id) => answers[id] !== undefined)
-      .map((id) => ({ componentId: id, correct: answers[id] === true }));
+  /**
+   * Бал модуля в ПРЕВ'Ю конструктора (там усе перевірено локально). У
+   * справжньому проходженні бал рахує лише сервер (module-complete).
+   */
+  function previewScoreForSegment(segment) {
+    const rangeIds = segmentQuestionIds(segment);
+    const scoreRaw = rangeIds.filter((id) => answers[id]?.correct === true).length;
     const scoreMax = rangeIds.length;
     // Модуль без питань (лише інфо-екрани) нікого не блокує — 100%.
     const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 100;
-    return {
-      scoreRaw,
-      scoreMax,
-      scorePercent,
-      perQuestion,
-      passed: scorePercent >= (course.passThreshold ?? 80),
-      longestCorrectStreak: longestStreakOf(rangeIds),
-    };
+    return { scoreRaw, scoreMax, scorePercent, passed: scorePercent >= (course.passThreshold ?? 80) };
   }
 
-  async function postModuleCompletion(moduleId, score) {
+  // Ідентифікатор спроби модуля (UUID) — один на модуль у цьому
+  // проходженні: повтор того самого завершення з офлайн-черги чи другої
+  // вкладки сервер розпізнає й не рахує новою спробою.
+  const attemptIdsRef = useRef(new Map());
+  function attemptIdFor(moduleId) {
+    if (!attemptIdsRef.current.has(moduleId)) attemptIdsRef.current.set(moduleId, newAttemptId());
+    return attemptIdsRef.current.get(moduleId);
+  }
+
+  /**
+   * Завершення модуля. Бал/«складено» не шлемо — їх рахує сервер із уже
+   * перевірених відповідей; у тілі лише відповіді, дані без мережі
+   * («pending»), щоб сервер перевірив їх зараз.
+   * @returns {{ data: object|null, queued: boolean, error: string|null }}
+   */
+  async function postModuleCompletion(segment, durationSeconds) {
     const url = `/api/courses/${course.slug}/module-complete`;
+    const offlineAnswers = Object.fromEntries(
+      segmentQuestionIds(segment)
+        .filter((id) => answers[id]?.pending || answers[id]?.status === "checking")
+        .map((id) => [id, answers[id].response])
+    );
     const body = {
       enrollmentId,
-      moduleId,
-      scorePercent: score.scorePercent,
-      passed: score.passed,
-      longestCorrectStreak: score.longestCorrectStreak,
-      scoreRaw: score.scoreRaw,
-      scoreMax: score.scoreMax,
-      answers: score.perQuestion || [],
-      durationSeconds: score.durationSeconds,
+      moduleId: segment.moduleId,
+      clientAttemptId: attemptIdFor(segment.moduleId),
+      answers: offlineAnswers,
+      durationSeconds,
     };
     try {
       const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      // 5xx раніше мовчки читалось як «збережено» (res.ok не перевірявся).
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // Сервер повертає стан «гальма» перескладання (lib/retryPolicy.ts) —
-      // саме він вирішує, показати кнопку повтору чи «наступна спроба
-      // через …»; на клієнті це рахувати не можна, там немає лічильника
-      // спроб і його легко підмінити.
-      const data = await res.json().catch(() => null);
-      return { error: null, queued: false, retry: data?.retry || null };
-    } catch (err) {
-      // Немає мережі (fetch кидає TypeError) або сервер упав — у чергу
-      // (lib/offlineOutbox.js), досилається автоматично; порядок
-      // «модуль → курс» черга зберігає, 4xx вона сама викидає.
+      if (res.ok) return { data: await res.json(), queued: false, error: null };
+      const data = await res.json().catch(() => ({}));
+      // 4xx (модуль закрито, спроба не з цього модуля) — повтор не допоможе.
+      if (res.status !== 401 && res.status < 500) return { data: null, queued: false, error: data.error || `HTTP ${res.status}` };
+      throw new TypeError(`HTTP ${res.status}`);
+    } catch {
+      // Немає мережі, сесія скінчилась чи сервер упав — у чергу
+      // (lib/offlineOutbox.ts), дошлеться автоматично й у тому ж порядку.
       enqueue(url, body);
-      return { error: err instanceof TypeError ? null : err.message, queued: true, retry: null };
+      return { data: null, queued: true, error: null };
     }
+  }
+
+  /** Відповіді, перевірені сервером лише під час завершення (дані офлайн), — показати вердикт і в самих питаннях. */
+  function applyFinishResults(results) {
+    if (!Array.isArray(results) || results.length === 0) return;
+    setAnswers((a) => {
+      const next = { ...a };
+      for (const r of results) {
+        const prev = next[r.componentId];
+        if (prev && typeof prev.correct !== "boolean") next[r.componentId] = { ...prev, pending: false, status: undefined, correct: r.correct };
+      }
+      return next;
+    });
   }
 
   /** Чи задоволені гейти УСІХ компонентів поточного екрана — «Далі»
@@ -1143,8 +1297,11 @@ export function CoursePlayer({
   function currentScreenAllowsNext() {
     if (idx === introIdx || idx === completeIdx) return true;
     const screen = screens[idx - 1];
+    // Питання — лише коли відповідь перевірено або збережено без мережі;
+    // «перевіряємо» ще не пускає далі (інакше завершення модуля обігнало б
+    // запис самої відповіді на сервері).
     return screen.components.every((component) =>
-      isScored(component) ? answers[component.id] !== undefined : isGateSatisfied(component, gateProgress[component.id])
+      isScored(component) ? isAnswerDone(answers[component.id]) : isGateSatisfied(component, gateProgress[component.id])
     );
   }
 
@@ -1163,91 +1320,51 @@ export function CoursePlayer({
     return { text: gateHint(blocked), count: `${gateProgress[blocked.id] || 0}/${total}` };
   }
 
-  async function submitResult() {
-    // Бал ЦІЄЇ сесії (лише модулі, що зараз проходились) + бали модулів,
-    // пропущених цього разу (уже складені раніше, пауза перепроходження
-    // ще діє — lib/courseContent.js getPlayableModules) — інакше бал
-    // курсу в цілому "забував" би внесок пропущених модулів щоразу, як
-    // людина заходить у курс не з нуля.
-    const sessionRaw = quizComponentIds.filter((id) => answers[id] === true).length;
-    const sessionMax = quizComponentIds.length;
-    const skippedRaw = skippedModuleScores.reduce((sum, m) => sum + (m.scoreRaw || 0), 0);
-    const skippedMax = skippedModuleScores.reduce((sum, m) => sum + (m.scoreMax || 0), 0);
-    const scoreRaw = sessionRaw + skippedRaw;
-    const scoreMax = sessionMax + skippedMax;
-    const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 0;
-    // Курс "складено" лише якщо КОЖЕН модуль курсу окремо набрав поріг —
-    // не сукупний відсоток по всіх питаннях разом (те, що було раніше).
-    // Модулі цієї сесії — реальний per-модуль scoreForSegment(...).passed;
-    // модулі, пропущені цього разу (вже складені раніше, пауза
-    // перепроходження ще діє) — їхнє РЕАЛЬНЕ збережене passed з
-    // ModuleCompletion (app/courses/[slug]/page.js), не перерахунок.
-    const sessionModulesPassed = moduleSegments.every((s) => scoreForSegment(s).passed);
-    const skippedModulesPassed = skippedModuleScores.every((m) => m.passed === true);
-    const passed = sessionModulesPassed && skippedModulesPassed;
-    const completedAt = new Date().toISOString();
-    const durationSeconds = Math.round(
-      (new Date(completedAt) - new Date(startedAtRef.current)) / 1000
-    );
-
-    setResult({ scoreRaw, scoreMax, scorePercent, passed, submitting: true, submitError: null });
-    if (!previewMode) clearProgress(storageKey);
-
-    // Останній модуль курсу теж фіксуємо як складений/ні — РАЗОМ із
-    // /submit в одній транзакції (app/api/courses/[slug]/submit/route.js),
-    // не двома окремими запитами "паралельно, незалежно один від одного".
-    // Два незалежні запити означали, що якщо ОДИН з них не долітав (мережа,
-    // помилка сервера), а другий встигав — курс міг позначитись
-    // "завершено" з певним балом, а останній модуль лишався взагалі БЕЗ
-    // запису про проходження: акордеон курсу показував порожній рядок на
-    // місці останнього модуля поруч із загальним "Залік · 100%" — реальний
-    // баг, знайдений користувачем. Один атомарний запит унеможливлює цей
-    // розсинхрон: або записується все, або нічого.
-    const lastSegment = moduleSegments[moduleSegments.length - 1];
-    const lastModuleScore = lastSegment ? scoreForSegment(lastSegment) : null;
-
-    // У прев'ю результат лише ПОКАЗУЄМО — жодного запису на сервер.
+  /**
+   * Останній модуль курсу пройдено. Прев'ю — підсумок рахуємо тут же
+   * (усе перевірено локально). Справжнє проходження — завершуємо модуль на
+   * сервері; якщо після нього результат є в кожного модуля, сервер сам
+   * закриває курс (lib/moduleAttempts.ts finalizeEnrollment) і повертає
+   * його підсумок у `course` — бал і «складено» браузер більше не присилає.
+   */
+  async function finishCourse(segment) {
     if (previewMode) {
-      setResult({ scoreRaw, scoreMax, scorePercent, passed, submitting: false, submitError: null });
+      const scores = moduleSegments.map(previewScoreForSegment);
+      const scoreRaw = scores.reduce((sum, s) => sum + s.scoreRaw, 0);
+      const scoreMax = scores.reduce((sum, s) => sum + s.scoreMax, 0);
+      const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 100;
+      // Курс «складено» лише якщо КОЖЕН модуль окремо набрав поріг.
+      setResult({ scoreRaw, scoreMax, scorePercent, passed: scores.every((s) => s.passed), submitting: false, submitError: null });
       return;
     }
-
-    const submitUrl = `/api/courses/${course.slug}/submit`;
-    const payload = {
-          enrollmentId,
-          startedAt: startedAtRef.current,
-          completedAt,
-          durationSeconds,
-          activeTimeSeconds: Math.round(activeSecondsRef.current),
-          scoreRaw,
-          scoreMax,
-          scorePercent,
-          passed,
-          lastModule: lastSegment
-            ? {
-                moduleId: lastSegment.moduleId,
-                scorePercent: lastModuleScore.scorePercent,
-                passed: lastModuleScore.passed,
-                longestCorrectStreak: lastModuleScore.longestCorrectStreak,
-                scoreRaw: lastModuleScore.scoreRaw,
-                scoreMax: lastModuleScore.scoreMax,
-              }
-            : null,
-    };
-    try {
-      const res = await fetch(submitUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setResult((r) => ({ ...r, submitting: false }));
-    } catch (err) {
-      // fetch кинув (не HTTP-помилка) = мережі нема: результат у чергу,
-      // OfflineSync.jsx дошле, щойно з'явиться зв'язок.
-      if (err instanceof TypeError) {
-        enqueue(submitUrl, payload);
-        setResult((r) => ({ ...r, submitting: false, queued: true }));
-        return;
-      }
-      setResult((r) => ({ ...r, submitting: false, submitError: err.message }));
+    if (!segment) {
+      setResult({ submitting: false, submitError: "У курсі немає модулів для завершення." });
+      return;
     }
+    setResult({ submitting: true, submitError: null });
+    clearProgress(storageKey);
+    const durationSeconds = secondsSince(segmentStartRef.current);
+    const { data, queued, error } = await postModuleCompletion(segment, durationSeconds);
+    if (queued) {
+      setResult({ submitting: false, queued: true });
+      return;
+    }
+    if (error) {
+      setResult({ submitting: false, submitError: error });
+      return;
+    }
+    applyFinishResults(data.results);
+    // course === null — якийсь модуль курсу ще без результату (напр. його
+    // додали в конструкторі посеред проходження): показуємо підсумок модуля.
+    const summary = data.course ?? data;
+    setResult({
+      scoreRaw: summary.scoreRaw,
+      scoreMax: summary.scoreMax,
+      scorePercent: summary.scorePercent,
+      passed: summary.passed,
+      submitting: false,
+      submitError: null,
+    });
   }
 
   /** Сегмент модуля, у якому лежить 0-based індекс екрану screens[i]. */
@@ -1270,9 +1387,11 @@ export function CoursePlayer({
     // «На головну».
     const sessionEnd = isLastSegmentOfCourse && Boolean(afterSession?.moreModules);
     if (isLastScreenOfSegment && (!isLastSegmentOfCourse || sessionEnd)) {
-      const durationSeconds = Math.round((Date.now() - segmentStartRef.current) / 1000);
-      segmentStartRef.current = Date.now(); // годинник наступного модуля стартує з чекпоінта
-      const score = { ...scoreForSegment(segment), durationSeconds };
+      const durationSeconds = secondsSince(segmentStartRef.current);
+      segmentStartRef.current = nowMs(); // годинник наступного модуля стартує з чекпоінта
+      // Прев'ю рахує бал сам; у справжньому проходженні бал і «складено»
+      // приходять лише від сервера — до відповіді чекпоінт нейтральний.
+      const score = previewMode ? previewScoreForSegment(segment) : { scoreRaw: null, scoreMax: null, scorePercent: null, passed: null };
       const nextSegment = moduleSegments[moduleSegments.indexOf(segment) + 1];
       const pauseDays = nextSegment && moduleCooldowns ? moduleCooldowns[nextSegment.moduleId] : 0;
       // Пауза рахується від складання, яке щойно сталось — тож дата
@@ -1297,8 +1416,20 @@ export function CoursePlayer({
         sessionEnd,
       });
       if (!previewMode) {
-        const { error: saveError, queued, retry } = await postModuleCompletion(segment.moduleId, score);
-        setModuleCheckpoint((c) => (c ? { ...c, saving: false, saveError, queued, retry } : c));
+        const { data, queued, error } = await postModuleCompletion(segment, durationSeconds);
+        if (data) applyFinishResults(data.results);
+        setModuleCheckpoint((c) =>
+          c
+            ? {
+                ...c,
+                saving: false,
+                saveError: error,
+                queued,
+                retry: data?.retry ?? null,
+                ...(data ? { scoreRaw: data.scoreRaw, scoreMax: data.scoreMax, scorePercent: data.scorePercent, passed: data.passed } : {}),
+              }
+            : c
+        );
       }
       return;
     }
@@ -1307,7 +1438,7 @@ export function CoursePlayer({
       const next = idx + 1;
       setNavDirection("forward");
       setIdx(next);
-      submitResult();
+      finishCourse(segment);
       return;
     }
     if (idx === completeIdx) return;
@@ -1333,6 +1464,18 @@ export function CoursePlayer({
 
   function handleModuleRetry() {
     if (!moduleCheckpoint) return;
+    // Нова спроба = новий пул питань від сервера (детермінований від номера
+    // спроби, lib/retryPolicy.ts poolSeed) і нова серверна спроба, тож
+    // модуль відкривається заново сторінкою, а не перемотуванням у тій самій:
+    // інакше людина отримала б ті самі питання, а сервер — іншу спробу.
+    if (!previewMode) {
+      clearProgress(storageKey);
+      // Повне перезавантаження, не router.push: якщо людина вже на цьому ж
+      // ?module=N, клієнтська навігація лишила б плеєр із тим самим станом.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign(`/courses/${course.slug}?module=${moduleCheckpoint.moduleId}`);
+      return;
+    }
     const segment = moduleSegments.find((s) => s.moduleId === moduleCheckpoint.moduleId);
     if (segment) {
       const rangeIds = screens.slice(segment.startIdx, segment.endIdx + 1).flatMap((s) => s.components.map((c) => c.id));
@@ -1356,17 +1499,18 @@ export function CoursePlayer({
   }
 
   function handleRetake() {
-    if (!previewMode) clearProgress(storageKey);
+    // Перескладання курсу — нові спроби й нові пули питань із сервера.
+    if (!previewMode) {
+      clearProgress(storageKey);
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign(`/courses/${course.slug}`);
+      return;
+    }
     setAnswers({});
     setResult(null);
-    startedAtRef.current = new Date().toISOString();
-    activeSecondsRef.current = 0;
+    segmentStartRef.current = nowMs();
     setNavDirection("back");
     setIdx(introIdx);
-    // План на вступі — серверний пропс з моменту відкриття сторінки; без
-    // refresh після сесії він показував уже складені модулі як «0%,
-    // скласти ще раз» (стенд механіки, 2026-09-22).
-    if (!previewMode) router.refresh();
   }
 
   /** Вийти з плеєра на план курсу (сторінка курсу без ?module=): сервер
@@ -1490,6 +1634,11 @@ export function CoursePlayer({
             <div className="navwrap">
               {/* Поки екран заблокований — пояснюємо ЧОМУ і скільки лишилось,
                   замість мовчазно неактивної кнопки «Далі». */}
+              {answerError && (
+                <p className="cp-save-status cp-save-error" role="alert">
+                  {answerError}
+                </p>
+              )}
               {(() => {
                 const hint = currentGateHint();
                 if (!hint) return null;

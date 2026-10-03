@@ -75,7 +75,8 @@ integration). Цей файл — чек-лист того, що НЕ робит
    «Тестовий вхід» (означає, що `DEMO_LOGIN_CODES` підхопився).
 2. `https://<адреса>/admin` → пароль з `ADMIN_PASSWORD` → відкривається
    адмінка, у «Курси» видно 9 курсів (база та сама, що в демо).
-3. `https://<адреса>/api/health` → `"ok": true`, `"push": true`.
+3. `https://<адреса>/api/health` (у тому ж браузері, де щойно увійшли в
+   /admin — деталі видно лише з admin-сесією) → `"ok": true`, `"push": true`.
 4. **Settings → Cron Jobs** — має бути `/api/cron/check-overdue-enrollments`
    щодня 03:00 (береться з `vercel.json`).
 5. З телефона: відкрити адресу, «На Початковий екран» (iPhone: Safari →
@@ -151,8 +152,10 @@ preview гілки і production-збірка `main` після мержу ст�
 
 ## 4. Після деплою
 
-1. `GET https://<домен>/api/health` → `{ ok: true, db: true, lastMigration: "…", push: true }`.
-   `push: false` — не задано VAPID; `demoLogin: true` — увімкнено тестовий вхід.
+1. Увійти в `/admin`, потім у тому ж браузері `GET https://<домен>/api/health` →
+   `{ ok: true, db: true, lastMigration: "…", push: true }`. Без admin-сесії
+   відповідь лише `{ ok, db }`. `push: false` — не задано VAPID;
+   `demoLogin: true` — увімкнено тестовий вхід.
 2. Перший раз після появи рейтингу: `/admin/rating` → «Перерахувати все»
    (заповнює журнал балів за вже пройденими курсами).
 3. Cron (`vercel.json`, щодня 03:00 UTC): публікація курсів за

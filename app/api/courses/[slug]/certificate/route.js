@@ -35,7 +35,8 @@ const FONT_REGULAR_PATH = path.join(process.cwd(), "public/fonts/pdf/CarlsbergSa
 const FONT_BOLD_PATH = path.join(process.cwd(), "public/fonts/pdf/CarlsbergSans-Bold.ttf");
 
 function formatDateUk(date) {
-  return new Date(date).toLocaleDateString("uk-UA", { day: "2-digit", month: "long", year: "numeric" });
+  // За Києвом: сервер у UTC, і курс, складений о 01:00, отримував би вчорашню дату.
+  return new Date(date).toLocaleDateString("uk-UA", { day: "2-digit", month: "long", year: "numeric", timeZone: "Europe/Kyiv" });
 }
 
 function buildCertificatePdf({ employeeName, courseTitle, completedAt, scorePercent }) {

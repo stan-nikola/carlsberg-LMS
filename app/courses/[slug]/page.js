@@ -11,8 +11,9 @@ import {
   moduleCooldownDays,
 } from "@/lib/courseContent";
 import { buildCoursePlan, toPlanView, toPlanInputs, toPacing } from "@/lib/coursePlan";
-import { pickQuestionPool } from "@/lib/retryPolicy";
 import { isScored } from "@/lib/componentTypes";
+import { currentAttemptNumbers, modulePool, openAttemptAnswers, toPlayerComponent } from "@/lib/moduleAttempts";
+import { formatKyivDate } from "@/lib/kyivTime";
 import { isManagerTier } from "@/lib/permissions";
 import { CoursePlayer } from "@/components/CoursePlayer";
 import { CourseReview } from "@/components/CourseReview";
@@ -155,7 +156,7 @@ export default async function CoursePage({ params, searchParams }) {
     const { module: nl, reason, unlocksAt } = nextLocked;
     lockedNotice =
       reason === "cooldown"
-        ? `Модуль «${nl.title}» відкриється ${unlocksAt.toLocaleDateString("uk-UA")}.`
+        ? `Модуль «${nl.title}» відкриється ${formatKyivDate(unlocksAt)}.`
         : reason === "pause"
           ? `Модуль «${nl.title}» відкриється через ${moduleCooldownDays(course, nl)} дн. після складання попереднього.`
           : `Модуль «${nl.title}» відкриється після того, як ви складете попередній модуль.`;
@@ -175,9 +176,17 @@ export default async function CoursePage({ params, searchParams }) {
   //    повертатись. Тож показуємо план курсу, без матеріалу й без
   //    якірної рейки по модулях (planOnly).
   if (perfectAndComplete || (playableModules.length === 0 && completions.length > 0)) {
+    // Методичка питань не показує — і не повинна їх отримувати: усе, що
+    // передано в клієнтський компонент, їде в браузер, разом із ключами
+    // відповідей (аудит безпеки, 2026-09-27).
+    const withoutQuestions = (m) => ({
+      ...m,
+      screens: m.screens.map((s) => ({ ...s, components: s.components.filter((c) => !isScored(c)) })),
+    });
+    const reviewCourse = { ...course, modules: course.modules.map(withoutQuestions) };
     return (
       <CourseReview
-        course={course}
+        course={reviewCourse}
         backHref={backHref}
         lockedNotice={lockedNotice}
         planOnly={!perfectAndComplete}
@@ -187,8 +196,8 @@ export default async function CoursePage({ params, searchParams }) {
         // пауза між модулями втрачала б сенс.
         modules={
           plan.remainingCount > 0
-            ? course.modules.filter((m) => completionsByModuleId.get(m.id)?.passed)
-            : course.modules
+            ? reviewCourse.modules.filter((m) => completionsByModuleId.get(m.id)?.passed)
+            : reviewCourse.modules
         }
         scorePercent={enrollment.scorePercent}
         // Для СКЛАДЕНОГО на 100% курсу план не показується (2026-09-18:
@@ -199,53 +208,36 @@ export default async function CoursePage({ params, searchParams }) {
     );
   }
 
-  // Бал модулів, пропущених цього разу (уже складені раніше, пауза
-  // перепроходження ще діє) — потрібен, щоб submitResult() у CoursePlayer
-  // міг порахувати бал ВСЬОГО курсу, а не лише модулів цієї сесії.
-  const playableModuleIds = new Set(playableModules.map((m) => m.id));
-  const skippedModuleScores = course.modules
-    .filter((m) => !playableModuleIds.has(m.id))
-    .map((m) => {
-      const completion = completionsByModuleId.get(m.id);
-      if (!completion) return null;
-      // passed — РЕАЛЬНЕ збережене значення з ModuleCompletion (пройдений
-      // поріг на момент складання ЦЬОГО модуля), не перерахунок за
-      // поточним course.passThreshold: якщо поріг курсу змінили пізніше,
-      // уже складені модулі не повинні заднім числом "перескладатись".
-      if (completion.scoreRaw != null && completion.scoreMax != null) {
-        return { scoreRaw: completion.scoreRaw, scoreMax: completion.scoreMax, passed: completion.passed };
-      }
-      // Легасі-рядок, записаний до появи scoreRaw/scoreMax на
-      // ModuleCompletion, — best-effort реконструкція з реальної к-сті
-      // питань модуля й округленого scorePercent (трохи менш точно за
-      // оригінал, але краще, ніж узагалі загубити внесок цього модуля).
-      const quizCount = m.screens.reduce((sum, s) => sum + s.components.filter((c) => c.type === "quiz").length, 0);
-      return {
-        scoreRaw: Math.round((completion.scorePercent / 100) * quizCount),
-        scoreMax: quizCount,
-        passed: completion.passed,
-      };
-    })
-    .filter(Boolean);
+  // Бал курсу рахує сервер (lib/moduleAttempts.ts finalizeEnrollment) із
+  // результатів модулів — плеєру вже не треба знати бали пропущених модулів.
 
   // Пул питань (Module.questionPoolSize): за одну спробу показуємо лише
-  // частину питань модуля, випадкову. Саме це ламає перебір варіантів при
-  // перескладанні — з другого разу питання інші, а знання те саме.
-  // Вибірка ТУТ, на сервері: інакше повний список питань приїхав би в
-  // браузер і його можна було б прочитати в коді сторінки.
+  // частину питань модуля. Вибірка ТУТ, на сервері, і детермінована від
+  // номера спроби (lib/retryPolicy.ts poolSeed): оновлення сторінки не
+  // перетасовує питання, наступна спроба дає інші, а /answer і
+  // module-complete перевіряють рівно цей самий набір.
+  const attemptNumbers = await currentAttemptNumbers(enrollment.id);
   const modulesWithPool = playableModules.map((m) => {
-    // isScored приймає КОМПОНЕНТ, не рядок типу — інакше список питань
-    // виходив порожнім і пул мовчки не застосовувався.
-    const quizIds = m.screens.flatMap((s) => s.components.filter(isScored).map((c) => c.id));
-    const keep = pickQuestionPool(quizIds, m.questionPoolSize);
-    if (keep.size === quizIds.length) return m;
+    const keep = modulePool(m, enrollment.id, attemptNumbers.get(m.id) ?? 1);
     const screens = m.screens
-      .map((s) => ({ ...s, components: s.components.filter((c) => !isScored(c) || keep.has(c.id)) }))
+      .map((s) => ({
+        ...s,
+        // Оцінювані компоненти — без ключів відповідей (lib/grading.ts
+        // publicContent): правильність і розбір приходять із сервера
+        // (POST /api/courses/:slug/answer) лише після відповіді.
+        components: s.components
+          .filter((c) => !isScored(c) || keep.has(c.id))
+          .map((c) => toPlayerComponent(c, enrollment.id)),
+      }))
       // Екран, з якого прибрали єдине питання, показувати нічого — тихо
       // прибираємо, інакше людина побачила б порожній крок.
       .filter((s) => s.components.length > 0);
     return { ...m, screens };
   });
+  // Відповіді, уже дані в незавершених спробах (перевірені сервером) —
+  // плеєр показує їх після перезавантаження, а не порожні питання, на які
+  // сервер однаково не прийме іншої відповіді.
+  const initialAnswers = await openAttemptAnswers(enrollment.id);
 
   const courseWithPlayableContent = { ...course, modules: modulesWithPool };
 
@@ -258,19 +250,15 @@ export default async function CoursePage({ params, searchParams }) {
   }));
 
   // Сесія не доходить до кінця курсу (попереду модуль під паузою) —
-  // плеєр після останнього модуля сесії показує чекпоінт і НЕ відправляє
-  // /submit (курс ще не пройдено). pauseDays/moduleTitle — щоб чекпоінт
-  // назвав ДАТУ відкриття: сервер її не знає (пауза рахується від
-  // складання, яке станеться лише в плеєрі), а «через 3 дн.» без дати
-  // людина мусила рахувати сама.
+  // плеєр після останнього модуля сесії показує чекпоінт, а не фінальний
+  // екран курсу. pauseDays/moduleTitle — щоб чекпоінт назвав ДАТУ
+  // відкриття: вона рахується від складання, яке станеться лише в плеєрі,
+  // а «через 3 дн.» без дати людина мусила рахувати сама.
   //
   // Окремо обраний модуль: курс завершується лише тоді, коли після нього
-  // запис про складання буде в КОЖНОГО модуля курсу. Саме це дає
-  // перерахунок балу при перепроходженні — /submit складає новий бал
-  // цього модуля з уже збереженими балами решти (skippedModuleScores), і
-  // останній результат перекриває попередній (рішення користувача,
-  // 2026-09-17). Якщо ж попереду ще є нескладені модулі, /submit не
-  // відправляється: курс не можна «закрити» одним обраним модулем.
+  // результат буде в КОЖНОГО модуля курсу. Закриває курс сервер
+  // (module-complete → finalizeEnrollment) із найкращих результатів
+  // модулів; якщо попереду ще нескладені модулі, фінального екрана нема.
   let afterSession = nextLocked
     ? {
         moreModules: true,
@@ -305,11 +293,8 @@ export default async function CoursePage({ params, searchParams }) {
         description: course.description,
         streakMessages: course.streakMessages,
         certificateEnabled: course.certificateEnabled,
-        // Без цього поля плеєр падав на `?? 80` і будь-який курс з іншим
-        // порогом (стенд «Механіка 5», поріг 50: модуль на 1/2 = 50% →
-        // «не складено») поводився як 80% — а сервер (module-complete)
-        // просто вірить присланому passed (знайдено стендом механіки,
-        // 2026-09-22).
+        // Поріг складання рахує сервер (module-complete); у плеєрі він
+        // потрібен лише прев'ю конструктора, де все рахується локально.
         passThreshold: course.passThreshold,
       }}
       screens={screens}
@@ -320,7 +305,7 @@ export default async function CoursePage({ params, searchParams }) {
       hasEmail={Boolean(employee.email)}
       lockedNotice={lockedNotice}
       afterSession={afterSession}
-      skippedModuleScores={skippedModuleScores}
+      initialAnswers={initialAnswers}
       plan={planView}
       // Людина сама обрала цей модуль у плані — плеєр каже про це прямо,
       // щоб не здавалося, ніби курс «скоротився».

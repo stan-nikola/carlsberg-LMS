@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
+import { revalidateSession } from "@/lib/session";
 import { getAllSubordinates } from "@/lib/permissions";
 import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
 
@@ -101,13 +102,21 @@ export async function PATCH(request, { params }) {
   if ("positionId" in data && data.positionId != null) data.positionId = Number(data.positionId);
   if ("territoryId" in data && data.territoryId != null) data.territoryId = Number(data.territoryId);
 
+  // Деактивація, нова пошта (туди йде PIN) чи зміна ролі — відкликаємо всі
+  // видані сесії людини (lib/session.js sessionVersion): інакше звільнений
+  // чи підмінений акаунт жив би з доступом до кінця 30-денної cookie.
+  const revokeSessions = data.isActive === false || "email" in data || "role" in data;
+  const auditData = { ...data };
+  if (revokeSessions) data.sessionVersion = { increment: 1 };
+
   try {
     const updated = await prisma.employee.update({
       where: { id },
       data,
       select: EMPLOYEE_SELECT,
     });
-    await audit("employee.update", "employee", id, data);
+    if (revokeSessions) revalidateSession();
+    await audit("employee.update", "employee", id, auditData);
     return NextResponse.json(updated);
   } catch (err) {
     // P2002 — унікальний email вже зайнятий іншим співробітником.

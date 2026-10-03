@@ -122,7 +122,7 @@ export function AdminTelegram() {
 
   return (
     <>
-      <section className="adm-card" style={{ marginTop: 16 }}>
+      <section className="adm-card">
         <div className="adm-card-head">
           <h2>
             <TelegramIcon /> Telegram-бот @{data.botUsername}
@@ -159,40 +159,48 @@ export function AdminTelegram() {
         </dl>
         <div className="adm-card-foot">
           {notice && <p className="admin-hint">{notice}</p>}
-          <button type="button" className="admin-btn" onClick={load} disabled={busy !== null}>
+          <button type="button" className="admin-btn adm-btn-secondary" onClick={load} disabled={busy !== null}>
             Оновити
           </button>
           <button
             type="button"
-            className="admin-btn admin-btn-primary"
-            onClick={() => post("webhook")}
-            disabled={busy !== null || !data.configured || !data.webhookSecretSet || !data.base}
-            title={!data.base ? "Потрібен APP_URL" : undefined}
-          >
-            {busy === "webhook" ? <SpinnerIcon /> : webhookOk ? "Перереєструвати webhook" : "Увімкнути webhook"}
-          </button>
-          <button
-            type="button"
-            className="admin-btn admin-btn-primary"
+            className="admin-btn adm-btn-secondary"
             onClick={() => post("menu_button")}
             disabled={busy !== null || !data.configured || !data.base}
             title={!data.base ? "Потрібен APP_URL" : undefined}
           >
             {busy === "menu_button" ? <SpinnerIcon /> : menuButtonOk ? "Перевстановити кнопку Mini App" : "Увімкнути кнопку Mini App"}
           </button>
+          {/* Головна дія картки — webhook (без нього бот не отримує /start):
+              одна заливна кнопка, решта — другорядні. */}
+          <button
+            type="button"
+            className="admin-btn"
+            onClick={() => post("webhook")}
+            disabled={busy !== null || !data.configured || !data.webhookSecretSet || !data.base}
+            title={!data.base ? "Потрібен APP_URL" : undefined}
+          >
+            {busy === "webhook" ? <SpinnerIcon /> : webhookOk ? "Перереєструвати webhook" : "Увімкнути webhook"}
+          </button>
         </div>
       </section>
 
-      <section className="adm-card" style={{ marginTop: 16 }}>
+      <section className="adm-card adm-wide">
         <div className="adm-card-head">
           <h2>Підключені</h2>
           {selected.size > 0 ? (
-            <button type="button" className="admin-btn admin-btn-danger" onClick={() => unlink([...selected])} disabled={busy !== null}>
+            <button type="button" className="admin-btn adm-btn-danger" onClick={() => unlink([...selected])} disabled={busy !== null}>
               {busy === "unlink" && <SpinnerIcon />}
               Відключити обрані ({selected.size})
             </button>
           ) : (
-            <input className="admin-input-flex adm-tg-search" placeholder="Пошук: ім’я, код, @username" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input
+              className="admin-input-flex adm-tg-search"
+              placeholder="Пошук: ім’я, код, @username"
+              aria-label="Пошук підключених"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
           )}
         </div>
         {data.links.length === 0 ? (
@@ -200,6 +208,7 @@ export function AdminTelegram() {
         ) : rows.length === 0 ? (
           <p className="admin-hint">Нічого не знайдено.</p>
         ) : (
+          <div className="adm-table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
@@ -250,26 +259,30 @@ export function AdminTelegram() {
                     {fmt(l.lastSentAt)}
                     {l.lastError && <div className="admin-hint adm-tg-bad">{l.lastError}</div>}
                   </td>
-                  <td className="adm-tg-actions">
-                    <button type="button" className="iconbtn" title="Надіслати тест" aria-label="Надіслати тест" onClick={() => post("test", { employeeId: l.employeeId })} disabled={busy !== null}>
-                      {busy === `test${l.employeeId}` ? <SpinnerIcon /> : <TelegramIcon />}
-                    </button>
-                    <button type="button" className="iconbtn iconbtn-danger" title="Відключити" aria-label="Відключити" onClick={() => unlink([l.employeeId])} disabled={busy !== null}>
-                      <XIcon />
-                    </button>
+                  <td className="adm-actions-cell">
+                    <span className="adm-row-actions">
+                      <button type="button" className="iconbtn" title="Надіслати тест" aria-label="Надіслати тест" onClick={() => post("test", { employeeId: l.employeeId })} disabled={busy !== null}>
+                        {busy === `test${l.employeeId}` ? <SpinnerIcon /> : <TelegramIcon />}
+                      </button>
+                      <button type="button" className="iconbtn iconbtn-danger" title="Відключити" aria-label="Відключити" onClick={() => unlink([l.employeeId])} disabled={busy !== null}>
+                        <XIcon />
+                      </button>
+                    </span>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
-      <section className="adm-card" style={{ marginTop: 16 }}>
+      <section className="adm-card adm-full">
         <AccordionField title="Вхідні повідомлення боту" summary={data.inbound.length ? `${data.inbound.length} останніх` : "порожньо"}>
           {data.inbound.length === 0 ? (
             <p className="admin-hint">Бот лише надсилає; усе, що люди пишуть йому у відповідь (крім /start і /stop), збирається тут.</p>
           ) : (
+            <div className="adm-table-wrap">
             <table className="admin-table">
               <thead>
                 <tr>
@@ -291,6 +304,7 @@ export function AdminTelegram() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </AccordionField>
       </section>
