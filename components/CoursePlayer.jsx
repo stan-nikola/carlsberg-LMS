@@ -343,10 +343,13 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
                 користувача, 2026-09-23): зелений кружечок — галочка,
                 червоний — хрестик, обидві «промальовуються» тим самим
                 MorphRevealIcon, що вже є в плані курсу й у статус-бейджі. */}
-            <span className={`opt-mark${questionType === "multi" ? " chk" : ""}`} aria-hidden={!graded}>
-              {/* Поки сервер перевіряє — спінер у кружечку обраного варіанта,
-                  потім на його місці промальовується галочка чи хрестик. */}
-              {checking && selected.includes(opt.key) && <SpinnerIcon />}
+            {/* Поки сервер перевіряє — кружечок обраного варіанта лишається білим, а
+                навколо нього крутиться тонке кільце (як на аватарці); потім у ньому
+                промальовується галочка чи хрестик. */}
+            <span
+              className={`opt-mark${questionType === "multi" ? " chk" : ""}${checking && selected.includes(opt.key) ? " is-checking" : ""}`}
+              aria-hidden={!graded}
+            >
               {graded && revealByKey.get(opt.key) && (revealByKey.get(opt.key).correct || selected.includes(opt.key)) && (
                 <MorphRevealIcon
                   shape={revealByKey.get(opt.key)?.correct ? "check" : "x"}
