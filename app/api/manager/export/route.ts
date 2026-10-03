@@ -87,10 +87,15 @@ export async function GET(request: Request) {
     exportData,
   });
 
+  // inline=1 — iPhone (components/useExportLinkToken.ts): вікно Safari, яке
+  // відкривається зі встановленого застосунку, не вміє завантажувати
+  // (attachment) і лишалось порожнім; на перегляд (inline) iOS показує файл
+  // сам — з «Готово» і «Відкрити в Excel». Решта — звичайне завантаження.
+  const disposition = new URL(request.url).searchParams.get("inline") === "1" ? "inline" : "attachment";
   return new Response(new Blob([buffer as BlobPart]), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="zvit-komandy-${fmtDate(now)}.xlsx"`,
+      "Content-Disposition": `${disposition}; filename="zvit-komandy-${fmtDate(now)}.xlsx"`,
     },
   });
 }
