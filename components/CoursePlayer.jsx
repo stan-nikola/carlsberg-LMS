@@ -232,6 +232,9 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
   // само поводився legacy-курс.
   const [options] = useState(() => (shuffleOptions === false ? view.options : shuffleArray(view.options)));
   const [picked, setPicked] = useState([]);
+  // Відповідь дана саме зараз (а не відновлена після перезавантаження) —
+  // лише тоді кружечок «виринає» з вердиктом.
+  const [live, setLive] = useState(false);
   const checking = answer?.status === "checking";
   const graded = typeof answer?.correct === "boolean";
   const isAnswered = checking || isAnswerDone(answer);
@@ -242,6 +245,7 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
   const explanation = graded ? answer.reveal?.explanation : null;
 
   function submit(keys) {
+    setLive(true);
     onAnswer(answerFor("quiz", component.content, { selected: keys }));
   }
 
@@ -343,11 +347,13 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
                 користувача, 2026-09-23): зелений кружечок — галочка,
                 червоний — хрестик, обидві «промальовуються» тим самим
                 MorphRevealIcon, що вже є в плані курсу й у статус-бейджі. */}
-            {/* Поки сервер перевіряє — кружечок обраного варіанта лишається білим, а
-                навколо нього крутиться тонке кільце (як на аватарці); потім у ньому
-                промальовується галочка чи хрестик. */}
+            {/* Поки сервер перевіряє — кружечок обраного варіанта «тоне» з
+                хвилею, з вердиктом виринає з галочкою чи хрестиком
+                (course-player.css, «крапля у воду»). */}
             <span
-              className={`opt-mark${questionType === "multi" ? " chk" : ""}${checking && selected.includes(opt.key) ? " is-checking" : ""}`}
+              className={`opt-mark${questionType === "multi" ? " chk" : ""}${
+                selected.includes(opt.key) ? (checking ? " is-checking" : graded && live ? " is-verdict" : "") : ""
+              }`}
               aria-hidden={!graded}
             >
               {graded && revealByKey.get(opt.key) && (revealByKey.get(opt.key).correct || selected.includes(opt.key)) && (
@@ -365,13 +371,19 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
         ))}
       </div>
 
-      {questionType === "multi" && !isAnswered && (
-        <button type="button" className="btn-primary-full" onClick={submitMulti} disabled={picked.length === 0}>
+      {questionType === "multi" && (!isAnswered || checking) && (
+        <button
+          type="button"
+          className={`btn-primary-full${checking ? " is-checking" : ""}`}
+          onClick={submitMulti}
+          disabled={picked.length === 0}
+          aria-busy={checking}
+        >
           <span className="btn-label">Перевірити</span>
         </button>
       )}
 
-      <AnswerStatus answer={answer} quiet />
+      <AnswerStatus answer={answer} />
 
       {graded && (
         <div className={`q-fb show ${answer.correct ? "ok" : "bad"}`}>
@@ -1036,6 +1048,8 @@ export function CoursePlayer({
 
   function applyGradedAnswer(componentId, answer) {
     const isCorrect = answer.correct === true;
+    // Відчутний вердикт — лише Android: iOS Safari/PWA vibrate не має.
+    navigator.vibrate?.(isCorrect ? 20 : [30, 60, 30]);
     setAnswers((a) => ({ ...a, [componentId]: answer }));
     // Відповів — показуємо наступний блок так само, як після гейта
     // (акордеон/чекліст/репліки): фідбек і пояснення лишаються на екрані,
