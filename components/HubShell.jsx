@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { SettingsSheet } from "@/components/SettingsSheet";
 import { GearIcon, LockIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, SpinnerIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
+import { consumeProgressDirty } from "@/lib/progressDirty";
 import { NotificationBell } from "@/components/NotificationBell";
 import { usePullToRefresh } from "@/components/usePullToRefresh";
 import { prepareLogout } from "@/lib/logoutCleanup";
@@ -98,6 +99,11 @@ export function HubShell({ children, isAdmin = false }) {
   useEffect(() => {
     viewportRef.current?.scrollTo({ top: 0 });
   }, [pathname]);
+
+  // Щойно збережено модуль/курс — цей екран у кеші браузера ще старий.
+  useEffect(() => {
+    if (consumeProgressDirty()) router.refresh();
+  }, [pathname, router]);
 
   useEffect(() => () => clearTimeout(gearSpinTimeoutRef.current), []);
   // Підказка для redirects() у next.config.mjs: ця людина — не керівник.

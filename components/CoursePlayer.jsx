@@ -35,6 +35,7 @@ import { numberComponents, shuffleArray } from "@/lib/coursePlayerLogic";
 import { peekScrollTo } from "@/lib/scrollHints";
 import { isVideoUrl } from "@/lib/videoEmbed";
 import { downloadCertificate } from "@/lib/downloadCertificate";
+import { markProgressDirty } from "@/lib/progressDirty";
 
 // Плеєр курсу. Крім info/quiz підтримує інтерактивні компоненти, портовані
 // з попередньої vanilla-JS розробки "8 кроків телесейлінгу": accordion,
@@ -1252,7 +1253,10 @@ export function CoursePlayer({
     };
     try {
       const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (res.ok) return { data: await res.json(), queued: false, error: null };
+      if (res.ok) {
+        markProgressDirty();
+        return { data: await res.json(), queued: false, error: null };
+      }
       const data = await res.json().catch(() => ({}));
       // 4xx (модуль закрито, спроба не з цього модуля) — повтор не допоможе.
       if (res.status !== 401 && res.status < 500) return { data: null, queued: false, error: data.error || `HTTP ${res.status}` };

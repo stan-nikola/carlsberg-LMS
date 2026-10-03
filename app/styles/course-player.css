@@ -3459,8 +3459,11 @@
    трьома кроками). Відступ між рядками 1→2→3 лишається тим, що є; лише
    останній крок → кнопка отримує подвоєний повітряний прошарок, щоб
    кнопка ЯВНО читалась як наступна дія, а не четвертий рядок списку. */
+/* --q-order-gap задано на самому списку (.q-order), а кнопка — його сусід,
+   не нащадок: змінна сюди не доходить, і calc() давав нульовий відступ —
+   останній крок «прилипав» до кнопки. Тому тут саме число: 2 × 8px. */
 .q-order-check {
-  margin-top: calc(var(--q-order-gap) * 2);
+  margin-top: 16px;
 }
 
 .q-match-hint {
@@ -3502,12 +3505,19 @@
   background: var(--surface);
   font: inherit;
   font-size: calc(12.5px * var(--fs-scale));
+  font-weight: 600;
+  /* Свій колір обовʼязковий: без нього iOS фарбує текст кнопки системним
+     синім, а неактивну (праву, поки не обрано лівий пункт) — блідо-сірим. */
+  color: var(--ink);
   text-align: left;
   cursor: pointer;
   overflow-wrap: anywhere;
 }
 .q-match-item:disabled {
   cursor: default;
+  color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+  opacity: 1;
 }
 .q-match-item.is-active {
   border-color: var(--cb-secondary);

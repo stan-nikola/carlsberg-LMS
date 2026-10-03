@@ -5,6 +5,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, GearIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
+import { consumeProgressDirty } from "@/lib/progressDirty";
 import { NotificationBell } from "@/components/NotificationBell";
 import { SettingsSheet } from "@/components/SettingsSheet";
 import { usePullToRefresh } from "@/components/usePullToRefresh";
@@ -77,6 +78,11 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   // дефолтний router.refresh(): {children} тепер завжди справжня поточна
   // сторінка.
   const { pull, threshold } = usePullToRefresh();
+
+  // Щойно збережено модуль/курс — цей екран у кеші браузера ще старий.
+  useEffect(() => {
+    if (consumeProgressDirty()) router.refresh();
+  }, [pathname, router]);
 
   // Підказка для redirects() у next.config.mjs: /hub -> /manager до рендера.
   useEffect(() => {
