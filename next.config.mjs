@@ -70,6 +70,23 @@ const nextConfig = {
   // X-Powered-By: Next.js — палить фреймворк без жодної користі,
   // вимикається одним прапорцем.
   poweredByHeader: false,
+  // Керівник, що відкриває /hub (start_url PWA, закладка), іде одразу в
+  // /manager ще ДО рендера: інакше на холодному старті він бачив скелетон
+  // хаба, потім скелетон кабінету керівника — екран «стрибав». Підказку
+  // carls_shell ставить сама оболонка (HubShell/ManagerShell); ?s=1 — вихід
+  // з петлі, коли підказка застаріла (ManagerGate повертає не-керівника
+  // на /hub?s=1, і там HubShell перезаписує підказку).
+  async redirects() {
+    return [
+      {
+        source: "/hub",
+        has: [{ type: "cookie", key: "carls_shell", value: "manager" }],
+        missing: [{ type: "query", key: "s" }],
+        destination: "/manager",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {

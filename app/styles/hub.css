@@ -939,7 +939,9 @@ a.lb-row-link:focus-visible {
   margin-top: 8px;
   border-top: var(--border-w) solid var(--line);
   background: var(--surface);
-  padding: 2px 10px calc(2px + env(safe-area-inset-bottom));
+  /* Без власних полів: уся смуга — це кнопки (див. .tab-btn), щоб тап
+     біля краю чи між іконками не падав у «нікуди». */
+  padding: 0;
 }
 /* Капсула під активною вкладкою (2026-09-19, рішення користувача) — їде
    й змінює розмір, замість того щоб кожна вкладка мала власну заливку,
@@ -974,8 +976,13 @@ a.lb-row-link:focus-visible {
     transition: none;
   }
 }
+/* Кожна вкладка — рівна прямокутна клітинка на всю висоту й ширину своєї
+   частки смуги, без проміжків між ними: влучання не залежить від того,
+   чи палець потрапив саме в зелену капсулу. */
 .tab-btn {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  align-self: stretch;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -986,7 +993,7 @@ a.lb-row-link:focus-visible {
      Instagram на iPhone (2026-09-22): наш рядок іконок (57.6px) помітно
      вищий за стандартний iOS HIG tab-bar content height (49pt) — разом із
      .tab-btn-indicator padding нижче тепер ≈49.6px, той самий орієнтир. */
-  padding: 7px 2px;
+  padding: 9px 0 calc(9px + env(safe-area-inset-bottom));
   border: none;
   background: transparent;
   color: var(--ink-soft);
@@ -1014,7 +1021,9 @@ a.lb-row-link:focus-visible {
     color: var(--ink);
   }
 }
-.tab-btn:active {
+/* Стискається лише іконка, не вся клітинка: якщо зменшувати саму кнопку,
+   палець біля краю на відпусканні опиняється вже поза нею. */
+.tab-btn:active .tab-btn-indicator {
   transform: scale(0.88);
 }
 .tab-btn:focus-visible {
@@ -1042,7 +1051,7 @@ a.lb-row-link:focus-visible {
   justify-content: center;
   padding: 4px 18px;
   border-radius: var(--radius-btn);
-  transition: color var(--dur-fast) var(--ease-premium);
+  transition: color var(--dur-fast) var(--ease-premium), transform var(--dur-fast) var(--ease-premium);
 }
 /* Заливку тепер малює .tab-pill вище (одна спільна капсула, що їде під
    вкладками) — тут лишається тільки колір іконки поверх неї. */

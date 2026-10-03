@@ -36,7 +36,6 @@ export default async function HubHomePage() {
 
       <ProfileCard
         dbName={employee.name}
-        hasEmail={Boolean(employee.email)}
         levelLabel={rating.level.label}
         avatarUrl={employee.avatarUrl}
         href="/hub/achievements?highlight=rating"
@@ -57,7 +56,6 @@ export default async function HubHomePage() {
             enrollment={enrollment}
             description={enrollment.course.description || ""}
             inProgressDescription="Ви вже почали — продовжте з того самого місця."
-            hasEmail={Boolean(employee.email)}
           />
         ))
       ) : enrollments.length === 0 ? (

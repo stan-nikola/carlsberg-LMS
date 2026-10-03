@@ -22,15 +22,6 @@ import { HintDot } from "@/components/HintDot";
 // одного екрана (код -> PIN), як і раніше, тільки замість Apps Script —
 // власні API routes (/api/auth/register, /api/auth/confirm), а замість
 // localStorage-профілю — cookie-сесія (див. lib/session.js).
-//
-// Поле "Ваше ім'я" в Employee.name НЕ записується — те поле в базі
-// правиться лише з email (керівний шар, lib/auth.js). Введене тут ім'я
-// й далі зберігається лише в localStorage цього пристрою (LOCAL_NAME_KEY,
-// заглушка з посади/території лишається в базі для співробітників без
-// email, як і в legacy telesale_profile_v1) — але тепер РАЗОМ ІЗ КОДОМ
-// одноразово йде й на сервер у тілі /api/auth/register, щоб лист із
-// PIN (lib/auth.js requestLoginPin) міг показати, хто саме й під яким
-// іменем намагається увійти — самого запису в БД це не змінює.
 
 // Який екран показати першим, залежить від localStorage і display-mode —
 // на сервері їх немає, тож рішення можливе лише на клієнті. useLayoutEffect
@@ -40,7 +31,6 @@ import { HintDot } from "@/components/HintDot";
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const RESEND_COOLDOWN_MS = 20000;
-const LOCAL_NAME_KEY = "employee_display_name_v1";
 
 /** "через 12 хв" / "менше ніж хвилину" — для повідомлення про блокування PIN. */
 function minutesUntil(isoDate) {
@@ -146,7 +136,6 @@ export default function RegisterPage() {
   const router = useRouter();
 
   const [step, setStep] = useState("identity");
-  const [name, setName] = useState("");
   const [externalCode, setExternalCode] = useState("");
   const [pin, setPin] = useState("");
 
@@ -223,7 +212,6 @@ export default function RegisterPage() {
   const demoEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(demoEmail.trim());
   const identityPayload = () => ({
     externalCode: externalCode.trim(),
-    name: name.trim(),
     ...(demoOn ? { demoEmail: demoEmail.trim() } : {}),
   });
 
@@ -242,7 +230,7 @@ export default function RegisterPage() {
     event.preventDefault();
     setCodeError("");
 
-    if (!name.trim() || !externalCode.trim()) {
+    if (!externalCode.trim()) {
       return;
     }
     if (demoOn && !demoEmailValid) {
@@ -316,15 +304,8 @@ export default function RegisterPage() {
         pin: pin.trim(),
       });
       if (resp.ok) {
-        // Тільки на цей пристрій - в базу ім'я з цього поля не йде
-        // взагалі (див. коментар зверху файлу).
-        try {
-          localStorage.setItem(LOCAL_NAME_KEY, name.trim());
-        } catch {
-          // localStorage недоступний - просто не запам'ятається, не критично
-        }
         navigating = true;
-        router.push("/hub");
+        router.push("/");
         router.refresh();
       } else if (resp.error === "pin_expired") {
         setPinError("Час дії PIN-коду минув (діє 12 годин). Натисніть «Надіслати ще раз».");
@@ -449,21 +430,6 @@ export default function RegisterPage() {
 
             <div className={`reg-step${step === "identity" ? " active" : ""}`}>
               <form className="reg-form" id="regForm" onSubmit={handleSubmitIdentity} suppressHydrationWarning>
-                <div className="field">
-                  <label htmlFor="fName">{demoOn ? "Ваше ім’я та прізвище" : "Ваше ім’я"}</label>
-                  <input
-                    type="text"
-                    id="fName"
-                    required
-                    placeholder="Наприклад: Олена Коваль"
-                    autoComplete="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    suppressHydrationWarning
-                  />
-                  {demoOn && <div className="reg-field-hint">Так вас назве платформа в кабінеті. Ім’я лишається лише на цьому пристрої.</div>}
-                </div>
-
                 {demoOn && (
                   <>
                     <div className="field">
@@ -566,11 +532,6 @@ export default function RegisterPage() {
                   </div>
                 )}
               </form>
-
-              <div className="reg-note">
-                Дані реєстрації зберігаються лише на цьому пристрої й використовуються для проходження
-                курсів та ідентифікації результатів тестів.
-              </div>
             </div>
 
             <div className={`reg-step${step === "pin" ? " active" : ""}`}>

@@ -38,7 +38,6 @@ export default async function ManagerAchievementsPage({ searchParams }) {
         leaderboardTitle="Лідери команди за посадами (% від найкращого у своїй посаді)"
         cohortLabel={cohortLabel}
         currentEmployeeId={employee.id}
-        hasEmail={Boolean(employee.email)}
         highlightRating={highlightRating}
         highlightBadgeId={highlightBadgeId}
       />

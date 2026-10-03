@@ -1,33 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CertificateIcon, SpinnerIcon } from "@/components/icons";
-import { getLocalDisplayName } from "@/lib/localName";
 import { downloadCertificate } from "@/lib/downloadCertificate";
 
 /**
  * Сертифікати на екрані «Досягнення» — кожен складений курс із прямим
  * завантаженням PDF (той самий downloadCertificate, що в CourseTile/
- * CourseReview; ім'я для співробітника без email — з localStorage).
+ * CourseReview).
  */
-export function CertificateList({ certificates, hasEmail }) {
-  const [certName, setCertName] = useState("");
+export function CertificateList({ certificates }) {
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!hasEmail) {
-      const local = getLocalDisplayName();
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (local) setCertName(local);
-    }
-  }, [hasEmail]);
 
   async function download(slug) {
     setBusy(slug);
     setError("");
     try {
-      await downloadCertificate(slug, certName);
+      await downloadCertificate(slug);
     } catch (err) {
       setError(err.message || "Не вдалося завантажити сертифікат.");
     } finally {

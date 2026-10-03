@@ -100,6 +100,10 @@ export function HubShell({ children, isAdmin = false }) {
   }, [pathname]);
 
   useEffect(() => () => clearTimeout(gearSpinTimeoutRef.current), []);
+  // Підказка для redirects() у next.config.mjs: ця людина — не керівник.
+  useEffect(() => {
+    document.cookie = "carls_shell=hub; path=/; max-age=31536000; samesite=lax";
+  }, []);
 
   async function handleLogout() {
     if (!(await prepareLogout())) return;

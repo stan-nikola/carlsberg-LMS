@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { GearIcon, BellIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
-import { HubHomeSkeleton } from "@/components/HubHomeSkeleton";
+import { PageSkeleton } from "@/components/Skeleton";
 
 const TABS = [
   { href: "/hub", label: "Головна", Icon: HomeIcon },
@@ -20,12 +20,8 @@ const TABS = [
  * Та сама розмітка/класи, що й у HubShell.jsx — щоб заміна на справжній
  * shell не викликала стрибка макета. isAdmin/активна вкладка ще невідомі
  * (сесія не резолвнута) — іконка адмінки прихована, вкладки без active/
- * капсули-індикатора. Контент — HubHomeSkeleton (не універсальний
- * PageSkeleton): manifest start_url — саме /hub, тож це ЄДИНА сторінка,
- * яку реально видно на холодному запуску встановленого PWA, і форма
- * скелетона має збігатись із реальною (вертикальна колонка карток, не
- * сітка) — інакше видимий стрибок при заміні (скарга користувача,
- * 2026-09-19).
+ * капсули-індикатора. Контент — той самий PageSkeleton у .hub-screen, що
+ * й у loading.tsx вкладок: один вигляд скелетона скрізь (2026-10-03).
  *
  * Вкладка "Головна" одразу активна (заливка --cb-primary просто на
  * .tab-btn-indicator, а не через окремий .tab-pill, що зазвичай їде
@@ -56,7 +52,12 @@ export function HubShellSkeleton() {
           </div>
 
           <div className="hub-viewport">
-            <HubHomeSkeleton />
+            {/* Той самий скелетон, що в loading.tsx вкладок хаба й кабінету
+                керівника (рішення користувача 2026-10-03: «везде один
+                скелетон») — заголовок і картки з проміжками. */}
+            <section className="hub-screen">
+              <PageSkeleton />
+            </section>
           </div>
 
           <nav className="tabbar" role="tablist" aria-hidden="true">

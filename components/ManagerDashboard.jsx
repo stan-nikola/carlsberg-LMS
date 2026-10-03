@@ -1125,7 +1125,6 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           був на /hub). */}
       <ProfileCard
         dbName={me.name}
-        hasEmail={me.hasEmail}
         levelLabel={me.levelLabel}
         avatarUrl={me.avatarUrl}
         href="/manager/achievements?highlight=rating"

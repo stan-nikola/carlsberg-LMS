@@ -210,7 +210,7 @@ async function main() {
         // них іде на пошту керівника (svEmployee.email), не власну. Ім'я —
         // точно за prisma/import-employees.js:191 (`email ? nameFromEmail
         // (email) : title`): без email реальне ім'я НІКОЛИ не пишеться в
-        // базу (воно живе лише в localStorage пристрою, lib/localName.js)
+        // базу (в застосунку його ніде не вводять)
         // — Employee.name тут заглушка з назви посади, не вигадане ім'я.
         // territoryId НАВМИСНО не задається (лишається null) — так само,
         // як у реальному імпорті (CLAUDE.md: "імпорт зміг прив'язати їх
