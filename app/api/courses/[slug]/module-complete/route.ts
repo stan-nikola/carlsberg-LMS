@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/session";
+import type { PrismaClient } from "@/app/generated/prisma";
+import { prisma as prismaUntyped } from "@/lib/prisma";
+import { getSessionClaims } from "@/lib/session";
 import { finishModuleAttempt } from "@/lib/moduleAttempts";
 
 /**
@@ -15,9 +17,18 @@ import { finishModuleAttempt } from "@/lib/moduleAttempts";
  * записаний результат. Коли результат є в кожного модуля, курс закривається
  * тут же (lib/moduleAttempts.ts finalizeEnrollment) — у відповіді `course`.
  */
+const prisma = prismaUntyped as PrismaClient;
+
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const employee = await getCurrentUser();
-  if (!employee) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const claims = await getSessionClaims();
+  if (!claims) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Перевірка сесії (активність, відкликання) — легкий запит, що йде
+  // паралельно з курсом і модулем усередині finishModuleAttempt, а не перед
+  // ними (раніше — повний профіль із посадою й керівником, 2 звернення).
+  const employee = prisma.employee.findFirst({
+    where: { id: claims.employeeId, isActive: true, sessionVersion: claims.version },
+    select: { id: true, name: true, managerId: true },
+  });
   const { slug } = await params;
   const body = await request.json().catch(() => ({}));
   const result = await finishModuleAttempt(employee, slug, body);
