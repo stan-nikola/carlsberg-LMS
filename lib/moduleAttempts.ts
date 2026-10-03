@@ -109,7 +109,8 @@ export async function openAttemptAnswers(enrollmentId: number) {
 
 // ------------------------------------------------------------- завантаження
 
-const MODULE_SELECT = {
+/** Метадані модуля — порядок і паузи; для перевірки доступу вміст інших модулів не потрібен. */
+const MODULE_META = {
   id: true,
   title: true,
   order: true,
@@ -119,33 +120,46 @@ const MODULE_SELECT = {
   retryFreeAttempts: true,
   retryCooldownHours: true,
   questionPoolSize: true,
-  screens: {
-    orderBy: { order: "asc" },
-    select: { components: { orderBy: { order: "asc" }, select: { id: true, type: true, content: true } } },
-  },
 } as const;
 
-async function loadContext(employeeId: number, slug: string, enrollmentId: number, moduleId: number) {
-  const course = await prisma.course.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      title: true,
-      passThreshold: true,
-      modulePauseDays: true,
-      retryFreeAttempts: true,
-      retryCooldownHours: true,
-      modules: { orderBy: { order: "asc" }, select: MODULE_SELECT },
-    },
-  });
-  if (!course) return { ok: false as const, message: "Course not found" };
-  const enrollment = Number.isInteger(enrollmentId) ? await prisma.enrollment.findUnique({ where: { id: enrollmentId } }) : null;
+const MODULE_SCREENS = {
+  orderBy: { order: "asc" },
+  select: { components: { orderBy: { order: "asc" }, select: { id: true, type: true, content: true } } },
+} as const;
+
+/**
+ * Курс, призначення, вміст модуля й сесія — паралельно, а не по черзі: кожен
+ * послідовний запит до бази — це затримка, яку людина відчуває між тапом по
+ * відповіді й вердиктом. Вміст (екрани/компоненти) — лише цього модуля.
+ * employeeId може бути промісом (сесія вантажиться разом із рештою); null — немає сесії.
+ */
+async function loadContext(employeeIdInput: number | Promise<number | null>, slug: string, enrollmentId: number, moduleId: number) {
+  const mid = Number(moduleId);
+  const [employeeId, course, enrollment, moduleContent] = await Promise.all([
+    employeeIdInput,
+    prisma.course.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        title: true,
+        passThreshold: true,
+        modulePauseDays: true,
+        retryFreeAttempts: true,
+        retryCooldownHours: true,
+        modules: { orderBy: { order: "asc" }, select: MODULE_META },
+      },
+    }),
+    Number.isInteger(enrollmentId) ? prisma.enrollment.findUnique({ where: { id: enrollmentId } }) : null,
+    Number.isInteger(mid) ? prisma.module.findUnique({ where: { id: mid }, select: { courseId: true, screens: MODULE_SCREENS } }) : null,
+  ]);
+  if (employeeId == null) return { ok: false as const, status: 401, message: "Unauthorized" };
+  if (!course) return { ok: false as const, status: 404, message: "Course not found" };
   if (!enrollment || enrollment.employeeId !== employeeId || enrollment.courseId !== course.id) {
-    return { ok: false as const, message: "Enrollment not found" };
+    return { ok: false as const, status: 404, message: "Enrollment not found" };
   }
-  const courseModule = course.modules.find((m) => m.id === Number(moduleId));
-  if (!courseModule) return { ok: false as const, message: "Module not found" };
-  return { ok: true as const, course, enrollment, courseModule };
+  const meta = course.modules.find((m) => m.id === mid);
+  if (!meta || !moduleContent || moduleContent.courseId !== course.id) return { ok: false as const, status: 404, message: "Module not found" };
+  return { ok: true as const, course, enrollment, courseModule: { ...meta, screens: moduleContent.screens } };
 }
 
 type Ctx = Extract<Awaited<ReturnType<typeof loadContext>>, { ok: true }>;
@@ -190,12 +204,12 @@ export type AnswerResult =
   | { ok: false; status: number; error: string };
 
 export async function answerQuestion(
-  employeeId: number,
+  employeeId: number | Promise<number | null>,
   slug: string,
   body: { enrollmentId?: unknown; moduleId?: unknown; componentId?: unknown; response?: unknown }
 ): Promise<AnswerResult> {
   const ctx = await loadContext(employeeId, slug, Number(body.enrollmentId), Number(body.moduleId));
-  if (!ctx.ok) return { ok: false, status: 404, error: ctx.message };
+  if (!ctx.ok) return { ok: false, status: ctx.status, error: ctx.message };
   const componentId = Number(body.componentId);
   const component = ctx.courseModule.screens.flatMap((s) => s.components).find((c) => c.id === componentId);
   if (!component || !isScored(component)) return { ok: false, status: 404, error: "Question not found" };
@@ -210,12 +224,17 @@ export async function answerQuestion(
     if ("blocked" in opened) return { blocked: opened.blocked };
     const attempt = opened.attempt;
     if (!modulePool(ctx.courseModule, ctx.enrollment.id, attempt.attemptNumber).has(component.id)) return { notInPool: true };
-    const existing = await tx.attemptAnswer.findUnique({ where: { attemptId_componentId: { attemptId: attempt.id, componentId } } });
-    if (existing) return { correct: existing.correct, response: existing.response, alreadyAnswered: true };
+    // Звичайний випадок — нова відповідь: одразу вставка (skipDuplicates), без
+    // окремого попереднього читання; лише якщо вона вже була — читаємо її.
     const correct = gradeResponse(component.type, content, body.response, keyOf);
-    await tx.attemptAnswer.create({
-      data: { attemptId: attempt.id, componentId, response: body.response as Prisma.InputJsonValue, correct },
+    const inserted = await tx.attemptAnswer.createMany({
+      data: [{ attemptId: attempt.id, componentId, response: body.response as Prisma.InputJsonValue, correct }],
+      skipDuplicates: true,
     });
+    if (inserted.count === 0) {
+      const existing = await tx.attemptAnswer.findUnique({ where: { attemptId_componentId: { attemptId: attempt.id, componentId } } });
+      return { correct: existing!.correct, response: existing!.response, alreadyAnswered: true };
+    }
     if (ctx.enrollment.status === "not_started") {
       await tx.enrollment.update({ where: { id: ctx.enrollment.id }, data: { status: "in_progress" } });
     }
@@ -273,7 +292,7 @@ export async function finishModuleAttempt(
   if (!clientAttemptId) return { ok: false, status: 400, error: "clientAttemptId is required" };
 
   const ctx = await loadContext(employee.id, slug, Number(body.enrollmentId), Number(body.moduleId));
-  if (!ctx.ok) return { ok: false, status: 404, error: ctx.message };
+  if (!ctx.ok) return { ok: false, status: ctx.status, error: ctx.message };
   const { course, enrollment, courseModule } = ctx;
   const duration = Number.isInteger(body.durationSeconds) && (body.durationSeconds as number) >= 0 ? (body.durationSeconds as number) : null;
   const payloadAnswers = body.answers && typeof body.answers === "object" ? (body.answers as Record<string, unknown>) : {};
