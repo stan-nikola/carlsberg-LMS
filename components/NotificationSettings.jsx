@@ -86,7 +86,6 @@ export function NotificationSettings({ variant = "full", highlighted = false }) 
   }, [highlighted]);
 
   useEffect(() => {
-    getPushState().then(setState);
     if (variant === "card") {
       let until = 0;
       try {
@@ -94,13 +93,21 @@ export function NotificationSettings({ variant = "full", highlighted = false }) 
       } catch {
         until = 0;
       }
+      const dismissed = Date.now() < until;
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setHidden(Date.now() < until);
+      setHidden(dismissed);
       // Картка тепер зважає й на Telegram (2026-09-22, рішення
       // користувача): ховається лише коли УВІМКНЕНО хоч один канал, не
-      // лише push — без цього виклику вона не знала про tg взагалі.
-      loadTelegram();
+      // лише push. Статус Telegram — окремий запит до сервера, тож лише
+      // коли він щось вирішує (аудит запитів, 2026-10-03): картку не
+      // сховано на 14 днів і push ще не увімкнено. Інакше вона й так
+      // прихована, а запит ішов на кожному відкритті головної.
+      getPushState().then((s) => {
+        setState(s);
+        if (!dismissed && s !== "subscribed") loadTelegram();
+      });
     } else {
+      getPushState().then(setState);
       fetch("/api/notifications/preferences")
         .then((r) => r.json())
         .then((d) => setPrefs(d.preferences))

@@ -1,7 +1,6 @@
 import type { PrismaClient } from "@/app/generated/prisma";
 import { unstable_cache } from "next/cache";
 import { prisma as prismaUntyped } from "@/lib/prisma";
-import { ensureAutoBadgesExist } from "@/lib/badgeRules";
 import { getRules } from "@/lib/rating";
 import { badgePoints } from "@/lib/ratingLogic";
 
@@ -25,11 +24,11 @@ export type BadgeView = {
 /**
  * Усі типи ачивок + чи зароблена конкретним співробітником — для
  * AchievementsPanel.jsx (замінює попередній повністю хардкоджений список).
- * ensureAutoBadgesExist() — щоб авто-типи ("Перший вхід" тощо) були видні
- * навіть якщо cron ще жодного разу не прогнав нарахування.
+ * Авто-типи («Перший вхід» тощо) заводить ensureAutoBadgesExist() у щоденному
+ * cron і в адмінці відзнак — не тут: на екрані перегляду це був запис у базу
+ * на кожному промаху кешу (аудит запитів, 2026-10-03).
  */
 async function computeEmployeeBadgesView(employeeId: number): Promise<BadgeView[]> {
-  await ensureAutoBadgesExist();
   const [allBadges, awarded, rules] = await Promise.all([
     prisma.badge.findMany({ orderBy: [{ kind: "asc" }, { title: "asc" }] }),
     prisma.employeeBadge.findMany({ where: { employeeId }, select: { badgeId: true, awardedAt: true } }),

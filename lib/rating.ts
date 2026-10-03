@@ -89,9 +89,15 @@ async function syncEvents(existing: StoredEvent[], wanted: RatingEventInput[]) {
     .map((w) => ({ w, cur: existingByKey.get(eventKey(w)) }))
     .filter((p): p is { w: RatingEventInput; cur: StoredEvent } => Boolean(p.cur) && p.cur!.points !== p.w.points);
 
+  // Оновлення ціни — по одному updateMany на кожне нове значення, а не
+  // update на кожен рядок: нова ціна відзнаки однакова для всіх, кому її
+  // видано, і сотні рядків оновлюються одним запитом (аудит запитів, 2026-10-03).
+  const idsByPoints = new Map<number, number[]>();
+  for (const { w, cur } of toUpdate) idsByPoints.set(w.points, [...(idsByPoints.get(w.points) || []), cur.id]);
+
   const ops = [
     ...(staleIds.length ? [prisma.ratingEvent.deleteMany({ where: { id: { in: staleIds } } })] : []),
-    ...toUpdate.map(({ w, cur }) => prisma.ratingEvent.update({ where: { id: cur.id }, data: { points: w.points } })),
+    ...Array.from(idsByPoints, ([points, ids]) => prisma.ratingEvent.updateMany({ where: { id: { in: ids } }, data: { points } })),
     ...(toCreate.length ? [prisma.ratingEvent.createMany({ data: toCreate, skipDuplicates: true })] : []),
   ];
   if (ops.length > 0) await prisma.$transaction(ops);
@@ -126,12 +132,28 @@ export async function syncEnrollmentEvents(enrollmentId: number) {
   return syncEvents(existing, wanted);
 }
 
-/** Видано відзнаку — бали за відзнаку (0 = декоративна). */
-export async function recordBadgeAward(employeeId: number, badge: { id: number; points?: number | null; kind?: string | null }) {
-  const event = computeBadgeEvent(employeeId, badge, await getRules());
-  if (!event) return { created: 0 };
-  const r = await prisma.ratingEvent.createMany({ data: [event], skipDuplicates: true });
-  return { created: r.count, points: event.points };
+type AwardedBadge = { id: number; points?: number | null; kind?: string | null };
+
+/**
+ * Видано відзнаки — бали за них (0 = декоративна). Пачкою: правила читаються
+ * один раз і всі бали пишуться одним createMany (масова видача й щоденний cron
+ * раніше робили по 2–4 запити на кожну людину).
+ */
+export async function recordBadgeAwards(awards: { employeeId: number; badge: AwardedBadge }[]) {
+  if (awards.length === 0) return { created: 0 };
+  const rules = await getRules();
+  const events = awards.flatMap((a) => {
+    const ev = computeBadgeEvent(a.employeeId, a.badge, rules);
+    return ev ? [ev] : [];
+  });
+  if (events.length === 0) return { created: 0 };
+  const r = await prisma.ratingEvent.createMany({ data: events, skipDuplicates: true });
+  return { created: r.count };
+}
+
+/** Видано одну відзнаку — бали за неї (0 = декоративна). */
+export async function recordBadgeAward(employeeId: number, badge: AwardedBadge) {
+  return recordBadgeAwards([{ employeeId, badge }]);
 }
 
 /**

@@ -57,7 +57,10 @@ const readSavedDesign = unstable_cache(
     }
   },
   ["design-settings"],
-  { tags: [CACHE_TAG], revalidate: 60 }
+  // Збереження/скидання самі скидають тег (нижче), тож часта перевірка не
+  // потрібна: година замість хвилини (аудит запитів, 2026-10-03) — інакше
+  // при живому трафіку база читалась щохвилини лише заради «чи не змінились токени».
+  { tags: [CACHE_TAG], revalidate: 3600 }
 );
 
 export async function getSavedDesign(): Promise<SavedDesign | null> {

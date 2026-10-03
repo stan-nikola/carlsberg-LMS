@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/lib/audit";
 import { resolveTargetEmployeeIds } from "@/lib/courseAssignment";
-import { recordBadgeAward } from "@/lib/rating";
+import { recordBadgeAwards } from "@/lib/rating";
 import { notifyBadgeAwarded } from "@/lib/notifications";
 
 /**
@@ -40,12 +40,10 @@ export async function POST(request, { params }) {
     skipDuplicates: true,
     select: { employeeId: true },
   });
-  for (const c of created) {
-    try {
-      await recordBadgeAward(c.employeeId, badge);
-    } catch (err) {
-      console.warn("[rating] mass badge:", err?.message);
-    }
+  try {
+    await recordBadgeAwards(created.map((c) => ({ employeeId: c.employeeId, badge })));
+  } catch (err) {
+    console.warn("[rating] mass badge:", err?.message);
   }
   try {
     await notifyBadgeAwarded(created.map((c) => ({ employeeId: c.employeeId, badge })));
