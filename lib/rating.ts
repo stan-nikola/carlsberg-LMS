@@ -354,31 +354,31 @@ export async function getTeamLeaderboardByPosition(managerId: number) {
 
 export type TeamLeaderboardGroup = Awaited<ReturnType<typeof computeTeamLeaderboardByPosition>>[number];
 
-async function computeTeamRatingForManager(manager: { id: number; positionId: number | null }) {
-  const [people, sums] = await Promise.all([
-    prisma.employee.findMany({ where: { isActive: true }, select: { id: true, managerId: true, positionId: true } }),
-    prisma.ratingEvent.groupBy({ by: ["employeeId"], _sum: { points: true } }),
-  ]);
-  return computeTeamRating(people, new Map(sums.map((s) => [s.employeeId, s._sum.points || 0])), manager);
-}
-
-// Компанія-широкий зріз (усі активні + весь журнал балів) на КОЖЕН заход
-// у /manager — той самий запит, виміряний окремо на проді, важив 3.8с
-// (аудит швидкодії, 2026-09-19). Кеш per-менеджер (employeeId у ключі),
-// бо рахується власне місце серед команд тієї ж посади.
-const cachedTeamRating = unstable_cache(
-  (employeeId: number, positionId: number | null) => computeTeamRatingForManager({ id: employeeId, positionId }),
-  ["team-rating"],
+// Компанія-широкий зріз (усі активні + сума балів кожного) — один кеш на
+// всіх керівників (аудит запитів, 2026-10-03). Раніше ключем був
+// керівник, тож кожен активний керівник раз на хвилину окремо сканував
+// усю таблицю співробітників і весь журнал балів, хоча зріз однаковий.
+// Масиви, не Map: unstable_cache серіалізує результат у JSON.
+const cachedCompanyRatingSlice = unstable_cache(
+  async () => {
+    const [people, sums] = await Promise.all([
+      prisma.employee.findMany({ where: { isActive: true }, select: { id: true, managerId: true, positionId: true } }),
+      prisma.ratingEvent.groupBy({ by: ["employeeId"], _sum: { points: true } }),
+    ]);
+    return { people, sums: sums.map((s) => [s.employeeId, s._sum.points || 0] as [number, number]) };
+  },
+  ["rating-company-slice"],
   { revalidate: 60, tags: ["rating"] }
 );
 
 /**
- * Рейтинг команди для кабінету керівника (/api/manager/overview): бали й %
- * по кожному підлеглому + середнє команди і місце серед команд тієї ж
- * посади. Два запити на всю компанію замість BFS на кожного керівника.
+ * Рейтинг команди для кабінету керівника: бали й % по кожному підлеглому +
+ * середнє команди і місце серед команд тієї ж посади. Зріз компанії — з
+ * кешу вище, сам розрахунок по дереву — у пам'яті.
  */
 export async function getTeamRating(manager: RatedEmployee) {
-  return cachedTeamRating(manager.id, manager.positionId);
+  const { people, sums } = await cachedCompanyRatingSlice();
+  return computeTeamRating(people, new Map(sums), { id: manager.id, positionId: manager.positionId });
 }
 
 /**

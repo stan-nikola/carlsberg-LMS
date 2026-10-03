@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
 import { getManagerOverview } from "@/lib/managerOverview";
+import { isManagerTier } from "@/lib/permissions";
 import { ManagerDashboard } from "@/components/ManagerDashboard";
 
 // TODO: Cache Components adoption. Той самий опт-аут, що вже стоїть на
@@ -16,6 +17,10 @@ export const instant = false;
 // перевірив сесію/роль вище по дереву.
 export default async function ManagerPage() {
   const employee = await getCurrentUser();
+  // Лейаут рендериться паралельно зі сторінкою і сам переадресує не-керівника
+  // на /hub — без цієї перевірки сторінка встигала порахувати весь кабінет
+  // (~12 звернень до бази) для людини, яка його не побачить.
+  if (!employee || !isManagerTier(employee)) return null;
   let initialData = null;
   let initialError = false;
   try {
@@ -31,7 +36,6 @@ export default async function ManagerPage() {
         avatarUrl: employee.avatarUrl,
         levelLabel: overview.levelLabel,
         position: employee.position,
-        enrollments: overview.enrollments,
       },
       team: overview.team,
     };
