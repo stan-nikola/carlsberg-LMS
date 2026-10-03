@@ -2462,3 +2462,38 @@ a.mgr-matrix-cell:focus-visible {
     margin: 4px auto 0;
   }
 }
+
+/* ---- Екран Excel-звіту на iPhone (components/ReportScreen.tsx) ---- */
+.mgr-report-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: var(--card-pad-roomy);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
+  background: var(--surface);
+}
+.mgr-report-ico svg {
+  width: 44px;
+  height: 44px;
+}
+.mgr-report-name {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.mgr-report-text {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.mgr-report-card .btn-primary-full {
+  margin-top: 6px;
+}

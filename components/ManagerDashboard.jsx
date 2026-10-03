@@ -30,7 +30,6 @@ import { EnrollmentRow, formatDuration } from "@/components/EnrollmentRow";
 import { TeamStatusBar } from "@/components/TeamStatusBar";
 import { pluralPeople } from "@/lib/teamInsights";
 import { AttentionList } from "@/components/AttentionList";
-import { useExportLinkQuery } from "@/components/useExportLinkToken";
 import { TeamMatrix } from "@/components/TeamMatrix";
 
 // localStorage, не БД (рішення користувача, 2026-09-19) — вибір карток
@@ -438,7 +437,14 @@ function flattenTree(nodes, out = []) {
  * (/api/manager/employees/[id]).
  */
 export function ManagerDashboard({ initialData = null, initialError = false }) {
-  const exportQuery = useExportLinkQuery();
+  // iPhone/iPad — звіт через сторінку /manager/report (див. коментар при
+  // кнопці «Завантажити звіт»). Лише в ефекті: у серверному рендері
+  // navigator нема, і різний href зламав би гідратацію.
+  const [isIOS, setIsIOS] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent));
+  }, []);
   // Дані вже прийшли з сервера (app/manager/page.js, lib/managerOverview.js)
   // — loading:false одразу, без окремого клієнтського fetch() і
   // скелетон-спалаху на кожному монтуванні (раніше тут стояв fetch(
@@ -1069,19 +1075,14 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
               завантаження по Content-Disposition:attachment, без fetch+blob.
               cards= — увімкнені картки в порядку дашборда: звіт повторює
               екран лист у лист (lib/managerReport.ts).
-              target=_blank (2026-10-03): у встановленому застосунку на
-              iPhone немає панелі браузера — файл відкривався на весь екран
-              без «Закрити» і дороги назад. Нове вікно iOS показує поверх
-              застосунку з кнопкою «Готово»; на комп'ютері браузер просто
-              завантажує файл і сам закриває порожню вкладку.
-              t= — у того вікна на iPhone свої cookie, без сесії застосунку;
-              ключ із посилання її заміняє (lib/exportLink.ts). Поки ключ не
-              прийшов — звичайне посилання по cookie (комп'ютер, Android). */}
+              iPhone/iPad (2026-10-03) — через сторінку /manager/report
+              (components/ReportScreen.tsx) з кнопкою «Закрити»: прямий файл
+              у встановленому застосунку відкривався на весь екран без дороги
+              назад, а окреме вікно Safari (target=_blank) не має cookie
+              застосунку й не вміє завантажувати — лишалось порожнім. */}
           <a
-            target="_blank"
-            rel="noopener"
             className="admin-btn-link mgr-export-link"
-            href={`/api/manager/export?cards=${orderedIds.filter((id) => enabledCards.has(id)).join(",")}${exportQuery}`}
+            href={`${isIOS ? "/manager/report" : "/api/manager/export"}?cards=${orderedIds.filter((id) => enabledCards.has(id)).join(",")}`}
             title="Завантажити звіт у форматі Excel — листи за увімкненими картками"
             aria-label="Завантажити звіт у форматі Excel"
           >
