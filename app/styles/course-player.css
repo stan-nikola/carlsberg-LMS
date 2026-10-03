@@ -615,13 +615,30 @@
   align-items: center;
   justify-content: center;
 }
-/* Спінер перевірки всередині кружечка: білий на зеленому «обрано». */
-.opt-mark .admin-spinner {
-  width: 11px;
-  height: 11px;
-  margin: 0;
-  vertical-align: 0;
-  color: var(--cb-white);
+/* Перевірка відповіді: кружечок лишається білим, по його краю крутиться
+   тонке кільце — той самий прийом і колір, що в аватара, поки вантажиться
+   фото (hub.css .avatar::after, @keyframes avatar-spin). Селектор із
+   .opt.selected — щоб перебити галочку «обрано» в .opt-mark.chk::after. */
+.opt.selected .opt-mark.is-checking {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.opt.selected .opt-mark.is-checking::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  width: auto;
+  height: auto;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--cb-secondary);
+  transform: none;
+  animation: avatar-spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .opt.selected .opt-mark.is-checking::after {
+    animation-duration: 2.4s;
+  }
 }
 /* Спінер перевірки для питань без кружечків (порядок, пари, гаряча точка). */
 .q-checking {
