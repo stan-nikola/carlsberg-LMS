@@ -395,6 +395,7 @@ html:has(.stage--course-player:not([style*="display: none"])) {
 html:has(.sheet-overlay.open),
 html:has(.sheet-overlay.open) body {
   overflow: hidden;
+  overscroll-behavior: none;
 }
 .sheet-overlay.open {
   opacity: 1;

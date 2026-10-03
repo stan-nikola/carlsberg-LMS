@@ -53,6 +53,10 @@ export function usePullToRefresh(scrollRef) {
 
     function onTouchStart(e) {
       if (getScrollTop() > 0 || isPending) return;
+      // Жест у відкритій шторці (свайп смужки вниз, прокрутка всередині) —
+      // не «потягни, щоб оновити»: інакше сторінка під шторкою їхала вниз
+      // разом із нею, а відпускання ще й перезавантажувало дані.
+      if (e.target.closest?.(".sheet-overlay.open")) return;
       startY = e.touches[0].clientY;
       pulling = true;
     }
