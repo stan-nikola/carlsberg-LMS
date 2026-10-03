@@ -286,7 +286,9 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
       classes.push("disabled");
       const r = revealByKey.get(opt.key);
       if (r?.correct) classes.push("correct");
-      else if (selected.includes(opt.key)) classes.push(graded ? "wrong" : "selected");
+      // Без розбору (помилка в тесті з кількома правильними) не знаємо, які з
+      // обраних були вірні — лишаємо вибір нейтральним.
+      else if (selected.includes(opt.key)) classes.push(r ? "wrong" : "selected");
     } else if (selected.includes(opt.key)) {
       classes.push("selected");
     }
@@ -342,7 +344,7 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
                 червоний — хрестик, обидві «промальовуються» тим самим
                 MorphRevealIcon, що вже є в плані курсу й у статус-бейджі. */}
             <span className={`opt-mark${questionType === "multi" ? " chk" : ""}`} aria-hidden={!graded}>
-              {graded && (revealByKey.get(opt.key)?.correct || selected.includes(opt.key)) && (
+              {graded && revealByKey.get(opt.key) && (revealByKey.get(opt.key).correct || selected.includes(opt.key)) && (
                 <MorphRevealIcon
                   shape={revealByKey.get(opt.key)?.correct ? "check" : "x"}
                   label={revealByKey.get(opt.key)?.correct ? "Правильно" : "Неправильно"}
@@ -373,8 +375,8 @@ export function QuizScreen({ component, screenNumber, answer, onAnswer, onZoomIm
                 ? "Правильно! Усі варіанти обрано вірно."
                 : "Правильно!"
               : questionType === "multi"
-                ? "Правильні варіанти виділені зеленим."
-                : "Правильна відповідь виділена зеленим."}
+                ? "Не всі варіанти обрано вірно. Спробуйте ще раз у наступній спробі."
+                : "Неправильно. Спробуйте ще раз у наступній спробі."}
           </b>
           {/* Пояснення автора — показуємо і при правильній відповіді:
               вгадати можна й не зрозумівши, а сенс питання саме в тому,

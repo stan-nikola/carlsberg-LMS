@@ -141,7 +141,10 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
 
       <ol className="q-order" ref={containerRef as React.RefObject<HTMLOListElement>} {...containerProps}>
         {order.map((key, pos) => {
-          const correctHere = graded && correctOrder[pos]?.key === key;
+          // Позначки по рядках — лише коли сервер віддав правильний порядок
+          // (тобто відповідь правильна): після помилки він його не розкриває.
+          const marked = graded && correctOrder.length > 0;
+          const correctHere = marked && correctOrder[pos]?.key === key;
           const isDragging = dragId === key;
           const text = itemByKey.get(key)?.text;
           return (
@@ -149,7 +152,7 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
               key={key}
               ref={registerRow(key)}
               data-drag-row
-              className={`q-order-row${graded ? (correctHere ? " is-correct" : " is-wrong") : ""}${isDragging ? " is-dragging" : ""}`}
+              className={`q-order-row${marked ? (correctHere ? " is-correct" : " is-wrong") : ""}${isDragging ? " is-dragging" : ""}`}
               style={isDragging ? { transform: `translateY(${dragDeltaY}px)` } : undefined}
             >
               <span className="q-order-num">{pos + 1}</span>
@@ -175,7 +178,7 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
                   <GripIcon />
                 </button>
               )}
-              {graded && (
+              {marked && (
                 <span className="q-order-mark" aria-hidden="true">
                   {correctHere ? <CheckIcon /> : <XIcon />}
                 </span>
@@ -335,13 +338,15 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
         <ul className="q-match-col">
           {lefts.map((left) => {
             const linked = links[left.key] !== undefined;
-            const correct = graded && links[left.key] === correctRightOf.get(left.key);
+            // Вердикт по парах — лише коли сервер віддав правильні пари (відповідь правильна).
+            const marked = graded && revealPairs.length > 0;
+            const correct = marked && links[left.key] === correctRightOf.get(left.key);
             return (
               <li key={left.key}>
                 <button
                   type="button"
                   className={`q-match-item${activeLeft === left.key ? " is-active" : ""}${linked ? " is-linked" : ""}${pairClass(left.key)}${
-                    graded ? (correct ? " is-correct" : " is-wrong") : ""
+                    marked ? (correct ? " is-correct" : " is-wrong") : ""
                   }`}
                   onClick={() => pickLeft(left.key)}
                   disabled={isAnswered}
@@ -357,7 +362,8 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
           {rightsView.map((right) => {
             const ownerLeft = Object.keys(links).find((k) => links[k] === right.key);
             const linked = ownerLeft !== undefined;
-            const rightCorrect = graded && linked && correctRightOf.get(ownerLeft!) === right.key;
+            const rightMarked = graded && revealPairs.length > 0;
+            const rightCorrect = rightMarked && linked && correctRightOf.get(ownerLeft!) === right.key;
             return (
               <li
                 key={right.key}
@@ -369,7 +375,7 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
                 <button
                   type="button"
                   className={`q-match-item${linked ? " is-linked" : ""}${linked ? pairClass(ownerLeft!) : ""}${
-                    graded ? (rightCorrect ? " is-correct" : " is-wrong") : ""
+                    rightMarked ? (rightCorrect ? " is-correct" : " is-wrong") : ""
                   }`}
                   onClick={() => pickRight(right.key)}
                   disabled={isAnswered || activeLeft === null}
@@ -394,7 +400,7 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
       {graded && (
         <div className={`q-fb show ${answer!.correct ? "ok" : "bad"}`}>
           <b className="q-fb-verdict">{answer!.correct ? "Правильно! Усі пари вірні." : "Не всі пари вірні."}</b>
-          {!answer!.correct && (
+          {!answer!.correct && revealPairs.length > 0 && (
             <ul className="q-fb-options">
               {revealPairs.map((p) => (
                 <li key={p.leftKey} className={links[p.leftKey] === p.rightKey ? "is-correct" : "is-wrong"}>

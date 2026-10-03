@@ -139,6 +139,27 @@ export function revealContent(type: string, content: Obj | null | undefined, key
   }
 }
 
+/**
+ * Розбір, який бачить людина. Повний — лише після ПРАВИЛЬНОЇ відповіді.
+ * Після помилки правильний варіант/порядок/пари/зони не розкриваються:
+ * інакше «провалив навмання → побачив відповіді → переклав на 100%» давало
+ * сертифікат без знання матеріалу. Лишається тільки пояснення до обраного
+ * варіанта в тесті з одним правильним (у кількох — і воно підказало б, які
+ * з обраних були вірні).
+ */
+export function revealFor(type: string, content: Obj | null | undefined, keyOf: KeyOf, correct: boolean, response: unknown): Obj {
+  if (correct) return revealContent(type, content, keyOf);
+  const c = content || {};
+  if (type !== "quiz" || c.questionType === "multi") return {};
+  const selected = arr<string>(((response || {}) as Obj).selected);
+  return {
+    options: arr<QuizOption>(c.options).flatMap((o, i) => {
+      const key = keyOf("o", i);
+      return selected.includes(key) && o.correct !== true ? [{ key, text: o.text ?? "", correct: false, explanation: o.explanation || undefined }] : [];
+    }),
+  };
+}
+
 /** Чи правильна сира відповідь. Невалідна/чужа форма відповіді — false, не виняток. */
 export function gradeResponse(type: string, content: Obj | null | undefined, response: unknown, keyOf: KeyOf): boolean {
   const c = content || {};
@@ -172,11 +193,8 @@ export function gradeResponse(type: string, content: Obj | null | undefined, res
  * може розійтись із тим, що побачить співробітник.
  */
 export function gradeLocally(type: string, content: Obj | null | undefined, response: unknown) {
-  return {
-    correct: gradeResponse(type, content, response, indexKeyOf),
-    reveal: revealContent(type, content, indexKeyOf),
-    response,
-  };
+  const correct = gradeResponse(type, content, response, indexKeyOf);
+  return { correct, reveal: revealFor(type, content, indexKeyOf, correct, response), response };
 }
 
 export function isPublicContent(content: unknown): boolean {

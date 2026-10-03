@@ -19,6 +19,20 @@ const LOCK_MS = 15 * 60 * 1000;
 
 type Row = { failCount: number; lockedUntil: Date | null };
 
+/**
+ * Код співробітника з форми входу — лише латинські літери й цифри (усі
+ * реальні коди такі). Без цієї перевірки пошук без урахування регістру
+ * (Prisma mode:"insensitive" = ILIKE) сприймав % і _ як шаблон: різні
+ * написання вели до ОДНОГО співробітника, а лічильник спроб PIN вівся для
+ * кожного написання окремо — обмеження «5 спроб на PIN» обходилось.
+ * Повертає код або null.
+ */
+export function normalizeExternalCode(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const code = raw.trim();
+  return /^[A-Za-z0-9]{1,32}$/.test(code) ? code : null;
+}
+
 export function pinThrottleKey(externalCode: string): string {
   return `pin:${externalCode.trim().toLowerCase()}`;
 }

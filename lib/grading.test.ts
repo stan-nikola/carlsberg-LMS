@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gradeLocally, gradeResponse, indexKeyOf, publicContent, revealContent, seededRandom } from "./grading";
+import { gradeLocally, gradeResponse, indexKeyOf, publicContent, revealContent, revealFor, seededRandom } from "./grading";
 
 const quiz = {
   questionType: "multi",
@@ -99,6 +99,34 @@ describe("revealContent / gradeLocally", () => {
 
   it("прев'ю: перевірка тим самим кодом", () => {
     expect(gradeLocally("quiz", quiz, { selected: ["o0", "o2"] }).correct).toBe(true);
+  });
+});
+
+describe("revealFor: після помилки правильні відповіді не розкриваються", () => {
+  const single = { questionType: "single", explanation: "Загальний", options: [{ text: "A", correct: true, explanation: "так" }, { text: "B", explanation: "бо B не те" }] };
+
+  it("правильна відповідь — повний розбір", () => {
+    expect(revealFor("quiz", single, indexKeyOf, true, { selected: ["o0"] })).toEqual(revealContent("quiz", single, indexKeyOf));
+  });
+
+  it("один варіант, помилка — лише пояснення обраного, без правильного", () => {
+    const r = revealFor("quiz", single, indexKeyOf, false, { selected: ["o1"] });
+    expect(r).toEqual({ options: [{ key: "o1", text: "B", correct: false, explanation: "бо B не те" }] });
+    expect(JSON.stringify(r)).not.toContain("так");
+  });
+
+  it("кілька варіантів, помилка — нічого (інакше видно, які з обраних вірні)", () => {
+    expect(revealFor("quiz", quiz, indexKeyOf, false, { selected: ["o0", "o1"] })).toEqual({});
+  });
+
+  it("порядок, пари, гаряча точка — після помилки порожньо", () => {
+    expect(revealFor("ordering", { items: [{ text: "1" }, { text: "2" }] }, indexKeyOf, false, { order: ["s1", "s0"] })).toEqual({});
+    expect(revealFor("matching", { pairs: [{ left: "a", right: "b" }] }, indexKeyOf, false, { links: {} })).toEqual({});
+    expect(revealFor("hotspot", { zones: [{ x: 1, y: 1, r: 5 }] }, indexKeyOf, false, { x: 90, y: 90, aspect: 1 })).toEqual({});
+  });
+
+  it("прев'ю поводиться так само, як плеєр", () => {
+    expect(gradeLocally("quiz", single, { selected: ["o1"] }).reveal).toEqual({ options: [{ key: "o1", text: "B", correct: false, explanation: "бо B не те" }] });
   });
 });
 

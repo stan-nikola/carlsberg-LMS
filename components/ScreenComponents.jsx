@@ -1211,7 +1211,7 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
 
       {graded && (
         <div className={`q-fb show ${answer.correct ? "ok" : "bad"}`}>
-          <b className="q-fb-verdict">{answer.correct ? "Влучно!" : "Не те місце — правильне обведено зеленим."}</b>
+          <b className="q-fb-verdict">{answer.correct ? "Влучно!" : "Не те місце. Спробуйте ще раз у наступній спробі."}</b>
           {explanation && <span className="q-fb-explain">{renderRichMarks(explanation)}</span>}
         </div>
       )}
