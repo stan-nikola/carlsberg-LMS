@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { after } from "next/server";
 import type { Prisma, PrismaClient } from "@/app/generated/prisma";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { isScored, SCORED_COMPONENT_TYPES } from "@/lib/componentTypes";
@@ -77,33 +78,34 @@ export function toPlayerComponent<C extends ComponentLike>(component: C, enrollm
   };
 }
 
-/** Номер спроби, яку людина проходить ЗАРАЗ (відкрита або наступна). */
-export async function currentAttemptNumbers(enrollmentId: number): Promise<Map<number, number>> {
-  const [open, completions] = await Promise.all([
-    prisma.moduleAttempt.findMany({ where: { enrollmentId, finishedAt: null }, select: { moduleId: true, attemptNumber: true } }),
-    prisma.moduleCompletion.findMany({ where: { enrollmentId }, select: { moduleId: true, attemptCount: true } }),
-  ]);
+/** Номер спроби, яку людина проходить ЗАРАЗ (відкрита або наступна) — з уже прочитаних спроб і результатів. */
+export function attemptNumbersFrom(
+  open: { moduleId: number; attemptNumber: number }[],
+  completions: { moduleId: number; attemptCount: number }[]
+): Map<number, number> {
   const out = new Map<number, number>();
   for (const c of completions) out.set(c.moduleId, c.attemptCount + 1);
   for (const o of open) out.set(o.moduleId, o.attemptNumber);
   return out;
 }
 
-/** Уже дані відповіді відкритих спроб — плеєр показує їх після перезавантаження замість порожніх питань. */
-export async function openAttemptAnswers(enrollmentId: number) {
-  const rows = await prisma.attemptAnswer.findMany({
-    where: { attempt: { enrollmentId, finishedAt: null } },
-    select: { componentId: true, correct: true, response: true, component: { select: { type: true, content: true } } },
-  });
+/**
+ * Уже дані відповіді відкритих спроб — плеєр показує їх після перезавантаження
+ * замість порожніх питань. Вміст питань — з уже завантаженого курсу
+ * (componentById), а не повторним запитом до бази.
+ */
+export function openAttemptAnswersFrom(
+  rows: { componentId: number; correct: boolean; response: unknown }[],
+  componentById: Map<number, { type: string; content: unknown }>,
+  enrollmentId: number
+) {
   return Object.fromEntries(
-    rows.map((r) => [
-      r.componentId,
-      {
-        correct: r.correct,
-        response: r.response,
-        reveal: revealFor(r.component.type, r.component.content as Record<string, unknown>, serverKeyOf(r.componentId, enrollmentId), r.correct, r.response),
-      },
-    ])
+    rows.flatMap((r) => {
+      const c = componentById.get(r.componentId);
+      if (!c) return [];
+      const reveal = revealFor(c.type, c.content as Record<string, unknown>, serverKeyOf(r.componentId, enrollmentId), r.correct, r.response);
+      return [[r.componentId, { correct: r.correct, response: r.response, reveal }]];
+    })
   );
 }
 
@@ -381,8 +383,14 @@ export type FinishResult =
 
 const CLIENT_ATTEMPT_ID = /^[A-Za-z0-9-]{8,64}$/;
 
+type FinishEmployee = { id: number; name: string; managerId: number | null };
+
+/**
+ * `employeeInput` — проміс (module-complete передає перевірку сесії, щоб вона
+ * йшла паралельно з курсом/модулем, а не перед ними); null — сесії нема.
+ */
 export async function finishModuleAttempt(
-  employee: { id: number; name: string; manager?: { id: number } | null },
+  employeeInput: Promise<FinishEmployee | null>,
   slug: string,
   body: { enrollmentId?: unknown; moduleId?: unknown; clientAttemptId?: unknown; answers?: unknown; durationSeconds?: unknown }
 ): Promise<FinishResult> {
@@ -391,8 +399,14 @@ export async function finishModuleAttempt(
   // він дозволяв «скласти» курс запитом із devtools. Офлайн-черга 4xx викидає.
   if (!clientAttemptId) return { ok: false, status: 400, error: "clientAttemptId is required" };
 
-  const ctx = await loadContext(employee.id, slug, Number(body.enrollmentId), Number(body.moduleId));
+  const ctx = await loadContext(
+    employeeInput.then((e) => e?.id ?? null),
+    slug,
+    Number(body.enrollmentId),
+    Number(body.moduleId)
+  );
   if (!ctx.ok) return { ok: false, status: ctx.status, error: ctx.message };
+  const employee = (await employeeInput)!;
   const { course, enrollment, courseModule } = ctx;
   const duration = Number.isInteger(body.durationSeconds) && (body.durationSeconds as number) >= 0 ? (body.durationSeconds as number) : null;
   const payloadAnswers = body.answers && typeof body.answers === "object" ? (body.answers as Record<string, unknown>) : {};
@@ -404,7 +418,10 @@ export async function finishModuleAttempt(
     const replay = await tx.moduleAttempt.findUnique({ where: { clientAttemptId }, include: { answers: true } });
     if (replay) {
       if (replay.enrollmentId !== enrollment.id || replay.moduleId !== courseModule.id) return { conflict: true };
-      return { attempt: replay, answers: replay.answers, replayed: true };
+      const completion = await tx.moduleCompletion.findUnique({
+        where: { enrollmentId_moduleId: { enrollmentId: enrollment.id, moduleId: courseModule.id } },
+      });
+      return { attempt: replay, answers: replay.answers, replayed: true, completion };
     }
     const opened = await openAttempt(tx, ctx);
     if ("blocked" in opened) return { blocked: opened.blocked };
@@ -447,8 +464,9 @@ export async function finishModuleAttempt(
     });
     const streak = longestStreak(orderedPool, correctById);
     const best = { scorePercent, passed, scoreRaw, scoreMax, longestCorrectStreak: streak, completedAt: now };
+    let completion;
     if (!old) {
-      await tx.moduleCompletion.create({
+      completion = await tx.moduleCompletion.create({
         data: {
           enrollmentId: enrollment.id,
           moduleId: courseModule.id,
@@ -461,7 +479,7 @@ export async function finishModuleAttempt(
       });
     } else {
       const better = (passed && !old.passed) || (passed === old.passed && scorePercent > old.scorePercent);
-      await tx.moduleCompletion.update({
+      completion = await tx.moduleCompletion.update({
         where: { id: old.id },
         data: {
           ...(better ? best : {}),
@@ -484,19 +502,18 @@ export async function finishModuleAttempt(
     if (enrollment.status === "not_started") {
       await tx.enrollment.update({ where: { id: enrollment.id }, data: { status: "in_progress" } });
     }
-    return { attempt: finished, answers, replayed: false };
+    return { attempt: finished, answers, replayed: false, completion };
   });
 
   if ("conflict" in outcome) return { ok: false, status: 409, error: "clientAttemptId belongs to another module" };
   if ("blocked" in outcome) return { ok: false, status: 409, error: REASON_TEXT[outcome.blocked!] ?? "Модуль зараз недоступний" };
 
-  const { attempt } = outcome;
-  const courseState = outcome.replayed ? await readCourseState(enrollment.id) : await finalizeEnrollment(enrollment.id, employee, course.title);
+  const { attempt, completion } = outcome;
+  const courseState = outcome.replayed
+    ? await readCourseState(enrollment.id)
+    : await finalizeEnrollment(enrollment.id, employee, course.title, new Date(), course.modules.map((m) => m.id));
   invalidateEmployeeEnrollments();
 
-  const completion = await prisma.moduleCompletion.findUnique({
-    where: { enrollmentId_moduleId: { enrollmentId: enrollment.id, moduleId: courseModule.id } },
-  });
   const gate = retryGate(completion, resolveRetryRules(course, courseModule));
   return {
     ok: true,
@@ -533,42 +550,58 @@ async function readCourseState(enrollmentId: number): Promise<CourseState | null
  * «складено» курсу присилав браузер через /submit). Бал — сума найкращих
  * результатів модулів; складено — лише якщо складено КОЖЕН модуль.
  * Повторний виклик після перескладання оновлює підсумок.
+ *
+ * Звичайний випадок — курс ще не пройдено до кінця: призначення, результати
+ * модулів і (якщо не передані) id модулів читаються одним паралельним кроком
+ * і функція одразу виходить. Раніше вона щоразу тягнула весь курс до рівня
+ * компонентів (5 звернень по черзі) — лише щоб повернути null.
  */
 export async function finalizeEnrollment(
   enrollmentId: number,
-  employee: { id: number; name: string; manager?: { id: number } | null },
+  employee: { id: number; name: string; managerId?: number | null },
   courseTitle: string,
-  now = new Date()
+  now = new Date(),
+  knownModuleIds?: number[]
 ): Promise<CourseState | null> {
-  const enrollment = await prisma.enrollment.findUnique({
-    where: { id: enrollmentId },
-    include: {
-      moduleCompletions: true,
-      course: {
-        select: { modules: { select: { id: true, screens: { select: { components: { select: { type: true } } } } } } },
-      },
-    },
-  });
+  const [enrollment, completions, moduleIds] = await Promise.all([
+    prisma.enrollment.findUnique({ where: { id: enrollmentId } }),
+    prisma.moduleCompletion.findMany({ where: { enrollmentId } }),
+    knownModuleIds ??
+      prisma.module
+        .findMany({ where: { course: { enrollments: { some: { id: enrollmentId } } } }, select: { id: true } })
+        .then((ms) => ms.map((m) => m.id)),
+  ]);
   if (!enrollment) return null;
-  const byModule = new Map(enrollment.moduleCompletions.map((c) => [c.moduleId, c]));
-  const modules = enrollment.course.modules;
-  if (modules.length === 0 || !modules.every((m) => byModule.has(m.id))) return null;
+  const byModule = new Map(completions.map((c) => [c.moduleId, c]));
+  if (moduleIds.length === 0 || !moduleIds.every((id) => byModule.has(id))) return null;
+
+  // Рядки, записані до появи scoreRaw/scoreMax — відновлюємо з відсотка й
+  // реальної кількості оцінюваних питань модуля (як і раніше робила сторінка).
+  // Питання читаються лише для таких модулів.
+  const legacyIds = moduleIds.filter((id) => byModule.get(id)!.scoreRaw == null || byModule.get(id)!.scoreMax == null);
+  const questionsByModule = new Map<number, number>();
+  if (legacyIds.length) {
+    const components = await prisma.component.findMany({
+      where: { screen: { moduleId: { in: legacyIds } } },
+      select: { type: true, screen: { select: { moduleId: true } } },
+    });
+    for (const c of components.filter(isScored)) questionsByModule.set(c.screen.moduleId, (questionsByModule.get(c.screen.moduleId) ?? 0) + 1);
+  }
 
   let scoreRaw = 0;
   let scoreMax = 0;
-  for (const m of modules) {
-    const c = byModule.get(m.id)!;
+  for (const id of moduleIds) {
+    const c = byModule.get(id)!;
     if (c.scoreRaw != null && c.scoreMax != null) {
       scoreRaw += c.scoreRaw;
       scoreMax += c.scoreMax;
     } else {
-      // Рядок, записаний до появи scoreRaw/scoreMax — відновлюємо з відсотка
-      // й реальної кількості оцінюваних питань модуля (як і раніше робила сторінка).
-      const questions = m.screens.reduce((sum, s) => sum + s.components.filter(isScored).length, 0);
+      const questions = questionsByModule.get(id) ?? 0;
       scoreRaw += Math.round((c.scorePercent / 100) * questions);
       scoreMax += questions;
     }
   }
+  const modules = moduleIds.map((id) => ({ id }));
   const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 100;
   const passed = modules.every((m) => byModule.get(m.id)!.passed);
   const duration = modules.reduce((sum, m) => sum + (byModule.get(m.id)!.durationSeconds ?? 0), 0);
@@ -609,16 +642,21 @@ export async function finalizeEnrollment(
   ]);
 
   // Бали й сповіщення — best-effort ПІСЛЯ запису: збій не відкочує результат.
-  try {
-    await syncEnrollmentEvents(enrollmentId);
-  } catch (err) {
-    console.warn("[rating] course completion:", (err as Error)?.message);
-  }
-  // Керівнику — лише подія (перше завершення або «нарешті склав»), а не кожне
-  // покращення балу: інакше кожне перескладання було б новим сповіщенням.
-  if (firstCompletion || (passed && !enrollment.passed)) {
+  // after() — уже після відповіді людині (2026-10-03): сповіщення керівнику
+  // це ще й Web Push і Telegram по HTTP, і людина на останньому модулі чекала
+  // їх до вердикту. Бали з'являються на мить пізніше — кеш рейтингу й так 60 с.
+  const notifyManager = firstCompletion || (passed && !enrollment.passed);
+  after(async () => {
     try {
-      await notifySubordinateCourseResult(employee.manager?.id ?? null, {
+      await syncEnrollmentEvents(enrollmentId);
+    } catch (err) {
+      console.warn("[rating] course completion:", (err as Error)?.message);
+    }
+    // Керівнику — лише подія (перше завершення або «нарешті склав»), а не кожне
+    // покращення балу: інакше кожне перескладання було б новим сповіщенням.
+    if (!notifyManager) return;
+    try {
+      await notifySubordinateCourseResult(employee.managerId ?? null, {
         enrollmentId,
         employeeId: employee.id,
         employeeName: employee.name,
@@ -629,6 +667,6 @@ export async function finalizeEnrollment(
     } catch (err) {
       console.warn("[notifications] subordinate course result:", (err as Error)?.message);
     }
-  }
+  });
   return { completed: true, scoreRaw, scoreMax, scorePercent, passed };
 }

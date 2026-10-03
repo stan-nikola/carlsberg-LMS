@@ -1,18 +1,17 @@
 import { redirect, notFound } from "next/navigation";
 import { connection } from "next/server";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentUser, getSessionClaims } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
   getCourseForPlayer,
-  getEnrollmentForCourse,
   flattenScreens,
   getSessionModules,
   moduleCooldownDays,
 } from "@/lib/courseContent";
 import { buildCoursePlan, toPlanView, toPlanInputs, toPacing } from "@/lib/coursePlan";
 import { isScored } from "@/lib/componentTypes";
-import { currentAttemptNumbers, modulePool, openAttemptAnswers, toPlayerComponent } from "@/lib/moduleAttempts";
+import { attemptNumbersFrom, modulePool, openAttemptAnswersFrom, toPlayerComponent } from "@/lib/moduleAttempts";
 import { formatKyivDate } from "@/lib/kyivTime";
 import { isManagerTier } from "@/lib/permissions";
 import { CoursePlayer } from "@/components/CoursePlayer";
@@ -44,7 +43,26 @@ export default async function CoursePage({ params, searchParams }) {
   // без явного connection() валідатор Cache Components лічив це за
   // блокування пререндера (blocking-prerender-current-time).
   await connection();
-  const employee = await getCurrentUser();
+  // Усе, що залежить лише від людини й курсу, — одним паралельним кроком
+  // (аудит запитів, 2026-10-03): раніше сесія → курс → призначення →
+  // результати → спроби → відповіді йшли по черзі, ~11 звернень до бази.
+  // Людина береться з підпису cookie; сама сесія (активність, відкликання)
+  // перевіряється getCurrentUser у тому ж кроці, і без неї нічого з
+  // прочитаного не показується — redirect нижче.
+  const claims = await getSessionClaims();
+  if (!claims) redirect("/register");
+  const mine = { employeeId: claims.employeeId, course: { slug } };
+  const [employee, course, enrollment, completions, openAttempts, openAnswerRows] = await Promise.all([
+    getCurrentUser(),
+    getCourseForPlayer(slug),
+    prisma.enrollment.findFirst({ where: mine }),
+    prisma.moduleCompletion.findMany({ where: { enrollment: mine } }),
+    prisma.moduleAttempt.findMany({ where: { enrollment: mine, finishedAt: null }, select: { moduleId: true, attemptNumber: true } }),
+    prisma.attemptAnswer.findMany({
+      where: { attempt: { enrollment: mine, finishedAt: null } },
+      select: { componentId: true, correct: true, response: true },
+    }),
+  ]);
   if (!employee) redirect("/register");
   // Керівний шар (SV і вище) не бачить /hub взагалі — app/hub/layout.js
   // перекидає будь-який запит туди на /manager (isManagerTier). Кнопка
@@ -55,10 +73,8 @@ export default async function CoursePage({ params, searchParams }) {
   // лише в кабінеті керівника.
   const backHref = isManagerTier(employee) ? "/manager/courses" : "/hub/learn";
 
-  const course = await getCourseForPlayer(slug);
   if (!course) notFound();
 
-  const enrollment = await getEnrollmentForCourse(employee.id, course.id);
   if (!enrollment) {
     // Досяжно, напр., зі старого сповіщення (курс, з якого людину вже
     // зняли, лист лишився в центрі сповіщень) — раніше цей фолбек не мав
@@ -97,7 +113,6 @@ export default async function CoursePage({ params, searchParams }) {
   // окреме "Відкриття через N днів" на рівні Screen свідомо прибрали
   // (2026-09, на запит користувача): для одного екрана всередині вже
   // доступного модуля така пауза зайва.
-  const completions = await prisma.moduleCompletion.findMany({ where: { enrollmentId: enrollment.id } });
   const completionsByModuleId = new Map(completions.map((c) => [c.moduleId, c]));
 
   // "Пауза перед повторним проходженням" (Module.retakeCooldownDays):
@@ -216,7 +231,7 @@ export default async function CoursePage({ params, searchParams }) {
   // номера спроби (lib/retryPolicy.ts poolSeed): оновлення сторінки не
   // перетасовує питання, наступна спроба дає інші, а /answer і
   // module-complete перевіряють рівно цей самий набір.
-  const attemptNumbers = await currentAttemptNumbers(enrollment.id);
+  const attemptNumbers = attemptNumbersFrom(openAttempts, completions);
   const modulesWithPool = playableModules.map((m) => {
     const keep = modulePool(m, enrollment.id, attemptNumbers.get(m.id) ?? 1);
     const screens = m.screens
@@ -237,7 +252,8 @@ export default async function CoursePage({ params, searchParams }) {
   // Відповіді, уже дані в незавершених спробах (перевірені сервером) —
   // плеєр показує їх після перезавантаження, а не порожні питання, на які
   // сервер однаково не прийме іншої відповіді.
-  const initialAnswers = await openAttemptAnswers(enrollment.id);
+  const componentById = new Map(course.modules.flatMap((m) => m.screens.flatMap((s) => s.components.map((c) => [c.id, c]))));
+  const initialAnswers = openAttemptAnswersFrom(openAnswerRows, componentById, enrollment.id);
 
   const courseWithPlayableContent = { ...course, modules: modulesWithPool };
 
