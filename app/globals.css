@@ -382,10 +382,19 @@ html:has(.stage--course-player:not([style*="display: none"])) {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
-  z-index: 50;
+  /* Вище за нижній таббар (--z-sticky): інакше в кабінеті керівника таббар
+     лежав поверх шторки й ховав «Вийти з акаунту». */
+  z-index: var(--z-modal);
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  /* Жест на затемненні не гортає сторінку під шторкою. */
+  touch-action: none;
+}
+/* Сторінка під відкритою шторкою не прокручується. */
+html:has(.sheet-overlay.open),
+html:has(.sheet-overlay.open) body {
+  overflow: hidden;
 }
 .sheet-overlay.open {
   opacity: 1;
@@ -395,12 +404,15 @@ html:has(.stage--course-player:not([style*="display: none"])) {
   width: 100%;
   max-width: 440px;
   max-height: 82vh;
+  max-height: 85dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   background: var(--surface);
   /* Раніше сирі 24px — за рішенням користувача приведено до токена
      (design-guardian-аудит), найближчий за шкалою. */
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  padding: 8px 20px 26px;
+  padding: 0 20px calc(26px + env(safe-area-inset-bottom));
   transform: translateY(30px);
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   border: var(--border-w) solid var(--line);
@@ -409,12 +421,23 @@ html:has(.stage--course-player:not([style*="display: none"])) {
 .sheet-overlay.open .sheet {
   transform: translateY(0);
 }
+/* Смужка — лише видима частина; тягнути можна всю верхню смугу шторки. */
+.sheet-grab {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 -20px;
+  padding: 18px 0 15px;
+  background: var(--surface);
+  touch-action: none;
+  cursor: grab;
+}
 .sheet-handle {
   width: 36px;
   height: 4px;
   border-radius: var(--radius-pill);
   background: var(--line);
-  margin: 10px auto 15px;
+  margin: 0 auto;
 }
 .sheet h3 {
   font-size: calc(17px * var(--fs-scale));

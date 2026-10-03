@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { SettingsGearIcon, LogoutIcon, DownloadIcon } from "@/components/icons";
 import { InstallGuideModal } from "@/components/InstallGuide";
 import { isStandalone } from "@/lib/installGuide";
+import { BottomSheet } from "@/components/BottomSheet";
 
 // Портовано з legacy/js/settings.js — той самий ключ localStorage, щоб
 // налаштування розміру шрифту не губились для існуючих користувачів.
@@ -59,14 +60,7 @@ export function SettingsSheet({ open, onClose, onLogout }) {
 
   return (
     <>
-      <div
-        className={`sheet-overlay${open ? " open" : ""}`}
-        onClick={(event) => {
-          if (event.target === event.currentTarget) onClose();
-        }}
-      >
-        <div className="sheet">
-          <div className="sheet-handle" />
+      <BottomSheet open={open} onClose={onClose}>
           <h3>Налаштування</h3>
           <p className="lead">Підлаштуйте розмір тексту під себе.</p>
           <div className="settings-block">
@@ -138,8 +132,7 @@ export function SettingsSheet({ open, onClose, onLogout }) {
               <span>Вийти з акаунту</span>
             </button>
           )}
-        </div>
-      </div>
+      </BottomSheet>
       {/* Сестринський елемент, не дитина .sheet-overlay вище — інакше
           transition закриття шторки (opacity) тягнув би за собою й гайд. */}
       <InstallGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />

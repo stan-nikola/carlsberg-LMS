@@ -17,6 +17,7 @@ import {
 import { GearIcon, LockIcon, ProfileIcon, PeopleIcon, CourseIcon, ScreensIcon, AchievementsIcon, CheckIcon } from "@/components/icons";
 import { PlatformBrand } from "@/components/PlatformBrand";
 import { HintDot } from "@/components/HintDot";
+import { BottomSheet } from "@/components/BottomSheet";
 
 // Портовано з legacy index.html (regCard) + js/registration.js. Два кроки
 // одного екрана (код -> PIN), як і раніше, тільки замість Apps Script —
@@ -614,9 +615,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <div className={`sheet-overlay${codeHintOpen ? " open" : ""}`} onClick={(e) => { if (e.target === e.currentTarget) setCodeHintOpen(false); }}>
-        <div className="sheet">
-          <div className="sheet-handle" />
+      <BottomSheet open={codeHintOpen} onClose={() => setCodeHintOpen(false)}>
           <h3>Де знайти ваш код?</h3>
           <p className="lead">
             Відкрийте застосунок Monolit Agent — ваш код показано поруч із номером версії у верхній
@@ -633,8 +632,7 @@ export default function RegisterPage() {
           <p className="footnote">
             Код виглядає як комбінація літер і цифр у квадратних дужках, наприклад [ml03005].
           </p>
-        </div>
-      </div>
+      </BottomSheet>
 
       <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
