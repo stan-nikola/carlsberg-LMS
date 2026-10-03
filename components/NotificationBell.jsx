@@ -54,7 +54,7 @@ export function NotificationBell({ href }) {
   useEffect(() => {
     let alive = true;
     const load = () =>
-      fetch("/api/notifications")
+      fetch("/api/notifications?count=1")
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
           if (!alive || !d) return;
@@ -67,7 +67,10 @@ export function NotificationBell({ href }) {
         })
         .catch(() => {});
     load();
-    const t = setInterval(load, 60000);
+    // Прихована вкладка не опитує зовсім (2026-10-03): забута фонова вкладка
+    // інакше кожну хвилину будила функцію й базу. Повернення на вкладку
+    // оновлює лічильник одразу (onVis нижче).
+    const t = setInterval(() => document.visibilityState === "visible" && load(), 60000);
     const onVis = () => document.visibilityState === "visible" && load();
     document.addEventListener("visibilitychange", onVis);
     // Push прийшов, поки застосунок відкритий — service worker шле message

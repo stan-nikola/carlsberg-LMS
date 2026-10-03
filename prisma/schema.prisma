@@ -148,6 +148,9 @@ model Employee {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   ratingEvents RatingEvent[]
+
+  // Postgres не індексує зовнішні ключі сам (аудит запитів, 2026-10-03).
+  @@index([managerId])
 }
 
 // ---------------------------------------------------------------------
@@ -355,6 +358,9 @@ model Module {
   screens     Screen[]
   completions ModuleCompletion[]
   attempts    ModuleAttempt[]
+
+  // Postgres не індексує зовнішні ключі сам (аудит запитів, 2026-10-03).
+  @@index([courseId])
 }
 
 /// Факт складання модуля конкретним співробітником (в рамках конкретного
@@ -462,6 +468,9 @@ model AttemptAnswer {
   answeredAt  DateTime      @default(now())
 
   @@id([attemptId, componentId])
+
+  // Postgres не індексує зовнішні ключі сам (аудит запитів, 2026-10-03).
+  @@index([componentId])
 }
 
 /// Екран курсу — те, що співробітник реально бачить і гортає "Далі"/"Назад"
@@ -481,6 +490,9 @@ model Screen {
   /// лише на рівні Module (Module.cooldownDays, "Пауза між модулями"),
   /// не для кожного окремого екрана.
   components Component[]
+
+  // Postgres не індексує зовнішні ключі сам (аудит запитів, 2026-10-03).
+  @@index([moduleId])
 }
 
 /// info — информационный блок (текст/картинка); quiz — вопрос с вариантами
@@ -561,6 +573,9 @@ model Component {
   /// (частка правильних) у конструкторі.
   questionAnswers QuestionAnswer[]
   attemptAnswers  AttemptAnswer[]
+
+  // Postgres не індексує зовнішні ключі сам (аудит запитів, 2026-10-03).
+  @@index([screenId])
 }
 
 // ---------------------------------------------------------------------
@@ -636,6 +651,9 @@ model Enrollment {
   @@unique([employeeId, courseId])
   /// Для дневной cron-задачи, которая ищет просроченные назначения.
   @@index([status, dueDate])
+
+  // Postgres не індексує зовнішні ключі сам (аудит запитів, 2026-10-03).
+  @@index([courseId])
 }
 
 /// Полная история попыток прохождения курса (курс можно проходить
@@ -902,6 +920,9 @@ model EmployeeBadge {
   note        String?
 
   @@unique([employeeId, badgeId])
+
+  // Postgres не індексує зовнішні ключі сам (аудит запитів, 2026-10-03).
+  @@index([badgeId])
 }
 
 // ---------------------------------------------------------------------
@@ -942,6 +963,9 @@ model RatingEvent {
 
   @@unique([employeeId, kind, refType, refId])
   @@index([employeeId])
+
+  // Postgres не індексує зовнішні ключі сам (аудит запитів, 2026-10-03).
+  @@index([refType, refId])
 }
 
 /// Журнал дій з /admin: що зробили й над чим. Сесія адміна не прив'язана
