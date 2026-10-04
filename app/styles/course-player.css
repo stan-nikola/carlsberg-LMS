@@ -1959,7 +1959,8 @@
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  z-index: 3;
+  /* У <body> через портал (ConfettiBurst) — поверх усього екрана, не лише картки. */
+  z-index: var(--z-modal);
 }
 /* Частинка — ТОЙ САМИЙ трилисток, що логотип платформи і PWA-іконка
    (public/assets/brand/trefoil-solid-green.png, PLATFORM_HOP_LOGO_PATH),

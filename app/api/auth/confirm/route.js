@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { evaluateAutoBadgesForEmployee } from "@/lib/badgeRules";
 import { confirmLoginPin, invalidateLoginPin } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { clientIp, hitRateLimit, normalizeExternalCode, pinThrottleKey, recordSuccess, registerAttempt, settleFailure, tooManyRequests } from "@/lib/loginThrottle";
@@ -65,6 +66,8 @@ export async function POST(request) {
 
   await recordSuccess(throttleKey);
   await createSession(result.employee.id, result.employee.sessionVersion);
+  // «Перший вхід» — одразу, а не з наступним щоденним cron (уже після відповіді).
+  after(() => evaluateAutoBadgesForEmployee(result.employee.id).catch((err) => console.warn("[badges] login:", err?.message)));
   auditEmployee(result.employee.id, "auth.login");
 
   return NextResponse.json({

@@ -9,6 +9,7 @@ import { formatWait, pickQuestionPool, poolSeed, resolveRetryRules, retryGate } 
 import { syncEnrollmentEvents } from "@/lib/rating";
 import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
 import { notifySubordinateCourseResult } from "@/lib/notifications";
+import { evaluateAutoBadgesForEmployee } from "@/lib/badgeRules";
 import { auditEmployee } from "@/lib/audit";
 
 const prisma = prismaUntyped as PrismaClient;
@@ -664,6 +665,13 @@ export async function finalizeEnrollment(
       await syncEnrollmentEvents(enrollmentId);
     } catch (err) {
       console.warn("[rating] course completion:", (err as Error)?.message);
+    }
+    // Авто-відзнаки («Курс складено», «5 курсів пройдено», «Без помилок») —
+    // одразу, а не з наступним щоденним cron.
+    try {
+      await evaluateAutoBadgesForEmployee(employee.id);
+    } catch (err) {
+      console.warn("[badges] course completion:", (err as Error)?.message);
     }
     // Керівнику — лише подія (перше завершення або «нарешті склав»), а не кожне
     // покращення балу: інакше кожне перескладання було б новим сповіщенням.
