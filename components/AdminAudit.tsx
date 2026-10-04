@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { SpinnerIcon, XIcon } from "@/components/icons";
+import { ExcelIcon, SpinnerIcon, XIcon } from "@/components/icons";
+import { AUDIT_ACTION_LABELS as ACTION_LABELS, AUDIT_CATEGORIES as CATEGORIES, AUDIT_ROLE_LABELS, describeAuditEntry as describe } from "@/lib/auditFormat";
 
 type Person = { id: number; name: string; externalCode?: string | null; position?: string | null };
 type Entry = {
@@ -18,176 +19,229 @@ type Entry = {
 };
 type Page = { entries: Entry[]; nextCursor: number | null; retentionDays: number; canEditRetention: boolean };
 
-const ROLES: Record<string, { label: string; className: string }> = {
-  super: { label: "Супер-адмін", className: "status-pill audit-role-super" },
-  admin: { label: "Адмін", className: "status-pill status-pill-success" },
-  manager: { label: "Керівник", className: "status-pill status-pill-alert" },
-  employee: { label: "Співробітник", className: "status-pill" },
-  system: { label: "Система", className: "status-pill" },
+const ROLE_CLASS: Record<string, string> = {
+  super: "status-pill audit-role-super",
+  admin: "status-pill status-pill-success",
+  manager: "status-pill status-pill-alert",
+  employee: "status-pill",
+  system: "status-pill",
 };
+const ROLES = Object.fromEntries(
+  Object.entries(AUDIT_ROLE_LABELS).map(([k, label]) => [k, { label, className: ROLE_CLASS[k] || "status-pill" }])
+) as Record<string, { label: string; className: string }>;
 
-const CATEGORIES: Record<string, string> = {
-  auth: "Входи",
-  learning: "Навчання",
-  manager: "Дії керівників",
-  profile: "Профіль і сповіщення",
-  activity: "Активність",
-  admin: "Адмінка",
-  system: "Система",
-};
+// ------------------------------------------------------------ таблиця-сітка
 
-const ACTION_LABELS: Record<string, string> = {
-  // входи
-  "auth.pin_requested": "Запит PIN",
-  "auth.login": "Вхід",
-  "auth.login_failed": "Невдалий вхід",
-  "auth.logout": "Вихід",
-  "admin.login": "Вхід в адмінку",
-  "admin.login_failed": "Невдалий вхід в адмінку",
-  "admin.logout": "Вихід з адмінки",
-  // навчання
-  "learning.course_start": "Почав курс",
-  "learning.module_complete": "Пройшов модуль",
-  "learning.course_complete": "Завершив курс",
-  "learning.certificate": "Завантажив сертифікат",
-  // керівники
-  "manager.remind": "Нагадування команді",
-  "manager.export": "Excel-звіт по команді",
-  // профіль і сповіщення
-  "profile.avatar_update": "Змінив фото профілю",
-  "profile.avatar_delete": "Прибрав фото профілю",
-  "profile.notifications_update": "Налаштування сповіщень",
-  "profile.telegram_link": "Підключив Telegram",
-  "profile.telegram_unlink": "Відключив Telegram",
-  "profile.push_subscribe": "Увімкнув push",
-  "profile.push_unsubscribe": "Вимкнув push",
-  "activity.visit": "Був у застосунку",
-  "system.cron": "Щоденні фонові задачі",
-  "audit.retention": "Термін зберігання журналу",
-  // адмінка
-  "enrollment.update": "Корекція проходження",
-  "enrollment.delete": "Знято призначення",
-  "employee.update": "Зміна картки співробітника",
-  "employee.create": "Створено співробітника",
-  "employee.import": "Імпорт співробітників",
-  "badge.award": "Видано відзнаку",
-  "badge.award_bulk": "Масова видача відзнаки",
-  "badge.revoke": "Відкликано відзнаку",
-  "badge.delete": "Видалено тип відзнаки",
-  "pin.reset": "Скинуто PIN",
-  "course.assign": "Призначено курс",
-  "course.delete": "Видалено курс",
-  "course.unassign_all": "Знято всі призначення курсу",
-  "rating.rules.update": "Змінено ваги рейтингу",
-  "rating.recalculate": "Перерахунок рейтингу",
-  "token.create": "Створено Excel-токен",
-  "token.revoke": "Відкликано Excel-токен",
-  "badge.create": "Створено тип відзнаки",
-  "badge.update": "Змінено тип відзнаки",
-  "course.create": "Створено курс",
-  "course.update": "Змінено налаштування курсу",
-  "module.create": "Додано модуль",
-  "module.delete": "Видалено модуль",
-  "folder.create": "Створено папку курсів",
-  "folder.delete": "Видалено папку курсів",
-  "broadcast.send": "Ручна розсилка",
-  "broadcast.delete": "Видалено розсилку",
-  "design.save": "Збережено дизайн-токени для всіх",
-  "design.reset": "Скинуто дизайн-токени до дефолтів",
-  "telegram.webhook": "Увімкнено Telegram webhook",
-  "telegram.menu_button": "Увімкнено кнопку меню Mini App",
-  "telegram.unlink": "Відключено Telegram",
-  "telegram.test": "Тест у Telegram",
-};
+/**
+ * Колонки журналу. Ширини — як у Excel: тягнути за правий край заголовка,
+ * подвійний клік — повернути стандартну. Запам'ятовуються в localStorage
+ * (лише зручність одного адміна, не дані).
+ */
+const COLUMNS = [
+  { key: "when", label: "Коли", width: 132 },
+  { key: "who", label: "Хто", width: 230 },
+  { key: "action", label: "Дія", width: 190 },
+  { key: "target", label: "Об'єкт", width: 210 },
+  { key: "describe", label: "Розбір", width: 460 },
+] as const;
+type ColumnKey = (typeof COLUMNS)[number]["key"];
+const ROW_HEADER_WIDTH = 44;
+const MIN_COL = 70;
+const MIN_ROW = 28;
+const WIDTHS_KEY = "audit-grid-widths-v1";
 
-const LOGIN_FAIL: Record<string, string> = {
-  invalid_pin: "невірний PIN",
-  pin_expired: "PIN прострочений",
-  deactivated: "обліковий запис деактивовано",
-};
+function defaultWidths(): Record<ColumnKey, number> {
+  return Object.fromEntries(COLUMNS.map((c) => [c.key, c.width])) as Record<ColumnKey, number>;
+}
 
-const KEY_LABELS: Record<string, string> = {
-  title: "назва",
-  name: "ім'я",
-  note: "примітка",
-  count: "кількість",
-  awardedCount: "видано",
-  skippedCount: "пропущено",
-  createdCount: "створено",
-  assignedCount: "призначено",
-  removed: "прибрано",
-  scorePercent: "бал",
-  status: "статус",
-  passed: "складено",
-  points: "бали",
-  adminNote: "коментар адміна",
-  from: "було",
-  to: "стало",
-};
+/** Тягнути мишею чи пальцем: dx/dy від точки натискання, поки кнопку не відпущено. */
+function startDrag(e: React.PointerEvent, onMove: (dx: number, dy: number) => void) {
+  e.preventDefault();
+  e.stopPropagation();
+  const x0 = e.clientX;
+  const y0 = e.clientY;
+  const move = (ev: PointerEvent) => onMove(ev.clientX - x0, ev.clientY - y0);
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    document.body.classList.remove("audit-resizing");
+  };
+  document.body.classList.add("audit-resizing");
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
 
-const s = (v: unknown) => (v == null ? "" : String(v));
-const yesNo = (v: unknown) => (v === true ? "так" : v === false ? "ні" : s(v));
+function formatWhen(iso: string) {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    time: d.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+  };
+}
 
-/** Розбір запису людською мовою: що саме сталось, з тими цифрами, що є в деталях. */
-function describe(e: Entry): string {
-  const d = e.details || {};
-  switch (e.action) {
-    case "auth.pin_requested":
-      return d.demo ? "PIN надіслано на пошту з тестового входу" : "PIN надіслано на пошту керівника";
-    case "auth.login":
-      return "Підтвердив PIN і увійшов";
-    case "auth.login_failed":
-      return `Вхід не вдався: ${LOGIN_FAIL[s(d.reason)] || s(d.reason)}`;
-    case "auth.logout":
-      return "Вийшов із застосунку";
-    case "admin.login":
-      return e.actor === "super" ? "Увійшов паролем супер-адміна" : "Увійшов паролем адміна";
-    case "admin.login_failed":
-      return "Невірний пароль адмінки";
-    case "admin.logout":
-      return "Вийшов з адмінки";
-    case "learning.course_start":
-      return "Перша відповідь у курсі — курс перейшов у «в процесі»";
-    case "learning.module_complete":
-      return `Модуль «${s(d.module)}» курсу «${s(d.course)}»: ${s(d.scorePercent)}% — ${d.passed ? "складено" : "не складено"}, спроба ${s(d.attempt)}`;
-    case "learning.course_complete":
-      return `Курс «${s(d.course)}»: ${s(d.scorePercent)}% — ${d.passed ? "складено" : "не складено"}${d.first ? "" : " (перескладання)"}`;
-    case "learning.certificate":
-      return `Сертифікат PDF (${s(d.scorePercent)}%)`;
-    case "manager.remind":
-      return d.via === "telegram"
-        ? `Нагадування з Mini App${d.course ? ` про «${s(d.course)}»` : ""}`
-        : `Нагадування ${s(d.recipients)} людям${d.message ? `: «${s(d.message)}»` : ""}`;
-    case "manager.export":
-      return `Звіт, аркушів: ${s(d.cards)}`;
-    case "profile.notifications_update":
-      return Object.entries(d)
-        .map(([k, v]) => `${k}: ${v ? "увімк." : "вимк."}`)
-        .join(", ");
-    case "profile.telegram_unlink":
-      return d.via === "/stop" ? "Командою /stop у боті" : "З профілю";
-    case "activity.visit":
-      return "Відкривав застосунок (фіксується не частіше разу на годину)";
-    case "system.cron": {
-      const r = d as Record<string, Record<string, unknown>>;
-      return [
-        r.overdue && `прострочено ${s(r.overdue.markedCount)}`,
-        r.reminders && `нагадувань ${s(r.reminders.created)}`,
-        r.badges && `відзнак ${s(r.badges.awardedCount)}`,
-        r.digests && `дайджестів ${s(r.digests.created)}`,
-        r.auditPurge && `прибрано з журналу ${s(r.auditPurge.removed)}`,
-      ]
-        .filter(Boolean)
-        .join(", ");
+function AuditGrid({ entries, onPerson }: { entries: Entry[]; onPerson: (p: Person) => void }) {
+  const [widths, setWidths] = useState<Record<ColumnKey, number>>(defaultWidths);
+  const [heights, setHeights] = useState<Record<number, number>>({});
+  const [open, setOpen] = useState<number | null>(null);
+  const loaded = useRef(false);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(WIDTHS_KEY) || "null");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved && typeof saved === "object") setWidths((w) => ({ ...w, ...saved }));
+    } catch {
+      // приватний режим чи зіпсований запис — стандартні ширини
     }
-    case "audit.retention":
-      return `${s(d.from)} → ${s(d.to)} днів`;
-    default:
-      return Object.entries(d)
-        .filter(([, v]) => v != null && v !== "" && typeof v !== "object")
-        .map(([k, v]) => `${KEY_LABELS[k] || k}: ${typeof v === "boolean" ? yesNo(v) : s(v)}`)
-        .join(" · ");
-  }
+    loaded.current = true;
+  }, []);
+  useEffect(() => {
+    if (!loaded.current) return;
+    try {
+      localStorage.setItem(WIDTHS_KEY, JSON.stringify(widths));
+    } catch {
+      // не критично
+    }
+  }, [widths]);
+
+  const resizeColumn = (key: ColumnKey) => (e: React.PointerEvent) => {
+    const start = widths[key];
+    startDrag(e, (dx) => setWidths((w) => ({ ...w, [key]: Math.max(MIN_COL, Math.round(start + dx)) })));
+  };
+  const resizeRow = (id: number) => (e: React.PointerEvent) => {
+    const row = (e.currentTarget as HTMLElement).closest("tr");
+    const start = row?.getBoundingClientRect().height ?? 40;
+    startDrag(e, (_dx, dy) => setHeights((h) => ({ ...h, [id]: Math.max(MIN_ROW, Math.round(start + dy)) })));
+  };
+  const resetRow = (id: number) =>
+    setHeights((h) => {
+      const next = { ...h };
+      delete next[id];
+      return next;
+    });
+
+  const total = ROW_HEADER_WIDTH + COLUMNS.reduce((sum, c) => sum + widths[c.key], 0);
+
+  return (
+    <div className="adm-table-wrap is-tall audit-grid-wrap">
+      <table className="audit-grid" style={{ width: total }}>
+        <colgroup>
+          <col style={{ width: ROW_HEADER_WIDTH }} />
+          {COLUMNS.map((c) => (
+            <col key={c.key} style={{ width: widths[c.key] }} />
+          ))}
+        </colgroup>
+        <thead>
+          <tr>
+            <th className="audit-grid-corner" aria-label="№" />
+            {COLUMNS.map((c) => (
+              <th key={c.key} scope="col">
+                {c.label}
+                <span
+                  className="audit-col-handle"
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label={`Ширина колонки «${c.label}»`}
+                  title="Тягніть, щоб змінити ширину; подвійний клік — стандартна"
+                  onPointerDown={resizeColumn(c.key)}
+                  onDoubleClick={() => setWidths((w) => ({ ...w, [c.key]: c.width }))}
+                />
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((e, i) => {
+            const role = ROLES[e.actor] || { label: e.actor, className: "status-pill" };
+            const when = formatWhen(e.createdAt);
+            const h = heights[e.id];
+            // Задана висота — вміст обрізається по ній (як у Excel), інакше рядок по вмісту.
+            const cell = (content: React.ReactNode) =>
+              h ? (
+                <div className="audit-cell" style={{ maxHeight: Math.max(0, h - 13) }}>
+                  {content}
+                </div>
+              ) : (
+                content
+              );
+            return (
+              <tr key={e.id} style={h ? { height: h } : undefined}>
+                <th scope="row" className="audit-row-head">
+                  {i + 1}
+                  <span
+                    className="audit-row-handle"
+                    role="separator"
+                    aria-orientation="horizontal"
+                    aria-label={`Висота рядка ${i + 1}`}
+                    title="Тягніть, щоб змінити висоту; подвійний клік — авто"
+                    onPointerDown={resizeRow(e.id)}
+                    onDoubleClick={() => resetRow(e.id)}
+                  />
+                </th>
+                <td className="audit-when">
+                  {cell(
+                    <>
+                      <span>{when.date}</span>
+                      <span className="admin-employee-meta">{when.time}</span>
+                    </>
+                  )}
+                </td>
+                <td>
+                  {cell(
+                    <div className="audit-who">
+                      <span className={role.className}>{role.label}</span>
+                      {e.person && (
+                        <>
+                          <button type="button" className="audit-person" onClick={() => onPerson(e.person!)} title="Лише дії цієї людини">
+                            {e.person.name}
+                          </button>
+                          <span className="admin-employee-meta">
+                            {[e.person.position, e.person.externalCode].filter(Boolean).join(" · ")}{" "}
+                            <Link href={`/admin/employees/${e.person.id}`} className="audit-card-link">
+                              картка
+                            </Link>
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </td>
+                <td>{cell(<b className="audit-action">{ACTION_LABELS[e.action] || e.action}</b>)}</td>
+                <td>
+                  {cell(
+                    e.target ? (
+                      e.target.href ? (
+                        <Link href={e.target.href}>{e.target.label}</Link>
+                      ) : (
+                        e.target.label
+                      )
+                    ) : e.targetId != null ? (
+                      `#${e.targetId}`
+                    ) : (
+                      "—"
+                    )
+                  )}
+                </td>
+                <td>
+                  {cell(
+                    <>
+                      <span className="audit-describe">{describe(e) || "—"}</span>
+                      {e.details && (
+                        <button type="button" className="audit-raw-toggle" onClick={() => setOpen(open === e.id ? null : e.id)}>
+                          {open === e.id ? "сховати дані" : "дані"}
+                        </button>
+                      )}
+                      {open === e.id && <pre className="admin-audit-details open">{JSON.stringify(e.details, null, 2)}</pre>}
+                    </>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function RetentionBox({ days, canEdit, onSaved }: { days: number; canEdit: boolean; onSaved: (d: number) => void }) {
@@ -239,7 +293,6 @@ export function AdminAudit() {
   const [category, setCategory] = useState("");
   const [q, setQ] = useState("");
   const [person, setPerson] = useState<Person | null>(null);
-  const [open, setOpen] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const params = (cursor?: number | null) => {
@@ -313,6 +366,11 @@ export function AdminAudit() {
             Лише: {person.name} <XIcon />
           </button>
         )}
+        {/* Та сама кнопка, що «Завантажити звіт» у кабінеті керівника; у файл —
+            рівно те, що зараз відфільтровано на екрані (lib/auditQuery.ts). */}
+        <a className="admin-btn-link mgr-export-link audit-export" href={`/api/admin/audit/export?${params()}`} title="Вивантажити в Excel з поточними фільтрами">
+          <ExcelIcon /> <span className="mgr-export-label">Excel</span>
+        </a>
       </div>
 
       {!data ? (
@@ -323,59 +381,7 @@ export function AdminAudit() {
         <p className="admin-hint">Записів за цими фільтрами нема.</p>
       ) : (
         <>
-          <div className="adm-table-wrap is-tall">
-            <table className="admin-table admin-audit-table">
-              <thead>
-                <tr>
-                  <th>Коли</th>
-                  <th>Хто</th>
-                  <th>Дія</th>
-                  <th>Об&apos;єкт</th>
-                  <th>Розбір</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.entries.map((e) => {
-                  const role = ROLES[e.actor] || { label: e.actor, className: "status-pill" };
-                  const text = describe(e);
-                  return (
-                    <tr key={e.id}>
-                      <td className="admin-employee-meta audit-when">{new Date(e.createdAt).toLocaleString("uk-UA")}</td>
-                      <td className="audit-who">
-                        <span className={role.className}>{role.label}</span>
-                        {e.person && (
-                          <>
-                            <button type="button" className="audit-person" onClick={() => setPerson(e.person)} title="Лише дії цієї людини">
-                              {e.person.name}
-                            </button>
-                            <span className="admin-employee-meta">
-                              {[e.person.position, e.person.externalCode].filter(Boolean).join(" · ")}{" "}
-                              <Link href={`/admin/employees/${e.person.id}`} className="audit-card-link">
-                                картка
-                              </Link>
-                            </span>
-                          </>
-                        )}
-                      </td>
-                      <td>{ACTION_LABELS[e.action] || e.action}</td>
-                      <td className="admin-employee-meta">
-                        {e.target ? e.target.href ? <Link href={e.target.href}>{e.target.label}</Link> : e.target.label : e.targetId != null ? `#${e.targetId}` : "—"}
-                      </td>
-                      <td>
-                        <span className="audit-describe">{text || "—"}</span>
-                        {e.details && (
-                          <button type="button" className="audit-raw-toggle" onClick={() => setOpen(open === e.id ? null : e.id)}>
-                            {open === e.id ? "сховати дані" : "дані"}
-                          </button>
-                        )}
-                        {open === e.id && <pre className="admin-audit-details open">{JSON.stringify(e.details, null, 2)}</pre>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <AuditGrid entries={data.entries} onPerson={setPerson} />
           {data.nextCursor && (
             <button type="button" className="admin-btn audit-more" onClick={loadMore} disabled={loadingMore}>
               {loadingMore && <SpinnerIcon />} Показати ще

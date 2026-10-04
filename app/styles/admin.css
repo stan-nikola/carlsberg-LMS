@@ -4218,3 +4218,111 @@
   max-width: 560px;
   margin: 6px 0 0;
 }
+
+/* Журнал як аркуш Excel (components/AdminAudit.tsx AuditGrid, 2026-10-04):
+   сітка рамок по кожній клітинці, липка шапка й колонка номерів, ширина
+   колонок — тягнути за правий край заголовка, висота рядка — за нижній край
+   номера рядка. table-layout:fixed — ширини беруться з <colgroup> точно. */
+.audit-grid-wrap {
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.audit-grid {
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.audit-grid th,
+.audit-grid td {
+  position: relative;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-right: var(--border-w) solid var(--line);
+  border-bottom: var(--border-w) solid var(--line);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.audit-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-1);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+.audit-grid .audit-row-head {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-1);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  vertical-align: middle;
+  user-select: none;
+}
+.audit-grid thead .audit-grid-corner {
+  left: 0;
+  z-index: 3;
+}
+.audit-grid tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--surface-1) 55%, var(--surface));
+}
+.audit-grid tbody tr:hover td {
+  background: var(--green-tint);
+}
+.audit-grid tbody tr:last-child > * {
+  border-bottom: none;
+}
+.audit-grid tr > :last-child {
+  border-right: none;
+}
+.audit-when span {
+  display: block;
+}
+.audit-action {
+  font-weight: 600;
+}
+.audit-cell {
+  overflow: hidden;
+}
+/* Ручки зміни розміру: невидимі смуги на межах клітинок, підсвічуються під курсором. */
+.audit-col-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+.audit-row-handle {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 6px;
+  cursor: row-resize;
+  touch-action: none;
+}
+.audit-col-handle:hover,
+.audit-row-handle:hover {
+  background: color-mix(in srgb, var(--cb-secondary) 45%, transparent);
+}
+body.audit-resizing {
+  user-select: none;
+}
+.audit-export {
+  margin-left: auto;
+}
