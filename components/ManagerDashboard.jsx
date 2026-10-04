@@ -898,9 +898,21 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // Будь-яка зміна позиції/ширини (перетягування, ресайз, гравітація
     // після прибирання картки) — у localStorage. h не зберігаємо: воно
     // щоразу рахується з вмісту.
+    // Повернення з телефонної ширини. gridstack при поверненні з 1 колонки сам перераховує позиції
+    // (moveScale) і збиває порядок («Стан команди» першим, «Дедлайни» на всю
+    // ширину — знайдено прогоном сценаріїв 2026-10-05, ловиться при повороті
+    // планшета чи звуженні вікна), а подія change одразу записала б цю
+    // зіпсовану розкладку в localStorage. Тому під час переходу (свіжий resize
+    // вікна) не зберігаємо, а після нього сітка створюється заново (див. нижче).
+    let transitionUntil = 0;
+    const markTransition = () => {
+      transitionUntil = Date.now() + 600;
+    };
+    window.addEventListener("resize", markTransition);
     const saveLayout = () => {
       // На телефоні 12-колонкову розкладку не пишемо — див. DASHBOARD_PHONE_ORDER_STORAGE_KEY.
       if (grid.getColumn() !== GRID_COLUMNS) return;
+      if (Date.now() < transitionUntil) return;
       const nodes = grid.save(false).map(({ id, x, y, w }) => ({ id, x, y, w, pw: prefW.get(id) ?? DEFAULT_CARD_W[id] ?? w }));
       try {
         window.localStorage.setItem(DASHBOARD_GRID_STORAGE_KEY, JSON.stringify(nodes));
@@ -957,6 +969,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // домірює вже на сталій ширині; onResize сам нічого не робить, якщо
     // ширина та сама.
     let settle = 0;
+    // Колонка, яку бачив попередній спостерігач: gridstack перемикає колонки у
+    // власному обробнику resize, РАНІШЕ за наш (з затримкою), тож `was` нижче
+    // вже нова — перехід 1 → 12 впізнаємо лише за запам’ятаною.
+    let prevCol = grid.getColumn();
     const observer = new ResizeObserver(() => {
       clearTimeout(settle);
       settle = setTimeout(() => {
@@ -966,6 +982,18 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         // Щойно перейшли у вузький режим (поворот, звузили вікно) —
         // gridstack вивів порядок із 12 колонок; повертаємо телефонний.
         if (was !== 1) applyPhoneOrder();
+        // Повернулись на широкий екран (поворот планшета, розширили вікно).
+        const nowCol = grid.getColumn();
+        const returned = prevCol === 1 && nowCol === GRID_COLUMNS;
+        prevCol = nowCol;
+        if (returned) {
+          // Пересоздаємо сітку з збереженої розкладки — як після F5. Точкове
+          // відновлення позицій (grid.load) не тримається: наступний прохід
+          // fitCards бачить «діри» (висоти змінились на телефоні) і розтягує
+          // сусідів на всю ширину. Збережена розкладка чиста (див. markTransition).
+          setStoredGrid(readStoredGrid() || []);
+          setGridEpoch((n) => n + 1);
+        }
       }, 180);
     });
     observer.observe(el);
@@ -1093,6 +1121,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     return () => {
       cancelAnimationFrame(revealRaf);
       clearTimeout(settle);
+      window.removeEventListener("resize", markTransition);
       clearTimeout(deferred);
       observer.disconnect();
       cardObserver.disconnect();
