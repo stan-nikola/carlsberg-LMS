@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { ChevronIcon, CheckIcon, XIcon } from "@/components/icons";
 import { answerFor, isAnswerDone } from "@/lib/grading";
@@ -1087,7 +1088,13 @@ export function ConfettiBurst({ pieces = 40 }) {
     }))
   );
 
-  return (
+  // Портал у <body> (2026-10-04): картка плеєра — CSS-контейнер
+  // (container-type, @container cp-card), а він стає межею для position:fixed
+  // усередині — конфеті обрізались по картці, а не падали до низу екрана.
+  // Свято показується лише після завершення в браузері, тож у серверному
+  // рендері його нема (document тут завжди є).
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div className="cp-confetti" aria-hidden="true">
       {items.map((p, i) => (
         <span
@@ -1105,7 +1112,8 @@ export function ConfettiBurst({ pieces = 40 }) {
           }}
         />
       ))}
-    </div>
+    </div>,
+    document.body
   );
 }
 
