@@ -6,8 +6,11 @@ import { COL, ROW, clamp, parseStore, tableKey, type SizesStore } from "@/lib/ta
 const STORAGE_KEY = "carls_table_sizes_v1";
 /** Таблиці з власною реалізацією «як у Excel» (журнал дій, матриця). */
 const SKIP = ".audit-grid, .mgr-matrix, [data-no-resize]";
-/** Скільки px від межі клітинки ловить ручку. */
+/** Скільки px від межі клітинки ловить ручку: мишею — вузько, пальцем — ширше (палець у 6px не влучає). */
 const EDGE = 6;
+const TOUCH_EDGE = 16;
+/** Подвійний тап по межі — скинути розмір (dblclick на iOS ненадійний). */
+const DOUBLE_TAP_MS = 350;
 
 /**
  * Ширина колонок і висота рядків у ВСІХ таблицях застосунку тягнеться
@@ -19,8 +22,9 @@ const EDGE = 6;
  * Один компонент у кореневому layout, без правок кожної таблиці: ловить
  * курсор біля межі клітинки (делегування подій на document) і ставить
  * inline width/height — у розмітку таблиць нічого не вставляє, тож React їй
- * не заважає. Лише миша/перо: на дотику межу пальцем не влучити, і жест
- * конфліктував би зі скролом.
+ * не заважає. Палець: зона біля межі ширша (TOUCH_EDGE), а touchstart у ній
+ * скасовує скрол сторінки, інакше жест віддавався б прокручуванню. Скинути —
+ * подвійний тап по межі.
  */
 export function TableSizes() {
   useEffect(() => {
@@ -100,16 +104,18 @@ export function TableSizes() {
 
     /** Де курсор: біля правої межі заголовка — колонка, біля нижньої межі першої клітинки рядка — рядок. */
     type Zone = { kind: "col" | "row"; t: HTMLTableElement; cell: HTMLTableCellElement };
-    const zoneAt = (e: PointerEvent | MouseEvent): Zone | null => {
-      const cell = (e.target as Element | null)?.closest?.("th, td") as HTMLTableCellElement | null;
+    const zoneAtPoint = (target: EventTarget | null, x: number, y: number, edge: number): Zone | null => {
+      const cell = (target as Element | null)?.closest?.("th, td") as HTMLTableCellElement | null;
       const t = cell?.closest("table") as HTMLTableElement | null;
       if (!cell || !t || !t.offsetWidth || t.matches(SKIP) || t.closest(SKIP)) return null;
       const r = cell.getBoundingClientRect();
       const tr = cell.parentElement as HTMLTableRowElement;
-      if (headCells(t).includes(cell) && r.right - e.clientX <= EDGE) return { kind: "col", t, cell };
-      if (cell.cellIndex === 0 && tr.parentElement?.tagName === "TBODY" && r.bottom - e.clientY <= EDGE - 1) return { kind: "row", t, cell };
+      if (headCells(t).includes(cell) && r.right - x <= edge && r.right - x >= 0) return { kind: "col", t, cell };
+      if (cell.cellIndex === 0 && tr.parentElement?.tagName === "TBODY" && r.bottom - y <= edge - 1 && r.bottom - y >= 0) return { kind: "row", t, cell };
       return null;
     };
+    const zoneAt = (e: PointerEvent | MouseEvent): Zone | null =>
+      zoneAtPoint(e.target, e.clientX, e.clientY, "pointerType" in e && e.pointerType === "touch" ? TOUCH_EDGE : EDGE);
     const mouse = (e: PointerEvent) => e.pointerType === "mouse" || e.pointerType === "pen";
 
     const onMove = (e: PointerEvent) => {
@@ -123,12 +129,22 @@ export function TableSizes() {
     };
 
     let drag: null | { z: Zone; start: number; origin: number; widths?: number[]; idx: number } = null;
+    let lastTap: { at: number; cell: HTMLTableCellElement; kind: string } | null = null;
     const onDown = (e: PointerEvent) => {
-      if (!mouse(e) || e.button !== 0) return;
+      if (e.button !== 0) return;
       const z = zoneAt(e);
       if (!z) return;
       e.preventDefault();
       e.stopPropagation();
+      if (e.pointerType === "touch") {
+        const now = performance.now();
+        if (lastTap && lastTap.cell === z.cell && lastTap.kind === z.kind && now - lastTap.at < DOUBLE_TAP_MS) {
+          lastTap = null;
+          resetZone(z);
+          return;
+        }
+        lastTap = { at: now, cell: z.cell, kind: z.kind };
+      }
       if (z.kind === "col") {
         const cells = headCells(z.t);
         const widths = cells.map((c) => c.offsetWidth);
@@ -142,6 +158,7 @@ export function TableSizes() {
       document.documentElement.dataset.tsDragging = z.kind;
       window.addEventListener("pointermove", onDrag);
       window.addEventListener("pointerup", onUp, { once: true });
+      window.addEventListener("pointercancel", onUp, { once: true });
     };
     const onDrag = (e: PointerEvent) => {
       if (!drag) return;
@@ -155,6 +172,8 @@ export function TableSizes() {
     };
     const onUp = () => {
       window.removeEventListener("pointermove", onDrag);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       delete document.documentElement.dataset.tsDragging;
       if (!drag) return;
       const { z } = drag;
@@ -172,11 +191,7 @@ export function TableSizes() {
       window.addEventListener("click", stop, { capture: true, once: true });
       setTimeout(() => window.removeEventListener("click", stop, { capture: true }), 0);
     };
-    const onDbl = (e: MouseEvent) => {
-      const z = zoneAt(e);
-      if (!z) return;
-      e.preventDefault();
-      e.stopPropagation();
+    function resetZone(z: Zone) {
       const s = store[keyOf(z.t)];
       if (!s) return;
       if (z.kind === "col") {
@@ -187,11 +202,24 @@ export function TableSizes() {
         applyRows(z.t);
       }
       save();
+    }
+    const onDbl = (e: MouseEvent) => {
+      const z = zoneAt(e);
+      if (!z) return;
+      e.preventDefault();
+      e.stopPropagation();
+      resetZone(z);
+    };
+    // Палець біля межі: скасовуємо скрол, інакше браузер забирає жест (pointercancel).
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (e.touches.length === 1 && t && zoneAtPoint(e.target, t.clientX, t.clientY, TOUCH_EDGE)) e.preventDefault();
     };
 
     document.addEventListener("pointermove", onMove);
     document.addEventListener("pointerdown", onDown, true);
     document.addEventListener("dblclick", onDbl, true);
+    document.addEventListener("touchstart", onTouchStart, { passive: false, capture: true });
     return () => {
       mo.disconnect();
       if (raf) cancelAnimationFrame(raf);
@@ -199,6 +227,7 @@ export function TableSizes() {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerdown", onDown, true);
       document.removeEventListener("dblclick", onDbl, true);
+      document.removeEventListener("touchstart", onTouchStart, true);
       window.removeEventListener("pointermove", onDrag);
     };
   }, []);

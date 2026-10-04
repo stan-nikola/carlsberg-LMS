@@ -722,6 +722,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     // Посилання й кнопки всередині картки — це клік, не «взяти картку».
     if (e.target.closest("a, button, input, select")) return;
+    // Таблиця (матриця «Люди × курси»): тут тягнуть межі колонок і рядків і
+    // скролять її вбік — довге натискання пальцем на комірку/межу вмикало б
+    // режим перетягування й картка «трусилась» (скарга користувача, 2026-10-05).
+    if (e.target.closest("table")) return;
     if (isScrollbarPointerDown(e)) return;
     const { clientX, clientY } = e;
     const timer = setTimeout(() => {
