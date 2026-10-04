@@ -27,14 +27,31 @@ function easeOutCubic(t: number): number {
   return 1 - (1 - t) ** 3;
 }
 
+/** Чи елемент уже ЦІЛКОМ у видимій зоні свого скрол-контейнера — тоді крутити нічого. */
+export function isFullyInView(target: HTMLElement): boolean {
+  const container = findScrollParent(target);
+  const c = container === document.scrollingElement || container === document.documentElement
+    ? { top: 0, bottom: window.innerHeight }
+    : container.getBoundingClientRect();
+  const r = target.getBoundingClientRect();
+  return r.top >= c.top && r.bottom <= c.bottom;
+}
+
 /**
  * @param target Елемент, який має опинитись у видимій зоні.
  * @param durationMs Тривалість анімації — той самий ROAD_DRAW_MS, щоб
  *   скрол і заливка лінії закінчились одночасно.
  * @param offsetRatio Наскільки нижче верху контейнера лишити ціль (0.28 —
  *   ближче до третини екрана згори, не впритул до краю).
+ * @param shouldStop Перевіряється на кожному кадрі: true — анімація зупиняється
+ *   там, де є (людина сама почала гортати — не боремося з нею).
  */
-export function smoothScrollElementIntoView(target: HTMLElement, durationMs: number, offsetRatio = 0.28): void {
+export function smoothScrollElementIntoView(
+  target: HTMLElement,
+  durationMs: number,
+  offsetRatio = 0.28,
+  shouldStop: () => boolean = () => false
+): void {
   const container = findScrollParent(target);
   const containerRect = container.getBoundingClientRect();
   const targetRect = target.getBoundingClientRect();
@@ -53,6 +70,7 @@ export function smoothScrollElementIntoView(target: HTMLElement, durationMs: num
 
   const start = performance.now();
   function step(now: number) {
+    if (shouldStop()) return;
     const t = Math.min(1, (now - start) / durationMs);
     container.scrollTop = startTop + delta * easeOutCubic(t);
     if (t < 1) requestAnimationFrame(step);
