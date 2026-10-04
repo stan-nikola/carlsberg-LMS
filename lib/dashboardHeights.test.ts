@@ -101,6 +101,15 @@ describe("holeFillSteps", () => {
     ];
     expect(holeFillSteps(nodes, 12, S)).toEqual([{ id: "s", x: 0, y: 3 * S, w: 12 }]);
   });
+  it("непарні «поверхи» посередині (L | S над L, нижче — на всю ширину) — S виїжджає під смугу", () => {
+    const nodes = [
+      { id: "l1", x: 0, y: 0, w: 6, h: 2 * S },
+      { id: "s", x: 6, y: 0, w: 6, h: S },
+      { id: "l2", x: 6, y: S, w: 6, h: 2 * S },
+      { id: "wide", x: 0, y: 3 * S, w: 12, h: 2 * S },
+    ];
+    expect(holeFillSteps(nodes, 12, S)).toEqual([{ id: "s", x: 0, y: 3 * S, w: 12 }]);
+  });
   it("одинока ½ в останньому ряду — на всю ширину, без порожньої половини", () => {
     const nodes = [
       { id: "a", x: 0, y: 0, w: 6, h: S },

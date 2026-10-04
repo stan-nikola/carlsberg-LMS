@@ -602,6 +602,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // підписує на нього щойно ввімкнені картки.
   const cardObserverRef = useRef(null);
   const fitCardsRef = useRef(null);
+  const visibilityFirstRunRef = useRef(true);
   const [editMode, setEditMode] = useState(false);
   const longPressRef = useRef(null);
 
@@ -826,6 +827,14 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // Ширини лише ¼/½/уся (lib/dashboardHeights.ts): довільна ширина зі
     // старої розкладки чи з ручки — до найближчої дозволеної. На телефоні
     // (одна колонка) ширина одна для всіх — нічого не чіпаємо.
+    // Власна ширина картки (дефолтна або виставлена ручкою; у localStorage —
+    // поле pw) окремо від поточної: розтягування, яким fitCards закриває
+    // діри, — тимчасове. Перед кожним перепакуванням картки повертаються до
+    // своєї ширини, і лише тоді діри закриваються наново — інакше картки,
+    // увімкнені по одній, ставали кожна смугою на всю ширину й такими й
+    // лишались (живий тест 2026-10-04).
+    const prefW = new Map(storedGrid.map((n) => [n.id, Number.isInteger(n.pw) ? n.pw : n.w]));
+    const prefOf = (n) => snapWidth(prefW.get(n.id) ?? DEFAULT_CARD_W[n.id] ?? 6, minCardW(n.id));
     const snapWidths = () => {
       if (grid.getColumn() !== GRID_COLUMNS) return;
       for (const n of [...grid.engine.nodes]) {
@@ -851,14 +860,15 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // Будь-яка зміна позиції/ширини (перетягування, ресайз, гравітація
     // після прибирання картки) — у localStorage. h не зберігаємо: воно
     // щоразу рахується з вмісту.
-    grid.on("change", () => {
-      const nodes = grid.save(false).map(({ id, x, y, w }) => ({ id, x, y, w }));
+    const saveLayout = () => {
+      const nodes = grid.save(false).map(({ id, x, y, w }) => ({ id, x, y, w, pw: prefW.get(id) ?? DEFAULT_CARD_W[id] ?? w }));
       try {
         window.localStorage.setItem(DASHBOARD_GRID_STORAGE_KEY, JSON.stringify(nodes));
       } catch {
         // Без localStorage розкладка живе до перезавантаження.
       }
-    });
+    };
+    grid.on("change", saveLayout);
     // Картка, яку тягнуть/ресайзять, сама пропускає 300ms CSS-transition
     // (.ui-draggable-dragging/.ui-resizable-resizing в gridstack.min.css) —
     // а СУСІДИ, яких вона живо виштовхує (float:false, гравітація рахується
@@ -877,12 +887,19 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       gesture = true;
       grid.setAnimation(false);
     });
-    grid.on("dragstop resizestop", () => {
+    grid.on("dragstop resizestop", (event, item) => {
       gesture = false;
       grid.setAnimation(true);
       snapWidths();
+      // Ширину виставила людина — це тепер власна ширина картки.
+      // Зберегти одразу: якщо після цього розкладка не зрушить, події change
+      // не буде, і нова власна ширина після F5 загубилась би (живий тест).
+      if (event.type === "resizestop" && item?.gridstackNode) {
+        prefW.set(item.gridstackNode.id, item.gridstackNode.w);
+        saveLayout();
+      }
       // Ширину картки змінили — її вміст, а з ним S чи L, міг змінитись.
-      fitCardsRef.current?.();
+      fitCardsRef.current?.({ resetWidths: true });
     });
     // Ширина секції міняється плавно (згортання бічної панелі — 250ms
     // анімації, вікно тягнуть мишею), а власний throttle gridstack ловить
@@ -931,12 +948,54 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // grid.update() сам синхронно шле resizecontent — без прапорця fitCards
     // викликав би себе ж нескінченно.
     let fitting = false;
-    const fitCards = () => {
+    // Запобіжник: якщо розкладка раптом не сходиться (кожен прохід змінює
+    // розміри — ResizeObserver кличе знову), більше 20 проходів на секунду
+    // не робимо — сторінка не має зависати (живий тест 2026-10-04).
+    let burstStart = 0;
+    let burstRuns = 0;
+    // Пропущений через запобіжник прохід не губиться — відкладається на кінець
+    // секунди (з resetWidths, якщо його просили хоч раз), щоб розкладка все
+    // одно дійшла до кінця.
+    let deferred = 0;
+    let deferredReset = false;
+    // resetWidths — повернути картки до власних ширин перед перепакуванням.
+    // Лише на структурних подіях (завантаження, увімкнули/вимкнули картку,
+    // змінили ширину ручкою), не на кожен перемір вмісту: інакше кожен
+    // прохід перетасовував позиції й розкладка ганялась по колу.
+    const fitCards = ({ resetWidths = false } = {}) => {
       if (!grid.el || fitting || gesture) return;
+      const now = performance.now();
+      if (now - burstStart > 1000) {
+        burstStart = now;
+        burstRuns = 0;
+      }
+      if (++burstRuns > 20) {
+        deferredReset ||= resetWidths;
+        if (!deferred) {
+          deferred = setTimeout(() => {
+            const reset = deferredReset;
+            deferred = 0;
+            deferredReset = false;
+            fitCards({ resetWidths: reset });
+          }, Math.max(0, 1000 - (now - burstStart)) + 16);
+        }
+        return;
+      }
       fitting = true;
       try {
         const cell = grid.getCellHeight(true);
         const phone = grid.getColumn() === 1;
+        if (resetWidths && !phone) {
+          for (const n of [...grid.engine.nodes]) {
+            const w = prefOf(n);
+            if (n.el && n.w !== w) grid.update(n.el, { w });
+          }
+          // Ущільнити одразу, а не лише коли є «діра»: вільна половина праворуч
+          // від картки, під якою нікого (кінець дашборда), діркою не рахується,
+          // і без цього щойно ввімкнена картка лишалась рядом нижче, а сусід
+          // знову розтягувався на всю ширину.
+          grid.compact("compact");
+        }
         const nodes = grid.engine.nodes.filter((n) => n.el).sort((a, b) => a.y - b.y || a.x - b.x);
         // Міряємо без вертикального центрування вмісту (.is-measuring,
         // manager.css): з ним блоки зсунуті вниз на половину вільного місця,
@@ -972,13 +1031,14 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     };
     fitCardsRef.current = fitCards;
     // Зміна ширини/колонок (onResize сітки) і зміна вмісту будь-якої картки.
-    grid.on("resizecontent", fitCards);
-    const cardObserver = new ResizeObserver(fitCards);
+    grid.on("resizecontent", () => fitCards());
+    const cardObserver = new ResizeObserver(() => fitCards());
     cardObserverRef.current = cardObserver;
     observeCards(el, cardObserver);
     return () => {
       cancelAnimationFrame(revealRaf);
       clearTimeout(settle);
+      clearTimeout(deferred);
       observer.disconnect();
       cardObserver.disconnect();
       cardObserverRef.current = null;
@@ -1006,21 +1066,34 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // дашборд» (скарга користувача, 2026-09-24). Тепер:
     //  • вимкнену прибираємо точково (React уже видалив її DOM — у engine
     //    лишився вузол-привид, знімаємо його);
-    //  • увімкнену додаємо В НИЗ (y = поточна висота сітки), не чіпаючи
-    //    жодної наявної картки; звідти її можна перетягнути куди треба.
+    //  • увімкнену ставимо на перше вільне місце (autoPosition). Раніше —
+    //    строго в низ: тоді в розкладці бували діри, і autoPosition
+    //    засовував картку в першу ж діру згори. Тепер дір немає (fitCards),
+    //    тож перше вільне місце — кінець дашборда, а кілька щойно увімкнених
+    //    ½ стають парами поруч, а не кожна окремою смугою на всю ширину.
     const domById = new Map([...el.querySelectorAll(":scope > .grid-stack-item")].map((i) => [i.getAttribute("gs-id"), i]));
     grid.batchUpdate();
     for (const node of [...grid.engine.nodes]) {
       if (node.el && !domById.has(node.el.getAttribute("gs-id"))) grid.removeWidget(node.el, false, false);
     }
-    const bottom = grid.getRow();
     for (const item of domById.values()) {
-      if (!item.gridstackNode) grid.makeWidget(item, { x: 0, y: bottom, w: Number(item.getAttribute("gs-w")) || 6, autoPosition: false });
+      if (item.gridstackNode) continue;
+      // Опції makeWidget ЗАМІНЮЮТЬ gs-* атрибути, а не доповнюють: без id
+      // увімкнена картка жила в сітці як «undefined» — позиція не
+      // зберігалась, мінімальна ширина й висоти S/L її не впізнавали, і такі
+      // картки ставали стовпчиком зліва з порожньою правою половиною (живий
+      // тест 2026-10-04).
+      const id = item.getAttribute("gs-id");
+      grid.makeWidget(item, { id, w: Number(item.getAttribute("gs-w")) || 6, minW: minCardW(id), autoPosition: true });
     }
     grid.batchUpdate(false);
     observeCards(el, cardObserverRef.current);
-    // Прибрана картка могла бути найвищою у своїй групі висоти.
-    fitCardsRef.current?.();
+    // Увімкнули чи вимкнули картку — перепакувати від власних ширин. Але не
+    // на першому запуску (монтування): збережена розкладка вже узгоджена, а
+    // перепакування з нуля могло дати інший порядок — після F5 картки
+    // «з'їжджали» (живий тест 2026-10-04).
+    fitCardsRef.current?.({ resetWidths: !visibilityFirstRunRef.current });
+    visibilityFirstRunRef.current = false;
   }, [visibleKey, orderKey]);
 
   // Вміст карток перемальовується з даними (скелетон → список, порожній
