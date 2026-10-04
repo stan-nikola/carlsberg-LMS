@@ -29,6 +29,11 @@ function kyivOffsetMinutes(date: Date): number {
   return match[1] === "-" ? -minutes : minutes;
 }
 
+/** Година за Києвом (0–23) — для щоденного cron «о 9:00 за Києвом» незалежно від літнього/зимового часу. */
+export function kyivHour(date: DateLike = new Date()): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { timeZone: KYIV_TZ, hour: "2-digit", hourCycle: "h23" }).format(new Date(date)));
+}
+
 /** «2026-10-01» — календарний день за Києвом (ключі «раз на день»). */
 export function kyivDayKey(date: DateLike = new Date()): string {
   const { y, m, d } = parts(date);
