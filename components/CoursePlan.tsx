@@ -6,7 +6,7 @@ import { CheckIcon, LockIcon, ClockIcon, PlayIcon, AlertIcon, XIcon } from "@/co
 import { MorphRevealIcon } from "@/components/MorphRevealIcon";
 import { pickPlanFocusModuleId, type CoursePlanView, type PlanModuleStatus } from "@/lib/coursePlan";
 import { buildProgressPath, buildSnakePath, type SnakePoint } from "@/lib/snakePath";
-import { smoothScrollElementIntoView } from "@/lib/smoothScrollTo";
+import { isFullyInView, smoothScrollElementIntoView } from "@/lib/smoothScrollTo";
 import { cubicBezierTimeAtProgress } from "@/lib/cubicBezier";
 
 /**
@@ -88,6 +88,10 @@ const ROAD_CORNER_RADIUS = 14;
  *  кожному пройденому вузлі, щоб вона встигала за лінією, і тривалість
  *  синхронного скролу до потрібного модуля (lib/smoothScrollTo.ts). */
 const ROAD_DRAW_MS = 3240;
+/** Пауза перед автоскролом — встигнути прочитати назву курсу й шапку плану. */
+const AUTOSCROLL_DELAY_MS = 1200;
+/** Автоскрол лише коли пройдено стільки модулів — інакше поточний і так нагорі. */
+const AUTOSCROLL_MIN_PASSED = 3;
 
 /** МАЄ збігатись із --ease-premium (app/styles/tokens.css) — та сама
  *  крива, якою CSS анімує stroke-dashoffset лінії. Потрібна тут окремо
@@ -225,21 +229,45 @@ export function CoursePlanPanel({
     return () => ro.disconnect();
   }, [plan.modules.length, stopIndex]);
 
+  // Автоскрол до поточного модуля (2026-10-04, скарга користувача: одразу після
+  // входу назва курсу й шапка «їхали» вгору раніше, ніж їх встигаєш прочитати).
+  // Правила — звичні для автоскролу:
+  //  - лише коли є куди: пройдено щонайменше AUTOSCROLL_MIN_PASSED модулів і
+  //    потрібний модуль ще НЕ видно на екрані; інакше нічого не рухаємо;
+  //  - спершу пауза AUTOSCROLL_DELAY_MS — людина читає назву й шапку;
+  //  - людина сама торкнулась, погортала чи натиснула клавішу — скасовуємо (і до
+  //    старту, і посеред анімації), не боремося з нею;
+  //  - «зменшити рух» у системі — без автоскролу взагалі, а не різкий стрибок.
+  // Заливка лінії стартує разом зі скролом і триває ту саму ROAD_DRAW_MS
+  // (рішення 2026-09-22: «линия должна ползти вниз вместе со скроллом»); коли
+  // скролу немає — лінія малюється одразу. Не в preview (конструктор): там
+  // немає реального прогресу, який варто доганяти скролом.
   useLayoutEffect(() => {
-    const id = requestAnimationFrame(() => {
+    const passed = plan.modules.filter((m) => m.status === "passed").length;
+    const cell = stopIndex >= 0 ? cellRefs.current[stopIndex] : null;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const wantScroll = !preview && !reduceMotion && passed >= AUTOSCROLL_MIN_PASSED && cell != null && !isFullyInView(cell);
+    if (!wantScroll) {
+      const id = requestAnimationFrame(() => setMounted(true));
+      return () => cancelAnimationFrame(id);
+    }
+
+    let userTookOver = false;
+    const stop = () => {
+      userTookOver = true;
+    };
+    const events = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+    for (const e of events) window.addEventListener(e, stop, { passive: true });
+    const timer = setTimeout(() => {
       setMounted(true);
-      // Скрол стартує в ТІЙ САМІЙ анімаційній рамці, що й заливка лінії
-      // (клас "is-mounted" щойно застосувався), і триває ту саму
-      // ROAD_DRAW_MS — обидва закінчуються одночасно (рішення користувача,
-      // 2026-09-22: "линия должна ползти вниз вместе со скроллом"). Не в
-      // preview (конструктор): там немає реального прогресу, який варто
-      // доганяти скролом.
-      if (!preview && stopIndex >= 0) {
-        const cell = cellRefs.current[stopIndex];
-        if (cell) smoothScrollElementIntoView(cell, ROAD_DRAW_MS);
-      }
-    });
-    return () => cancelAnimationFrame(id);
+      if (!userTookOver) smoothScrollElementIntoView(cell!, ROAD_DRAW_MS, 0.28, () => userTookOver);
+    }, AUTOSCROLL_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+      for (const e of events) window.removeEventListener(e, stop);
+    };
+    // plan.modules — лише кількість пройдених; перезапуск при зміні плану не потрібен.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopIndex, preview]);
 
   return (
