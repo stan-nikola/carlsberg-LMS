@@ -1316,9 +1316,14 @@ paths:
   /api/cron/check-overdue-enrollments:
     get:
       tags: [system]
-      summary: Щоденний cron — прострочення, публікація й доназначення курсів, нагадування, авто-відзнаки, дайджести
-      description: Кожен крок ідемпотентний (dedupeKey / skipDuplicates) — повторний запуск нічого не дублює.
+      summary: Щоденний cron о 9:00 за Києвом — прострочення, публікація й доназначення курсів, нагадування, авто-відзнаки, дайджести
+      description: |
+        Кожен крок ідемпотентний (dedupeKey / skipDuplicates) — повторний запуск нічого не дублює.
+        Vercel викликає його о 06:00 і 07:00 UTC; працює лише виклик, що припав на 9-ту годину за Києвом
+        (літній/зимовий час), інший повертає `{skipped: true}`. `?force=1` — ручний запуск будь-коли.
       security: [{ cronSecret: [] }]
+      parameters:
+        - { name: force, in: query, schema: { type: string, enum: ["1"] }, description: Запустити незалежно від години }
       responses:
         "200":
           description: Підсумок кроків
