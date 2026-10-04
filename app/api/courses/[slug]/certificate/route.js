@@ -1,6 +1,7 @@
 import path from "node:path";
 import PDFDocument from "pdfkit";
 import { getCurrentUser } from "@/lib/session";
+import { auditEmployee } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { PLATFORM_NAME, PLATFORM_TAGLINE, PLATFORM_LOGO_PATH } from "@/lib/branding";
 
@@ -173,6 +174,7 @@ export async function GET(_request, { params }) {
     scorePercent: enrollment.scorePercent,
   });
 
+  auditEmployee(employee.id, "learning.certificate", { type: "course", id: course.id }, { scorePercent: enrollment.scorePercent });
   return new Response(buffer, {
     headers: {
       "Content-Type": "application/pdf",

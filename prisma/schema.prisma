@@ -973,7 +973,13 @@ model RatingEvent {
 /// а не зв'язок. Лише додається, ніколи не редагується (lib/audit.ts).
 model AuditLog {
   id         Int      @id @default(autoincrement())
+  /// Хто: "super" | "admin" (рівень admin_session — вхід спільним паролем, без
+  /// імені людини), "manager" | "employee" (сесія співробітника, actorEmployeeId),
+  /// "system" (cron). Старі рядки до 2026-10-04 — усі "admin".
   actor      String   @default("admin")
+  /// Співробітник, що зробив дію (для manager/employee). Без FK: журнал має
+  /// пережити видалення людини, і запис не повинен блокувати видалення.
+  actorEmployeeId Int?
   /// "enrollment.update", "badge.award", "course.assign" … — див. lib/audit.ts
   action     String
   targetType String
@@ -983,6 +989,8 @@ model AuditLog {
 
   @@index([createdAt])
   @@index([targetType, targetId])
+  @@index([actor, createdAt])
+  @@index([actorEmployeeId, createdAt])
 }
 
 /// Налаштування застосунку «ключ → JSON» (поки один ключ: design-tokens —

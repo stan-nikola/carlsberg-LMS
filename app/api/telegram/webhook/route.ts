@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auditEmployee } from "@/lib/audit";
 import type { PrismaClient } from "@/app/generated/prisma";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { isTelegramConfigured, replyToChat, telegramBotUsername } from "@/lib/telegram";
@@ -59,12 +60,15 @@ export async function POST(request: Request) {
           create: { employeeId: employee.id, chatId, username, firstName },
         }),
       ]);
+      auditEmployee(employee.id, "profile.telegram_link");
       await replyToChat(chatId, "✅ Підключено! Сповіщення CarLS тепер приходитимуть сюди.\nВідключити — /stop або в профілі застосунку.");
       return NextResponse.json({ ok: true });
     }
 
     if (cmd?.cmd === "stop") {
+      const linked = await prisma.telegramLink.findMany({ where: { chatId }, select: { employeeId: true } });
       const { count } = await prisma.telegramLink.deleteMany({ where: { chatId } });
+      for (const l of linked) auditEmployee(l.employeeId, "profile.telegram_unlink", undefined, { via: "/stop" });
       await replyToChat(chatId, count ? "Відключено. Підключити знову можна в профілі CarLS." : "Цей чат і так не підключено.");
       return NextResponse.json({ ok: true });
     }

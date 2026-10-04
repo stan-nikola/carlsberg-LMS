@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auditEmployee } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { DEFAULT_PREFERENCES, sanitizePreferences } from "@/lib/notificationTypes";
@@ -32,6 +33,7 @@ export async function PUT(request) {
     update: patch,
     create: { employeeId: employee.id, ...patch },
   });
+  auditEmployee(employee.id, "profile.notifications_update", undefined, patch);
   const { employeeId, updatedAt, ...values } = prefs;
   void employeeId;
   void updatedAt;

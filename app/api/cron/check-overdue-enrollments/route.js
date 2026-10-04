@@ -4,6 +4,7 @@ import { publishScheduledCourses, topUpTargetedAssignments } from "@/lib/courseA
 import { evaluateAutoBadgesForAll } from "@/lib/badgeRules";
 import { remindDeadlines, sendTeamDigests } from "@/lib/notifications";
 import { secretMatches } from "@/lib/telegramLogic";
+import { auditAs, purgeOldAuditEntries } from "@/lib/audit";
 
 export const maxDuration = 300;
 
@@ -35,6 +36,9 @@ export async function GET(request) {
     reminders: remindDeadlines,
     badges: evaluateAutoBadgesForAll,
     digests: sendTeamDigests,
+    // Журнал дій: записи співробітників і системи старші за термін зберігання
+    // (налаштовує супер-адмін на /admin/audit; дії адмінів — назавжди).
+    auditPurge: purgeOldAuditEntries,
   };
   const result = {};
   let failed = false;
@@ -47,5 +51,6 @@ export async function GET(request) {
       console.error(`[cron] step ${name} failed:`, err);
     }
   }
+  await auditAs("system", "system.cron", "system", null, result);
   return NextResponse.json(result, { status: failed ? 500 : 200 });
 }
