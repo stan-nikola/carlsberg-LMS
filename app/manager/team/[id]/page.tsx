@@ -9,6 +9,7 @@ import { SegmentPill } from "@/components/TeamStatusBar";
 import { RemindButton } from "@/components/ReminderDialog";
 import { BackButton } from "@/components/BackButton";
 import { pluralize } from "@/lib/pluralize";
+import { ExportReportLink } from "@/components/ExportReportLink";
 
 // TODO: Cache Components adoption — той самий опт-аут, що на app/manager/page.js.
 export const instant = false;
@@ -60,6 +61,7 @@ export default async function ManagerPersonPage({ params, searchParams }: { para
           <span aria-hidden="true"> / </span>
           {person.name.toUpperCase()}
         </h1>
+        <ExportReportLink />
       </div>
 
       <section className="mgr-person-card">

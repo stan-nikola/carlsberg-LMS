@@ -40,8 +40,10 @@ export function ProfileCard({ dbName, levelLabel, avatarUrl = null, editable = f
   useEffect(() => {
     const node = cardRef.current;
     if (!node || !window.matchMedia?.("(hover: hover)").matches || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return undefined;
-    const MAX = 6;
-    const PAR = 10;
+    // 1° і 3px (користувач, 2026-10-04): 6°/10px зі стенду на широкій
+    // картці кабінету керівника смикались — краї «росли» й «меншали».
+    const MAX = 1;
+    const PAR = 3;
     const move = (e) => {
       const r = node.getBoundingClientRect();
       const dx = (e.clientX - r.left) / r.width - 0.5;

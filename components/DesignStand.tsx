@@ -1,11 +1,28 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { DESIGN_PRESETS, DESIGN_TOKENS, applyOverrides, defaultValues, matchPreset, readOverrides, toCss, writeOverrides, type TokenValues } from "@/lib/designTokens";
+import {
+  ACCENT_GROUP,
+  PERCEPTION_FIXES,
+  PERCEPTION_GROUP,
+  perceptionValues,
+  readPerception,
+  type PerceptionFix,
+  DESIGN_PRESETS,
+  DESIGN_TOKENS,
+  applyOverrides,
+  defaultValues,
+  matchPreset,
+  readOverrides,
+  toCss,
+  writeOverrides,
+  type TokenValues,
+} from "@/lib/designTokens";
+import { ColorMap } from "@/components/ColorMap";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CardSkeleton } from "@/components/Skeleton";
 import { CompletionRing } from "@/components/CompletionRing";
-import { BellIcon, ChevronIcon, PencilIcon, PeopleIcon, ProfileIcon, SpinnerIcon, XIcon } from "@/components/icons";
+import { BellIcon, CertificateIcon, ChevronIcon, CourseIcon, QuestionIcon, PencilIcon, PeopleIcon, ProfileIcon, SpinnerIcon, XIcon } from "@/components/icons";
 
 /**
  * /admin/design — стенд дизайн-системи: ліворуч регулятори токенів
@@ -84,7 +101,9 @@ export function DesignStand() {
   function applyPreset(key: string) {
     const p = DESIGN_PRESETS.find((x) => x.key === key);
     if (!p) return;
-    const next = { ...defaults, ...p.values };
+    // Система міняє форму й розміри, а обрані акценти лишає.
+    const accents = Object.fromEntries(DESIGN_TOKENS.filter((t) => t.group === ACCENT_GROUP || t.group === PERCEPTION_GROUP).map((t) => [t.key, values[t.key]]));
+    const next = { ...defaults, ...p.values, ...accents };
     setValues(next);
     applyOverrides(next);
     writeOverrides(next);
@@ -95,6 +114,12 @@ export function DesignStand() {
     if (!p) return;
     const next = { ...values };
     for (const t of DESIGN_TOKENS) if (t.group === group) next[t.key] = p.values[t.key] ?? defaults[t.key];
+    setValues(next);
+    applyOverrides(next);
+    writeOverrides(next);
+  }
+  function setAccent(patch: TokenValues) {
+    const next = { ...values, ...patch };
     setValues(next);
     applyOverrides(next);
     writeOverrides(next);
@@ -120,7 +145,7 @@ export function DesignStand() {
     }
   }
 
-  const groups = Array.from(new Set(DESIGN_TOKENS.map((t) => t.group)));
+  const groups = Array.from(new Set(DESIGN_TOKENS.map((t) => t.group))).filter((g) => g !== ACCENT_GROUP);
   const activePreset = matchPreset(values);
   const changed = DESIGN_TOKENS.filter((t) => values[t.key] !== defaults[t.key]).length;
   const savedValues = saved ? { ...defaults, ...saved.values } : defaults;
@@ -133,10 +158,13 @@ export function DesignStand() {
           <h1>Дизайн-система</h1>
           <p className="admin-subtitle">
             Кожен елемент праворуч — живий компонент застосунку. Регулятори міняють токени в цьому браузері одразу на всіх сторінках (прев’ю);
-            «Зберегти для всіх» робить набір спільним для всіх користувачів без деплою. Кольори тут не змінюються.
+            «Зберегти для всіх» робить набір спільним для всіх користувачів без деплою. Кольори загалом не змінюються — лише кольори
+            великих елементів хабу й кабінету керівника (сім вторинних кольорів Carlsberg Group).
           </p>
         </div>
       </div>
+
+      <ColorMap values={values} onChange={setAccent} />
 
       <div className="ds-layout">
         <aside className="ds-controls">
@@ -152,6 +180,39 @@ export function DesignStand() {
               </label>
             ))}
             {activePreset === null && <p className="admin-hint">Власні значення — підкручені після вибору системи.</p>}
+          </section>
+          <section className="adm-card ds-group">
+            <h2>Сприйняття кольорів</h2>
+            <p className="admin-hint">
+              Рекомендації за WCAG і для дальтоніків — у межах палітри Malty: де колір погано читається, береться темніший відтінок того ж кольору.
+              Ліворуч — як зараз, праворуч — як стане. Лише хаб, кабінет керівника й плеєр.
+            </p>
+            {PERCEPTION_FIXES.map((fix) => {
+              const on = readPerception(fix.id, values);
+              return (
+                <div key={fix.id} className={`ds-fix${on ? " is-on" : ""}`}>
+                  <label className="ds-fix-head">
+                    <input type="checkbox" checked={on} onChange={(e) => setAccent(perceptionValues(fix.id, e.target.checked))} />
+                    <span>
+                      <small>{fix.area}</small>
+                      <b>{fix.title}</b>
+                    </span>
+                  </label>
+                  <p className="admin-hint">{fix.problem}</p>
+                  <div className="ds-fix-compare">
+                    {[false, true].map((rec) => (
+                      <div key={String(rec)} className="ds-fix-side" style={perceptionValues(fix.id, rec) as React.CSSProperties & Record<string, string>}>
+                        <span className="ds-fix-label">
+                          {rec ? "Рекомендовано" : "Як зараз"}
+                          {fix.contrast && <em className={(rec ? fix.contrast[1] : fix.contrast[0]) >= (fix.id === "input-border" ? 3 : 4.5) ? "is-ok" : "is-bad"}>{(rec ? fix.contrast[1] : fix.contrast[0]).toFixed(1)}:1</em>}
+                        </span>
+                        <PerceptionDemo id={fix.id} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </section>
           {groups.map((g) => (
             <section key={g} className="adm-card ds-group">
@@ -221,6 +282,28 @@ export function DesignStand() {
         </aside>
 
         <div className="ds-preview adm-flow">
+          <section className="adm-card adm-full">
+            <div className="adm-card-head">
+              <h2>Кольори елементів</h2>
+              <span className="admin-hint">ті самі класи, що в хабі й кабінеті керівника</span>
+            </div>
+            <div className="ds-row ds-accent-demo">
+              <span className="avatar avatar-md">ВЧ</span>
+              <span className="avatar avatar-sm">ОС</span>
+              <div className="badge-ico">🏆</div>
+              <div className="badge-ico">🎯</div>
+              <div className="course-tile ds-accent-tile"><span className="ct-icon"><CourseIcon /></span></div>
+              <div className="profile-card ds-accent-hero">
+                <span className="avatar avatar-md">SK</span>
+              </div>
+              <span className="settings-ico"><BellIcon /></span>
+              <div className="profile-card ds-accent-hero">
+                <span className="profile-level"><span className="lv-star">★</span> Профі</span>
+              </div>
+              <div className="cert-row"><span className="cert-ico"><CertificateIcon /></span><span className="cert-body"><b>Сертифікат</b></span></div>
+              <span className="quiz-banner-ico"><QuestionIcon /></span>
+            </div>
+          </section>
           <section className="adm-card adm-full">
             <div className="adm-card-head">
               <h2>Кнопки</h2>
@@ -446,4 +529,57 @@ export function DesignStand() {
       </div>
     </div>
   );
+}
+
+/** Живі елементи застосунку для порівняння «як зараз / рекомендовано» (реальні класи). */
+function PerceptionDemo({ id }: { id: PerceptionFix }) {
+  const seg = (cls: string, n: number) => (
+    <div className="mgr-status-bar ds-fix-bar">
+      <span className={`mgr-status-seg is-${cls}`} style={{ flexGrow: 1 }}>
+        <span className="mgr-status-seg-count">{n}</span>
+      </span>
+    </div>
+  );
+  switch (id) {
+    case "danger-text":
+      return <span className="ct-due is-overdue">Прострочено на 2 дні</span>;
+    case "accent-text":
+      return <span className="ct-tag-new">Новий</span>;
+    case "alert-pill":
+      return <span className="status-pill status-pill-alert">Відстає</span>;
+    case "fail-solid":
+      return (
+        <span className="ds-fix-row">
+          {seg("overdue", 3)}
+          <span className="mgr-matrix-cell is-overdue">!</span>
+        </span>
+      );
+    case "info-solid":
+      return <span className="mgr-matrix-cell is-in_progress">▸</span>;
+    case "failed-amber":
+      return (
+        <span className="ds-fix-row">
+          <span className="mgr-matrix-cell is-failed">✕</span>
+          <span className="mgr-matrix-cell is-overdue">!</span>
+        </span>
+      );
+    case "notstarted-grey":
+      return seg("not_started", 2);
+    case "inactive-hatch":
+      return (
+        <span className="ds-fix-row">
+          {seg("overdue", 3)}
+          {seg("inactive", 1)}
+        </span>
+      );
+    case "glyphs":
+      return (
+        <span className="ds-fix-row">
+          <span className="status-pill status-pill-success">Складено</span>
+          <span className="status-pill status-pill-fail">Не складено</span>
+        </span>
+      );
+    case "input-border":
+      return <input className="mgr-team-search-input" placeholder="Пошук за ім’ям…" readOnly aria-label="Приклад поля пошуку" />;
+  }
 }

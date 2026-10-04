@@ -82,8 +82,12 @@ export function ReminderDialog({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      // Летить на КОЖНЕ «Надіслати», а не лише коли sent > 0 (користувач,
+      // 2026-10-04): повтор того ж дня сервер не доставляє вдруге (dedupe), і
+      // без літачка здавалось, що кнопка не спрацювала. Що саме дійшло — каже
+      // рядок результату нижче («вже отримали сьогодні»).
       const rect = sendRef.current?.getBoundingClientRect();
-      if (rect && data.sent > 0 && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (rect && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         setPlane({ left: rect.left + rect.width / 2 - 14, top: rect.top + rect.height / 2 - 14 });
       }
       setResult({ sent: data.sent, skipped: data.skipped });

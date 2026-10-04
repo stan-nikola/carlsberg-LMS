@@ -3,6 +3,8 @@ import { Montserrat, IBM_Plex_Mono } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { OfflineSync } from "@/components/OfflineSync";
 import { DesignTokensOverride } from "@/components/DesignTokensOverride";
+import { TableSizes } from "@/components/TableSizes";
+import { CopyGuard } from "@/components/CopyGuard";
 import { designCss, getSavedDesign } from "@/lib/designSettings";
 
 // Токени дизайну читаються через lib/designSettings.ts (unstable_cache,
@@ -183,6 +185,8 @@ export default async function RootLayout({ children }) {
         {children}
         <ServiceWorkerRegister />
         <OfflineSync />
+        <TableSizes />
+        <CopyGuard />
       </body>
     </html>
   );

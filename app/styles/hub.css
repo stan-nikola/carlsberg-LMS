@@ -153,8 +153,8 @@ a.profile-card-link:focus-visible {
   height: 54px;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--gold);
-  color: color-mix(in srgb, var(--cb-tertiary) 25%, var(--cb-black));
+  background: var(--accent-avatar-bg);
+  color: var(--accent-avatar-fg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -162,7 +162,7 @@ a.profile-card-link:focus-visible {
   font-weight: 900;
   font-size: calc(18px * var(--fs-scale));
   flex-shrink: 0;
-  border: 2px solid var(--cb-white-overlay-50);
+  border: 2px solid var(--accent-avatar-bd);
   position: relative;
   z-index: 1;
 }
@@ -203,8 +203,9 @@ a.profile-card-link:focus-visible {
   width: 15px;
   height: 15px;
   border-radius: 50%;
-  background: var(--gold);
-  color: color-mix(in srgb, var(--cb-tertiary) 25%, var(--cb-black));
+  background: var(--accent-level-bg);
+  color: var(--accent-level-fg);
+  box-shadow: inset 0 0 0 1px var(--accent-level-bd);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -242,7 +243,8 @@ a.profile-card-link:focus-visible {
     min-width: 96px;
     padding: 10px 14px;
     border-radius: var(--radius-card);
-    background: var(--cb-white-overlay-10);
+    background: var(--accent-hero-stats-bg);
+    color: var(--accent-hero-stats-fg);
   }
   .profile-stats dt {
     font-size: calc(10.8px * var(--fs-scale));
@@ -293,7 +295,7 @@ a.profile-card-link:focus-visible {
 .xp-fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--cb-primary);
+  background: var(--accent-bar-xp);
   transition: width var(--dur-slow) var(--ease-out);
 }
 
@@ -357,8 +359,9 @@ a.profile-card-link:focus-visible {
   box-shadow: var(--shadow-hovered);
 }
 .course-tile .ct-icon {
-  background: var(--green-tint);
-  color: var(--green-700);
+  background: var(--accent-course-bg);
+  color: var(--accent-course-fg);
+  box-shadow: inset 0 0 0 var(--border-w) var(--accent-course-bd);
 }
 /* Клікабельний заголовок картки — раніше вся картка була посиланням у
    плеєр, тепер клік по ній розгортає акордеон МОДУЛІВ цього курсу (курс —
@@ -456,8 +459,9 @@ a.profile-card-link:focus-visible {
    активний зелений, а не gold категорії, щоб відрізнявся з першого
    погляду. */
 .ct-tag-new {
-  background: var(--cb-secondary-tint);
-  color: var(--cb-secondary);
+  background: var(--accent-tag-new-bg);
+  color: var(--accent-tag-new-fg);
+  box-shadow: inset 0 0 0 var(--border-w) var(--accent-tag-new-bd);
 }
 /* "Обов'язково" — Malty system alert (жовтий), не danger: це не помилка,
    а просто "зверни увагу", той самий колір, що admin-unsaved-badge. */
@@ -472,7 +476,7 @@ a.profile-card-link:focus-visible {
   margin-bottom: 9px;
 }
 .ct-due.is-overdue {
-  color: var(--danger);
+  color: var(--accent-st-fail-text);
   font-weight: 700;
 }
 .ct-progress-row {
@@ -494,7 +498,7 @@ a.profile-card-link:focus-visible {
 .ct-progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--cb-primary);
+  background: var(--accent-bar-course);
   transition: width var(--dur-base) ease-in-out;
 }
 .ct-progress-pct {
@@ -515,8 +519,8 @@ a.profile-card-link:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: var(--cb-primary);
-  color: var(--cb-white);
+  background: var(--accent-btn-bg);
+  color: var(--accent-btn-fg);
   text-decoration: none;
   font-weight: 600;
   font-size: calc(12.5px * var(--fs-scale));
@@ -673,7 +677,7 @@ a.profile-card-link:focus-visible {
   text-align: center;
 }
 .ct-certificate-error {
-  color: var(--danger);
+  color: var(--p-danger-text);
 }
 
 /* "coming soon" placeholder course cards (Learning tab) */
@@ -802,8 +806,9 @@ a.profile-card-link:focus-visible {
   align-items: center;
   justify-content: center;
   font-size: 23px;
-  background: linear-gradient(150deg, var(--gold), color-mix(in srgb, var(--cb-tertiary) 78%, var(--cb-black)));
-  box-shadow: 0 8px 16px -8px color-mix(in srgb, var(--cb-tertiary) 55%, transparent);
+  background: var(--accent-badge-bg);
+  color: var(--accent-badge-fg);
+  box-shadow: inset 0 0 0 var(--border-w) var(--accent-badge-bd), 0 8px 16px -8px color-mix(in srgb, var(--accent-badge) 55%, transparent);
   position: relative;
   overflow: hidden;
 }
@@ -893,8 +898,8 @@ a.profile-card-link:focus-visible {
 /* Власний рядок співробітника в рейтингу — виділений тонкою зеленою
    рамкою, щоб одразу бачити "де я", не шукаючи своє ім'я в списку. */
 .lb-row-self {
-  border-color: var(--green-700);
-  background: color-mix(in srgb, var(--green-700) 8%, var(--surface-1));
+  border-color: var(--accent-lb-self-bd);
+  background: var(--accent-lb-self-bg);
   /* Рядок «я» піднімається на своє місце з коротким сяйвом (демо-тур). */
   animation: lbSelfIn 0.65s ease-in-out 0.35s both;
 }
@@ -904,7 +909,7 @@ a.profile-card-link:focus-visible {
     transform: translateY(14px) scale(0.98);
   }
   60% {
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--green-700) 25%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent-lb-self) 25%, transparent);
   }
   100% {
     opacity: 1;
@@ -941,7 +946,7 @@ a.lb-row-link:focus-visible {
   font-size: calc(11px * var(--fs-scale));
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--green-700);
+  color: var(--accent-score);
   margin: 0 0 6px;
 }
 .lb-rank {
@@ -963,7 +968,7 @@ a.lb-row-link:focus-visible {
 .lb-score {
   font-family: var(--font-mono);
   font-size: calc(11.5px * var(--fs-scale));
-  color: var(--green-700);
+  color: var(--accent-score);
   font-weight: 700;
 }
 .leaderboard-lock {
@@ -1059,7 +1064,7 @@ a.lb-row-link:focus-visible {
   top: 0;
   left: 0;
   border-radius: var(--radius-btn);
-  background: var(--cb-primary);
+  background: var(--accent-tabbar-bg);
   z-index: 0;
   pointer-events: none;
   transition: transform var(--tab-pill-duration) var(--tab-pill-ease), width var(--tab-pill-duration) var(--tab-pill-ease),
@@ -1150,7 +1155,7 @@ a.lb-row-link:focus-visible {
 /* Заливку тепер малює .tab-pill вище (одна спільна капсула, що їде під
    вкладками) — тут лишається тільки колір іконки поверх неї. */
 .tab-btn.active .tab-btn-indicator {
-  color: var(--cb-white);
+  color: var(--accent-tabbar-fg);
 }
 
 .logout-row {
@@ -1162,7 +1167,7 @@ a.lb-row-link:focus-visible {
   border-radius: var(--radius-btn);
   background: transparent;
   border: var(--border-w) solid var(--danger);
-  color: var(--danger);
+  color: var(--p-danger-text);
   font-weight: 700;
   font-size: calc(13px * var(--fs-scale));
   cursor: pointer;
@@ -1298,7 +1303,7 @@ a.lb-row-link:focus-visible {
   pointer-events: auto;
   padding: 0;
   border: none;
-  color: var(--danger);
+  color: var(--p-danger-text);
   cursor: pointer;
 }
 .avatar-edit-badge.is-remove svg {
@@ -1313,6 +1318,9 @@ a.lb-row-link:focus-visible {
    відступах 12px (користувач, 2026-09-16: «на весь контейнер»). */
 .profile-card {
   padding: 12px 16px;
+}
+.profile-card .avatar {
+  border-color: var(--accent-ring);
 }
 .profile-card .avatar-md {
   /* +10% на всі боки (2026-09-22, рішення користувача): 76px -> 83.6px. */
@@ -1362,15 +1370,16 @@ a.lb-row-link:focus-visible {
   }
 }
 /* ---- Зелена картка профілю йде за курсором (стенд «M», лише десктоп):
-   нахил до 6°, відгук 0.25s, паралакс трилисника 10px. Значення
+   нахил до 1°, відгук 0.4s, паралакс трилисника 3px (було 6°/0.25s/10px —
+   на широкій картці смикалось; користувач, 2026-10-04). Значення
    виставляє ProfileCard.jsx у --tilt-*; на дотику нічого не робить. ---- */
 @media (hover: hover) {
   .profile-card {
-    transition: transform 0.25s ease-out, box-shadow var(--dur-base) var(--ease-premium);
-    transform: perspective(600px) rotateY(var(--tilt-y, 0deg)) rotateX(var(--tilt-x, 0deg));
+    transition: transform 0.4s ease-out, box-shadow var(--dur-base) var(--ease-premium);
+    transform: perspective(1600px) rotateY(var(--tilt-y, 0deg)) rotateX(var(--tilt-x, 0deg));
   }
   .profile-card::after {
-    transition: transform 0.25s ease-out;
+    transition: transform 0.4s ease-out;
     transform: translate(var(--tilt-px, 0px), var(--tilt-py, 0px));
   }
 }

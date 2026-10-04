@@ -63,7 +63,7 @@ export function HubShellSkeleton() {
           <nav className="tabbar" role="tablist" aria-hidden="true">
             {TABS.map(({ href, label, Icon }, i) => (
               <Link key={href} href={href} className={`tab-btn${i === 0 ? " active" : ""}`} role="tab" aria-label={label} tabIndex={-1}>
-                <span className="tab-btn-indicator" style={i === 0 ? { background: "var(--cb-primary)" } : undefined}>
+                <span className="tab-btn-indicator" style={i === 0 ? { background: "var(--accent-tabbar-bg)", color: "var(--accent-tabbar-fg)" } : undefined}>
                   <Icon filled={i === 0} />
                 </span>
               </Link>

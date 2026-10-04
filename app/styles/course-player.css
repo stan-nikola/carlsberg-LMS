@@ -169,7 +169,7 @@
   color: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
 }
 .mr-tab.is-available .mr-tab-num {
-  background: var(--cb-notification);
+  background: var(--p-info-solid);
   color: var(--cb-white);
 }
 .cp-screen {
@@ -312,7 +312,7 @@
 .cp-progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--cb-primary);
+  background: var(--accent-bar-player);
   transition: width var(--dur-base) ease-in-out;
 }
 .cp-step-count {
@@ -488,8 +488,9 @@
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: var(--gold);
-  color: var(--cb-white);
+  background: var(--accent-quiz-bg);
+  color: var(--accent-quiz-fg);
+  border: var(--border-w) solid var(--accent-quiz-bd);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -505,7 +506,7 @@
 @keyframes quizPulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 50%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-quiz) 50%, transparent);
   }
   50% {
     box-shadow: 0 0 0 8px transparent;
@@ -590,7 +591,7 @@
   border-color: var(--green-700);
 }
 .opt.wrong .opt-mark {
-  background: var(--danger);
+  background: var(--p-fail-solid);
   border-color: var(--danger);
 }
 /* Галочка вибору (ще ДО перевірки, лише для «кількох правильних»):
@@ -850,7 +851,7 @@
 }
 .q-fb.bad {
   background: color-mix(in srgb, var(--danger) 14%, var(--surface-1));
-  color: var(--danger);
+  color: var(--p-danger-text);
 }
 /* Відповідь ще не перевірена: іде на сервер або дана без мережі
    (lib/grading.ts AnswerState). Нейтральний синій «інформація», не
@@ -914,8 +915,9 @@
   margin: -6px 0 10px;
   padding: 4px 12px;
   border-radius: var(--radius-badge);
-  background: linear-gradient(135deg, var(--gold), color-mix(in srgb, var(--cb-tertiary) 78%, var(--cb-black)));
-  color: color-mix(in srgb, var(--cb-tertiary) 25%, var(--cb-black));
+  background: var(--accent-points-chip-bg);
+  color: var(--accent-points-chip-fg);
+  box-shadow: inset 0 0 0 var(--border-w) var(--accent-points-chip-bd);
   font-weight: 800;
   font-size: calc(14px * var(--fs-scale));
   font-variant-numeric: tabular-nums;
@@ -957,7 +959,7 @@
   margin-bottom: 16px;
 }
 .cp-save-error {
-  color: var(--danger);
+  color: var(--p-danger-text);
 }
 
 /* nav (Назад / Далі) */
@@ -1003,8 +1005,8 @@
   box-shadow: var(--cb-focus-ring);
 }
 .btn-primary {
-  background: var(--cb-primary);
-  color: var(--cb-white);
+  background: var(--accent-btn-bg);
+  color: var(--accent-btn-fg);
   box-shadow: var(--shadow-sm);
 }
 @media (hover: hover) {
@@ -1510,7 +1512,7 @@
    «пройдено» (secondary). Синій — єдиний токен, що і не зелений, і не
    золотий, тож стан читається одразу. */
 .tl-item.current .tl-num {
-  background: var(--cb-notification);
+  background: var(--p-info-solid);
   color: var(--cb-white);
 }
 .tl-item.seen .tl-num {
@@ -1673,7 +1675,7 @@
   min-height: 52px;
   padding: 14px 16px;
   border-radius: var(--radius-input);
-  border: var(--border-w) solid var(--line);
+  border: var(--border-w) solid var(--p-input-border);
   background: var(--cb-white);
   font-family: inherit;
   /* max(16px, ...) — той самий анти-зум фікс, що в registration.css:
@@ -1919,16 +1921,16 @@
   width: 100%;
   margin: 18px 0 12px;
   padding: var(--card-pad-roomy);
-  border: 1px solid var(--gold);
+  border: var(--border-w) solid var(--accent-cert-bd);
   border-radius: var(--radius-card);
-  background: var(--gold-soft);
+  background: var(--accent-cert-bg);
   text-align: center;
 }
 .cp-cert-icon {
   display: flex;
   width: 40px;
   height: 40px;
-  color: color-mix(in srgb, var(--gold) 65%, var(--cb-black));
+  color: var(--accent-cert-fg);
 }
 .cp-cert-icon svg {
   width: 100%;
@@ -2800,7 +2802,7 @@
   background: var(--cb-secondary);
 }
 .hs-pin.bad {
-  background: var(--danger);
+  background: var(--p-fail-solid);
 }
 @media (prefers-reduced-motion: reduce) {
   .hs-zone,
@@ -3000,7 +3002,7 @@
 }
 .cp-plan-road-progress {
   fill: none;
-  stroke: var(--cb-secondary);
+  stroke: var(--accent-plan-line);
   stroke-width: 3.5;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -3148,24 +3150,24 @@
    (дефолт вище, без перевизначення). Малий кружечок на лінії теж у
    колір стану. */
 .cp-plan-cell.is-passed .cp-plan-dot {
-  background: var(--cb-success);
+  background: var(--accent-st-success);
 }
 .cp-plan-cell.is-available .cp-plan-dot {
-  background: var(--cb-notification);
+  background: var(--accent-st-info);
 }
 .cp-plan-cell.is-failed .cp-plan-dot {
-  background: var(--cb-alert);
+  background: var(--accent-st-alert);
 }
 .cp-plan-cell.is-passed .cp-plan-badge {
-  background: var(--cb-success);
+  background: var(--accent-st-success);
   color: var(--cb-white);
 }
 .cp-plan-cell.is-available .cp-plan-badge {
-  background: var(--cb-notification);
+  background: var(--accent-st-info);
   color: var(--cb-white);
 }
 .cp-plan-cell.is-failed .cp-plan-badge {
-  background: var(--cb-alert);
+  background: var(--accent-st-alert);
   color: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
 }
 
@@ -3384,7 +3386,7 @@
   font-weight: 600;
 }
 .cp-plan-fact.is-bad {
-  color: var(--cb-fail);
+  color: var(--p-danger-text);
   font-weight: 600;
 }
 .cp-plan-square-action {
@@ -3622,7 +3624,7 @@
   color: var(--cb-success);
 }
 .q-order-row.is-wrong .q-order-mark {
-  color: var(--cb-fail);
+  color: var(--p-danger-text);
 }
 /* Відступ до кнопки «Перевірити» — РІВНО вдвічі більший за крок між
    самими рядками (--q-order-gap на .q-order вище), а не довільне число:
@@ -3761,7 +3763,7 @@
 }
 .cp-stamp.is-fail {
   border-color: var(--cb-fail);
-  color: var(--cb-fail);
+  color: var(--p-danger-text);
 }
 @keyframes cpStampSlam {
   0% {

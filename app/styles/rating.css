@@ -70,7 +70,7 @@ a.rt-card:focus-visible {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: calc(22px * var(--fs-scale));
-  color: var(--green-700);
+  color: var(--accent-score);
   line-height: 1.1;
 }
 .rt-points span {
@@ -84,11 +84,24 @@ a.rt-card:focus-visible {
   color: var(--ink-soft);
   margin-top: 3px;
 }
+/* Той самий кружок, що на зеленій картці (hub.css .profile-level .lv-star):
+   колір і вигляд з конструктора читаються однаково в обох місцях, а голий
+   символ світлим відтінком на білому губився. */
 .rt-level .lv-star {
-  color: var(--gold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  vertical-align: -2px;
+  font-size: 9px;
+  background: var(--accent-level-bg);
+  color: var(--accent-level-fg);
+  box-shadow: inset 0 0 0 1px var(--accent-level-bd);
 }
 .rt-overdue {
-  color: var(--danger);
+  color: var(--p-danger-text);
   font-weight: 600;
 }
 .rt-rank {
@@ -99,7 +112,7 @@ a.rt-card:focus-visible {
   display: block;
   font-family: var(--font-display);
   font-size: calc(18px * var(--fs-scale));
-  color: var(--green-700);
+  color: var(--accent-score);
 }
 /* Число в .rt-rank b і .rt-points — number-flow (components/CountUp.tsx):
    custom element сам тримає рамки цифр; .rt-rank span нижче — лише дрібна
@@ -138,7 +151,7 @@ a.rt-card:focus-visible {
   display: block;
   font-family: var(--font-mono);
   font-size: calc(10px * var(--fs-scale));
-  color: var(--green-700);
+  color: var(--accent-score);
 }
 .badge-item.locked .badge-points {
   color: var(--ink-soft);
@@ -154,9 +167,9 @@ a.rt-card:focus-visible {
   align-items: center;
   gap: 12px;
   padding: var(--card-pad-compact);
-  border: 1px solid var(--gold);
+  border: var(--border-w) solid var(--accent-cert-bd);
   border-radius: var(--radius-card);
-  background: var(--gold-soft);
+  background: var(--accent-cert-bg);
 }
 .cert-ico {
   width: 32px;
@@ -164,7 +177,7 @@ a.rt-card:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--gold);
+  color: var(--accent-cert-fg);
   flex-shrink: 0;
 }
 .cert-ico svg {

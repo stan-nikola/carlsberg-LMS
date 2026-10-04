@@ -127,6 +127,16 @@ export function AdminShell({ children, superAdmin = false }) {
       );
     };
 
+  // «Адміністратор» + плашка «super» над ним для сесії SUPER_ADMIN_PASSWORD
+  // (рішення користувача 2026-10-04, замість «Адмін-панель»): одразу видно,
+  // під яким рівнем зайшов.
+  const title = (
+    <>
+      {superAdmin && <span className="adm-level-pill">super</span>}
+      <span className="adm-sidebar-title-text">Адміністратор</span>
+    </>
+  );
+
   const navLinks = (onNavigate) => (
     <nav className="adm-nav">
       {NAV_ITEMS.map(navLink(onNavigate))}
@@ -147,8 +157,8 @@ export function AdminShell({ children, superAdmin = false }) {
           щоб звільнити ширину під конструктор курсу/прев'ю на пристрої
           (за проханням користувача). */}
       <aside className={`adm-sidebar${collapsed ? " is-collapsed" : ""}`}>
-        <Link href="/admin" className="adm-sidebar-title" title="Адмін-панель">
-          <span className="adm-sidebar-title-text">Адмін-панель</span>
+        <Link href="/admin" className="adm-sidebar-title" title={superAdmin ? "Адміністратор (super)" : "Адміністратор"}>
+          {title}
         </Link>
         {navLinks()}
         <div className="adm-sidebar-footer">
@@ -157,7 +167,7 @@ export function AdminShell({ children, superAdmin = false }) {
           </button>
         </div>
         {/* Кнопка згортання — НЕ в один рядок із заголовком (там вона
-            накладалась на напис "Адмін-панель", реальний баг, знайдений
+            накладалась на напис заголовка, реальний баг, знайдений
             користувачем), а абсолютно позиційована рівно по вертикальному
             центру всієї панелі, просто на лінії border-right (.adm-sidebar
             вже position:sticky — це теж containing block для абсолюта, як
@@ -179,7 +189,7 @@ export function AdminShell({ children, superAdmin = false }) {
       {/* ---- Мобільний (<900px): верхній appbar + бургер + шторка ---- */}
       <header className="adm-appbar">
         <Link href="/admin" className="adm-sidebar-title">
-          Адмін-панель
+          {title}
         </Link>
         <button
           type="button"

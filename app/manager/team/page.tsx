@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getManagerTeamRows } from "@/lib/managerOverview";
 import { applyTeamFilters, describeTeamQuery, parseTeamQuery } from "@/lib/teamInsights";
 import { TeamList } from "@/components/TeamList";
+import { ExportReportLink } from "@/components/ExportReportLink";
 import { BackButton } from "@/components/BackButton";
 
 // TODO: Cache Components adoption — той самий опт-аут, що на app/manager/page.js.
@@ -37,6 +38,7 @@ export default async function ManagerTeamPage({ searchParams }: { searchParams: 
         <BackButton />
         <span className="mgr-page-head-rule" aria-hidden="true" />
         <h1 className="greeting hub-greeting-h1">КОМАНДА</h1>
+        <ExportReportLink />
       </div>
       <TeamList result={result} chips={chips} courseId={course?.id ?? null} courseTitle={course?.title ?? null} />
     </div>

@@ -59,22 +59,42 @@
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
-/* Телефон/планшет (сенсор): текст не виділяється — довгий тап по кнопці,
-   рядку «Порядку кроків» чи парі інакше відкривав лупу й меню «Копіювати»
-   замість дії. Поля вводу лишаються виділюваними. Десктоп (миша) не чіпаємо. */
-@media (hover: none) and (pointer: coarse) {
-  body {
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
-  }
-  input,
-  textarea,
-  [contenteditable="true"] {
-    -webkit-user-select: text;
-    user-select: text;
-    -webkit-touch-callout: default;
-  }
+/* Текст не виділяється й не копіюється ніде в застосунку (користувач,
+   2026-10-05; до цього — лише на сенсорних екранах, де довгий тап відкривав
+   лупу й «Копіювати» замість дії). Копіювання/контекстне меню глушить
+   components/CopyGuard.tsx; дані — кнопкою «Завантажити звіт» (Excel). Поля
+   вводу лишаються виділюваними: PIN із листа, пошук, тексти конструктора. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input,
+textarea,
+select,
+[contenteditable=""],
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+/* Таблиці «як у Excel» (components/TableSizes.tsx): курсор над межею
+   клітинки й під час протягування. */
+html[data-ts-cursor="col"] *,
+html[data-ts-dragging="col"] * {
+  cursor: col-resize !important;
+}
+html[data-ts-cursor="row"] *,
+html[data-ts-dragging="row"] * {
+  cursor: row-resize !important;
+}
+/* Потягнута ширина — закон: власні min/max-width колонок (напр. «Людина»
+   ≤ 280px) інакше обрізали б її. */
+table.ts-fixed th,
+table.ts-fixed td {
+  min-width: 0 !important;
+  max-width: none !important;
+  overflow-wrap: anywhere;
 }
 html {
   /* Резервує місце під вертикальний скролбар завжди, навіть коли контент
@@ -501,8 +521,9 @@ html:has(.sheet-overlay.open) body {
   /* Раніше сирі 9px — за рішенням користувача зведено до спільного
      токена разом із .ct-icon/.cp-kicker-num (design-guardian-аудит). */
   border-radius: var(--radius-sm);
-  background: var(--green-tint);
-  color: var(--green-700);
+  background: var(--accent-settings-bg);
+  color: var(--accent-settings-fg);
+  box-shadow: inset 0 0 0 var(--border-w) var(--accent-settings-bd);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -601,8 +622,8 @@ html:has(.sheet-overlay.open) body {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  background: var(--cb-primary);
-  color: var(--cb-white);
+  background: var(--accent-btn-bg);
+  color: var(--accent-btn-fg);
   position: relative;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
@@ -615,9 +636,9 @@ html:has(.sheet-overlay.open) body {
    спільного правила вище, тут лише заливка — тому блок мусить стояти
    ПІСЛЯ нього, інакше спільне правило перебило б ці кольори. */
 .btn-secondary-full {
-  background: transparent;
-  color: var(--cb-primary);
-  border: var(--border-w) solid var(--cb-primary);
+  background: var(--accent-btn2-bg);
+  color: var(--accent-btn2-fg);
+  border: var(--border-w) solid var(--accent-btn2-bd);
   box-shadow: none;
 }
 @media (hover: hover) {
@@ -1089,16 +1110,16 @@ html:has(.sheet-overlay.open) body {
   height: 12px;
 }
 .status-pill-success {
-  background: var(--cb-success-light);
-  color: color-mix(in srgb, var(--cb-success) 45%, var(--cb-black));
+  background: var(--accent-st-success-bg);
+  color: var(--accent-st-success-fg);
 }
 .status-pill-fail {
-  background: var(--cb-fail-light);
-  color: color-mix(in srgb, var(--cb-fail) 45%, var(--cb-black));
+  background: var(--accent-st-fail-bg);
+  color: var(--accent-st-fail-fg);
 }
 .status-pill-alert {
-  background: var(--cb-alert-light);
-  color: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
+  background: var(--accent-st-alert-bg);
+  color: var(--accent-st-alert-fg);
 }
 
 /* ---- Скелетон завантаження (components/Skeleton.tsx) ----
@@ -1287,4 +1308,17 @@ html:has(.sheet-overlay.open) body {
 /* Терміновий статус двічі пульсує при появі (стенд Motion Tuner «L»). */
 .status-pill.is-urgent {
   animation: urgentPulse 0.9s ease-in-out 0.6s 2;
+}
+
+/* Значки на пілюлях статусу для тих, хто погано розрізняє червоний і зелений
+   (рекомендація «Сприйняття», /admin/design): лише де своєї іконки нема.
+   Дефолт --p-glyph-* = none — нічого не показується. */
+.status-pill-success:not(:has(svg))::before {
+  content: var(--p-glyph-success);
+}
+.status-pill-fail:not(:has(svg))::before {
+  content: var(--p-glyph-fail);
+}
+.status-pill-alert:not(:has(svg))::before {
+  content: var(--p-glyph-alert);
 }

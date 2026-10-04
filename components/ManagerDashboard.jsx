@@ -13,7 +13,6 @@ import {
   XIcon,
   CourseIcon,
   DashboardTuneIcon,
-  ExcelIcon,
   ArrowsMoveIcon,
   RingsIcon,
 } from "@/components/icons";
@@ -33,6 +32,7 @@ import { TeamStatusBar } from "@/components/TeamStatusBar";
 import { pluralPeople } from "@/lib/teamInsights";
 import { AttentionList } from "@/components/AttentionList";
 import { TeamMatrix } from "@/components/TeamMatrix";
+import { ExportReportLink } from "@/components/ExportReportLink";
 
 // localStorage, не БД (рішення користувача, 2026-09-19) — вибір карток
 // живе лише в цьому браузері, на іншому пристрої дашборд знову стартує з
@@ -64,8 +64,8 @@ const DASHBOARD_CARDS_STORAGE_KEY = "carls_manager_dashboard_cards_v2";
 const ROLE_DEFAULT_CARDS = {
   // peopleStatus (матриця люди × курси) повернуто в дефолт СВ/АСМ
   // (2026-09-23): дерева команди вона більше не потребує.
-  SV: ["status", "attention", "rings", "deadlines", "scoreDist", "peopleStatus"],
-  ASM: ["status", "attention", "rings", "deadlines", "scoreDist", "peopleStatus"],
+  SV: ["rings", "attention", "status", "deadlines", "scoreDist", "peopleStatus"],
+  ASM: ["rings", "attention", "status", "deadlines", "scoreDist", "peopleStatus"],
 };
 const FALLBACK_ROLE_DEFAULT_CARDS = [
   "status",
@@ -123,6 +123,15 @@ const DASHBOARD_GRID_STORAGE_KEY = "carls_manager_dashboard_grid_v4";
 // v3 — та сама розкладка, але y у клітинках по 24px; читаємо її, переводячи
 // y у нові клітинки, щоб розстановка керівника не загубилась.
 const LEGACY_GRID_STORAGE_KEY = "carls_manager_dashboard_grid_v3";
+// Порядок карток на телефоні (одна колонка) — окремо від розкладки на 12
+// колонок (2026-10-04, баг з iPhone: «після перетягування порядок не
+// зберігається»). gridstack у вузькому режимі save() віддає 12-колонкову
+// розкладку, а перетягування в одній колонці переносить у неї лише
+// «зсунути y на ту ж дельту» (TODO в самому gridstack-engine,
+// layoutsNodesChange) — після F5 телефон виводив порядок з цієї зіпсованої
+// розкладки, і заразом псувалась десктопна. Тому: телефон пише лише свій
+// список id згори вниз, а 12-колонкову розкладку пише лише десктоп.
+const DASHBOARD_PHONE_ORDER_STORAGE_KEY = "carls_manager_dashboard_phone_order_v1";
 const LEGACY_CELL_HEIGHT_PX = 24;
 const GRID_COLUMNS = 12;
 // Крок висоти. Висота «по вмісту» округлюється вгору до цілої клітинки, і
@@ -193,6 +202,15 @@ function readStoredGrid() {
   }
 }
 
+function readPhoneOrder() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(DASHBOARD_PHONE_ORDER_STORAGE_KEY) || "null");
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : null;
+  } catch {
+    return null;
+  }
+}
+
 function readStoredOrder() {
   if (typeof window === "undefined") return null;
   try {
@@ -225,18 +243,21 @@ function mergeCardOrder(stored, canonical) {
 // порядок потрібен ще до того, як картки зібрані в масив. Якщо в розмітці
 // колись з'явиться картка, якої тут нема, renderChartCards допише її в
 // кінець — дашборд не "втратить" її мовчки.
+// Карта дашборда (користувач, 2026-10-04): кільця, «Потребують уваги»,
+// «Стан команди»; далі дедлайни й розподіл балів (¼ + ¼ закривають ряд біля
+// «Стану» на ½), матриця на всю ширину, решта.
 const CANONICAL_CARD_IDS = [
-  "status",
-  "attention",
   "rings",
-  "trend",
+  "attention",
+  "status",
   "deadlines",
   "scoreDist",
+  "peopleStatus",
+  "trend",
   "firstTry",
   "duration",
   "courseBreakdown",
   "hardestModules",
-  "peopleStatus",
   "teamCompare",
   "hardestQuestions",
 ];
@@ -473,14 +494,6 @@ function flattenTree(nodes, out = []) {
  * (/api/manager/employees/[id]).
  */
 export function ManagerDashboard({ initialData = null, initialError = false }) {
-  // iPhone/iPad — звіт через сторінку /manager/report (див. коментар при
-  // кнопці «Завантажити звіт»). Лише в ефекті: у серверному рендері
-  // navigator нема, і різний href зламав би гідратацію.
-  const [isIOS, setIsIOS] = useState(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsIOS(/iPhone|iPad|iPod/i.test(navigator.userAgent));
-  }, []);
   // Дані вже прийшли з сервера (app/manager/page.js, lib/managerOverview.js)
   // — loading:false одразу, без окремого клієнтського fetch() і
   // скелетон-спалаху на кожному монтуванні (раніше тут стояв fetch(
@@ -632,6 +645,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       window.localStorage.removeItem(DASHBOARD_ORDER_STORAGE_KEY);
       window.localStorage.removeItem(DASHBOARD_GRID_STORAGE_KEY);
       window.localStorage.removeItem(LEGACY_GRID_STORAGE_KEY);
+      window.localStorage.removeItem(DASHBOARD_PHONE_ORDER_STORAGE_KEY);
       // Ключі попередніх движків сітки — прибираємо заодно.
       window.localStorage.removeItem("carls_manager_dashboard_layout_v2");
       window.localStorage.removeItem("carls_manager_dashboard_spans_v1");
@@ -843,6 +857,25 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       }
     };
     snapWidths();
+    // Телефон: накласти власний збережений порядок. Через load(), а не
+    // update(): load не переносить зміни в 12-колонковий кеш gridstack.
+    // Картки, яких у списку нема (увімкнені пізніше), — в кінець, у тому
+    // порядку, що дав gridstack.
+    const applyPhoneOrder = () => {
+      if (grid.getColumn() !== 1) return;
+      const order = readPhoneOrder();
+      if (!order) return;
+      const rank = new Map(order.map((id, i) => [id, i]));
+      const nodes = grid.engine.nodes.filter((n) => n.el).sort((a, b) => (rank.get(a.id) ?? order.length + a.y) - (rank.get(b.id) ?? order.length + b.y));
+      let y = 0;
+      const items = nodes.map((n) => {
+        const item = { id: n.id, x: 0, y, w: 1, h: n.h };
+        y += n.h || 1;
+        return item;
+      });
+      grid.load(items, false);
+    };
+    applyPhoneOrder();
     // Показуємо картки лише КОЛИ розкладка вже стала: init + load + перший
     // замір висот під вміст відбулись, але без анімації й під
     // visibility:hidden (.mgr-charts до .is-ready). Два кадри — щоб
@@ -861,6 +894,8 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // після прибирання картки) — у localStorage. h не зберігаємо: воно
     // щоразу рахується з вмісту.
     const saveLayout = () => {
+      // На телефоні 12-колонкову розкладку не пишемо — див. DASHBOARD_PHONE_ORDER_STORAGE_KEY.
+      if (grid.getColumn() !== GRID_COLUMNS) return;
       const nodes = grid.save(false).map(({ id, x, y, w }) => ({ id, x, y, w, pw: prefW.get(id) ?? DEFAULT_CARD_W[id] ?? w }));
       try {
         window.localStorage.setItem(DASHBOARD_GRID_STORAGE_KEY, JSON.stringify(nodes));
@@ -891,6 +926,14 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       gesture = false;
       grid.setAnimation(true);
       snapWidths();
+      if (event.type === "dragstop" && grid.getColumn() === 1) {
+        const ids = grid.engine.nodes.filter((n) => n.el).sort((a, b) => a.y - b.y).map((n) => n.id);
+        try {
+          window.localStorage.setItem(DASHBOARD_PHONE_ORDER_STORAGE_KEY, JSON.stringify(ids));
+        } catch {
+          // Без localStorage порядок живе до перезавантаження.
+        }
+      }
       // Ширину виставила людина — це тепер власна ширина картки.
       // Зберегти одразу: якщо після цього розкладка не зрушить, події change
       // не буде, і нова власна ширина після F5 загубилась би (живий тест).
@@ -911,7 +954,14 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     let settle = 0;
     const observer = new ResizeObserver(() => {
       clearTimeout(settle);
-      settle = setTimeout(() => grid.el && grid.onResize(), 180);
+      settle = setTimeout(() => {
+        if (!grid.el) return;
+        const was = grid.getColumn();
+        grid.onResize();
+        // Щойно перейшли у вузький режим (поворот, звузили вікно) —
+        // gridstack вивів порядок із 12 колонок; повертаємо телефонний.
+        if (was !== 1) applyPhoneOrder();
+      }, 180);
     });
     observer.observe(el);
     // Висоти карток (2026-10-04). Природна висота — від верху картки до низу
@@ -1317,23 +1367,8 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       <div className="mgr-page-header">
         <h1 className="greeting hub-greeting-h1">КАБІНЕТ КЕРІВНИКА</h1>
         <div className="mgr-page-header-actions">
-          {/* Прямий лінк на /api/manager/export — браузер сам ініціює
-              завантаження по Content-Disposition:attachment, без fetch+blob.
-              cards= — увімкнені картки в порядку дашборда: звіт повторює
-              екран лист у лист (lib/managerReport.ts).
-              iPhone/iPad (2026-10-03) — через сторінку /manager/report
-              (components/ReportScreen.tsx) з кнопкою «Закрити»: прямий файл
-              у встановленому застосунку відкривався на весь екран без дороги
-              назад, а окреме вікно Safari (target=_blank) не має cookie
-              застосунку й не вміє завантажувати — лишалось порожнім. */}
-          <a
-            className="admin-btn-link mgr-export-link"
-            href={`${isIOS ? "/manager/report" : "/api/manager/export"}?cards=${orderedIds.filter((id) => enabledCards.has(id)).join(",")}`}
-            title="Завантажити звіт у форматі Excel — листи за увімкненими картками"
-            aria-label="Завантажити звіт у форматі Excel"
-          >
-            <ExcelIcon /> <span className="mgr-export-label">Завантажити звіт</span>
-          </a>
+          {/* Excel-звіт: листи за увімкненими картками в порядку дашборда. */}
+          <ExportReportLink cards={orderedIds.filter((id) => enabledCards.has(id))} />
           {/* Навмисно ІНША іконка, ніж загальні налаштування застосунку
               (components/icons.jsx DashboardTuneIcon) — щоб "які графіки
               показувати" не плутався з рештою налаштувань профілю. */}

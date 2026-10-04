@@ -503,7 +503,9 @@
 }
 .adm-sidebar-title {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   min-width: 0;
   font-weight: 700;
   color: var(--ink);
@@ -518,16 +520,29 @@
 }
 /* У згорнутому стані сам текст-лейбл ховаємо (не display:none на
    .adm-sidebar-title — лінк-обгортка лишається клікабельною й
-   доступною, з title="Адмін-панель" на самому <Link>, див. JSX). */
+   доступною, з title на самому <Link>, див. JSX). Плашка «super»
+   лишається і в згорнутому — рівень видно завжди. */
 .adm-sidebar.is-collapsed .adm-sidebar-title-text {
   display: none;
 }
 .adm-sidebar.is-collapsed .adm-sidebar-title {
   padding: 0;
-  justify-content: center;
+  align-items: center;
+}
+/* Рівень сесії над «Адміністратор» (AdminShell.jsx). */
+.adm-level-pill {
+  padding: 1px 7px;
+  border-radius: var(--radius-badge);
+  background: color-mix(in srgb, var(--cb-notification) 14%, var(--surface));
+  color: color-mix(in srgb, var(--cb-notification) 60%, var(--cb-black));
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.5;
 }
 /* Кнопка згортання — не в шапці поруч із заголовком (там вона накладалась
-   на напис "Адмін-панель", реальний баг користувача), а абсолютно
+   на напис заголовка, реальний баг користувача), а абсолютно
    позиційована рівно по вертикальному центру ВСІЄЇ панелі, просто на лінії
    border-right (.adm-sidebar вже position:sticky — теж containing block
    для абсолюта). Без .iconbtn (без рамки/фону в стані спокою, за
@@ -4336,4 +4351,963 @@ body.audit-resizing {
 }
 .audit-export {
   margin-left: auto;
+}
+
+/* /admin/design → «Кольори елементів» (DesignStand.tsx): зразки кольорів гайду. */
+.ds-accent {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: var(--border-w) solid var(--line);
+}
+.ds-accent small {
+  display: block;
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+.ds-accent-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ds-swatch {
+  width: var(--iconbtn-sm);
+  height: var(--iconbtn-sm);
+  padding: 3px;
+  border: var(--border-w) solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  cursor: pointer;
+}
+.ds-swatch i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: var(--border-w) solid var(--cb-overlay-10);
+}
+.ds-swatch.is-on {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 1px var(--green-700);
+}
+.ds-swatch:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.ds-accent-demo {
+  align-items: center;
+}
+.ds-accent-tile {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  cursor: default;
+}
+.ds-accent-hero {
+  margin: 0;
+  padding: 8px 12px;
+}
+.ds-presets {
+  display: grid;
+  gap: 6px;
+}
+.ds-accent-preset {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.ds-accent-preset small {
+  grid-column: 2;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+.ds-accent-preset.is-on {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 1px var(--green-700);
+}
+.ds-accent-preset:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.ds-accent-preset-dots {
+  display: flex;
+  grid-row: span 2;
+}
+.ds-accent-preset-dots i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+}
+.ds-accent-preset-dots i + i {
+  margin-left: -6px;
+}
+.ds-accent-warn {
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: var(--radius-badge);
+  background: var(--cb-alert-light);
+  color: color-mix(in srgb, var(--cb-alert) 45%, var(--cb-black));
+  font-size: 11.5px;
+}
+.ds-accent-fine {
+  display: grid;
+  gap: 8px;
+}
+.ds-accent-fine > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink-soft);
+  padding-top: 10px;
+  border-top: var(--border-w) solid var(--line);
+}
+/* Оцінка кольору для елемента (lib/accentAdvice.ts accentVerdict). */
+.ds-swatch {
+  position: relative;
+}
+.ds-swatch.is-best::after {
+  content: "★";
+  position: absolute;
+  top: -6px;
+  right: -5px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--green-700);
+}
+.ds-swatch.is-bad i {
+  opacity: 0.35;
+  background-image: linear-gradient(135deg, transparent 46%, var(--cb-fail) 46%, var(--cb-fail) 54%, transparent 54%) !important;
+}
+.ds-accent-how {
+  margin-top: 2px;
+  color: var(--ink);
+}
+/* Колір + вигляд кожного елемента (DesignStand.tsx, lib/accentPalette.ts):
+   список елементів із живою мініатюрою, далі «1 · Вигляд» і «2 · Колір»,
+   де кожна плитка — сам елемент у цьому кольорі (як у конструкторі). */
+.ds-acc-look:focus-visible,
+.ds-acc-tile:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.ds-acc-sample {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  flex: none;
+}
+.ds-acc-sample.is-round {
+  border-radius: 50%;
+}
+.ds-acc-sample.is-ring {
+  border: 3px solid;
+  border-radius: 50%;
+  background: var(--cb-primary);
+}
+.ds-acc-sample svg {
+  width: 15px;
+  height: 15px;
+}
+.ds-acc-sample.is-big {
+  width: 46px;
+  height: 46px;
+  font-size: 15px;
+}
+.ds-acc-sample.is-big svg {
+  width: 24px;
+  height: 24px;
+}
+.ds-acc-sample.is-wide {
+  width: auto;
+  min-width: 44px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+.ds-acc-sample.on-hero {
+  box-shadow: 0 0 0 4px var(--cb-primary);
+}
+.ds-acc-sample.is-text {
+  border: 0;
+  font-size: 12px;
+}
+.ds-acc-sample.is-bar,
+.ds-acc-sample.is-dotbox {
+  border: 0;
+  background: var(--cb-overlay-10);
+}
+.ds-acc-sample.is-bar i {
+  width: 70%;
+  height: 6px;
+  border-radius: var(--chart-bar-radius);
+  justify-self: start;
+  margin-left: 3px;
+}
+.ds-acc-sample.is-dotbox i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.ds-acc-sample.is-line {
+  height: 5px;
+  border: 0;
+  border-radius: var(--chart-bar-radius);
+}
+.ds-acc-sample.is-status {
+  width: auto;
+  gap: 4px;
+  grid-auto-flow: column;
+  border: 0;
+}
+.ds-acc-sample.is-status i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.ds-acc-sample.is-status em {
+  font-style: normal;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-badge);
+}
+
+/* ---- Карта екранів (components/ColorMap.tsx): макет ліворуч, панель
+   обраного елемента праворуч, нижче — перелік усіх елементів за групами.
+   Макет фарбується тими самими --accent-* токенами, що й застосунок. ---- */
+.cm {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.cm-top {
+  display: grid;
+  gap: 10px;
+}
+.cm-screens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cm-screen-tab,
+.cm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--btn-h-sm);
+  padding: 0 var(--btn-px-sm);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-btn);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+.cm-screen-tab.is-on,
+.cm-chip.is-on {
+  border-color: var(--green-700);
+  background: var(--green-700);
+  color: var(--cb-white);
+}
+.cm-chip.is-on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--green-700);
+}
+.cm-screen-tab:focus-visible,
+.cm-chip:focus-visible,
+.cm-dot:focus-visible,
+.cm-el:focus-visible,
+.cm-now-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.cm-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.cm-chip {
+  font-size: 12px;
+}
+.cm-chip-dots {
+  display: inline-flex;
+}
+.cm-chip-dots i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--surface);
+}
+.cm-chip-dots i + i {
+  margin-left: -4px;
+}
+.cm-same {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cm-dot {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: var(--border-w) solid var(--cb-overlay-10);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.cm-body {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .cm-body {
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+}
+.cm-panel {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.cm-now {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: var(--card-pad-compact);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+}
+.cm-now-pic {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.cm-now b {
+  display: block;
+  font-size: 15px;
+}
+.cm-now small {
+  color: var(--ink-soft);
+}
+.cm-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 12.5px;
+}
+.cm-facts dt {
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+.cm-facts dd {
+  margin: 0;
+}
+.cm-style-desc {
+  margin: 0;
+}
+.cm-now-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  padding: 5px 10px 5px 5px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-btn);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+.cm-now-btn.is-on {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 1px var(--green-700);
+}
+.cm-all {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  padding-top: 12px;
+  border-top: var(--border-w) solid var(--line);
+}
+.cm-group h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
+.cm-group-list {
+  display: grid;
+  gap: 2px;
+}
+.cm-el {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 6px;
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-card);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.cm-el > .ds-acc-sample {
+  justify-self: center;
+}
+.cm-el b {
+  display: block;
+  font-size: 12.5px;
+}
+.cm-el small {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.cm-el:hover {
+  background: var(--cb-overlay-10);
+}
+.cm-el.is-on {
+  border-color: var(--green-700);
+  background: var(--surface);
+}
+.cm-warn-dot {
+  color: color-mix(in srgb, var(--cb-alert) 45%, var(--cb-black));
+}
+
+/* Макет телефона. Кольори — лише --accent-*; решта нейтральна. */
+.cm-phone {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-height: 560px;
+  padding: 12px;
+  border: 8px solid var(--cb-black);
+  border-radius: 26px;
+  background: var(--surface-1);
+  font-size: 12px;
+  color: var(--ink);
+}
+.cm-hot {
+  cursor: pointer;
+  border-radius: 6px;
+  transition: box-shadow var(--dur-fast) var(--ease-premium);
+}
+.cm-hot:hover {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px color-mix(in srgb, var(--cb-notification) 55%, transparent);
+}
+.cm-hot.is-sel {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--cb-notification);
+}
+.cm-card {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.cm-t {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.cm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cm-between {
+  justify-content: space-between;
+}
+.cm-around {
+  justify-content: space-around;
+}
+.cm-center {
+  justify-items: center;
+  text-align: center;
+}
+.cm-appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cm-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-soft);
+}
+.cm-sidenav {
+  padding: 4px 10px;
+  border: var(--border-w) solid;
+  font-weight: 700;
+}
+.cm-bell {
+  position: relative;
+  font-size: 16px;
+}
+.cm-count {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  font: 700 10px/16px var(--font-mono);
+  text-align: center;
+}
+.cm-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-card);
+  background: linear-gradient(150deg, var(--green-700), var(--green-900));
+  color: var(--cb-white);
+}
+.cm-hero-txt b {
+  display: block;
+}
+.cm-photo {
+  width: 44px;
+  height: 44px;
+  border: 3px solid;
+  border-radius: 50%;
+  background: var(--cb-support-60);
+}
+.cm-lvl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  padding: 1px 8px 1px 2px;
+  border-radius: var(--radius-pill);
+  background: var(--cb-white-overlay-10);
+  font-size: 11px;
+  font-weight: 700;
+}
+.cm-lvl.is-light {
+  background: none;
+  padding: 0;
+  color: var(--ink-soft);
+}
+.cm-star {
+  width: 15px;
+  height: 15px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 9px;
+}
+.cm-plates {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.cm-plate {
+  flex: 1;
+  padding: 6px;
+  border-radius: var(--radius-card);
+  text-align: center;
+  font-weight: 800;
+}
+.cm-rings {
+  display: flex;
+  gap: 16px;
+}
+.cm-ring-wrap {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+.cm-ring {
+  display: inline-flex;
+  border-radius: 50%;
+}
+.cm-ava {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid;
+  border-radius: 50%;
+  font: 800 9px var(--font-display);
+}
+.cm-pill {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: var(--radius-badge);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.cm-bar,
+.cm-cells {
+  display: flex;
+  gap: 3px;
+}
+.cm-seg {
+  display: grid;
+  place-items: center;
+  min-height: 20px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+}
+.cm-cells .cm-seg {
+  flex: none !important;
+  width: 26px;
+  height: 26px;
+}
+.cm-track {
+  display: block;
+  height: 8px;
+  border-radius: var(--chart-bar-radius);
+  background: var(--cb-overlay-10);
+  overflow: visible;
+}
+.cm-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--chart-bar-radius);
+}
+.cm-cico,
+.cm-set {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border: var(--border-w) solid;
+  border-radius: var(--radius-sm);
+}
+.cm-cico svg,
+.cm-set svg,
+.cm-quiz svg,
+.cm-cert svg {
+  width: 16px;
+  height: 16px;
+}
+.cm-tag {
+  margin-left: auto;
+  padding: 2px 7px;
+  border: var(--border-w) solid;
+  border-radius: var(--radius-badge);
+  font-size: 10px;
+  font-weight: 800;
+}
+.cm-due {
+  font-weight: 700;
+  font-size: 11px;
+}
+.cm-btn {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  border-radius: var(--radius-btn);
+  font-weight: 700;
+}
+.cm-tabbar {
+  display: flex;
+  gap: 4px;
+  margin-top: auto;
+  padding: 6px;
+  border-top: var(--border-w) solid var(--line);
+  background: var(--surface);
+}
+.cm-tab {
+  position: relative;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-height: 30px;
+  border-radius: var(--radius-btn);
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+.cm-navdot {
+  position: absolute;
+  top: 3px;
+  right: 30%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.cm-big {
+  font: 800 16px var(--font-display);
+}
+.cm-badge {
+  width: 40px;
+  height: 40px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 18px;
+}
+.cm-cert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: var(--border-w) solid;
+  border-radius: var(--radius-card);
+  font-weight: 700;
+}
+.cm-lb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+}
+.cm-lb-score {
+  margin-left: auto;
+  font: 700 11px var(--font-mono);
+}
+.cm-quiz {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: var(--border-w) solid;
+  border-radius: 50%;
+}
+.cm-plan {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 4px;
+}
+.cm-plan::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  height: 3px;
+  background: var(--line);
+}
+.cm-plan-line {
+  position: absolute;
+  left: 10px;
+  width: 55%;
+  height: 3px;
+}
+.cm-plan-dot {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--cb-white);
+  font-size: 10px;
+  font-weight: 800;
+}
+.cm-chip-pts {
+  padding: 3px 12px;
+  border-radius: var(--radius-badge);
+  font-weight: 800;
+}
+.cm-ntf {
+  display: block;
+  padding: 8px 10px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.ds-acc-looks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ds-acc-look {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 5px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-btn);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+.ds-acc-look.is-on {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 1px var(--green-700);
+}
+.ds-acc-grid {
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  align-items: center;
+}
+.ds-acc-grid > small {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.ds-acc-extra {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+.ds-acc-tile {
+  position: relative;
+  height: 42px;
+  padding: 0 0 5px;
+  display: grid;
+  place-items: center;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-btn);
+  background: var(--surface);
+  overflow: hidden;
+  cursor: pointer;
+}
+/* Смужка знизу — чистий колір палітри, над нею — елемент у вигляді. */
+.ds-acc-tile::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 5px;
+  background: var(--raw);
+}
+.ds-acc-tile.is-on {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 1px var(--green-700);
+}
+.ds-acc-tile.is-best::before,
+.ds-acc-tile.is-bad::before {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 10px;
+  line-height: 1;
+}
+.ds-acc-tile.is-best::before {
+  content: "★";
+  color: var(--green-700);
+}
+.ds-acc-tile.is-bad::before {
+  content: "⚠";
+  color: color-mix(in srgb, var(--cb-alert) 45%, var(--cb-black));
+}
+/* Рекомендації «Сприйняття» (tokens.css --p-*) — лише хаб, кабінет керівника
+   й плеєр (рішення користувача): в адмінці завжди як було. */
+.adm-shell {
+  --p-alert-pill-text: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
+  --p-glyph-success: none;
+  --p-glyph-fail: none;
+  --p-glyph-alert: none;
+  /* Статуси з «Кольорів елементів» (lib/accentPalette.ts) — теж лише хаб,
+     кабінет і плеєр: пілюлі журналу й карток співробітників в адмінці
+     лишаються як були (= «Як зараз» статусів). Карта екранів на
+     /admin/design ставить обрані значення inline поверх цього. */
+  --accent-st-success: var(--cb-success);
+  --accent-st-success-bg: var(--cb-success-light);
+  --accent-st-success-fg: color-mix(in srgb, var(--cb-success) 45%, var(--cb-black));
+  --accent-st-success-on: var(--ink);
+  --accent-st-fail: var(--p-fail-solid);
+  --accent-st-fail-bg: var(--cb-fail-light);
+  --accent-st-fail-fg: color-mix(in srgb, var(--cb-fail) 45%, var(--cb-black));
+  --accent-st-fail-on: var(--cb-white);
+  --accent-st-fail-text: var(--p-danger-text);
+  --accent-st-alert: var(--cb-alert);
+  --accent-st-alert-bg: var(--cb-alert-light);
+  --accent-st-alert-fg: var(--p-alert-pill-text);
+  --accent-st-alert-on: var(--ink);
+  --accent-st-info: var(--p-info-solid);
+  --accent-st-info-bg: var(--cb-notification-light);
+  --accent-st-info-on: var(--cb-white);
+}
+/* /admin/design → «Сприйняття кольорів» (DesignStand.tsx). */
+.ds-fix {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: var(--border-w) solid var(--line);
+}
+.ds-fix-head {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.ds-fix-head small {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.ds-fix-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.ds-fix-side {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  justify-items: start;
+  padding: 8px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.ds-fix-label {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.ds-fix-label em {
+  font-style: normal;
+  font-weight: 700;
+}
+.ds-fix-label .is-ok {
+  color: var(--green-700);
+}
+.ds-fix-label .is-bad {
+  color: color-mix(in srgb, var(--cb-fail) 75%, var(--cb-black));
+}
+.ds-fix-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ds-fix-bar {
+  width: 72px;
 }

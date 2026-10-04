@@ -552,10 +552,39 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   padding: 4px 12px 10px 4px;
 }
 .mgr-nav {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 3px;
   flex: 1;
+}
+/* Одна рамка активного пункту, що їде між пунктами (ManagerShell.jsx
+   moveSidePill; 2026-10-04) — той самий вигляд «контур», що раніше малював
+   сам .active, і та сама пружина, що в капсули таббару (.tab-pill). */
+.mgr-nav-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: var(--accent-sidenav-bg);
+  border: var(--border-w) solid var(--accent-sidenav-bd);
+  border-radius: var(--radius-btn);
+  transition:
+    transform var(--tab-pill-duration) var(--tab-pill-ease),
+    width var(--tab-pill-duration) var(--tab-pill-ease),
+    height var(--tab-pill-duration) var(--tab-pill-ease),
+    border-radius var(--dur-base) var(--ease-premium),
+    opacity var(--dur-fast) var(--ease-premium);
+}
+.mgr-sidebar.is-collapsed .mgr-nav-pill {
+  border-radius: 50%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mgr-nav-pill {
+    transition: none;
+  }
 }
 .mgr-nav-link {
   display: flex;
@@ -594,7 +623,7 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--danger);
+  background: var(--accent-nav-dot);
 }
 @media (hover: hover) {
   .mgr-nav-link:hover {
@@ -610,15 +639,24 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
    плитка з рамкою акцентного зеленого і зеленою іконкою — читається і
    на сірому фоні панелі, і в згорнутому стані. Колишня зелена тінь 12%
    зливалась із фоном. */
+/* Плитку й рамку малює .mgr-nav-pill під пунктом — тут лише колір. */
+.mgr-nav-link {
+  position: relative;
+  z-index: 1;
+}
 .mgr-nav-link.active,
 .mgr-nav-link:has(.nav-pending.is-pending) {
-  background: var(--surface);
-  border-color: var(--green-500);
-  color: var(--green-700);
+  background: transparent;
+  color: var(--accent-sidenav-fg);
+}
+/* Каркас завантаження (ManagerShellSkeleton) рамки-пілюлі не має. */
+.mgr-nav:not(:has(.mgr-nav-pill)) .mgr-nav-link.active {
+  background: var(--accent-sidenav-bg);
+  border-color: var(--accent-sidenav-bd);
 }
 .mgr-nav-link.active svg,
 .mgr-nav-link:has(.nav-pending.is-pending) svg {
-  color: var(--green-500);
+  color: var(--accent-sidenav-ico);
 }
 .mgr-sidebar-footer {
   border-top: var(--border-w) solid var(--line);
@@ -778,25 +816,27 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
 .is-overdue.mgr-status-seg,
 .mgr-status-dot.is-overdue,
 .is-overdue .mgr-status-dot {
-  background: var(--cb-fail);
+  background: var(--accent-st-fail);
+  color: var(--accent-st-fail-on);
 }
 .is-behind.mgr-status-seg,
 .is-behind .mgr-status-dot {
-  background: var(--cb-alert);
-  color: var(--ink);
+  background: var(--accent-st-alert);
+  color: var(--accent-st-alert-on);
 }
 .is-not_started.mgr-status-seg,
 .is-not_started .mgr-status-dot {
-  background: var(--cb-notification);
+  background: var(--p-notstarted-bg);
+  color: var(--p-notstarted-ink);
 }
 .is-inactive.mgr-status-seg,
 .is-inactive .mgr-status-dot {
-  background: var(--cb-fail);
+  background: var(--p-inactive-bg);
 }
 .is-on_track.mgr-status-seg,
 .is-on_track .mgr-status-dot {
-  background: var(--cb-success);
-  color: var(--ink);
+  background: var(--accent-st-success);
+  color: var(--accent-st-success-on);
 }
 .is-done.mgr-status-seg,
 .is-done .mgr-status-dot {
@@ -1132,21 +1172,24 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   color: var(--cb-white);
 }
 .mgr-matrix-cell.is-passed {
-  background: var(--cb-success);
-  color: var(--ink);
+  background: var(--accent-st-success);
+  color: var(--accent-st-success-on);
 }
 .mgr-matrix-cell.is-failed {
-  background: var(--cb-fail);
+  background: var(--p-failed-cell-bg);
+  color: var(--p-failed-cell-ink);
 }
 .mgr-matrix-cell.is-overdue {
-  background: var(--cb-fail);
+  background: var(--accent-st-fail);
+  color: var(--accent-st-fail-on);
 }
 .mgr-matrix-cell.is-behind {
-  background: var(--cb-alert);
-  color: var(--ink);
+  background: var(--accent-st-alert);
+  color: var(--accent-st-alert-on);
 }
 .mgr-matrix-cell.is-in_progress {
-  background: var(--cb-notification);
+  background: var(--accent-st-info);
+  color: var(--accent-st-info-on);
 }
 .mgr-matrix-cell.is-not_started {
   background: var(--cb-overlay-10);
@@ -1231,7 +1274,7 @@ a.mgr-matrix-cell:focus-visible {
 .mgr-team-search-input,
 .mgr-team-sort-select {
   min-height: var(--btn-h-sm);
-  border: var(--border-w) solid var(--line);
+  border: var(--border-w) solid var(--p-input-border);
   border-radius: var(--radius-badge);
   background: var(--surface-1);
   color: var(--ink);
@@ -1422,7 +1465,7 @@ a.mgr-matrix-cell:focus-visible {
   white-space: nowrap;
 }
 .mgr-team-table .is-bad {
-  color: var(--danger);
+  color: var(--p-danger-text);
   font-weight: 600;
 }
 .mgr-team-table .is-warn {
@@ -1477,6 +1520,11 @@ a.mgr-matrix-cell:focus-visible {
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
+}
+/* «Завантажити звіт» у шапці команди й картки людини — праворуч, як на дашборді. */
+.mgr-page-head .mgr-export-link {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 .mgr-page-head .hub-greeting-h1 {
   margin-bottom: 0;
@@ -1614,7 +1662,7 @@ a.mgr-matrix-cell:focus-visible {
   }
 }
 .mgr-reminder-error {
-  color: var(--danger);
+  color: var(--p-danger-text);
 }
 .mgr-reminder-actions {
   display: flex;
@@ -1772,7 +1820,7 @@ a.mgr-matrix-cell:focus-visible {
   color: var(--green-700);
 }
 .mgr-module-row.is-fail .mgr-module-status-icon {
-  color: var(--danger);
+  color: var(--p-danger-text);
 }
 .mgr-module-row.is-pending {
   color: var(--ink-soft);
@@ -2097,7 +2145,7 @@ a.mgr-matrix-cell:focus-visible {
 .mgr-bar-fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--cb-primary);
+  background: var(--accent-bar-chart);
   /* --dur-slow/--ease-premium — ті самі токени руху, що вже скрізь у
      проєкті (не власна довільна тривалість) — заповнення анімується від
      0% при появі даних (components/ManagerDashboard.jsx, barsAnimated),
@@ -2238,7 +2286,7 @@ a.mgr-matrix-cell:focus-visible {
 }
 .mgr-trend-bar-fill {
   width: 100%;
-  background: var(--cb-primary);
+  background: var(--accent-bar-chart);
   /* Вертикальний стовпчик стоїть на осі — заокруглюємо лише верх, інакше
      він виглядає відірваним від підпису під ним. */
   border-radius: var(--chart-bar-radius) var(--chart-bar-radius) 0 0;

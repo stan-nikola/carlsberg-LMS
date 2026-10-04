@@ -398,7 +398,7 @@ export default function RegisterPage() {
                 (там — лише для isAdmin співробітників, тут — до входу
                 взагалі немає сесії, тому без умови: сама сторінка
                 /admin/login веде далі свою перевірку паролем). */}
-            <Link className="iconbtn iconbtn-bare" aria-label="Адмін-панель" href="/admin">
+            <Link className="iconbtn iconbtn-bare" aria-label="Адміністратор" href="/admin">
               <LockIcon />
             </Link>
             <button
