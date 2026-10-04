@@ -14,6 +14,8 @@ export default async function HubProfilePage({ searchParams }) {
   // 2026-09-19) — окремий другий findUnique за тим самим employeeId
   // тут більше не потрібен.
   const employee = await getCurrentUser();
+  // Гостя переадресує лейаут (паралельно зі сторінкою) — тут лише не падаємо.
+  if (!employee) return null;
   const { level } = await getEmployeeRating(employee);
   const levelLabel = level.label;
   // ?highlight=notifications — прийшли з картки «Налаштуйте сповіщення» на

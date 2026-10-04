@@ -10,6 +10,8 @@ import { AchievementsPanel } from "@/components/AchievementsPanel";
 // таких самих, а не змішаним списком непорівнянних посад.
 export default async function ManagerAchievementsPage({ searchParams }) {
   const employee = await getCurrentUser();
+  // Гостя переадресує лейаут (паралельно зі сторінкою) — тут лише не падаємо.
+  if (!employee) return null;
   const [rating, badges, certificates, leaderboardGroups] = await Promise.all([
     getEmployeeRating(employee),
     getEmployeeBadgesView(employee.id),

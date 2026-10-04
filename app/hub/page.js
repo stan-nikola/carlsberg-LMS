@@ -21,6 +21,8 @@ export const instant = false;
 
 export default async function HubHomePage() {
   const employee = await getCurrentUser();
+  // Гостя переадресує лейаут (паралельно зі сторінкою) — тут лише не падаємо.
+  if (!employee) return null;
   // mandatory / continueEnrollments / greet рахуються всередині кеш-межі
   // (lib/employeeProgress.js getHubHomeData) — див. коментар там.
   const [{ enrollments, mandatory, continueEnrollments, greet }, rating] = await Promise.all([

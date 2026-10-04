@@ -8,6 +8,8 @@ import { NotificationCenter } from "@/components/NotificationCenter";
 // мгновенно", 2026-09-20).
 export default async function ManagerNotificationsPage() {
   const employee = await getCurrentUser();
+  // Гостя переадресує лейаут (паралельно зі сторінкою) — тут лише не падаємо.
+  if (!employee) return null;
   const feed = await getNotificationFeed(employee.id);
 
   return (
