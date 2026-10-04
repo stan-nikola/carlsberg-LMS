@@ -562,13 +562,6 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry, onPlan }) {
       <span className={`cp-stamp${passed ? "" : " is-fail"}`} aria-hidden="true">
         {passed ? "Складено" : "Не складено"}
       </span>
-      {/* «+N балів» спливає з трофея (анімація з демо-туру) і лишається
-          плашкою: сума приходить з сервера разом із підсумком курсу. */}
-      {passed && pointsEarned > 0 && (
-        <span className="cp-points-chip">
-          <CountUp to={pointsEarned} from={0} prefix="+" delayMs={600} /> балів
-        </span>
-      )}
       <h2 className="result-title">{passed ? `Модуль «${moduleTitle}» складено!` : `Модуль «${moduleTitle}» не складено`}</h2>
       <p className="lead">
         {passed
@@ -713,6 +706,13 @@ function CompleteScreen({ result, onRetake, onPlan, course, previewMode }) {
       <div className={`trophy ${passed ? "win" : ""}`}>
         <MorphRevealIcon shape={passed ? "check" : "x"} label={passed ? "Складено" : "Не складено"} size={36} strokeWidth={2.4} />
       </div>
+      {/* «+N балів» спливає з трофея (анімація з демо-туру) і лишається
+          плашкою: сума приходить з сервера разом із підсумком курсу. */}
+      {passed && pointsEarned > 0 && (
+        <span className="cp-points-chip">
+          <CountUp to={pointsEarned} from={0} prefix="+" delayMs={600} /> балів
+        </span>
+      )}
       <h2 className="result-title">
         {isPerfect ? "Бездоганно! Курс пройдено на 100% 🎉" : passed ? "Вітаємо! Тест складено успішно 🎉" : "Тест поки не пройдено"}
       </h2>
@@ -747,7 +747,7 @@ function CompleteScreen({ result, onRetake, onPlan, course, previewMode }) {
       )}
 
       {showCertificate && (
-        <div className="cp-cert-block">
+        <div className="cp-cert-block is-new">
           <span className="cp-cert-icon" aria-hidden="true">
             <CertificateIcon />
           </span>

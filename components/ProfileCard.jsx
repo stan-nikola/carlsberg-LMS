@@ -200,13 +200,15 @@ export function ProfileCard({ dbName, levelLabel, avatarUrl = null, editable = f
               <div>
                 <dt>Рейтинг</dt>
                 <dd>
-                  № {stats.rank} <span className="profile-stats-of">з {stats.cohortSize}</span>
+                  № <CountUp to={stats.rank} max={stats.cohortSize} /> <span className="profile-stats-of">з {stats.cohortSize}</span>
                 </dd>
               </div>
             )}
             <div>
               <dt>Нагороди</dt>
-              <dd>{stats.badgesCount}</dd>
+              <dd>
+                <CountUp to={stats.badgesCount} up />
+              </dd>
             </div>
           </dl>
         )}

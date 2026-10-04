@@ -25,35 +25,47 @@
    на самій кнопці, щоб клік/подія читались однозначно, не губились у
    тонкому повороті самої іконки). transform-origin зверху — дзвоник
    гойдається від "вушка", як фізичний. */
+/* 2026-10-04, стенд Motion Tuner «F»: ±16° із затуханням, 0.9s через 0.1s;
+   лічильник — number-flow і пружинить, лише коли число виросло (.is-new). */
 .ntf-bell.is-ringing svg {
   transform-origin: 50% 15%;
-  animation: ntfBellRing 720ms ease-in-out;
+  animation: ntfBellRing 0.9s ease 0.1s;
 }
 .ntf-bell.is-ringing {
-  animation: ntfBellBtnPulse 720ms ease-in-out;
+  animation: ntfBellBtnPulse 0.9s ease-in-out 0.1s;
+}
+.ntf-bell.is-new .ntf-bell-count {
+  animation: ntfCountPop 0.9s var(--ease-spring) 0.1s both;
 }
 @keyframes ntfBellRing {
-  0%,
+  15% {
+    transform: rotate(16deg);
+  }
+  30% {
+    transform: rotate(-13.6deg);
+  }
+  45% {
+    transform: rotate(8.8deg);
+  }
+  60% {
+    transform: rotate(-4.8deg);
+  }
+  75% {
+    transform: rotate(1.9deg);
+  }
   100% {
     transform: rotate(0deg);
   }
-  15% {
-    transform: rotate(22deg);
-  }
-  30% {
-    transform: rotate(-18deg);
-  }
-  45% {
-    transform: rotate(14deg);
+}
+@keyframes ntfCountPop {
+  0% {
+    transform: scale(0.4);
   }
   60% {
-    transform: rotate(-10deg);
+    transform: scale(1.25);
   }
-  75% {
-    transform: rotate(6deg);
-  }
-  90% {
-    transform: rotate(-3deg);
+  100% {
+    transform: scale(1);
   }
 }
 @keyframes ntfBellBtnPulse {
@@ -69,7 +81,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .ntf-bell.is-ringing svg,
-  .ntf-bell.is-ringing {
+  .ntf-bell.is-ringing,
+  .ntf-bell.is-new .ntf-bell-count {
     animation: none;
   }
 }

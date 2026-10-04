@@ -129,7 +129,7 @@ a.rt-card:focus-visible {
 .rt-breakdown .stat-pill b {
   font-size: calc(14px * var(--fs-scale));
 }
-.rt-breakdown .stat-pill span {
+.rt-breakdown .stat-pill > span {
   text-transform: none;
   letter-spacing: 0;
 }
@@ -364,5 +364,40 @@ a.rt-card:focus-visible {
 @keyframes xpGrow {
   from {
     transform: scaleX(0);
+  }
+}
+
+/* ---- Сертифікат отримано (стенд Motion Tuner «E», 2026-10-04): іконка
+   ставиться печаткою з пружиною (0.6s через 0.5s), по картці один раз
+   проходить блік. Фінальний екран плеєра на 100% (.cp-cert-block.is-new)
+   і новий з минулого візиту рядок у «Сертифікатах» (.cert-row.is-new). ---- */
+.cert-row.is-new,
+.cp-cert-block.is-new {
+  position: relative;
+  overflow: hidden;
+}
+.cert-row.is-new .cert-ico,
+.cp-cert-block.is-new .cp-cert-icon {
+  animation: certSealPop 0.6s var(--ease-spring) 0.5s both;
+}
+.cert-row.is-new::after,
+.cp-cert-block.is-new::after {
+  content: "";
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 30%;
+  left: -50%;
+  transform: skewX(-20deg);
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  pointer-events: none;
+  animation: badgeShine 1.2s ease-in-out calc(0.5s + 0.6s * 0.6) 1;
+}
+@keyframes certSealPop {
+  0% {
+    transform: scale(0) rotate(-40deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
   }
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import NumberFlow from "@number-flow/react";
 import { BellIcon } from "@/components/icons";
 
 /**
@@ -27,6 +28,8 @@ export function NotificationBell({ href }) {
   const isActive = usePathname() === href;
   const [unread, setUnread] = useState(0);
   const [ringing, setRinging] = useState(false);
+  // Лічильник виріс (не клік) — бейдж ще й пружинить (стенд Motion Tuner «F»).
+  const [grew, setGrew] = useState(false);
   const prevUnreadRef = useRef(null);
   const activeRef = useRef(isActive);
   const ringTimeoutRef = useRef(null);
@@ -34,10 +37,15 @@ export function NotificationBell({ href }) {
   // Спільний тригер — і на нове сповіщення (нижче), і на сам клік по
   // дзвонику (2026-09-22, рішення користувача): той самий рух, просто
   // інший привід.
-  function ring() {
+  // 1000 мс = затримка 0.1s + рух 0.9s (.ntf-bell.is-ringing).
+  function ring(byGrowth = false) {
     setRinging(true);
+    setGrew(byGrowth);
     clearTimeout(ringTimeoutRef.current);
-    ringTimeoutRef.current = setTimeout(() => setRinging(false), 720);
+    ringTimeoutRef.current = setTimeout(() => {
+      setRinging(false);
+      setGrew(false);
+    }, 1000);
   }
 
   // Відкрита сторінка сповіщень сама позначає їх прочитаними (POST у
@@ -61,7 +69,7 @@ export function NotificationBell({ href }) {
           // На сторінці сповіщень вони щойно прочитані — старе число з
           // паралельного запиту не повертаємо.
           const next = activeRef.current ? 0 : d.unreadCount;
-          if (prevUnreadRef.current != null && next > prevUnreadRef.current) ring();
+          if (prevUnreadRef.current != null && next > prevUnreadRef.current) ring(true);
           prevUnreadRef.current = next;
           setUnread(next);
         })
@@ -88,14 +96,14 @@ export function NotificationBell({ href }) {
 
   return (
     <Link
-      className={`iconbtn ntf-bell${ringing ? " is-ringing" : ""}${isActive ? " is-active" : ""}`}
+      className={`iconbtn ntf-bell${ringing ? " is-ringing" : ""}${grew ? " is-new" : ""}${isActive ? " is-active" : ""}`}
       href={href}
-      onClick={ring}
+      onClick={() => ring()}
       aria-current={isActive || undefined}
       aria-label={unread ? `Сповіщення, непрочитаних: ${unread}` : "Сповіщення"}
     >
       <BellIcon />
-      {unread > 0 && <span className="ntf-bell-count">{unread > 99 ? "99+" : unread}</span>}
+      {unread > 0 && <span className="ntf-bell-count">{unread > 99 ? "99+" : <NumberFlow value={unread} />}</span>}
     </Link>
   );
 }

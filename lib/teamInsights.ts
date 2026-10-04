@@ -311,7 +311,7 @@ function personFrom(e: RawEmployee, rows: TeamRow[], weeks: Set<number> | undefi
 /* ---------------- Похідні для дашборда ---------------- */
 
 /** `count` — ЛЮДИ (сегментація worst-wins, саме їм пишуть «Нагадати»);
- *  `courses` — скільки призначень команди в цьому стані (null для
+ *  `courses` — скільки курсів у цьому стані в людей ЦЬОГО сегмента (null для
  *  «неактивні»: це властивість людини, а не курсу). Два числа поруч, бо
  *  «Прострочено 7» без одиниці читалось як 7 курсів, хоча курсів 8
  *  (скарга користувача, 2026-09-23). */
@@ -324,14 +324,20 @@ export function statusBar(people: TeamPerson[], rows: TeamRow[]): { segments: St
     if (p.segment == null) noEnrollments += 1;
     else counts.set(p.segment, (counts.get(p.segment) || 0) + 1);
   }
-  const unfinished = rows.filter((r) => r.status !== "completed");
+  // Курси — лише ЛЮДЕЙ ЦЬОГО Ж сегмента (2026-10-04): раніше рахувались по
+  // всій команді, і «Виконано 3 людини · 43 курси» складало здані курси всіх
+  // восьми, а «Не почали 0 людей · 2 курси» — курси людей із «Прострочено».
+  const segmentOf = new Map(people.map((p) => [p.id, p.segment]));
+  const of = (key: PersonSegment) => rows.filter((r) => segmentOf.get(r.employeeId) === key);
   const courseCounts: Record<PersonSegment, number | null> = {
-    overdue: unfinished.filter((r) => r.isOverdue).length,
-    behind: unfinished.filter((r) => !r.isOverdue && r.schedule === "behind").length,
-    not_started: unfinished.filter((r) => !r.isOverdue && r.schedule !== "behind" && r.status === "not_started").length,
+    overdue: of("overdue").filter((r) => r.status !== "completed" && r.isOverdue).length,
+    behind: of("behind").filter((r) => r.status !== "completed" && r.schedule === "behind").length,
+    not_started: of("not_started").filter((r) => r.status === "not_started").length,
     inactive: null,
-    on_track: unfinished.filter((r) => !r.isOverdue && r.schedule !== "behind" && r.status !== "not_started").length,
-    done: rows.filter((r) => r.status === "completed").length,
+    // «За графіком» буває й людина, що все пройшла, але щось не склала —
+    // її курс із роботою — і незавершений, і провалений до кінця.
+    on_track: of("on_track").filter((r) => r.status !== "completed" || !r.passed).length,
+    done: of("done").filter((r) => r.status === "completed").length,
   };
   const segments = SEGMENT_ORDER.map((key) => ({
     key,

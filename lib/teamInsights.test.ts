@@ -149,6 +149,28 @@ describe("сегмент людини — worst-wins", () => {
     expect(bar.segments.find((s) => s.key === "inactive")?.courses).toBeNull();
   });
 
+  it("курси сегмента — лише людей цього сегмента, не всієї команди", () => {
+    // Людина 1 «Прострочено», але має ще й здані та нерозпочаті курси —
+    // вони не повинні потрапляти у «Виконано» / «Не почали» (баг 2026-10-04:
+    // «Виконано 3 людини · 43 курси» рахувало здані курси всієї команди).
+    const data = raw({
+      employees: [employee({ id: 1 }), employee({ id: 2 })],
+      courses: [course({ id: 1 }), course({ id: 2 }), course({ id: 3 })],
+      enrollments: [
+        enrollment({ id: 1, employeeId: 1, courseId: 1, status: "overdue", dueDate: day(-3) }),
+        enrollment({ id: 2, employeeId: 1, courseId: 2, status: "completed", passed: true, scorePercent: 90, completedAt: day(-1) }),
+        enrollment({ id: 3, employeeId: 1, courseId: 3, status: "not_started" }),
+        enrollment({ id: 4, employeeId: 2, courseId: 1, status: "completed", passed: true, scorePercent: 90, completedAt: day(-1) }),
+      ],
+    });
+    const rows = buildTeamRows(data, NOW);
+    const bar = statusBar(buildPeople(rows, data, NOW), rows);
+    const seg = (k: string) => bar.segments.find((s) => s.key === k)!;
+    expect([seg("overdue").count, seg("overdue").courses]).toEqual([1, 1]);
+    expect([seg("done").count, seg("done").courses]).toEqual([1, 1]);
+    expect([seg("not_started").count, seg("not_started").courses]).toEqual([0, 0]);
+  });
+
   it("посилання «для хаба» ведуть у відповідний розділ кабінету керівника", () => {
     expect(toManagerUrl("/hub/achievements?highlight=badge&badgeId=7")).toBe("/manager/achievements?highlight=badge&badgeId=7");
     expect(toManagerUrl("/hub/learn")).toBe("/manager/courses");

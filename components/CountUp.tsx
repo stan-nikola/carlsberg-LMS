@@ -39,7 +39,7 @@ export function CountUp({
   prefix?: string;
   locales?: Intl.LocalesArgument;
 }) {
-  const start = from ?? (up ? Math.max(0, to - Math.max(9, Math.round(to * 0.01))) : Math.min(to + Math.max(9, Math.round(to * 0.95)), max ?? Infinity));
+  const start = from ?? (up ? Math.max(0, to - Math.max(9, Math.round(to * 0.01))) : Math.min(to + Math.max(1, Math.round(to * 3)), max ?? Infinity));
   const [state, setState] = useState({ value: to, animated: false });
 
   useEffect(() => {
