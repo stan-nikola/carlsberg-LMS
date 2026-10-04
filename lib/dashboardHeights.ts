@@ -48,7 +48,7 @@ type Step = { id: string; x?: number; y?: number; w?: number; h?: number };
  *    стандарту (¼ → ½, ½ → уся), якщо він туди вміщається;
  *  - під карткою S порожньо на висоту ще однієї S, а нижче в цих колонках
  *    є картки або сусід по ряду (L) іде нижче — стає L;
- *  - далі bandJustifySteps і holeMoveSteps нижче.
+ *  - далі bandJustifySteps, holeMoveSteps і oddBandSteps нижче.
  * Повертає зміни ОДНОГО виправлення (застосовувати всі, по порядку);
  * порожній список — розтягувати нічого.
  */
@@ -89,30 +89,34 @@ export function holeFillSteps(
   const justify = bandJustifySteps(nodes, columns);
   if (justify.length) return justify;
   const move = holeMoveSteps(nodes, columns, minW);
-  return move.length ? move : tailSteps(nodes, columns, sRows);
+  return move.length ? move : oddBandSteps(nodes, columns, sRows);
 }
 
 /**
- * Нерівний низ дашборда: в останній смузі колонки закінчуються на різній
- * висоті, а нижче нікого, хто закрив би кут (дві L і одна S у двох колонках
- * — непарна кількість «поверхів»). Карта S з цієї смуги їде в самий кінець на
- * всю ширину: L вирівнюються, S — смугою під ними.
+ * Смуга з нерівним низом, яку не вирівняло ніщо вище: у двох колонках
+ * непарна кількість «поверхів» (L | S над L — 2 проти 3), а нижче — лише
+ * картки, які в діру не влазять (на всю ширину), або кінець дашборда. Картка
+ * S із цієї смуги виїжджає під смугу на всю ширину: L вирівнюються, S —
+ * смугою під ними (наступні картки зсуваються нижче).
  */
-function tailSteps(nodes: Box[], columns: number, sRows: number): Step[] {
-  const bottom = Math.max(...nodes.map((n) => n.y + n.h));
-  const even = Array.from({ length: columns }, (_, x) =>
-    Math.max(0, ...nodes.filter((n) => x >= n.x && x < n.x + n.w).map((n) => n.y + n.h))
-  ).every((b) => b === bottom);
-  if (even) return [];
-  // Верх останньої смуги — та сама «смуга», що в bandJustifySteps.
-  let bandTop = 0;
-  let bandBottom = -1;
-  for (const n of [...nodes].sort((a, b) => a.y - b.y)) {
-    if (n.y >= bandBottom) bandTop = n.y;
-    bandBottom = Math.max(bandBottom, n.y + n.h);
+function oddBandSteps(nodes: Box[], columns: number, sRows: number): Step[] {
+  const sorted = [...nodes].sort((a, b) => a.y - b.y || a.x - b.x);
+  let i = 0;
+  while (i < sorted.length) {
+    const band = [sorted[i]];
+    let bottom = sorted[i].y + sorted[i].h;
+    for (i++; i < sorted.length && sorted[i].y < bottom; i++) {
+      band.push(sorted[i]);
+      bottom = Math.max(bottom, sorted[i].y + sorted[i].h);
+    }
+    const uneven = Array.from({ length: columns }, (_, x) =>
+      Math.max(0, ...band.filter((n) => x >= n.x && x < n.x + n.w).map((n) => n.y + n.h))
+    ).some((b) => b < bottom);
+    if (!uneven) continue;
+    const s = band.filter((n) => n.h === sRows && n.w < columns).sort((a, b) => b.y - a.y || b.x - a.x)[0];
+    if (s) return [{ id: s.id, x: 0, y: bottom, w: columns }];
   }
-  const s = nodes.filter((n) => n.h === sRows && n.w < columns && n.y >= bandTop).sort((a, b) => b.y - a.y)[0];
-  return s ? [{ id: s.id, x: 0, y: bottom, w: columns }] : [];
+  return [];
 }
 
 /**

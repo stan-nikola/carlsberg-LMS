@@ -214,11 +214,18 @@ a.profile-card-link:focus-visible {
    лише кабінет керівника на десктопі (ProfileCard `stats`); на телефоні
    ховаємо — ширини не вистачає. Правий відступ — щоб не налазити на
    трилисник .profile-card::after (130px від right:-18px, тобто ~112px від
-   краю картки) і лишити між ними повітря (користувач, 2026-10-04). */
+   краю картки) і лишити між ними повітря (користувач, 2026-10-04).
+   Поріг — від ширини САМОЇ картки (@container), не вікна: на 900–1000px
+   картка поруч із сайдбаром вужча, і плашки стискали ім’я до 71px. 720px —
+   ім’я з аватаром + три плашки + відступ від трилисника. */
+.profile-card:has(.profile-stats) {
+  container-type: inline-size;
+  container-name: profile-card;
+}
 .profile-stats {
   display: none;
 }
-@media (min-width: 900px) {
+@container profile-card (min-width: 720px) {
   .profile-stats {
     display: flex;
     gap: 10px;
