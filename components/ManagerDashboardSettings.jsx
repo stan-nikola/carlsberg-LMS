@@ -75,7 +75,7 @@ export function ManagerDashboardSettings({ enabled, onToggle, onClose, onResetLa
         {/* Скидання стосується лише РОЗКЛАДКИ (порядок, ширини, висоти) —
             галочки видимості вище лишаються як є: це різні рішення, і
             зносити їх разом було б несподіванкою. */}
-        <button type="button" className="admin-btn-link mgr-drawer-reset" onClick={onResetLayout}>
+        <button type="button" className="admin-btn mgr-drawer-reset" onClick={onResetLayout}>
           Скинути розкладку
         </button>
         <p className="admin-hint mgr-drawer-group-hint">

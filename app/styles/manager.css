@@ -359,8 +359,20 @@ body:has(.manager-shell:not([style*="display: none"])) {
 .mgr-drawer-overlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  /* Поверх нижнього таббару (--z-sticky): раніше він лежав вище шторки й
+     перекривав її низ — «Скинути розкладку» було видно, але тап ішов у
+     таббар (скарга користувача з iPhone, 2026-10-04). */
+  z-index: var(--z-modal);
   background: var(--cb-overlay-50);
+}
+/* Відкрита шторка — сторінка під нею не скролиться (той самий прийом, що
+   для .sheet-overlay у globals.css): інакше на iPhone скрол «пролітав» на
+   сторінку, і до низу шторки було не догортати. Специфічність — вища за
+   html:has(.manager-shell:not(…)) { overflow: visible } угорі файлу. */
+html:has(.manager-shell):has(.mgr-drawer-overlay),
+html:has(.manager-shell):has(.mgr-drawer-overlay) body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 .mgr-drawer {
   position: absolute;
@@ -368,7 +380,9 @@ body:has(.manager-shell:not([style*="display: none"])) {
   right: 0;
   height: 100%;
   width: min(420px, 100%);
-  padding: 20px 24px 40px;
+  padding: 20px 24px calc(40px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: var(--surface);
   box-shadow: var(--shadow-lg);
   overflow-y: auto;
@@ -472,6 +486,7 @@ body:has(.manager-shell:not([style*="display: none"])) {
    дашборда, не рядок чеклиста. */
 .mgr-drawer-reset {
   margin-top: 24px;
+  margin-bottom: 8px;
 }
 
 /* «і ще N» під матрицею люди × курси. */
@@ -2496,4 +2511,40 @@ a.mgr-matrix-cell:focus-visible {
 }
 .mgr-report-card .btn-primary-full {
   margin-top: 6px;
+}
+
+/* Телефон (<600px, components/ManagerDashboard.jsx PHONE_QUERY): картки
+   дашборда — звичайний стовпчик у потоці з однаковим проміжком, висота —
+   рівно по вмісту. Позиції/висоти gridstack (inline-стилі й CSS-змінні)
+   тут перекриваються: на телефоні його замір висоти пливув — дірки між
+   картками або картки одна на одній (2026-10-04). Порядок — style.order,
+   який ставить applyFlowOrder (той самий, що в десктопній розкладці).
+   Перетягування на телефоні вимкнене — кнопку режиму ховаємо. */
+@media (max-width: 599px) {
+  .mgr-charts.grid-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .mgr-charts.grid-stack > .grid-stack-item {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    transform: none !important;
+  }
+  .mgr-charts.grid-stack > .grid-stack-item > .grid-stack-item-content {
+    position: relative !important;
+    inset: auto !important;
+    height: auto !important;
+  }
+  .mgr-charts .grid-stack-placeholder,
+  .mgr-charts .grid-stack-item > .ui-resizable-handle,
+  .mgr-dashboard-move-btn {
+    display: none !important;
+  }
 }
