@@ -3237,7 +3237,7 @@
   box-shadow: var(--cb-focus-ring);
 }
 
-/* /admin/audit — журнал дій (components/AdminAudit.jsx) */
+/* /admin/audit — журнал дій (components/AdminAudit.tsx) */
 .admin-audit-details {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -4119,4 +4119,210 @@
 .admin-q-stat.is-hard {
   background: var(--cb-fail-light);
   color: var(--cb-fail);
+}
+
+/* Повний журнал (components/AdminAudit.tsx, 2026-10-04) */
+.status-pill.audit-role-super {
+  background: color-mix(in srgb, var(--cb-notification) 14%, var(--surface));
+  color: color-mix(in srgb, var(--cb-notification) 60%, var(--cb-black));
+}
+.audit-retention {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+  padding: var(--card-pad-compact);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.audit-retention-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.audit-retention-edit .admin-input {
+  width: 90px;
+}
+.audit-who {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 160px;
+}
+.audit-person {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.audit-person:hover {
+  text-decoration: underline;
+}
+.audit-person:focus-visible,
+.audit-raw-toggle:focus-visible,
+.audit-person-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.audit-card-link {
+  color: var(--ink-soft);
+}
+.audit-when {
+  white-space: nowrap;
+}
+.audit-describe {
+  overflow-wrap: anywhere;
+}
+.audit-raw-toggle {
+  margin-left: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.audit-person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-badge);
+  background: var(--green-tint);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+.audit-person-chip svg {
+  width: 12px;
+  height: 12px;
+}
+.audit-more {
+  margin-top: 12px;
+}
+/* Сирі дані запису під розбором — повна ширина клітинки, не обрізаний рядок. */
+.admin-audit-table pre.admin-audit-details {
+  max-width: 560px;
+  margin: 6px 0 0;
+}
+
+/* Журнал як аркуш Excel (components/AdminAudit.tsx AuditGrid, 2026-10-04):
+   сітка рамок по кожній клітинці, липка шапка й колонка номерів, ширина
+   колонок — тягнути за правий край заголовка, висота рядка — за нижній край
+   номера рядка. table-layout:fixed — ширини беруться з <colgroup> точно. */
+.audit-grid-wrap {
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.audit-grid {
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.audit-grid th,
+.audit-grid td {
+  position: relative;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-right: var(--border-w) solid var(--line);
+  border-bottom: var(--border-w) solid var(--line);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.audit-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-1);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+.audit-grid .audit-row-head {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-1);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  vertical-align: middle;
+  user-select: none;
+}
+.audit-grid thead .audit-grid-corner {
+  left: 0;
+  z-index: 3;
+}
+.audit-grid tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--surface-1) 55%, var(--surface));
+}
+.audit-grid tbody tr:hover td {
+  background: var(--green-tint);
+}
+.audit-grid tbody tr:last-child > * {
+  border-bottom: none;
+}
+.audit-grid tr > :last-child {
+  border-right: none;
+}
+.audit-when span {
+  display: block;
+}
+.audit-action {
+  font-weight: 600;
+}
+.audit-cell {
+  overflow: hidden;
+}
+/* Ручки зміни розміру: невидимі смуги на межах клітинок, підсвічуються під курсором. */
+.audit-col-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+.audit-row-handle {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 6px;
+  cursor: row-resize;
+  touch-action: none;
+}
+.audit-col-handle:hover,
+.audit-row-handle:hover {
+  background: color-mix(in srgb, var(--cb-secondary) 45%, transparent);
+}
+body.audit-resizing {
+  user-select: none;
+}
+.audit-export {
+  margin-left: auto;
 }

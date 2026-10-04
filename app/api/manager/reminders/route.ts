@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
+import { auditEmployee } from "@/lib/audit";
 import { sendManagerReminder } from "@/lib/managerReminders";
 
 /**
@@ -25,5 +26,10 @@ export async function POST(request: Request) {
 
   const result = await sendManagerReminder(me, body);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  auditEmployee(me.id, "manager.remind", body.courseId ? { type: "course", id: Number(body.courseId) } : undefined, {
+    recipients: Array.isArray(body.employeeIds) ? body.employeeIds.length : 0,
+    sent: result.sent,
+    message: String(body.message ?? "").slice(0, 200),
+  });
   return NextResponse.json({ sent: result.sent, skipped: result.skipped });
 }

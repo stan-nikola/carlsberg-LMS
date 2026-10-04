@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/session";
+import { auditEmployee } from "@/lib/audit";
 import { isManagerTier, getAllSubordinates } from "@/lib/permissions";
 import { getExportData, dashboardStatsFromRaw, getHardestQuestions, getTeamTree, weeklyTrendFromRaw } from "@/lib/managerDashboard";
 import { fetchTeamRaw } from "@/lib/teamEnrollments";
@@ -39,6 +40,7 @@ export async function GET(request: Request) {
   if (!isManagerTier(employee)) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
 
   const cardIds = parseCardIds(new URL(request.url).searchParams.get("cards"), CANONICAL_CARD_IDS);
+  auditEmployee(employee.id, "manager.export", undefined, { cards: cardIds.length });
   const subordinateIds: number[] = await getAllSubordinates(employee.id);
   const now = new Date();
 

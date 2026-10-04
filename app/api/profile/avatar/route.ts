@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auditEmployee } from "@/lib/audit";
 import sharp from "sharp";
 import { put, del } from "@vercel/blob";
 import type { PrismaClient } from "@/app/generated/prisma";
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
     // доки не спливе кеш сесії або людина не перезайде.
     revalidateSession();
     if (previous) del(previous, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(() => {});
+    auditEmployee(employee.id, "profile.avatar_update");
     return NextResponse.json({ url: blob.url });
   } catch (err) {
     console.error("[profile/avatar] put() failed:", err);
@@ -69,5 +71,6 @@ export async function DELETE() {
   await prisma.employee.update({ where: { id: employee.id }, data: { avatarUrl: null } });
   revalidateSession();
   if (previous && process.env.BLOB_READ_WRITE_TOKEN) del(previous, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(() => {});
+  auditEmployee(employee.id, "profile.avatar_delete");
   return NextResponse.json({ ok: true });
 }

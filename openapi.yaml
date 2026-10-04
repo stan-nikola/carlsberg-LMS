@@ -630,10 +630,45 @@ paths:
   /api/admin/audit:
     get:
       tags: [admin]
-      summary: Журнал дій адмінки (фільтри targetType, q)
+      summary: Журнал дій платформи — адмінка, входи, навчання, керівники, профіль, активність, cron
+      description: Сторінки по 100, курсор — id останнього рядка. Записи співробітників і системи зберігаються retentionDays днів, дії адмінів — назавжди.
       security: [{ adminSession: [] }]
+      parameters:
+        - { name: actor, in: query, schema: { type: string, enum: [super, admin, manager, employee, system] } }
+        - { name: category, in: query, schema: { type: string, enum: [auth, learning, manager, profile, activity, admin, system] } }
+        - { name: q, in: query, schema: { type: string }, description: "Ім'я чи код людини або назва дії" }
+        - { name: employeeId, in: query, schema: { type: integer }, description: Дії людини і дії над нею }
+        - { name: cursor, in: query, schema: { type: integer } }
       responses:
         "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [admin]
+      summary: Термін зберігання журналу (днів) для записів співробітників і системи
+      security: [{ superAdminSession: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { retentionDays: { type: integer, minimum: 30, maximum: 3650 } }
+              required: [retentionDays]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/audit/export:
+    get:
+      tags: [admin]
+      summary: Журнал дій в Excel — ті самі фільтри, що на екрані (до 20 000 рядків)
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: actor, in: query, schema: { type: string, enum: [super, admin, manager, employee, system] } }
+        - { name: category, in: query, schema: { type: string, enum: [auth, learning, manager, profile, activity, admin, system] } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: employeeId, in: query, schema: { type: integer } }
+      responses:
+        "200": { $ref: "#/components/responses/Xlsx" }
         "403": { $ref: "#/components/responses/Forbidden" }
   /api/admin/design:
     get:

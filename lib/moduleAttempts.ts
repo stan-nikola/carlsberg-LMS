@@ -10,6 +10,7 @@ import { syncEnrollmentEvents } from "@/lib/rating";
 import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
 import { notifySubordinateCourseResult } from "@/lib/notifications";
 import { evaluateAutoBadgesForEmployee } from "@/lib/badgeRules";
+import { auditEmployee } from "@/lib/audit";
 
 const prisma = prismaUntyped as PrismaClient;
 type Tx = Prisma.TransactionClient;
@@ -292,6 +293,7 @@ export async function answerQuestion(
     if (inserted === 1) {
       if (enrollment.status === "not_started") {
         await tx.enrollment.update({ where: { id: enrollmentId }, data: { status: "in_progress" } });
+        auditEmployee(claims.employeeId, "learning.course_start", { type: "enrollment", id: enrollmentId });
       }
       return { correct, response: body.response, alreadyAnswered: false };
     }
@@ -340,6 +342,7 @@ async function answerOpeningAttempt(employeeId: number, slug: string, body: Answ
     }
     if (ctx.enrollment.status === "not_started") {
       await tx.enrollment.update({ where: { id: ctx.enrollment.id }, data: { status: "in_progress" } });
+      auditEmployee(employeeId, "learning.course_start", { type: "enrollment", id: ctx.enrollment.id });
     }
     return { correct, response: body.response, alreadyAnswered: false };
   });
@@ -510,6 +513,15 @@ export async function finishModuleAttempt(
   if ("blocked" in outcome) return { ok: false, status: 409, error: REASON_TEXT[outcome.blocked!] ?? "Модуль зараз недоступний" };
 
   const { attempt, completion } = outcome;
+  if (!outcome.replayed) {
+    auditEmployee(employee.id, "learning.module_complete", { type: "enrollment", id: enrollment.id }, {
+      module: courseModule.title,
+      course: course.title,
+      scorePercent: attempt.scorePercent,
+      passed: attempt.passed === true,
+      attempt: attempt.attemptNumber,
+    });
+  }
   const courseState = outcome.replayed
     ? await readCourseState(enrollment.id)
     : await finalizeEnrollment(enrollment.id, employee, course.title, new Date(), course.modules.map((m) => m.id));
@@ -647,6 +659,7 @@ export async function finalizeEnrollment(
   // це ще й Web Push і Telegram по HTTP, і людина на останньому модулі чекала
   // їх до вердикту. Бали з'являються на мить пізніше — кеш рейтингу й так 60 с.
   const notifyManager = firstCompletion || (passed && !enrollment.passed);
+  auditEmployee(employee.id, "learning.course_complete", { type: "enrollment", id: enrollmentId }, { course: courseTitle, scorePercent, passed, first: firstCompletion });
   after(async () => {
     try {
       await syncEnrollmentEvents(enrollmentId);

@@ -344,9 +344,18 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
   журналу не ламає дію). Свідомо НЕ журналюються поекранні PATCH
   конструктора (screens/components, автозбереження і drag-and-drop —
   десятки запитів на хвилину) і upload фото; журналюються створення/
-  видалення курсів, модулів, папок, типів відзнак і ручна розсилка; дивитись у `/admin/audit` (`components/AdminAudit.jsx`).
-  Actor — завжди "admin" (сесія адміна не прив’язана до Employee). Новий
-  write-роут в `/admin` = новий виклик `audit()` і підпис в `ACTION_LABELS`.
+  видалення курсів, модулів, папок, типів відзнак і ручна розсилка; дивитись у `/admin/audit` (`components/AdminAudit.tsx`).
+  **Повний журнал платформи (2026-10-04):** `AuditLog.actor` — "super" | "admin"
+  (рівень admin_session; імені людини нема — спільний пароль), "manager" |
+  "employee" (+ `actorEmployeeId`), "system" (cron). Дії співробітників —
+  `auditEmployee()` (пише через `after()`, без затримки відповіді): входи
+  (`auth.*`, `admin.login*`), навчання (`learning.*`), керівники (`manager.*`),
+  профіль/сповіщення (`profile.*`), `activity.visit` (раз на годину — той самий
+  сигнал, що `lastSeenAt`). Записи співробітників і системи прибирає щоденний
+  cron через `AppSetting(audit-retention-days)` (дефолт 180, змінює лише
+  супер-адмін на /admin/audit); дії адмінів — назавжди. Новий write-роут або
+  нова дія користувача = виклик `audit()`/`auditEmployee()` і підпис в
+  `ACTION_LABELS` (+ розбір у `describe()`) у `components/AdminAudit.tsx`.
 
 ## Кабінет керівника та хаб
 

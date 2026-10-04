@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auditEmployee } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 
@@ -55,6 +56,7 @@ export async function POST(request) {
     });
   });
 
+  auditEmployee(employee.id, "profile.push_subscribe");
   return NextResponse.json({ ok: true });
 }
 
@@ -68,5 +70,6 @@ export async function DELETE(request) {
 
   // Лише свою — чужий endpoint (навіть якщо вгадали) не чіпаємо.
   await prisma.pushSubscription.deleteMany({ where: { endpoint, employeeId: employee.id } });
+  auditEmployee(employee.id, "profile.push_unsubscribe");
   return NextResponse.json({ ok: true });
 }

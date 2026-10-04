@@ -3,6 +3,7 @@ import { evaluateAutoBadgesForEmployee } from "@/lib/badgeRules";
 import { confirmLoginPin, invalidateLoginPin } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { clientIp, hitRateLimit, normalizeExternalCode, pinThrottleKey, recordSuccess, registerAttempt, settleFailure, tooManyRequests } from "@/lib/loginThrottle";
+import { auditEmployee } from "@/lib/audit";
 
 /**
  * POST /api/auth/confirm
@@ -46,6 +47,7 @@ export async function POST(request) {
 
   const result = await confirmLoginPin(externalCode, pin);
   if (!result.ok) {
+    if (result.error !== "not_found") auditEmployee({ externalCode }, "auth.login_failed", undefined, { reason: result.error });
     if (result.error === "invalid_pin") {
       const settled = await settleFailure(throttleKey, attempt.attempt);
       // Після 5 помилок цей PIN більше не діє зовсім — навіть коли
@@ -66,6 +68,7 @@ export async function POST(request) {
   await createSession(result.employee.id, result.employee.sessionVersion);
   // «Перший вхід» — одразу, а не з наступним щоденним cron (уже після відповіді).
   after(() => evaluateAutoBadgesForEmployee(result.employee.id).catch((err) => console.warn("[badges] login:", err?.message)));
+  auditEmployee(result.employee.id, "auth.login");
 
   return NextResponse.json({
     ok: true,
