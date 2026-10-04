@@ -9,6 +9,8 @@ import { CourseTile } from "@/components/CourseTile";
 // з найближчим дедлайном → рекомендовані → пройдені.
 export default async function HubLearnPage() {
   const employee = await getCurrentUser();
+  // Гостя переадресує лейаут (паралельно зі сторінкою) — тут лише не падаємо.
+  if (!employee) return null;
   // groupLearning рахується всередині кеш-межі (lib/employeeProgress.js
   // getHubLearnData) — `new Date()` поза кешем зупиняв App Shell.
   const { enrollments, groups } = await getHubLearnData(employee.id);

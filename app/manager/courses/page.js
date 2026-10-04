@@ -14,6 +14,8 @@ import { CourseTile } from "@/components/CourseTile";
 // для Досягнень/Профілю, які справді сверстані під вузьку картку).
 export default async function ManagerCoursesPage() {
   const employee = await getCurrentUser();
+  // Гостя переадресує лейаут (паралельно зі сторінкою) — тут лише не падаємо.
+  if (!employee) return null;
   // Прострочені → нові/не складені → пройдені (sortByUrgency) — усередині
   // кеш-межі (lib/employeeProgress.js getManagerCoursesData): `new Date()`
   // поза кешем зупиняв App Shell на кожній навігації.

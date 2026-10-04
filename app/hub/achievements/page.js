@@ -8,6 +8,8 @@ import { AchievementsPanel } from "@/components/AchievementsPanel";
 // той самий блок рендерить і /manager/achievements (з когортою «команда»).
 export default async function HubAchievementsPage({ searchParams }) {
   const employee = await getCurrentUser();
+  // Гостя переадресує лейаут (паралельно зі сторінкою) — тут лише не падаємо.
+  if (!employee) return null;
   const [rating, badges, certificates, leaderboard] = await Promise.all([
     getEmployeeRating(employee),
     getEmployeeBadgesView(employee.id),
