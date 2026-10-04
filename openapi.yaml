@@ -219,7 +219,8 @@ components:
         scoreMax: { type: integer }
         scorePercent: { type: integer }
         passed: { type: boolean }
-      required: [completed, scoreRaw, scoreMax, scorePercent, passed]
+        pointsEarned: { type: integer, description: "Бали за це складання (0 — курс уже був складений раніше або не складено)." }
+      required: [completed, scoreRaw, scoreMax, scorePercent, passed, pointsEarned]
     ModuleCompleteResult:
       type: object
       properties:

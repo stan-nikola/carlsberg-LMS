@@ -101,6 +101,9 @@ a.rt-card:focus-visible {
   font-size: calc(18px * var(--fs-scale));
   color: var(--green-700);
 }
+/* Число в .rt-rank b і .rt-points — number-flow (components/CountUp.tsx):
+   custom element сам тримає рамки цифр; .rt-rank span нижче — лише дрібна
+   підпис «з 80», елемент бібліотеки під нього не підпадає. */
 .rt-rank span {
   font-size: calc(10.5px * var(--fs-scale));
   color: var(--ink-soft);
@@ -223,5 +226,143 @@ a.rt-card:focus-visible {
 @container ach (min-width: 960px) {
   .ach-grid {
     gap: 0 40px;
+  }
+}
+
+/* ---- Новий рівень (стенд Motion Tuner «A», 2026-10-04): зірка обертається,
+   назва гасне й зʼявляється нова, два кільця розходяться від плашки. 1.3s
+   через 0.65s, розліт 1.8×. Клас ставить components/LevelLabel.tsx. ---- */
+.rt-level-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  margin: -2px -8px;
+  border-radius: var(--radius-badge);
+}
+.rt-level-pill .lv-star {
+  display: inline-block;
+}
+.rt-level-pill::before,
+.rt-level-pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid var(--gold);
+  opacity: 0;
+  pointer-events: none;
+}
+.rt-level-pill.is-levelup .lv-star {
+  animation: rtLevelStar 1.3s var(--ease-spring) 0.65s both;
+}
+.rt-level-pill.is-levelup .rt-level-name {
+  display: inline-block;
+  animation: rtLevelName 1.3s var(--ease-spring) 0.65s both;
+}
+.rt-level-pill.is-levelup::before {
+  animation: rtLevelRing 1.3s ease-out calc(0.65s + 1.3s * 0.35) forwards;
+}
+.rt-level-pill.is-levelup::after {
+  animation: rtLevelRing 1.3s ease-out calc(0.65s + 1.3s * 0.35 + 160ms) forwards;
+}
+@keyframes rtLevelStar {
+  50% {
+    transform: scale(1.8) rotate(180deg);
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+  }
+}
+@keyframes rtLevelName {
+  0%,
+  40% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  55% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes rtLevelRing {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  10% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+/* ---- «↑ 2 місця з минулого разу» (стенд «J»): чип спливає пружиною через
+   0.9s, стрілка підстрибує двічі; спад — сірий, без стрибків. ---- */
+.rt-rank-delta {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 0 auto;
+  padding: 2px 8px;
+  border-radius: var(--radius-badge);
+  font-size: calc(10.5px * var(--fs-scale));
+  font-weight: 700;
+  animation: rtRankDeltaIn 0.6s var(--ease-spring) 0.9s both;
+}
+.rt-rank-delta.is-up {
+  background: color-mix(in srgb, var(--cb-success) 18%, var(--surface-1));
+  color: var(--green-700);
+}
+.rt-rank-delta.is-down {
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+.rt-rank-delta-arrow {
+  display: inline-block;
+}
+.rt-rank-delta.is-up .rt-rank-delta-arrow {
+  animation: rtRankArrow 0.8s ease 1.5s 2;
+}
+@keyframes rtRankDeltaIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.8);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes rtRankArrow {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* ---- XP-трек росте до свого значення (стенд «B»): 1.9s ease-out. ---- */
+.xp-fill.is-grow {
+  transform-origin: left;
+  animation: xpGrow 1.9s var(--ease-out) 0.15s both;
+}
+@keyframes xpGrow {
+  from {
+    transform: scaleX(0);
   }
 }

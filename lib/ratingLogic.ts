@@ -108,6 +108,11 @@ export function computeCourseEvents({
   ];
 }
 
+/** Сума балів за це складання — для «+N балів» на фінальному екрані плеєра: ті самі події, що й computeCourseEvents. */
+export function courseCompletionPoints(args: Parameters<typeof computeCourseEvents>[0]): number {
+  return computeCourseEvents(args).reduce((sum, e) => sum + e.points, 0);
+}
+
 export type BadgeForRating = { id: number; points?: number | null; kind?: string | null };
 
 /**

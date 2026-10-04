@@ -830,7 +830,9 @@ html:has(.sheet-overlay.open) body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001s !important;
     transition-duration: 0.001s !important;
   }
@@ -1234,4 +1236,55 @@ html:has(.sheet-overlay.open) body {
   width: 100%;
   border: 0;
   background: #f6f8f7;
+}
+
+/* ---- Блік і натискання кнопок (з демо-туру, 2026-10-04) ----
+   Головні кнопки (.btn-primary у плеєрі, .btn-primary-full, .admin-btn) —
+   один прохід бліку через 1.2с після появи й один по наведенню; не
+   нескінченно, як у турі: там це реклама, тут — робочий інструмент. ::before,
+   бо ::after у .btn-primary-full.is-checking уже зайнятий хвилею перевірки.
+   Розділ «Курси» в адмінці свідомо без цього (рішення користувача: той
+   розділ не чіпати). */
+.btn-primary,
+.btn-primary-full,
+.admin-btn:not(.adm-btn-secondary):not(.adm-btn-danger) {
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::before,
+.btn-primary-full::before,
+.admin-btn:not(.adm-btn-secondary):not(.adm-btn-danger)::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 34%;
+  left: -45%;
+  transform: skewX(-20deg);
+  background: linear-gradient(100deg, transparent, var(--cb-white-overlay-25), transparent);
+  pointer-events: none;
+  animation: btnSheen 1.1s ease-in-out 1.2s 1 both;
+}
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled)::before,
+  .btn-primary-full:hover:not(:disabled)::before,
+  .admin-btn:hover:not(:disabled):not(.adm-btn-secondary):not(.adm-btn-danger)::before {
+    animation: btnSheen 0.9s ease-in-out 0s 1 both;
+  }
+}
+.adm-main--courses .admin-btn::before {
+  animation: none;
+}
+@keyframes btnSheen {
+  0% {
+    left: -45%;
+  }
+  100% {
+    left: 135%;
+  }
+}
+
+/* Терміновий статус двічі пульсує при появі (стенд Motion Tuner «L»). */
+.status-pill.is-urgent {
+  animation: urgentPulse 0.9s ease-in-out 0.6s 2;
 }

@@ -1574,6 +1574,44 @@ a.mgr-matrix-cell:focus-visible {
 .mgr-reminder-result {
   margin: 0 0 10px;
   font-weight: 600;
+  animation: mgrResultIn 0.5s var(--ease-out) 0.25s both;
+}
+@keyframes mgrResultIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+/* Паперовий літачок із кнопки «Надіслати» (components/ReminderDialog.tsx,
+   PaperPlaneIcon, фірмовий зелений) — траєкторія з демо-туру: вгору-праворуч,
+   з нахилом, зникає. */
+.mgr-plane svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.18));
+}
+.mgr-plane {
+  position: fixed;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  color: var(--green-700);
+  pointer-events: none;
+  /* 0.65s і 160px праворуч — підібрано користувачем на стенді (Motion Tuner, 2026-10-04). */
+  animation: mgrPlaneFly 0.65s cubic-bezier(0.5, 0, 0.4, 1) forwards;
+}
+@keyframes mgrPlaneFly {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  30% {
+    transform: translate(14px, -34px) rotate(-8deg) scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(160px, -240px) rotate(-28deg) scale(0.5);
+  }
 }
 .mgr-reminder-error {
   color: var(--danger);
@@ -2634,4 +2672,22 @@ a.mgr-matrix-cell:focus-visible {
 .mgr-charts.is-measuring .mgr-chart-card > * {
   flex-grow: 0 !important;
   flex-basis: auto !important;
+}
+
+/* «Стан команди»: сегменти виростають зліва направо по черзі (стенд Motion
+   Tuner «G», 2026-10-04): 0.6s ease-out, крок 120ms. Числа в легенді —
+   number-flow (TeamStatusBar.tsx). */
+.mgr-status-seg {
+  transform-origin: left;
+  animation: mgrSegGrow 0.6s var(--ease-out) calc(0.2s + var(--i, 0) * 120ms) both;
+}
+@keyframes mgrSegGrow {
+  from {
+    transform: scaleX(0);
+  }
+}
+/* Рядки таблиці команди переїжджають при сортуванні (стенд «I», FLIP —
+   lib/useFlip.ts): 0.45s ease. */
+.mgr-team-table tbody tr.is-flipping {
+  transition: transform 0.45s ease;
 }

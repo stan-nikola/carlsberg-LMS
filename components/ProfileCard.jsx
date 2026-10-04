@@ -5,6 +5,7 @@ import Link from "next/link";
 import { MarqueeText } from "@/components/MarqueeText";
 import { Avatar } from "@/components/Avatar";
 import { CameraIcon, SpinnerIcon, XIcon } from "@/components/icons";
+import { CountUp } from "@/components/CountUp";
 
 /**
  * Аватар + ім'я + код + рівень (.profile-card, і на Home, і на Профіль).
@@ -33,6 +34,31 @@ let avatarFlipPlayed = false;
 export function ProfileCard({ dbName, levelLabel, avatarUrl = null, editable = false, href, stats }) {
   const displayName = dbName;
   const cardRef = useRef(null);
+
+  // Нахил за курсором (стенд Motion Tuner «M», 2026-10-04): лише з мишею
+  // (hover: hover) і без «Зменшити рух»; CSS читає --tilt-* (hub.css).
+  useEffect(() => {
+    const node = cardRef.current;
+    if (!node || !window.matchMedia?.("(hover: hover)").matches || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return undefined;
+    const MAX = 6;
+    const PAR = 10;
+    const move = (e) => {
+      const r = node.getBoundingClientRect();
+      const dx = (e.clientX - r.left) / r.width - 0.5;
+      const dy = (e.clientY - r.top) / r.height - 0.5;
+      node.style.setProperty("--tilt-y", `${(dx * 2 * MAX).toFixed(2)}deg`);
+      node.style.setProperty("--tilt-x", `${(-dy * 2 * MAX).toFixed(2)}deg`);
+      node.style.setProperty("--tilt-px", `${(dx * PAR).toFixed(1)}px`);
+      node.style.setProperty("--tilt-py", `${(dy * PAR).toFixed(1)}px`);
+    };
+    const leave = () => ["--tilt-x", "--tilt-y", "--tilt-px", "--tilt-py"].forEach((p) => node.style.removeProperty(p));
+    node.addEventListener("mousemove", move);
+    node.addEventListener("mouseleave", leave);
+    return () => {
+      node.removeEventListener("mousemove", move);
+      node.removeEventListener("mouseleave", leave);
+    };
+  }, []);
 
   useEffect(() => {
     if (avatarFlipPlayed) return;
@@ -166,7 +192,9 @@ export function ProfileCard({ dbName, levelLabel, avatarUrl = null, editable = f
           <dl className="profile-stats">
             <div>
               <dt>Бали</dt>
-              <dd>{stats.points.toLocaleString("uk-UA")}</dd>
+              <dd>
+                <CountUp to={stats.points} up />
+              </dd>
             </div>
             {stats.rank != null && (
               <div>

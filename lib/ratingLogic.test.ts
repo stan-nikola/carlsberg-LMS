@@ -10,6 +10,7 @@ import {
   normalizeByCohort,
   computeTeamRating,
   passedOnFirstAttempt,
+  courseCompletionPoints,
   DEFAULT_RULES,
   DEFAULT_LEVELS,
   type RatingEventInput,
@@ -176,5 +177,20 @@ describe("computeTeamRating", () => {
     expect(r.avg).toBe(38);
     expect(r).toMatchObject({ rank: 2, teams: 2 });
     expect(computeTeamRating(people, points, { id: 20, positionId: 1 })).toMatchObject({ avg: 100, rank: 1 });
+  });
+});
+
+describe("courseCompletionPoints", () => {
+  it("сума тих самих подій, що й computeCourseEvents; уже нараховані — не рахуються", () => {
+    const rules = [
+      { key: "course_completed", points: 100 },
+      { key: "course_perfect", points: 50 },
+      { key: "first_attempt", points: 30 },
+      { key: "on_time", points: 20 },
+    ];
+    const enrollment = { id: 1, employeeId: 7, passed: true, scorePercent: 100, completedAt: "2026-10-04", dueDate: "2026-10-10", firstPassedAt: "2026-10-04" };
+    expect(courseCompletionPoints({ enrollment, course: {}, firstAttempt: true, existingKinds: new Set(), rules })).toBe(200);
+    expect(courseCompletionPoints({ enrollment, course: { points: 70 }, firstAttempt: false, existingKinds: new Set(["course_perfect"]), rules })).toBe(90);
+    expect(courseCompletionPoints({ enrollment: { ...enrollment, passed: false }, course: {}, firstAttempt: true, existingKinds: new Set(), rules })).toBe(0);
   });
 });

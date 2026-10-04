@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CourseIcon, ChevronIcon, CertificateIcon, SpinnerIcon } from "@/components/icons";
@@ -46,6 +46,13 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
   const desc = cs.status === "in_progress" && inProgressDescription ? inProgressDescription : description;
   const isNew = isRecentlyAssigned(enrollment);
   const overdue = isOverdue(enrollment);
+  // Черга смуг прогресу (стенд «B»): індекс картки серед сусідів — у CSS-змінну.
+  const tileRef = useRef(null);
+  useEffect(() => {
+    const el = tileRef.current;
+    if (!el?.parentElement) return;
+    el.style.setProperty("--ct-i", String(Array.from(el.parentElement.children).indexOf(el)));
+  }, []);
   const modules = course.modules || [];
   const hasModules = modules.length > 0;
   const progress = moduleProgress(modules);
@@ -117,7 +124,7 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
     // <button>, а вкладати інтерактивний елемент в <a> той самий "кнопка в
     // кнопці" клас проблем, що вже описаний біля .ct-toggle. .ct-enter-link
     // лишається справжнім <a> для клавіатури/читалок екрана.
-    <div className="course-tile" onClick={() => router.push(`/courses/${course.slug}`)}>
+    <div ref={tileRef} className="course-tile" onClick={() => router.push(`/courses/${course.slug}`)}>
       {/* Шапка картки — вертикальний стос: теги верхнім рівнем, під ними
           назва курсу, кількість модулів і опис на всю ширину картки, і
           нижче — підсумок пройденого курсу разом із сертифікатом.
@@ -177,7 +184,7 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
             {!isActuallyDone && hasModules && (
               <div className="ct-progress-row">
                 <div className="ct-progress-track">
-                  <div className="ct-progress-fill" style={{ width: `${progress.pct}%` }} />
+                  <div className="ct-progress-fill is-grow" style={{ width: `${progress.pct}%` }} />
                 </div>
                 <span className="ct-progress-pct">
                   {progress.passed} з {progress.total}

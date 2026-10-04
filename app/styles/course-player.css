@@ -906,6 +906,37 @@
   font-size: calc(19px * var(--fs-scale));
   margin-bottom: 4px;
 }
+/* «+N балів» — спливає з трофея вгору й лишається золотою плашкою
+   (демо-тур: floatup; тут — із зупинкою, щоб число не зникло). */
+.cp-points-chip {
+  display: inline-flex;
+  align-items: center;
+  margin: -6px 0 10px;
+  padding: 4px 12px;
+  border-radius: var(--radius-badge);
+  background: linear-gradient(135deg, var(--gold), color-mix(in srgb, var(--cb-tertiary) 78%, var(--cb-black)));
+  color: color-mix(in srgb, var(--cb-tertiary) 25%, var(--cb-black));
+  font-weight: 800;
+  font-size: calc(14px * var(--fs-scale));
+  font-variant-numeric: tabular-nums;
+  /* Значення підібрано на стенді Motion Tuner (користувач, 2026-10-04):
+     старт глибше (60px), без перельоту вгору, спокійна крива замість пружини. */
+  animation: cpPointsUp 1.1s var(--ease-premium) 0.35s both;
+}
+@keyframes cpPointsUp {
+  0% {
+    opacity: 0;
+    transform: translateY(60px) scale(0.6);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(0) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 .score-num {
   display: flex;
   flex-direction: column;
@@ -3390,6 +3421,23 @@
   background: var(--surface-1);
   color: var(--ink-soft);
 }
+/* Замок на закритому модулі раз смикається (демо-тур: jiggle) — «ще чекає»;
+   по черзі зверху вниз (--cp-i — індекс модуля, CoursePlan.tsx). Анімація
+   на іконці, не на .cp-plan-badge: там уже стоїть pop-анімація появи. */
+.cp-plan-cell.is-locked .cp-plan-badge > * {
+  display: inline-block;
+  transform-origin: 50% 40%;
+  /* 0.7s, старт 2.5s, крок 180ms, ±17° — стенд Motion Tuner (2026-10-04). */
+  animation: cpLockJiggle 0.7s ease calc(2.5s + var(--cp-i, 0) * 180ms) 1;
+}
+@keyframes cpLockJiggle {
+  25% {
+    transform: rotate(-17deg);
+  }
+  75% {
+    transform: rotate(17deg);
+  }
+}
 /* "Наступний" — трохи товща рамка поверх кольору available/next, а не
    окремий колір: available вже акцентний, і другий колір поруч почав би
    сперечатися сам із собою. */
@@ -3687,4 +3735,104 @@
   color: var(--cb-white);
   font-family: var(--font-mono);
   font-size: 11px;
+}
+
+/* Штамп на чекпоінті модуля (стенд Motion Tuner «C», 2026-10-04): 0.5s
+   через 0.5s, зі збільшення 1.5× у рівне положення; провал — червоний і
+   встряска екрана після штампа. */
+.cp-complete {
+  position: relative;
+}
+.cp-stamp {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 3px 10px;
+  border: 3px solid var(--cb-success);
+  border-radius: var(--radius-badge);
+  color: var(--cb-success);
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+  animation: cpStampSlam 0.5s cubic-bezier(0.5, 0, 0.75, 0) 0.5s forwards;
+}
+.cp-stamp.is-fail {
+  border-color: var(--cb-fail);
+  color: var(--cb-fail);
+}
+@keyframes cpStampSlam {
+  0% {
+    opacity: 0;
+    transform: scale(1.5) rotate(-14deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(0.95) rotate(-4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+.cp-complete.is-fail-shake {
+  animation: cpFailShake 0.5s ease 1s 1;
+}
+@keyframes cpFailShake {
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+/* Модуль відкрився з минулого візиту (стенд «D»): замок стискається й
+   зникає, на його місці зʼявляється «▶», кільце-хвиля розходиться. Клас
+   is-unlocked ставить CoursePlan.tsx (localStorage по курсу). */
+.cp-plan-cell.is-unlocked .cp-plan-badge > * {
+  display: inline-block;
+  animation: cpUnlockIcon 0.8s var(--ease-spring) 0.6s both;
+}
+@keyframes cpUnlockIcon {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  40% {
+    transform: rotate(-25deg) scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.cp-plan-cell.is-unlocked .cp-plan-badge::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid var(--cb-notification);
+  opacity: 0;
+  pointer-events: none;
+  animation: cpUnlockRipple 0.8s ease-out 1s both;
+}
+@keyframes cpUnlockRipple {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
 }
