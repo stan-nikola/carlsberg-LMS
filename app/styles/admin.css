@@ -147,10 +147,18 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: filter var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium);
+  transition: filter var(--dur-fast) var(--ease-premium), box-shadow var(--dur-fast) var(--ease-premium),
+    transform var(--dur-fast) var(--ease-premium);
   min-height: var(--btn-h-sm);
   justify-content: center;
   gap: 6px;
+}
+/* Відчутне натискання — як у .btn плеєра (scale .97); «Курси» — без змін. */
+.admin-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.adm-main--courses .admin-btn:active {
+  transform: none;
 }
 .admin-btn:hover:not(:disabled) {
   filter: brightness(140%);
@@ -401,6 +409,9 @@
   font-weight: 600;
   cursor: pointer;
   padding: 2px 0;
+}
+.admin-btn-link:active {
+  transform: scale(0.95);
 }
 .admin-btn-link:focus-visible {
   outline: none;

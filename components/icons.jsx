@@ -578,3 +578,14 @@ export function DashboardTuneIcon() {
     </svg>
   );
 }
+
+// Паперовий літачок (як «надіслати» в Telegram) — вилітає з «Надіслати» в
+// діалозі «Нагадати» (components/ReminderDialog.tsx, .mgr-plane). Заливка
+// currentColor, щоб фарбувати з CSS.
+export function PaperPlaneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M21.4 3.1 2.9 10.6c-1 .4-1 1.6 0 2l4.6 1.6 1.8 5.4c.3.9 1.4 1.1 2 .4l2.6-2.6 4.3 3.2c.8.6 1.9.1 2.1-.9L22.9 4.4c.2-.9-.7-1.7-1.5-1.3ZM8.3 13.4 18 7.2l-7.7 7.2-.4 3.1-1.6-4.1Z" />
+    </svg>
+  );
+}

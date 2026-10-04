@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { CountUp } from "@/components/CountUp";
+import { LevelLabel } from "@/components/LevelLabel";
+import { RankDelta } from "@/components/RankDelta";
 
 /**
  * Два блоки головної хаба замість «Прогрес адаптації 200/200 XP» (той
@@ -16,7 +19,8 @@ import Link from "next/link";
  * СВОГО контейнера (.hub-viewport) зсував сам заголовок за верхній
  * край екрана (скарга користувача, 2026-09-22).
  */
-export function RatingCard({ rating, cohortLabel, href = "/hub/achievements", highlighted = false }) {
+/** `employeeId` — ключ localStorage для «новий рівень» і «↑ N місць з минулого разу» (стенд Motion Tuner A/J). */
+export function RatingCard({ rating, cohortLabel, href = "/hub/achievements", highlighted = false, employeeId = null }) {
   const { total, level, rank, size } = rating;
   const toNext = level.next ? level.next.threshold - total : 0;
 
@@ -25,23 +29,26 @@ export function RatingCard({ rating, cohortLabel, href = "/hub/achievements", hi
       <div className="rt-top">
         <div>
           <div className="rt-points">
-            {total} <span>балів</span>
+            <CountUp to={total} up /> <span>балів</span>
           </div>
           <div className="rt-level">
-            <span className="lv-star">★</span> Рівень: {level.label}
+            {employeeId != null ? <LevelLabel label={level.label} storageKey={`carls_level_seen:${employeeId}`} /> : <><span className="lv-star">★</span> Рівень: {level.label}</>}
           </div>
         </div>
         {rank && (
           <div className="rt-rank">
-            <b>№ {rank}</b>
+            <b>
+              № <CountUp to={rank} max={size} />
+            </b>
             <span>
               з {size} {cohortLabel}
             </span>
+            {employeeId != null && <RankDelta rank={rank} storageKey={`carls_rank_seen:${employeeId}`} />}
           </div>
         )}
       </div>
       <div className="xp-track">
-        <div className="xp-fill" style={{ width: `${Math.round(level.progress * 100)}%` }} />
+        <div className="xp-fill is-grow" style={{ width: `${Math.round(level.progress * 100)}%` }} />
       </div>
       <div className="rt-next">{level.next ? `Ще ${toNext} балів до рівня «${level.next.label}»` : "Найвищий рівень"}</div>
     </Link>

@@ -71,8 +71,11 @@ export function NotificationCenter({ initialItems = [], initialCursor = null, in
 
   return (
     <div className="ntf-list">
-      {items.map((n) => {
+      {items.map((n, i) => {
         const meta = categoryMeta(n.category);
+        // --k — черга «дзижчання» непрочитаних (notifications.css ntfBuzz):
+        // по одному зверху вниз, а не всі разом.
+        const style = n.isRead ? undefined : { "--k": items.slice(0, i).filter((x) => !x.isRead).length };
         const body = (
           <>
             <span className="ntf-ico" aria-hidden="true">
@@ -88,11 +91,11 @@ export function NotificationCenter({ initialItems = [], initialCursor = null, in
         const cls = `ntf-item${n.isRead ? "" : " unread"}`;
         const href = managerMode ? toManagerUrl(n.url) : n.url;
         return href ? (
-          <Link key={n.id} href={href} className={cls}>
+          <Link key={n.id} href={href} className={cls} style={style}>
             {body}
           </Link>
         ) : (
-          <div key={n.id} className={cls}>
+          <div key={n.id} className={cls} style={style}>
             {body}
           </div>
         );

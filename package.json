@@ -17,6 +17,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@number-flow/react": "^0.6.2",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@vercel/blob": "^2.8.0",

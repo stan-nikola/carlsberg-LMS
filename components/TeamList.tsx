@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/Avatar";
 import { StatusPill } from "@/components/EnrollmentRow";
 import { SegmentPill } from "@/components/TeamStatusBar";
 import { RemindButton, type ReminderReason } from "@/components/ReminderDialog";
+import { useFlip } from "@/lib/useFlip";
 import { teamQueryHref, type TeamListResult, type TeamQuery } from "@/lib/teamInsights";
 import { ChevronIcon, SearchIcon } from "@/components/icons";
 
@@ -32,6 +33,11 @@ export function TeamList({
   const { query, people, rows } = result;
   const router = useRouter();
   const [q, setQ] = useState(query.q);
+  // FLIP: рядки переїжджають на нові місця при зміні сортування/фільтра (стенд «I»).
+  const peopleBodyRef = useRef<HTMLTableSectionElement>(null);
+  const rowsBodyRef = useRef<HTMLTableSectionElement>(null);
+  useFlip(peopleBodyRef);
+  useFlip(rowsBodyRef);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const without = (key: keyof TeamQuery) => teamQueryHref({ ...query, [key]: key === "retried" ? false : key === "q" ? "" : null });
@@ -159,9 +165,9 @@ export function TeamList({
                 <th scope="col">Останній вхід</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody ref={peopleBodyRef}>
               {people.map((p) => (
-                <tr key={p.id} className={selected.has(p.id) ? "is-selected" : undefined}>
+                <tr key={p.id} data-flip-key={p.id} className={selected.has(p.id) ? "is-selected" : undefined}>
                   <td>
                     <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} aria-label={`Обрати ${p.name}`} />
                   </td>
@@ -205,9 +211,9 @@ export function TeamList({
                 <th scope="col">Бал</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody ref={rowsBodyRef}>
               {rows.map((r) => (
-                <tr key={r.enrollmentId} className={selected.has(r.employeeId) ? "is-selected" : undefined}>
+                <tr key={r.enrollmentId} data-flip-key={r.enrollmentId} className={selected.has(r.employeeId) ? "is-selected" : undefined}>
                   <td>
                     <input type="checkbox" checked={selected.has(r.employeeId)} onChange={() => toggle(r.employeeId)} aria-label={`Обрати ${r.employeeName}`} />
                   </td>

@@ -70,7 +70,7 @@ export function AchievementsPanel({
           "№1 з N на посаді X", природно веде подивитись повний список.
           Той самий #leaderboard і на /manager/achievements — та сама
           розмітка AchievementsPanel. */}
-      <RatingCard rating={rating} cohortLabel={cohortLabel} href="#leaderboard" highlighted={highlightRating} />
+      <RatingCard rating={rating} cohortLabel={cohortLabel} href="#leaderboard" highlighted={highlightRating} employeeId={currentEmployeeId} />
       <div className="stats-row rt-breakdown">
         <div className="stat-pill">
           <b>{rating.courses}</b>

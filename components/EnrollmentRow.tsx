@@ -37,7 +37,8 @@ export function StatusPill({ status, passed }: { status: string; passed: boolean
     return <StatusBadge passed={Boolean(passed)} />;
   }
   const meta = STATUS_META[status] || STATUS_META.not_started;
-  return <span className={`status-pill ${meta.cls}`}>{meta.label}</span>;
+  // «Прострочено» двічі пульсує при появі (стенд Motion Tuner «L»).
+  return <span className={`status-pill ${meta.cls}${status === "overdue" ? " is-urgent" : ""}`}>{meta.label}</span>;
 }
 
 export function formatDate(value: Date | string | null | undefined): string | null {

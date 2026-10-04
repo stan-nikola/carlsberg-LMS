@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { managerPraiseText, managerReminderText } from "@/lib/notificationLogic";
-import { SpinnerIcon } from "@/components/icons";
+import { PaperPlaneIcon, SpinnerIcon } from "@/components/icons";
 
 export type ReminderRecipient = { id: number; name: string };
 export type ReminderReason = "overdue" | "behind" | "not_started" | "inactive" | "failed" | "on_track" | "general";
@@ -40,6 +40,11 @@ export function ReminderDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ sent: number; skipped: number } | null>(null);
+  // Паперовий літачок (як у Telegram): після відповіді сервера вилітає з
+  // кнопки «Надіслати» (координати — до того, як кнопка зникне з результатом).
+  // position:fixed усередині <dialog> (top layer) — над підкладкою.
+  const sendRef = useRef<HTMLButtonElement>(null);
+  const [plane, setPlane] = useState<{ left: number; top: number } | null>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -77,6 +82,10 @@ export function ReminderDialog({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const rect = sendRef.current?.getBoundingClientRect();
+      if (rect && data.sent > 0 && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setPlane({ left: rect.left + rect.width / 2 - 14, top: rect.top + rect.height / 2 - 14 });
+      }
       setResult({ sent: data.sent, skipped: data.skipped });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не вдалося надіслати.");
@@ -90,6 +99,11 @@ export function ReminderDialog({
 
   return (
     <dialog ref={ref} className="mgr-reminder-dialog">
+      {plane && (
+        <span className="mgr-plane" style={plane} aria-hidden="true" onAnimationEnd={() => setPlane(null)}>
+          <PaperPlaneIcon />
+        </span>
+      )}
       <form method="dialog" onSubmit={(e) => e.preventDefault()}>
         <h2 className="mgr-reminder-title">{mode === "praise" ? "Похвалити" : "Нагадати"}</h2>
         <p className="admin-hint mgr-reminder-who">
@@ -118,7 +132,7 @@ export function ReminderDialog({
             {result ? "Закрити" : "Скасувати"}
           </button>
           {!result && (
-            <button type="button" className="btn btn-primary mgr-reminder-send" onClick={send} disabled={busy || !message.trim()}>
+            <button ref={sendRef} type="button" className="btn btn-primary mgr-reminder-send" onClick={send} disabled={busy || !message.trim()}>
               {busy ? <SpinnerIcon /> : "Надіслати"}
             </button>
           )}

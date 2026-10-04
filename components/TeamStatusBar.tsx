@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CountUp } from "@/components/CountUp";
 import { SEGMENT_META, pluralCourses, pluralPeople, type PersonSegment, type StatusBarSegment } from "@/lib/teamInsights";
 
 const SEGMENT_PILL: Record<PersonSegment, string> = {
@@ -41,8 +42,8 @@ export function TeamStatusBar({ data }: { data: { segments: StatusBarSegment[]; 
   return (
     <div className="mgr-status-body">
       <div className="mgr-status-bar" role="img" aria-label={nonEmpty.map(segmentTitle).join(", ")}>
-        {nonEmpty.map((s) => (
-          <Link key={s.key} href={s.href} className={`mgr-status-seg is-${s.key}`} style={{ flexGrow: s.count }} title={segmentTitle(s)}>
+        {nonEmpty.map((s, i) => (
+          <Link key={s.key} href={s.href} className={`mgr-status-seg is-${s.key}`} style={{ flexGrow: s.count, "--i": i } as React.CSSProperties} title={segmentTitle(s)}>
             <span className="mgr-status-seg-count">{s.count}</span>
           </Link>
         ))}
@@ -54,7 +55,7 @@ export function TeamStatusBar({ data }: { data: { segments: StatusBarSegment[]; 
               <span className="mgr-status-dot" aria-hidden="true" />
               <span className="mgr-status-legend-label">{s.label}</span>
               <b>
-                {s.count} {pluralPeople(s.count)}
+                <CountUp to={s.count} from={0} /> {pluralPeople(s.count)}
               </b>
               {s.courses != null && s.courses > 0 && (
                 <span className="mgr-status-legend-sub">

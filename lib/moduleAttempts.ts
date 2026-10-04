@@ -6,7 +6,8 @@ import { isScored, SCORED_COMPONENT_TYPES } from "@/lib/componentTypes";
 import { canStartModuleAttempt } from "@/lib/courseContent";
 import { gradeResponse, publicContent, revealFor, seededRandom, type KeyOf } from "@/lib/grading";
 import { formatWait, pickQuestionPool, poolSeed, resolveRetryRules, retryGate } from "@/lib/retryPolicy";
-import { syncEnrollmentEvents } from "@/lib/rating";
+import { getRules, syncEnrollmentEvents } from "@/lib/rating";
+import { courseCompletionPoints, passedOnFirstAttempt } from "@/lib/ratingLogic";
 import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
 import { notifySubordinateCourseResult } from "@/lib/notifications";
 import { evaluateAutoBadgesForEmployee } from "@/lib/badgeRules";
@@ -550,12 +551,13 @@ export async function finishModuleAttempt(
 
 // ------------------------------------------------------------------ курс
 
-export type CourseState = { completed: boolean; scoreRaw: number; scoreMax: number; scorePercent: number; passed: boolean };
+/** pointsEarned — бали за ЦЕ складання (0 — курс уже був складений раніше чи не складено). */
+export type CourseState = { completed: boolean; scoreRaw: number; scoreMax: number; scorePercent: number; passed: boolean; pointsEarned: number };
 
 async function readCourseState(enrollmentId: number): Promise<CourseState | null> {
   const e = await prisma.enrollment.findUnique({ where: { id: enrollmentId } });
   if (!e || e.status !== "completed") return null;
-  return { completed: true, scoreRaw: e.scoreRaw ?? 0, scoreMax: e.scoreMax ?? 0, scorePercent: e.scorePercent ?? 0, passed: e.passed === true };
+  return { completed: true, scoreRaw: e.scoreRaw ?? 0, scoreMax: e.scoreMax ?? 0, scorePercent: e.scorePercent ?? 0, passed: e.passed === true, pointsEarned: 0 };
 }
 
 /**
@@ -577,7 +579,7 @@ export async function finalizeEnrollment(
   knownModuleIds?: number[]
 ): Promise<CourseState | null> {
   const [enrollment, completions, moduleIds] = await Promise.all([
-    prisma.enrollment.findUnique({ where: { id: enrollmentId } }),
+    prisma.enrollment.findUnique({ where: { id: enrollmentId }, include: { course: { select: { points: true } } } }),
     prisma.moduleCompletion.findMany({ where: { enrollmentId } }),
     knownModuleIds ??
       prisma.module
@@ -621,7 +623,7 @@ export async function finalizeEnrollment(
 
   const firstCompletion = enrollment.status !== "completed";
   const changed = firstCompletion || enrollment.passed !== passed || enrollment.scorePercent !== scorePercent;
-  if (!changed) return { completed: true, scoreRaw, scoreMax, scorePercent, passed };
+  if (!changed) return { completed: true, scoreRaw, scoreMax, scorePercent, passed, pointsEarned: 0 };
 
   await prisma.$transaction([
     prisma.enrollment.update({
@@ -653,6 +655,28 @@ export async function finalizeEnrollment(
       },
     }),
   ]);
+
+  // «+N балів» для фінального екрана (2026-10-04, анімація з демо-туру): та
+  // сама математика, що й syncEnrollmentEvents нижче в after(), але лише сума
+  // й без запису — два невеликі запити тільки в момент закриття курсу.
+  let pointsEarned = 0;
+  if (passed) {
+    try {
+      const [existing, rules] = await Promise.all([
+        prisma.ratingEvent.findMany({ where: { refType: "enrollment", refId: enrollmentId }, select: { kind: true } }),
+        getRules(),
+      ]);
+      pointsEarned = courseCompletionPoints({
+        enrollment: { ...enrollment, passed, scorePercent, completedAt: now, firstPassedAt: enrollment.firstPassedAt ?? now },
+        course: enrollment.course,
+        firstAttempt: passedOnFirstAttempt(completions),
+        existingKinds: new Set(existing.map((e) => e.kind)),
+        rules,
+      });
+    } catch (err) {
+      console.warn("[rating] points preview:", (err as Error)?.message);
+    }
+  }
 
   // Бали й сповіщення — best-effort ПІСЛЯ запису: збій не відкочує результат.
   // after() — уже після відповіді людині (2026-10-03): сповіщення керівнику
@@ -689,5 +713,5 @@ export async function finalizeEnrollment(
       console.warn("[notifications] subordinate course result:", (err as Error)?.message);
     }
   });
-  return { completed: true, scoreRaw, scoreMax, scorePercent, passed };
+  return { completed: true, scoreRaw, scoreMax, scorePercent, passed, pointsEarned };
 }

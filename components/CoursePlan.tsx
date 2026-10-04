@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckIcon, LockIcon, ClockIcon, PlayIcon, AlertIcon, XIcon } from "@/components/icons";
 import { MorphRevealIcon } from "@/components/MorphRevealIcon";
@@ -8,6 +8,7 @@ import { pickPlanFocusModuleId, type CoursePlanView, type PlanModuleStatus } fro
 import { buildProgressPath, buildSnakePath, type SnakePoint } from "@/lib/snakePath";
 import { isFullyInView, smoothScrollElementIntoView } from "@/lib/smoothScrollTo";
 import { cubicBezierTimeAtProgress } from "@/lib/cubicBezier";
+import { useSeenValue } from "@/lib/useSeenValue";
 
 /**
  * План курсу — перше, що людина бачить, відкривши курс: склад курсу,
@@ -168,6 +169,20 @@ function moduleFacts(m: CoursePlanView["modules"][number]): ModuleFact[] {
   return facts;
 }
 
+/** Статуси модулів по id — підпис плану для «модуль відкрився» (localStorage, lib/useSeenValue.ts). */
+function statusesById(plan: CoursePlanView): Record<string, string> {
+  return Object.fromEntries(plan.modules.map((m) => [m.id, m.status]));
+}
+function parseStatuses(raw: string | null): Record<string, string> | null {
+  try {
+    return raw ? (JSON.parse(raw) as Record<string, string>) : null;
+  } catch {
+    return null;
+  }
+}
+/** Момент, коли замок у бейджі змінюється на «▶» — середина руху (0.6s затримки + половина з 0.8s). */
+const UNLOCK_SWAP_MS = (0.6 + 0.8 * 0.5) * 1000;
+
 export function CoursePlanPanel({
   plan,
   slug,
@@ -180,6 +195,21 @@ export function CoursePlanPanel({
 }) {
   const gridRef = useRef<HTMLOListElement>(null);
   const cellRefs = useRef<(HTMLLIElement | null)[]>([]);
+  // «Модуль відкрився» (стенд Motion Tuner «D», 2026-10-04): модулі, що були
+  // locked минулого візиту (localStorage по курсу), а тепер available — замок
+  // стискається й зникає, «▶» зʼявляється. Поки триває перша половина руху,
+  // в бейджі ще замок (lockPhase).
+  const seenRaw = useSeenValue(preview ? null : `cp_plan_seen:${slug}`, JSON.stringify(statusesById(plan)));
+  const unlockedIds = useMemo(() => {
+    const seen = parseStatuses(seenRaw);
+    return new Set(plan.modules.filter((m) => m.status === "available" && seen?.[m.id] === "locked").map((m) => m.id));
+  }, [seenRaw, plan.modules]);
+  const [lockPhase, setLockPhase] = useState(true);
+  useEffect(() => {
+    if (unlockedIds.size === 0) return undefined;
+    const t = setTimeout(() => setLockPhase(false), UNLOCK_SWAP_MS);
+    return () => clearTimeout(t);
+  }, [unlockedIds]);
   const dotRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const [path, setPath] = useState<{ base: string; progress: string }>({ base: "", progress: "" });
   const [mounted, setMounted] = useState(false);
@@ -369,9 +399,11 @@ export function CoursePlanPanel({
                   m.isNext ? "is-next" : "",
                   isReached ? "is-reached" : "",
                   isTarget ? "is-target" : "",
+                  unlockedIds.has(m.id) ? "is-unlocked" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
+                style={{ "--cp-i": i } as React.CSSProperties}
               >
                 <span
                   className="cp-plan-dot"
@@ -384,6 +416,8 @@ export function CoursePlanPanel({
                 <span className="cp-plan-badge" aria-hidden="true" style={popStyle}>
                   {m.status === "passed" ? (
                     <MorphRevealIcon shape="check" label="Складено" size={14} delay={staggerMs} />
+                  ) : lockPhase && unlockedIds.has(m.id) ? (
+                    <LockIcon />
                   ) : (
                     STATUS_ICON[m.status]
                   )}

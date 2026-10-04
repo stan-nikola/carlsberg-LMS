@@ -109,6 +109,18 @@
 .ntf-item.unread {
   border-color: var(--cb-secondary);
   background: var(--green-tint);
+  /* Непрочитане раз «дзижчить» при появі (демо-тур: buzz), по черзі. */
+  animation: ntfBuzz 0.5s ease calc(350ms + var(--k, 0) * 90ms) 1;
+}
+@keyframes ntfBuzz {
+  20%,
+  60% {
+    transform: translateX(-4px) rotate(-0.6deg);
+  }
+  40%,
+  80% {
+    transform: translateX(4px) rotate(0.6deg);
+  }
 }
 @media (hover: hover) {
   a.ntf-item:hover {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CountUp } from "@/components/CountUp";
 import { enqueue } from "@/lib/offlineOutbox";
 import { useRouter } from "next/navigation";
 import Image, { getImageProps } from "next/image";
@@ -550,12 +551,24 @@ function ModuleCheckpointScreen({ checkpoint, onContinue, onRetry, onPlan }) {
   }
 
   return (
-    <div className="cp-screen cp-complete">
+    <div className={`cp-screen cp-complete${passed ? "" : " is-fail-shake"}`}>
       {/* Складений модуль — теж свято, як і фінал курсу (користувач, 2026-09-15). */}
       {passed && <ConfettiBurst />}
       <div className={`trophy ${passed ? "win" : ""}`}>
         <MorphRevealIcon shape={passed ? "check" : "x"} label={passed ? "Складено" : "Не складено"} size={36} strokeWidth={2.4} />
       </div>
+      {/* Штамп «з розмаху» (демо-тур, стенд Motion Tuner «C»): склав —
+          зелений «СКЛАДЕНО», ні — червоний і коротка встряска екрана. */}
+      <span className={`cp-stamp${passed ? "" : " is-fail"}`} aria-hidden="true">
+        {passed ? "Складено" : "Не складено"}
+      </span>
+      {/* «+N балів» спливає з трофея (анімація з демо-туру) і лишається
+          плашкою: сума приходить з сервера разом із підсумком курсу. */}
+      {passed && pointsEarned > 0 && (
+        <span className="cp-points-chip">
+          <CountUp to={pointsEarned} from={0} prefix="+" delayMs={600} /> балів
+        </span>
+      )}
       <h2 className="result-title">{passed ? `Модуль «${moduleTitle}» складено!` : `Модуль «${moduleTitle}» не складено`}</h2>
       <p className="lead">
         {passed
@@ -646,7 +659,7 @@ function CompleteScreen({ result, onRetake, onPlan, course, previewMode }) {
   }
 
   if (!result) return null;
-  const { scorePercent, scoreRaw, scoreMax, passed, submitting, submitError, queued } = result;
+  const { scorePercent, scoreRaw, scoreMax, passed, submitting, submitError, queued, pointsEarned = 0 } = result;
 
   // Підсумок курсу рахує сервер — поки його нема (перевіряємо / немає
   // мережі / помилка), без вердикту й без балу.
@@ -1388,6 +1401,7 @@ export function CoursePlayer({
       scoreMax: summary.scoreMax,
       scorePercent: summary.scorePercent,
       passed: summary.passed,
+      pointsEarned: summary.pointsEarned ?? 0,
       submitting: false,
       submitError: null,
     });
