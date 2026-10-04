@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BottomSheet } from "@/components/BottomSheet";
-import { CourseIcon, PeopleIcon, AchievementsIcon, LogoutIcon, ChevronIcon, RootIcon, DataIcon, BellIcon, TrendIcon, ClockIcon, SlidersIcon } from "@/components/icons";
+import { CourseIcon, PeopleIcon, AchievementsIcon, LogoutIcon, ChevronIcon, RootIcon, DataIcon, BellIcon, TrendIcon, ClockIcon, SlidersIcon, CodeIcon } from "@/components/icons";
 
 // Ключ localStorage для згорнутого стану сайдбара — суто персональна
 // зручність адміна (не дані курсу/бази), тому localStorage, а не БД.
@@ -28,8 +28,14 @@ const NAV_ITEMS = [
   { href: "/admin/notifications", label: "Сповіщення", Icon: BellIcon, match: (p) => p.startsWith("/admin/notifications") },
   { href: "/admin/rating", label: "Рейтинг", Icon: TrendIcon, match: (p) => p.startsWith("/admin/rating") },
   { href: "/admin/audit", label: "Журнал", Icon: ClockIcon, match: (p) => p.startsWith("/admin/audit") },
-  // superOnly — лише для сесії з SUPER_ADMIN_PASSWORD (дизайн-система для всіх).
-  { href: "/admin/design", label: "Дизайн", Icon: SlidersIcon, match: (p) => p.startsWith("/admin/design"), superOnly: true },
+];
+
+// Окрема секція «Для розробника» (2026-10-04, рішення користувача) — лише для
+// сесії з SUPER_ADMIN_PASSWORD: звичайний адмін не бачить ні секції, ні
+// пунктів (а самі сторінки віддають йому 404).
+const DEV_ITEMS = [
+  { href: "/admin/api", label: "API", Icon: CodeIcon, match: (p) => p.startsWith("/admin/api") },
+  { href: "/admin/design", label: "Дизайн", Icon: SlidersIcon, match: (p) => p.startsWith("/admin/design") },
 ];
 
 /**
@@ -98,29 +104,39 @@ export function AdminShell({ children, superAdmin = false }) {
     router.refresh();
   }
 
+  const navLink = (onNavigate) =>
+    function NavLink({ href, label, Icon, match }) {
+      const isActive = match(pathname);
+      return (
+        <Link
+          key={href}
+          href={href}
+          className={`adm-nav-link${isActive ? " active" : ""}`}
+          onClick={onNavigate}
+          aria-current={isActive ? "page" : undefined}
+          // title — підказка при наведенні: у згорнутому десктопному
+          // сайдбарі текстовий span ховається CSS-ом, лишається саме
+          // іконка, і без title розпізнати пункт можна лише "на око".
+          title={label}
+        >
+          <span className="adm-nav-icon">
+            <Icon />
+          </span>
+          <span>{label}</span>
+        </Link>
+      );
+    };
+
   const navLinks = (onNavigate) => (
     <nav className="adm-nav">
-      {NAV_ITEMS.filter((item) => !item.superOnly || superAdmin).map(({ href, label, Icon, match }) => {
-        const isActive = match(pathname);
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={`adm-nav-link${isActive ? " active" : ""}`}
-            onClick={onNavigate}
-            aria-current={isActive ? "page" : undefined}
-            // title — підказка при наведенні: у згорнутому десктопному
-            // сайдбарі текстовий span ховається CSS-ом, лишається саме
-            // іконка, і без title розпізнати пункт можна лише "на око".
-            title={label}
-          >
-            <span className="adm-nav-icon">
-              <Icon />
-            </span>
-            <span>{label}</span>
-          </Link>
-        );
-      })}
+      {NAV_ITEMS.map(navLink(onNavigate))}
+      {superAdmin && (
+        <>
+          {/* У згорнутому сайдбарі підпис ховається, лишається риска-розділювач. */}
+          <span className="adm-nav-section">Для розробника</span>
+          {DEV_ITEMS.map(navLink(onNavigate))}
+        </>
+      )}
     </nav>
   );
 

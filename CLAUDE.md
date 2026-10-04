@@ -569,6 +569,13 @@ Prisma + Postgres (Neon). Нижче — рішення й правила, до 
   (create-only → ручна правка SQL при потребі → `migrate deploy`,
   ніколи `migrate reset`/`db push --accept-data-loss` без явного дозволу
   користувача).
+- **Опис API — `openapi.yaml`** у корені (2026-10-04). Новий, перейменований
+  чи видалений Route Handler = правка цього файлу в тому ж PR: `lib/openapi.test.ts`
+  звіряє його з `app/api/**/route.*` (шлях + метод) і валить CI при розбіжності.
+  Повні схеми тіл — для зовнішніх контрактів (`/api/data/*` Power Query, Telegram,
+  cron, health) і плеєра (answer, module-complete); решта — шлях, авторизація, коди.
+  `oasdiff` у CI (job `api-diff`) позначає ламаючі зміни в диффі PR. Перегляд —
+  Swagger UI на `/admin/api` (`components/ApiDocs.tsx`, пакет `swagger-ui-dist`).
 - Одноразові скрипти для перевірки/діагностики — `scratch-*.js` у корені
   проєкту, видаляти одразу після використання (не комітити).
 - **Комітити/пушити — ЛИШЕ на пряму команду користувача, щоразу окремо.**

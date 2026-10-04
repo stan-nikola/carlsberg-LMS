@@ -39,3 +39,29 @@ jobs:
 
       - name: Next.js build
         run: npm run build
+
+  # Ламаючі зміни описаних контрактів API (openapi.yaml, 2026-10-04): видалене
+  # поле, змінений тип, новий обов'язковий параметр — позначки прямо в диффі
+  # PR і в підсумку job. Збірку не валить: внутрішні ендпоінти міняються
+  # разом із клієнтами в тому ж PR, рішення за рев'ю. Найважливіше —
+  # /api/data/* (Power Query) і Telegram: там клієнт поза репозиторієм.
+  # review:false — специфікація не вивантажується на oasdiff.com, нічого не
+  # покидає CI. Дія закріплена на коміті тегу v0.1.18, не на рухомому тегу.
+  api-diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Base openapi.yaml
+        # У базовій гілці файлу ще може не бути (перший PR) — тоді порівнюємо з самим собою.
+        run: git show "origin/${{ github.base_ref }}:openapi.yaml" > base-openapi.yaml 2>/dev/null || cp openapi.yaml base-openapi.yaml
+
+      - uses: oasdiff/oasdiff-action/breaking@b9325c9e0a27ab65b0da3b766522cedec6be81dc # v0.1.18
+        with:
+          base: base-openapi.yaml
+          revision: openapi.yaml
+          review: "false"
+          github-token: ""
