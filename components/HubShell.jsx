@@ -122,7 +122,7 @@ export function HubShell({ children, isAdmin = false }) {
       <div className="course-col">
         <div className="course-card">
           <div className="appbar">
-            <PlatformBrand size="sm" />
+            <PlatformBrand size="sm" href="/hub" />
             {isAdmin && (
               <Link className="iconbtn" aria-label="Адмін-панель" href="/admin">
                 <LockIcon />

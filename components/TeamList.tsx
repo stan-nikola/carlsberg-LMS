@@ -217,7 +217,7 @@ export function TeamList({
                     </Link>
                   </td>
                   <td>
-                    <Link href={`/manager/team/${r.employeeId}?course=${encodeURIComponent(r.courseSlug)}`} className="mgr-team-course">
+                    <Link href={`/manager/team/${r.employeeId}?course=${encodeURIComponent(r.courseSlug)}`} className="mgr-team-course" title={r.courseTitle}>
                       {r.courseTitle}
                     </Link>
                   </td>

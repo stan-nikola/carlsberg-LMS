@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { PLATFORM_SHORT_NAME, PLATFORM_ABBREVIATION_EXPANSION, PLATFORM_HOP_LOGO_PATH } from "@/lib/branding";
 
 /**
@@ -29,6 +30,10 @@ import { PLATFORM_SHORT_NAME, PLATFORM_ABBREVIATION_EXPANSION, PLATFORM_HOP_LOGO
  * розшифровка), замість звичного рядка "лого ліворуч, текст праворуч".
  * Поки що лише для "xl" (реєстрація) — за проханням користувача.
  *
+ * `href` — лого стає посиланням на головний екран кабінету (дубль кнопки
+ * «Головна» в нижньому меню, як зазвичай у застосунках; 2026-10-04). Без
+ * `href` (реєстрація, скелетони) — звичайний блок.
+ *
  * `unoptimized`: іконка трилистка зникала на екрані входу (реальний баг,
  * знайдений користувачем) — `<img>` зависав на запиті до `/_next/image`
  * НАЗАВЖДИ (не помилка, не 404 — просто ніколи не завершувався; прямий
@@ -44,11 +49,15 @@ import { PLATFORM_SHORT_NAME, PLATFORM_ABBREVIATION_EXPANSION, PLATFORM_HOP_LOGO
 const LOGO_ASPECT = 1532 / 1417;
 const LOGO_HEIGHT = { xl: 64, lg: 38, sm: 30 };
 
-export function PlatformBrand({ size = "sm", stacked = false }) {
+export function PlatformBrand({ size = "sm", stacked = false, href }) {
   const height = LOGO_HEIGHT[size] ?? LOGO_HEIGHT.sm;
   const width = Math.round(height * LOGO_ASPECT);
+  const Tag = href ? Link : "div";
   return (
-    <div className={`platform-brand platform-brand-${size}${stacked ? " platform-brand-stacked" : ""}`}>
+    <Tag
+      className={`platform-brand platform-brand-${size}${stacked ? " platform-brand-stacked" : ""}`}
+      {...(href ? { href, "aria-label": "На головну", title: "На головну" } : {})}
+    >
       <Image
         src={PLATFORM_HOP_LOGO_PATH}
         alt=""
@@ -63,6 +72,6 @@ export function PlatformBrand({ size = "sm", stacked = false }) {
         <span className="platform-brand-name">{PLATFORM_SHORT_NAME}</span>
         <span className="platform-brand-full">{PLATFORM_ABBREVIATION_EXPANSION}</span>
       </span>
-    </div>
+    </Tag>
   );
 }

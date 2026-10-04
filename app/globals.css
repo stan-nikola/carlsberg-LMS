@@ -239,6 +239,16 @@ html:has(.stage--course-player:not([style*="display: none"])) {
   flex: 1;
   min-width: 0;
 }
+/* Лого-посилання на головну (PlatformBrand `href`) — виглядає як і було. */
+a.platform-brand {
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-btn);
+}
+a.platform-brand:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
 .platform-brand-xl {
   flex: none;
   gap: 12px;

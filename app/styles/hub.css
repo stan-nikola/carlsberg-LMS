@@ -210,6 +210,53 @@ a.profile-card-link:focus-visible {
   justify-content: center;
   font-size: 9px;
 }
+/* Бали / рейтинг / нагороди праворуч, текст і значення по центру плашки —
+   лише кабінет керівника на десктопі (ProfileCard `stats`); на телефоні
+   ховаємо — ширини не вистачає. Правий відступ — щоб не налазити на
+   трилисник .profile-card::after (130px від right:-18px, тобто ~112px від
+   краю картки) і лишити між ними повітря (користувач, 2026-10-04). */
+.profile-stats {
+  display: none;
+}
+@media (min-width: 900px) {
+  .profile-stats {
+    display: flex;
+    gap: 10px;
+    margin: 0 112px 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+  .profile-stats > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 2px;
+    min-width: 96px;
+    padding: 10px 14px;
+    border-radius: var(--radius-card);
+    background: var(--cb-white-overlay-10);
+  }
+  .profile-stats dt {
+    font-size: calc(10.8px * var(--fs-scale));
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.75;
+  }
+  .profile-stats dd {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: calc(19px * var(--fs-scale));
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .profile-stats-of {
+    font-size: 0.7em;
+    opacity: 0.75;
+  }
+}
 
 .xp-wrap {
   margin-bottom: 16px;
