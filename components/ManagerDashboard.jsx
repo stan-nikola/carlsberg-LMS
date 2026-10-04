@@ -142,6 +142,22 @@ const DEFAULT_CARD_W = {
   hardestQuestions: 6,
 };
 const MIN_CARD_W = 3;
+// Телефон (той самий поріг, що columnOpts нижче): картки йдуть звичайним
+// стовпчиком у потоці, а не абсолютними позиціями gridstack (manager.css,
+// @media max-width:599px). Висота «по вмісту» в кроках по 24px на телефоні
+// пливла (шрифти, анімація барів) — картки лишали дірки або налазили одна
+// на одну (скарга користувача, 2026-10-04). Перетягування тут вимкнене.
+const PHONE_QUERY = "(max-width: 599px)";
+const isPhone = () => typeof window !== "undefined" && window.matchMedia?.(PHONE_QUERY).matches;
+
+/** Порядок карток у телефонному стовпчику = порядок у розкладці (згори вниз, зліва направо). */
+function applyFlowOrder(grid) {
+  [...grid.engine.nodes]
+    .sort((a, b) => a.y - b.y || a.x - b.x)
+    .forEach((node, i) => {
+      if (node.el) node.el.style.order = String(i);
+    });
+}
 
 /** Збережена розкладка gridstack: масив {id,x,y,w}; будь-яке сміття → null. */
 function readStoredGrid() {
@@ -635,7 +651,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // не-static в ефекті нижче); наступне натискання вже тягне картку.
   // Обробники — на секції (делегування), а не на кожній картці.
   function handleCardPointerDown(e) {
-    if (editMode || !e.target?.closest?.("[data-card-id]")) return;
+    if (editMode || isPhone() || !e.target?.closest?.("[data-card-id]")) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     // Посилання й кнопки всередині картки — це клік, не «взяти картку».
     if (e.target.closest("a, button, input, select")) return;
@@ -766,6 +782,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       revealRaf = requestAnimationFrame(() => {
         if (!grid.el) return;
         if (fresh) grid.compact();
+        applyFlowOrder(grid);
         grid.setAnimation(true);
         el.classList.add("is-ready");
       });
@@ -774,6 +791,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // після прибирання картки) — у localStorage. h не зберігаємо: воно
     // щоразу рахується з вмісту.
     grid.on("change", () => {
+      applyFlowOrder(grid);
       const nodes = grid.save(false).map(({ id, x, y, w }) => ({ id, x, y, w }));
       try {
         window.localStorage.setItem(DASHBOARD_GRID_STORAGE_KEY, JSON.stringify(nodes));
@@ -846,6 +864,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       if (!item.gridstackNode) grid.makeWidget(item, { x: 0, y: bottom, w: Number(item.getAttribute("gs-w")) || 6, autoPosition: false });
     }
     grid.batchUpdate(false);
+    applyFlowOrder(grid);
   }, [visibleKey, orderKey]);
 
   // Режим перетягування ↔ static-сітка. Поза режимом картки не тягнуться
@@ -1101,7 +1120,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ) : (
             <button
               type="button"
-              className="mgr-dashboard-settings-btn"
+              className="mgr-dashboard-settings-btn mgr-dashboard-move-btn"
               onClick={() => setEditMode(true)}
               aria-label="Переставити картки"
               title="Переставити картки: перетягніть їх або утримуйте картку"
