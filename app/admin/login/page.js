@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
 
   return (
     <div className="admin-page" style={{ maxWidth: 360, paddingTop: "20vh" }}>
-      <h1>Адмін-панель</h1>
+      <h1>Адміністратор</h1>
       <form onSubmit={handleSubmit}>
         <div className="admin-field">
           <label className="admin-label" htmlFor="admin-password">

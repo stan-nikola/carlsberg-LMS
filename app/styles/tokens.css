@@ -70,6 +70,186 @@
      --cb-primary/--cb-primary-tint вище, той самий принцип "не на око". */
   --cb-primary-shadow: rgba(0, 50, 30, 0.55);
 
+  /* ---- Вторинні кольори бренду (Carlsberg Group design guide, 2026-10-04) ----
+     carlsberggroup.com → design guide → Colours: основні — Carlsberg green і
+     білий; вторинних сім: зелений 23-177-105 (= --cb-secondary), золото
+     180-145-50 (= --cb-tertiary), жовтий, синій, бірюзовий, бордовий,
+     лососевий. Правило гайду — у макеті лише ОДИН вторинний; користувач
+     свідомо обрав окремий колір для кожного великого елемента хабу й
+     кабінету керівника (на /admin/design є «Усі однаково» — повернутись до
+     правила одним кліком).
+     Кожен елемент — колір + вигляд (заливка / тон / контур / градієнт /
+     плоска) з конструктора CarLS Accents; фінальний вибір користувача
+     2026-10-04. Токени: --accent-<id> (сам колір: тінь, пульсація, кільце),
+     -bg, -fg (текст/значок, підібраний за контрастом WCAG), -bd (рамка).
+     Значення ГЕНЕРУЄ lib/accentPalette.ts accentTokenValues і дублюються
+     тут — accentPalette.test.ts звіряє, тож міняти разом із ACCENT_ELEMENTS.pick. */
+  --cb-brand-yellow: #ffb400;
+  --cb-brand-blue: #1e64aa;
+  --cb-brand-teal: #14a5b9;
+  --cb-brand-burgundy: #78283a;
+  --cb-brand-salmon: #f5a596;
+  /* Аватари-ініціали (.avatar): зелений глибокий, заливка */
+  --accent-avatar: color-mix(in srgb, var(--cb-secondary) 70%, var(--cb-black));
+  --accent-avatar-bg: color-mix(in srgb, var(--cb-secondary) 70%, var(--cb-black));
+  --accent-avatar-fg: var(--cb-white);
+  --accent-avatar-bd: var(--cb-white-overlay-50);
+  /* Кружки нагород (.badge-ico): зелений світлий, тон */
+  --accent-badge: color-mix(in srgb, var(--cb-secondary) 55%, var(--cb-white));
+  --accent-badge-bg: color-mix(in srgb, color-mix(in srgb, var(--cb-secondary) 55%, var(--cb-white)) 20%, var(--cb-white));
+  --accent-badge-fg: color-mix(in srgb, color-mix(in srgb, var(--cb-secondary) 55%, var(--cb-white)) 45%, var(--cb-black));
+  --accent-badge-bd: transparent;
+  /* Іконки курсів (.course-tile .ct-icon): зелений глибокий, тон */
+  --accent-course: color-mix(in srgb, var(--cb-secondary) 70%, var(--cb-black));
+  --accent-course-bg: color-mix(in srgb, color-mix(in srgb, var(--cb-secondary) 70%, var(--cb-black)) 20%, var(--cb-white));
+  --accent-course-fg: color-mix(in srgb, color-mix(in srgb, var(--cb-secondary) 70%, var(--cb-black)) 75%, var(--cb-black));
+  --accent-course-bd: transparent;
+  /* Кільце фото на зеленій картці: Carlsberg green */
+  --accent-ring: var(--cb-primary);
+  /* Зірка рівня (.lv-star): бірюзовий світлий, тон */
+  --accent-level: color-mix(in srgb, var(--cb-brand-teal) 55%, var(--cb-white));
+  --accent-level-bg: color-mix(in srgb, color-mix(in srgb, var(--cb-brand-teal) 55%, var(--cb-white)) 20%, var(--cb-white));
+  --accent-level-fg: color-mix(in srgb, color-mix(in srgb, var(--cb-brand-teal) 55%, var(--cb-white)) 45%, var(--cb-black));
+  --accent-level-bd: transparent;
+  /* Сертифікати (.cert-row, .cp-cert-block): золото світле, контур */
+  --accent-cert: color-mix(in srgb, var(--cb-tertiary) 55%, var(--cb-white));
+  --accent-cert-bg: var(--cb-white);
+  --accent-cert-fg: color-mix(in srgb, color-mix(in srgb, var(--cb-tertiary) 55%, var(--cb-white)) 50%, var(--cb-black));
+  --accent-cert-bd: color-mix(in srgb, var(--cb-tertiary) 55%, var(--cb-white));
+  /* Кружок банера тесту (.quiz-banner-ico): золото основне, заливка */
+  --accent-quiz: var(--cb-tertiary);
+  --accent-quiz-bg: var(--cb-tertiary);
+  --accent-quiz-fg: color-mix(in srgb, var(--cb-tertiary) 25%, var(--cb-black));
+  --accent-quiz-bd: transparent;
+  /* Іконки налаштувань (.settings-ico): зелений основний, тон */
+  --accent-settings: var(--cb-secondary);
+  --accent-settings-bg: color-mix(in srgb, var(--cb-secondary) 12%, var(--cb-white));
+  --accent-settings-fg: color-mix(in srgb, var(--cb-secondary) 60%, var(--cb-black));
+  --accent-settings-bd: transparent;
+  /* Решта елементів (прогрес, навігація, мітки, статуси; 2026-10-04): дефолт — «Як зараз»
+     або колір палітри, що збігається з тим, що було. Статус — один колір: пілюля (-bg/-fg),
+     сегмент, клітинка й точка плану (сам колір, текст на ньому -on), текст на білому (-text). */
+  /* Прогрес */
+  /* Смуга на картці курсу */
+  --accent-bar-course: var(--cb-primary);
+  /* Смуга рівня */
+  --accent-bar-xp: var(--cb-primary);
+  /* Смуга в плеєрі */
+  --accent-bar-player: var(--cb-primary);
+  /* Стовпчики діаграм */
+  --accent-bar-chart: var(--cb-primary);
+  /* Лінія плану курсу */
+  --accent-plan-line: var(--cb-secondary);
+  /* Кільце «З першої спроби» */
+  --accent-ring-chart: var(--cb-secondary);
+  /* Навігація і кнопки */
+  /* Капсула нижнього меню */
+  --accent-tabbar: var(--cb-primary);
+  --accent-tabbar-bg: var(--cb-primary);
+  --accent-tabbar-fg: var(--cb-white);
+  --accent-tabbar-bd: transparent;
+  /* Рамка бокового меню */
+  --accent-sidenav: var(--cb-secondary);
+  --accent-sidenav-bg: var(--surface);
+  --accent-sidenav-fg: var(--green-700);
+  --accent-sidenav-bd: var(--green-500);
+  --accent-sidenav-ico: var(--p-accent-text);
+  /* Головні кнопки */
+  --accent-btn: var(--cb-primary);
+  --accent-btn-bg: var(--cb-primary);
+  --accent-btn-fg: var(--cb-white);
+  --accent-btn-bd: transparent;
+  /* Другорядні кнопки */
+  --accent-btn2: var(--cb-primary);
+  --accent-btn2-bg: transparent;
+  --accent-btn2-fg: var(--cb-primary);
+  --accent-btn2-bd: var(--cb-primary);
+  /* Мітки і цифри */
+  /* Мітка «Новий» */
+  --accent-tag-new: var(--cb-secondary);
+  --accent-tag-new-bg: var(--cb-secondary-tint);
+  --accent-tag-new-fg: var(--p-accent-text);
+  --accent-tag-new-bd: transparent;
+  /* Крапка «нове» в меню */
+  --accent-nav-dot: var(--danger);
+  /* Плашка «+N балів» */
+  --accent-points-chip: var(--cb-tertiary);
+  --accent-points-chip-bg: linear-gradient(135deg, var(--gold), color-mix(in srgb, var(--cb-tertiary) 78%, var(--cb-black)));
+  --accent-points-chip-fg: color-mix(in srgb, var(--cb-tertiary) 25%, var(--cb-black));
+  --accent-points-chip-bd: transparent;
+  /* Лічильник дзвоника */
+  --accent-bell: var(--p-fail-solid);
+  --accent-bell-bg: var(--p-fail-solid);
+  --accent-bell-fg: var(--cb-white);
+  --accent-bell-bd: transparent;
+  /* Непрочитане сповіщення */
+  --accent-unread: var(--cb-secondary);
+  --accent-unread-bg: color-mix(in srgb, var(--cb-secondary) 12%, var(--cb-white));
+  --accent-unread-fg: color-mix(in srgb, var(--cb-secondary) 60%, var(--cb-black));
+  --accent-unread-bd: var(--cb-secondary);
+  /* Цифри балів і місця */
+  --accent-score: var(--cb-primary);
+  /* Мій рядок у лідерах */
+  --accent-lb-self: var(--green-700);
+  --accent-lb-self-bg: color-mix(in srgb, var(--green-700) 8%, var(--surface-1));
+  --accent-lb-self-fg: var(--ink);
+  --accent-lb-self-bd: var(--green-700);
+  /* Плашки на зеленій картці */
+  --accent-hero-stats: var(--cb-white);
+  --accent-hero-stats-bg: var(--cb-white-overlay-10);
+  --accent-hero-stats-fg: var(--cb-white);
+  --accent-hero-stats-bd: transparent;
+  /* Статуси */
+  /* Успіх: «Складено», «Вчасно» */
+  --accent-st-success: var(--cb-success);
+  --accent-st-success-bg: var(--cb-success-light);
+  --accent-st-success-fg: color-mix(in srgb, var(--cb-success) 45%, var(--cb-black));
+  --accent-st-success-bd: transparent;
+  --accent-st-success-on: var(--ink);
+  --accent-st-success-text: color-mix(in srgb, var(--cb-success) 45%, var(--cb-black));
+  /* Тривога: «Прострочено», «Не складено» */
+  --accent-st-fail: var(--p-fail-solid);
+  --accent-st-fail-bg: var(--cb-fail-light);
+  --accent-st-fail-fg: color-mix(in srgb, var(--cb-fail) 45%, var(--cb-black));
+  --accent-st-fail-bd: transparent;
+  --accent-st-fail-on: var(--cb-white);
+  --accent-st-fail-text: var(--p-danger-text);
+  /* Увага: «Відстає», «Перескласти» */
+  --accent-st-alert: var(--cb-alert);
+  --accent-st-alert-bg: var(--cb-alert-light);
+  --accent-st-alert-fg: var(--p-alert-pill-text);
+  --accent-st-alert-bd: transparent;
+  --accent-st-alert-on: var(--ink);
+  --accent-st-alert-text: var(--p-alert-pill-text);
+  /* В процесі: «В роботі», «Доступно» */
+  --accent-st-info: var(--p-info-solid);
+  --accent-st-info-bg: var(--cb-notification-light);
+  --accent-st-info-fg: color-mix(in srgb, var(--cb-notification) 45%, var(--cb-black));
+  --accent-st-info-bd: transparent;
+  --accent-st-info-on: var(--cb-white);
+  --accent-st-info-text: color-mix(in srgb, var(--cb-notification) 45%, var(--cb-black));
+
+  /* ---- Сприйняття кольорів (2026-10-04, /admin/design → «Сприйняття») ----
+     Рекомендації за WCAG і для дальтоніків, лише в межах палітри Malty:
+     де колір погано читається — темніший відтінок ТОГО Ж кольору, а не
+     новий. Дефолти нижче = як було (без прийняття не змінюється жоден
+     піксель); варіанти й пояснення — PERCEPTION_FIXES у lib/designTokens.ts.
+     Лише хаб, кабінет керівника й плеєр: адмінка скидає їх назад (admin.css). */
+  --p-danger-text: var(--danger);
+  --p-accent-text: var(--cb-secondary);
+  --p-alert-pill-text: color-mix(in srgb, var(--cb-alert) 55%, var(--cb-black));
+  --p-fail-solid: var(--cb-fail);
+  --p-info-solid: var(--cb-notification);
+  --p-failed-cell-bg: var(--p-fail-solid);
+  --p-failed-cell-ink: var(--cb-white);
+  --p-notstarted-bg: var(--p-info-solid);
+  --p-notstarted-ink: var(--cb-white);
+  --p-inactive-bg: var(--p-fail-solid);
+  --p-glyph-success: none;
+  --p-glyph-fail: none;
+  --p-glyph-alert: none;
+  --p-input-border: var(--line);
+
   /* ---- Sizes / spacing (sizes.json) ---- */
   --size-5xs: 2px;
   --size-4xs: 4px;

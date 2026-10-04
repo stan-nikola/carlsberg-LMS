@@ -1,7 +1,10 @@
 /**
  * Регульовані токени дизайн-системи (app/styles/tokens.css) — те, що крутить
- * стенд /admin/design (components/DesignStand.tsx). Кольори сюди свідомо не
- * входять (рішення користувача 2026-09-16: кольори не чіпаємо).
+ * стенд /admin/design (components/DesignStand.tsx). Кольори загалом сюди не
+ * входять (рішення користувача 2026-09-16) — крім кольорів великих помітних
+ * елементів хабу й кабінету керівника (2026-10-04): кожному свій колір і
+ * вигляд із палітри Carlsberg Group design guide (lib/accentPalette.ts).
+ * Готові системи їх не чіпають.
  *
  * Стенд пише значення в localStorage і на :root цього браузера
  * (DesignTokensOverride у app/layout.js), тобто це ПРЕВ’Ю: обраний набір
@@ -12,9 +15,153 @@ export type TokenDef =
   | { key: string; label: string; group: string; kind: "px"; min: number; max: number; step?: number; def: number }
   | { key: string; label: string; group: string; kind: "choice"; choices: { label: string; value: string }[]; def: string };
 
+/**
+ * Кольори великих елементів — палітра, стилі й токени в lib/accentPalette.ts
+ * (конструктор CarLS Accents, вибір користувача 2026-10-04). Тут лише група
+ * для whitelist і стенду.
+ */
+export const ACCENT_GROUP = "Кольори елементів";
+export {
+  ACCENT_COLORS,
+  ACCENT_ELEMENTS,
+  ACCENT_FAMILIES,
+  ACCENT_SHADES,
+  ACCENT_EXTRA_IDS,
+  STYLE_LABEL,
+  accentTokenValues,
+  allAccentValues,
+  colorById,
+  readAccent,
+  type AccentElement,
+  type AccentStyle,
+} from "@/lib/accentPalette";
+import { accentTokenDefs } from "@/lib/accentPalette";
+
+/**
+ * «Сприйняття кольорів» (2026-10-04): рекомендації за WCAG 2.2 і для
+ * дальтоніків, що НЕ виходять за палітру Malty — де колір погано читається,
+ * беремо темніший відтінок того ж кольору (так уже зроблено пілюлі статусів).
+ * Кожна — «як зараз» / «рекомендовано»; дефолт = як зараз (tokens.css --p-*).
+ * Контраст — відношення яскравостей за WCAG (текст ≥ 4.5, великі цифри й
+ * рамки полів ≥ 3). Лише хаб, кабінет керівника й плеєр.
+ */
+export const PERCEPTION_GROUP = "Сприйняття";
+const MIX_BLACK = (v: string, p: number) => `color-mix(in srgb, var(--${v}) ${p}%, var(--cb-black))`;
+export const PERCEPTION_FIXES = [
+  {
+    id: "danger-text",
+    area: "Читаємість",
+    title: "Червоний текст: «Прострочено», «Видалити», помилки",
+    problem: "Яскравий червоний на білому — 3.2:1, менше норми 4.5 для тексту. Тепер — темніший відтінок того ж червоного.",
+    contrast: [3.16, 4.65],
+    tokens: { "p-danger-text": ["var(--danger)", MIX_BLACK("cb-fail", 75)] },
+  },
+  {
+    id: "accent-text",
+    area: "Читаємість",
+    title: "Зелений текст: позначка «Новий», активна іконка меню",
+    problem: "Акцентний зелений як текст — 2.8:1, майже не читається дрібним. Тепер — глибший відтінок того ж зеленого.",
+    contrast: [2.79, 4.86],
+    tokens: { "p-accent-text": ["var(--cb-secondary)", MIX_BLACK("cb-secondary", 65)] },
+  },
+  {
+    id: "alert-pill",
+    area: "Читаємість",
+    title: "Пілюля «Відстає»",
+    problem: "Текст на жовтому фоні — 3.4:1. Тепер — темніший жовто-коричневий того ж тону.",
+    contrast: [3.41, 4.88],
+    tokens: { "p-alert-pill-text": [MIX_BLACK("cb-alert", 55), MIX_BLACK("cb-alert", 40)] },
+  },
+  {
+    id: "fail-solid",
+    area: "Читаємість",
+    title: "Білі цифри на червоному: полоса «Стан команди», матриця, лічильник дзвоника",
+    problem: "Білий на яскраво-червоному — 3.2:1. Фон стає на тон темнішим, цифри лишаються білими.",
+    contrast: [3.16, 4.65],
+    tokens: { "p-fail-solid": ["var(--cb-fail)", MIX_BLACK("cb-fail", 75)] },
+  },
+  {
+    id: "info-solid",
+    area: "Читаємість",
+    title: "Білий на синьому: «Доступно» в плані, «В процесі» в матриці",
+    problem: "Білий на синьому — 3.8:1. Фон на тон темніший, значки й цифри лишаються білими.",
+    contrast: [3.77, 4.56],
+    tokens: { "p-info-solid": ["var(--cb-notification)", MIX_BLACK("cb-notification", 85)] },
+  },
+  {
+    id: "failed-amber",
+    area: "Зміст статусів",
+    title: "«Не складено» в матриці — бурштиновий, як у плані курсу",
+    problem: "План курсу фарбує провалений модуль бурштиновим («спробуй ще раз»), а матриця керівника — червоним, як прострочення. Один стан — один колір. Світлий бурштиновий, щоб не злитися з насиченим жовтим «Відстає».",
+    contrast: null,
+    tokens: { "p-failed-cell-bg": ["var(--p-fail-solid)", "var(--cb-alert-light)"], "p-failed-cell-ink": ["var(--cb-white)", `color-mix(in srgb, var(--cb-alert) 40%, var(--cb-black))`] },
+  },
+  {
+    id: "notstarted-grey",
+    area: "Зміст статусів",
+    title: "«Не почали» в полосі команди — сірий",
+    problem: "Синій тут означає і «не почали», і «доступно», і «в процесі». Сірий «не почали» — як у матриці; синій лишається для «в роботі».",
+    contrast: null,
+    tokens: { "p-notstarted-bg": ["var(--p-info-solid)", "var(--cb-support-60)"], "p-notstarted-ink": ["var(--cb-white)", "var(--ink)"] },
+  },
+  {
+    id: "inactive-hatch",
+    area: "Зміст статусів",
+    title: "«Неактивні» — червоне штрихування",
+    problem: "«Неактивні» й «Прострочено» — однаковий червоний, на полосі їх не розрізнити. Штрихування того ж червоного: так само «проблема», але інша.",
+    contrast: null,
+    tokens: {
+      "p-inactive-bg": ["var(--p-fail-solid)", `repeating-linear-gradient(135deg, var(--p-fail-solid) 0 6px, ${MIX_BLACK("cb-fail", 55)} 6px 12px)`],
+    },
+  },
+  {
+    id: "glyphs",
+    area: "Дальтонізм",
+    title: "Значки на пілюлях статусу: ✓ ! ⏱",
+    problem: "~8% чоловіків погано розрізняють червоний і зелений: «Складено» й «Не складено» для них — дві однакові плашки. Значок дублює колір (лише де своєї іконки нема).",
+    contrast: null,
+    tokens: { "p-glyph-success": ["none", '"✓"'], "p-glyph-fail": ["none", '"!"'], "p-glyph-alert": ["none", '"⏱"'] },
+  },
+  {
+    id: "input-border",
+    area: "Рамки й поля",
+    title: "Рамки полів пошуку й вводу",
+    problem: "Світла рамка поля — 1.3:1, поле зливається з фоном і не видно, куди вводити (норма для меж полів — 3:1). Тепер — Malty support-80.",
+    contrast: [1.34, 3.97],
+    tokens: { "p-input-border": ["var(--line)", "var(--cb-support-80)"] },
+  },
+] as const;
+export type PerceptionFix = (typeof PERCEPTION_FIXES)[number]["id"];
+
+/** Значення токенів рекомендації: on — «рекомендовано», інакше — як зараз. */
+export function perceptionValues(id: PerceptionFix, on: boolean): TokenValues {
+  const fix = PERCEPTION_FIXES.find((f) => f.id === id)!;
+  return Object.fromEntries(Object.entries(fix.tokens).map(([k, [now, rec]]) => [k, on ? rec : now]));
+}
+export function readPerception(id: PerceptionFix, values: TokenValues): boolean {
+  return Object.entries(perceptionValues(id, true)).every(([k, v]) => values[k] === v);
+}
+function perceptionTokenDefs(): TokenDef[] {
+  return PERCEPTION_FIXES.flatMap((f) =>
+    Object.entries(f.tokens).map(([key, [now, rec]]) => ({
+      key,
+      label: f.title,
+      group: PERCEPTION_GROUP,
+      kind: "choice" as const,
+      choices: [
+        { label: "Як зараз", value: now },
+        { label: "Рекомендовано", value: rec },
+      ],
+      def: now,
+    }))
+  );
+}
+
 export const STORAGE_KEY = "carls-design-overrides";
 
 export const DESIGN_TOKENS: TokenDef[] = [
+  ...accentTokenDefs(ACCENT_GROUP),
+  ...perceptionTokenDefs(),
   { key: "radius-btn", label: "Кнопки", group: "Радіуси", kind: "px", min: 0, max: 24, def: 0 },
   { key: "radius-card", label: "Картки, таблиці, модалки", group: "Радіуси", kind: "px", min: 0, max: 24, def: 0 },
   { key: "radius-input", label: "Поля вводу", group: "Радіуси", kind: "px", min: 0, max: 16, def: 7 },
@@ -226,7 +373,8 @@ export function matchPreset(values: TokenValues): string | null {
   const defs = defaultValues();
   for (const p of DESIGN_PRESETS) {
     const full = { ...defs, ...p.values };
-    if (DESIGN_TOKENS.every((t) => (values[t.key] || defs[t.key]) === full[t.key])) return p.key;
+    // Акценти — не частина системи: обрані кольори не скасовують «Malty».
+    if (DESIGN_TOKENS.filter((t) => t.group !== ACCENT_GROUP && t.group !== PERCEPTION_GROUP).every((t) => (values[t.key] || defs[t.key]) === full[t.key])) return p.key;
   }
   return null;
 }

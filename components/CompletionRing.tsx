@@ -30,7 +30,7 @@ import Link from "next/link";
 export function CompletionRing({
   pct,
   label,
-  color = "var(--cb-secondary)",
+  color = "var(--accent-ring-chart)",
   href,
 }: {
   pct: number;

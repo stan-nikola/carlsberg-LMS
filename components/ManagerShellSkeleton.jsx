@@ -4,7 +4,7 @@ import { PlatformBrand } from "@/components/PlatformBrand";
 import { PageSkeleton } from "@/components/Skeleton";
 
 const NAV_ITEMS = [
-  { href: "/manager", label: "Головна", Icon: HomeIcon },
+  { href: "/manager", label: "Команда", Icon: HomeIcon },
   { href: "/manager/courses", label: "Курси", Icon: LearnIcon },
   { href: "/manager/achievements", label: "Досягнення", Icon: AchievementsIcon },
   { href: "/manager/profile", label: "Профіль", Icon: ProfileIcon },
@@ -18,7 +18,7 @@ const NAV_ITEMS = [
  * миттєвий каркас на час очікування. hasNewCourses ще невідомий — без
  * бейджа "нове".
  *
- * "Головна" одразу активна (перший пункт NAV_ITEMS = /manager, куди й
+ * "Команда" одразу активна (перший пункт NAV_ITEMS = /manager, куди й
  * веде layout за замовчуванням) — на відміну від таббару /hub, тут не
  * потрібен окремий трюк: .mgr-nav-link.active/.tab-btn.active керуються
  * чистим CSS (border/колір), без JS-виміру getBoundingClientRect. Дзвіночок/
@@ -76,7 +76,7 @@ export function ManagerShellSkeleton() {
       <nav className="tabbar mgr-tabbar" role="tablist" aria-hidden="true">
         {NAV_ITEMS.map(({ href, label, Icon }, i) => (
           <Link key={href} href={href} className={`tab-btn${i === 0 ? " active" : ""}`} role="tab" aria-label={label} tabIndex={-1}>
-            <span className="tab-btn-indicator" style={i === 0 ? { background: "var(--cb-primary)" } : undefined}>
+            <span className="tab-btn-indicator" style={i === 0 ? { background: "var(--accent-tabbar-bg)", color: "var(--accent-tabbar-fg)" } : undefined}>
               <Icon filled={i === 0} />
             </span>
           </Link>

@@ -15,7 +15,7 @@ import { finishLogout, prepareLogout } from "@/lib/logoutCleanup";
 const SIDEBAR_COLLAPSED_KEY = "manager-sidebar-collapsed";
 
 const NAV_ITEMS = [
-  { href: "/manager", label: "Головна", Icon: HomeIcon },
+  { href: "/manager", label: "Команда", Icon: HomeIcon },
   { href: "/manager/courses", label: "Курси", Icon: LearnIcon },
   { href: "/manager/achievements", label: "Досягнення", Icon: AchievementsIcon },
   { href: "/manager/profile", label: "Профіль", Icon: ProfileIcon },
@@ -34,7 +34,7 @@ const NAV_ITEMS = [
 
 /**
  * Каркас /manager — та сама 4-вкладкова структура, що в /hub (Команда ~
- * Головна, Курси, Досягнення, Профіль), але навігація адаптивна під
+ * «Головна» хабу, Курси, Досягнення, Профіль), але навігація адаптивна під
  * десктопний формат кабінету керівника (а не телефонна рамка):
  * - ≥900px (той самий брейкпоінт, що вже використовує .stage у
  *   globals.css для hub/desktop) — постійний сайдбар зліва.
@@ -57,7 +57,7 @@ function NavPending() {
   return <span className={`nav-pending${pending ? " is-pending" : ""}`} aria-hidden="true" />;
 }
 
-/** «Головна» лишається активною і на drill-down сторінках /manager/team/*
+/** «Команда» (до 2026-10-04 — «Головна») лишається активною і на drill-down сторінках /manager/team/*
  *  (2026-09-23): вони — підрозділи дашборда, окремого пункту меню не мають. */
 function isNavActive(pathname, href) {
   if (href === "/manager") return pathname === "/manager" || pathname.startsWith("/manager/team");
@@ -121,19 +121,56 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   // "Головна") без переписування розмітки.
   const navBadges = { "/manager/courses": hasNewCourses };
 
+  // Рамка активного пункту сайдбара — ОДНА (.mgr-nav-pill), що їде до
+  // натиснутого пункту, як кільце в методичці (CourseReview positionRing) і
+  // капсула мобільного таббару нижче (користувач, 2026-10-04). Їде одразу з
+  // кліку, не чекаючи, поки сторінка завантажиться; після навігації
+  // layout-ефект ставить її на справжній активний пункт. offsetTop/-Width
+  // відносно .mgr-nav (position:relative) — та сама схема, що в методичці.
+  const sideNavRef = useRef(null);
+  const sidePillRef = useRef(null);
+  const sideLinkRefs = useRef(new Map());
+  function moveSidePill(link, snap = false) {
+    const pill = sidePillRef.current;
+    if (!pill) return;
+    pill.style.opacity = link ? "1" : "0";
+    if (!link) return;
+    if (snap) pill.style.transition = "none";
+    pill.style.width = link.offsetWidth + "px";
+    pill.style.height = link.offsetHeight + "px";
+    pill.style.transform = `translate(${link.offsetLeft}px, ${link.offsetTop}px)`;
+    if (snap) {
+      void pill.offsetWidth; // застосувати без transition, потім повернути його
+      pill.style.transition = "";
+    }
+  }
+  useLayoutEffect(() => {
+    const activeHref = NAV_ITEMS.find((t) => isNavActive(pathname, t.href))?.href;
+    const link = activeHref ? sideLinkRefs.current.get(activeHref) : null;
+    moveSidePill(link);
+    if (!link) return;
+    // Згортання панелі анімує ширину пунктів — рамка йде слідом без пружини.
+    const ro = new ResizeObserver(() => moveSidePill(link, true));
+    ro.observe(link);
+    return () => ro.disconnect();
+  }, [pathname]);
+
   // Дефолтний prefetch на <Link> нижче — навмисно: під partialPrefetching
   // це один спільний App Shell на маршрут (не повний пререндер на кожне
   // посилання), і саме він робить перехід миттєвим. prefetch={false} з #72
   // мав сенс лише поки кліки перехоплював SPA-диспетчер — зараз він би
   // вимкнув механізм, на який навігація спирається.
   const navLinks = (
-    <nav className="mgr-nav">
+    <nav className="mgr-nav" ref={sideNavRef}>
+      <span className="mgr-nav-pill" ref={sidePillRef} aria-hidden="true" />
       {NAV_ITEMS.map(({ href, label, Icon }) => {
         const isActive = isNavActive(pathname, href);
         return (
           <Link
             key={href}
             href={href}
+            ref={(el) => { if (el) sideLinkRefs.current.set(href, el); else sideLinkRefs.current.delete(href); }}
+            onClick={(e) => moveSidePill(e.currentTarget)}
             className={`mgr-nav-link${isActive ? " active" : ""}`}
             aria-current={isActive ? "page" : undefined}
             title={label}

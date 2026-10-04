@@ -94,8 +94,8 @@
   height: 18px;
   padding: 0 5px;
   border-radius: var(--radius-pill);
-  background: var(--cb-fail);
-  color: var(--cb-white);
+  background: var(--accent-bell-bg);
+  color: var(--accent-bell-fg);
   font-family: var(--font-mono);
   font-size: 10.5px;
   font-weight: 700;
@@ -120,8 +120,8 @@
   text-decoration: none;
 }
 .ntf-item.unread {
-  border-color: var(--cb-secondary);
-  background: var(--green-tint);
+  border-color: var(--accent-unread-bd);
+  background: var(--accent-unread-bg);
   /* Непрочитане раз «дзижчить» при появі (демо-тур: buzz), по черзі. */
   animation: ntfBuzz 0.5s ease calc(350ms + var(--k, 0) * 90ms) 1;
 }
