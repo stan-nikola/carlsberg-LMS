@@ -19,7 +19,10 @@ type SearchParams = Record<string, string | string[] | undefined>;
  */
 export default async function ManagerTeamPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const me = await getCurrentUser();
-  const data = await getManagerTeamRows(me!.id);
+  // Лейаут рендериться паралельно зі сторінкою і сам переадресує на /register;
+  // без цього сторінка падала TypeError-ом у логах для гостя.
+  if (!me) return null;
+  const data = await getManagerTeamRows(me.id);
   const sp = await searchParams;
   const query = parseTeamQuery(sp);
   const result = applyTeamFilters(data.rows, data.people, query, { now: new Date(data.now), retried: new Set(data.retried) });

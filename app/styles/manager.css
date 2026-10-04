@@ -2739,3 +2739,34 @@ a.mgr-matrix-cell:focus-visible {
 .mgr-team-table tbody tr.is-flipping {
   transition: transform 0.45s ease;
 }
+
+/* Поява списків дашборда по черзі (користувач, 2026-10-05): картка, що
+   заїхала на екран, перемонтовується (ManagerDashboard: key за inView), і
+   рядки «Потребують уваги» виїжджають один за одним, а клітинки матриці
+   «люди × курси» спалахують хвилею зліва направо. */
+.mgr-attention-row {
+  animation: mgrRowIn 0.45s var(--ease-premium) both;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+@keyframes mgrRowIn {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+}
+.mgr-matrix-td .mgr-matrix-cell {
+  animation: mgrCellIn 0.4s var(--ease-spring) both;
+  animation-delay: calc(var(--c, 0) * 70ms + var(--r, 0) * 30ms);
+}
+@keyframes mgrCellIn {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mgr-attention-row,
+  .mgr-matrix-td .mgr-matrix-cell {
+    animation: none;
+  }
+}

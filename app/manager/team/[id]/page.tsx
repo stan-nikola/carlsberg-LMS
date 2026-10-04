@@ -24,14 +24,15 @@ type SearchParams = Record<string, string | string[] | undefined>;
  */
 export default async function ManagerPersonPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<SearchParams> }) {
   const me = await getCurrentUser();
+  if (!me) return null; // гостя переадресує лейаут (див. app/manager/team/page.tsx)
   const { id } = await params;
   const targetId = Number(id);
   if (!Number.isInteger(targetId) || targetId <= 0) notFound();
 
-  const subordinateIds = await getAllSubordinates(me!.id);
+  const subordinateIds = await getAllSubordinates(me.id);
   if (!subordinateIds.includes(targetId)) notFound();
 
-  const [data, detail] = await Promise.all([getManagerTeamRows(me!.id), getManagerEmployeeDetail(targetId)]);
+  const [data, detail] = await Promise.all([getManagerTeamRows(me.id), getManagerEmployeeDetail(targetId)]);
   const person = data.people.find((p) => p.id === targetId);
   if (!person) notFound();
 

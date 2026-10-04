@@ -144,7 +144,7 @@ export function TeamMatrix({ data }: { data: TeamMatrixData }) {
             </tr>
           </thead>
           <tbody>
-            {data.rows.map(({ person, cells }) => {
+            {data.rows.map(({ person, cells }, ri) => {
               const rowKey = String(person.id);
               return (
                 <tr key={person.id} style={{ height: sizeOf(sizes, "row", rowKey) }}>
@@ -159,8 +159,8 @@ export function TeamMatrix({ data }: { data: TeamMatrixData }) {
                       title="Потягніть, щоб змінити висоту · подвійний клік — скинути"
                     />
                   </th>
-                  {cells.map((cell) => (
-                    <td key={cell.courseSlug} className="mgr-matrix-td">
+                  {cells.map((cell, ci) => (
+                    <td key={cell.courseSlug} className="mgr-matrix-td" style={{ "--c": ci, "--r": ri } as React.CSSProperties}>
                       {cell.status ? (
                         <Link
                           href={`/manager/team/${person.id}?course=${encodeURIComponent(cell.courseSlug)}`}
