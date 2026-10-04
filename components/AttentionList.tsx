@@ -26,10 +26,10 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
         <p className="admin-hint">Усі за графіком — нагадувати нікому.</p>
       ) : (
         <ul className="mgr-attention-list">
-          {items.map(({ person, reasons }) => {
+          {items.map(({ person, reasons }, i) => {
             const primary = reasons[0];
             return (
-              <li key={person.id} className="mgr-attention-row">
+              <li key={person.id} className="mgr-attention-row" style={{ "--i": i } as React.CSSProperties}>
                 <Avatar name={person.name} src={person.avatarUrl} size="sm" />
                 <div className="mgr-attention-main">
                   <Link href={`/manager/team/${person.id}`} className="mgr-attention-name">

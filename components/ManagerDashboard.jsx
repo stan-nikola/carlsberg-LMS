@@ -32,6 +32,7 @@ import { TeamStatusBar } from "@/components/TeamStatusBar";
 import { pluralPeople } from "@/lib/teamInsights";
 import { AttentionList } from "@/components/AttentionList";
 import { TeamMatrix } from "@/components/TeamMatrix";
+import { CountUp } from "@/components/CountUp";
 import { ExportReportLink } from "@/components/ExportReportLink";
 
 // localStorage, не БД (рішення користувача, 2026-09-19) — вибір карток
@@ -587,6 +588,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // Скидання розкладки перемонтовує сітку (key на секції): простіше й
   // надійніше, ніж повертати кожній картці дефолт через API gridstack.
   const [gridEpoch, setGridEpoch] = useState(0);
+  // Сітка показана (.is-ready). До цього картки під visibility:hidden — графіки
+  // мають чекати, інакше відіграють заповнення невидимими (inView нижче).
+  const [gridReady, setGridReady] = useState(false);
   // Одним ефектом підхоплюємо всі збережені в localStorage налаштування
   // одразу після монтування на клієнті — до цього моменту дашборд показує
   // SSR-дефолт (ролевий набір карток, розмітковий порядок/розмір), потім
@@ -888,6 +892,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         if (fresh) grid.compact();
         grid.setAnimation(true);
         el.classList.add("is-ready");
+        setGridReady(true);
       });
     });
     // Будь-яка зміна позиції/ширини (перетягування, ресайз, гравітація
@@ -1096,6 +1101,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       grid.destroy(false);
       gridRef.current = null;
       el.classList.remove("is-ready");
+      setGridReady(false);
     };
   }, [hasData, storedGrid, gridEpoch]);
 
@@ -1286,6 +1292,43 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     return () => cancelAnimationFrame(id);
   }, [state.data]);
 
+  // Графіки картки заповнюються з нуля щоразу, як картка з’являється на
+  // екрані при прокрутці, а не лише раз при завантаженні (користувач,
+  // 2026-10-05): кільця крутяться, смуги й сегменти ростуть. Картка, що
+  // повністю пішла з екрана, скидається — наступного разу зіграє знову.
+  // -15% знизу: анімація стартує, коли картку вже видно, а не на самому краї.
+  const [inView, setInView] = useState(() => new Set());
+  const enabledKey = orderedIds.filter((id) => enabledCards.has(id)).join(",");
+  useEffect(() => {
+    const root = chartsRef.current;
+    if (!root || !gridReady || typeof IntersectionObserver === "undefined") return undefined;
+    const io = new IntersectionObserver(
+      (entries) =>
+        setInView((prev) => {
+          const next = new Set(prev);
+          for (const e of entries) {
+            const id = e.target.getAttribute("data-card-id");
+            if (e.isIntersecting) next.add(id);
+            else next.delete(id);
+          }
+          return next.size === prev.size && [...next].every((id) => prev.has(id)) ? prev : next;
+        }),
+      { rootMargin: "0px 0px -15% 0px" }
+    );
+    root.querySelectorAll("[data-card-id]").forEach((node) => io.observe(node));
+    return () => {
+      io.disconnect();
+      // Пішли з «Команди» (сторінка може лишитись у пам’яті роутера) —
+      // при поверненні все заповнюється з нуля знову.
+      setInView(new Set());
+    };
+  }, [enabledKey, state.data, gridReady, gridEpoch]);
+  const live = (id) => barsAnimated && inView.has(id);
+  // Число біля смуги «крутиться» одометром від 0 (той самий CountUp, що бали
+  // в картці профілю); key — щоб при новій появі картки рахувати знову.
+  // slot — коли в одному рядку два числа («3/7 · 43%»).
+  const n = (id, v, slot = "v") => <CountUp key={`${slot}-${live(id)}`} from={0} to={live(id) ? v : 0} />;
+
   const flatTeam = useMemo(() => (teamTree.data ? flattenTree(teamTree.data) : []), [teamTree.data]);
 
   // "Порівняння команд" (нова картка, блок АСМ) — кожен ПРЯМИЙ підлеглий
@@ -1459,7 +1502,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             </span>
             <ChartHint text="Кожна людина рівно в ОДНОМУ сегменті — за найгіршим своїм станом (прострочено → відстає → не почала → неактивна → за графіком). Число в сегменті — люди; друге число поруч у легенді — скільки курсів у цьому стані саме в цих людей. Клік відкриває список саме цих людей." />
           </h2>
-          <TeamStatusBar data={team.statusBar} />
+          <TeamStatusBar key={inView.has("status") ? "in" : "out"} data={team.statusBar} />
         </div>
           )],
 
@@ -1471,7 +1514,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <PeopleIcon /> <span className="mgr-card-title">Потребують уваги</span>
             <ChartHint text="П'ятеро найтерміновіших: прострочення важать найбільше, далі відставання від графіка, не розпочате й відсутність на платформі. Чипи називають одиницю («2 курси прострочено»), а «Нагадати» надсилає сповіщення з готовим текстом за причиною." />
           </h2>
-          <AttentionList items={team.attention} />
+          <AttentionList key={inView.has("attention") ? "in" : "out"} items={team.attention} />
         </div>
           )],
 
@@ -1485,10 +1528,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
               «Вчасно» веде до доповнення (хто НЕ вчасно), «Розпочали» —
               до тих, хто ще не почав: діяти треба саме по них. */}
           <div className="mgr-ring-grid">
-            <CompletionRing pct={stats.completionRate} label="Виконано" color={rateColor(stats.completionRate, ringValues)} href="/manager/team?view=courses&status=completed" />
-            <CompletionRing pct={stats.passRate} label="Складено (80%+)" color={rateColor(stats.passRate, ringValues)} href="/manager/team?view=courses&status=passed" />
-            <CompletionRing pct={stats.onTimeRate} label="Вчасно" color={rateColor(stats.onTimeRate, ringValues)} href="/manager/team?view=courses&timing=late" />
-            <CompletionRing pct={stats.startedRate} label="Розпочато" color={rateColor(stats.startedRate, ringValues)} href="/manager/team?view=courses&status=not_started" />
+            <CompletionRing active={inView.has("rings")} pct={stats.completionRate} label="Виконано" color={rateColor(stats.completionRate, ringValues)} href="/manager/team?view=courses&status=completed" />
+            <CompletionRing active={inView.has("rings")} pct={stats.passRate} label="Складено (80%+)" color={rateColor(stats.passRate, ringValues)} href="/manager/team?view=courses&status=passed" />
+            <CompletionRing active={inView.has("rings")} pct={stats.onTimeRate} label="Вчасно" color={rateColor(stats.onTimeRate, ringValues)} href="/manager/team?view=courses&timing=late" />
+            <CompletionRing active={inView.has("rings")} pct={stats.startedRate} label="Розпочато" color={rateColor(stats.startedRate, ringValues)} href="/manager/team?view=courses&status=not_started" />
           </div>
         </div>
           )],
@@ -1523,10 +1566,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                   <div className="mgr-trend-bar-track">
                     <div
                       className="mgr-trend-bar-fill"
-                      style={{ height: barsAnimated ? `${Math.max(4, (w.count / trendMax) * 100)}%` : "0%" }}
+                      style={{ height: live("trend") ? `${Math.max(4, (w.count / trendMax) * 100)}%` : "0%" }}
                     />
                   </div>
-                  <span className="mgr-trend-count">{w.count}</span>
+                  <span className="mgr-trend-count">{n("trend", w.count)}</span>
                   {/* Коротко, в одному стилі з «-1 тиж.»: повне «Цей тиждень» на
                       телефоні переносилось на два рядки, і стовпчик над ним
                       зсувався вгору відносно сусідів (2026-10-03). Повний
@@ -1561,10 +1604,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                     <div className="mgr-bar-track">
                       <div
                         className={`mgr-bar-fill${b.alert && b.count > 0 ? " mgr-bar-fill-alert" : ""}`}
-                        style={{ width: `${barsAnimated ? (b.count / deadlineMax) * 100 : 0}%` }}
+                        style={{ width: `${live("deadlines") ? (b.count / deadlineMax) * 100 : 0}%` }}
                       />
                     </div>
-                    <span className="mgr-bar-value">{b.count}</span>
+                    <span className="mgr-bar-value">{n("deadlines", b.count)}</span>
                   </Link>
                 </li>
               ))}
@@ -1593,10 +1636,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                     <div className="mgr-bar-track">
                       <div
                         className="mgr-bar-fill"
-                        style={{ width: `${barsAnimated ? (b.count / scoreDistMax) * 100 : 0}%` }}
+                        style={{ width: `${live("scoreDist") ? (b.count / scoreDistMax) * 100 : 0}%` }}
                       />
                     </div>
-                    <span className="mgr-bar-value">{b.count}</span>
+                    <span className="mgr-bar-value">{n("scoreDist", b.count)}</span>
                   </Link>
                 </li>
               ))}
@@ -1618,15 +1661,15 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <p className="admin-hint">Немає жодної завершеної спроби.</p>
           ) : (
             <div className="mgr-first-try-body">
-              <CompletionRing pct={stats.firstAttempt.pct} label="З першої спроби" />
+              <CompletionRing active={inView.has("firstTry")} pct={stats.firstAttempt.pct} label="З першої спроби" />
               <ul className="mgr-first-try-legend">
                 <li>
-                  <b>{stats.firstAttempt.passedFirst}</b>
+                  <b>{n("firstTry", stats.firstAttempt.passedFirst)}</b>
                   <span>склали одразу</span>
                 </li>
                 <li>
                   <Link href="/manager/team?view=courses&retried=1" className="mgr-card-link">
-                    <b>{stats.firstAttempt.retried}</b>
+                    <b>{n("firstTry", stats.firstAttempt.retried)}</b>
                     <span>з другої та далі</span>
                   </Link>
                 </li>
@@ -1658,11 +1701,11 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                       <div
                         className="mgr-bar-fill"
                         style={{
-                          width: `${barsAnimated ? (b.count / durationMax) * 100 : 0}%`,
+                          width: `${live("duration") ? (b.count / durationMax) * 100 : 0}%`,
                         }}
                       />
                     </div>
-                    <span className="mgr-bar-value">{b.count}</span>
+                    <span className="mgr-bar-value">{n("duration", b.count)}</span>
                   </li>
                 ))}
               </ul>
@@ -1709,10 +1752,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                         <span className="mgr-bar-label-main">{c.title}</span>
                       </Link>
                       <div className="mgr-bar-track">
-                        <div className="mgr-bar-fill" style={{ width: `${barsAnimated ? c.pct : 0}%` }} />
+                        <div className="mgr-bar-fill" style={{ width: `${live("courseBreakdown") ? c.pct : 0}%` }} />
                       </div>
                       <span className="mgr-bar-value">
-                        {c.completed}/{c.total} · {c.pct}%
+                        {n("courseBreakdown", c.completed, "a")}/{c.total} · {n("courseBreakdown", c.pct, "b")}%
                       </span>
                     </div>
                     {/* Воронка курсу: призначено → почали → склали → 100%;
@@ -1765,11 +1808,11 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                     <div className="mgr-bar-track">
                       <div
                         className="mgr-bar-fill mgr-bar-fill-alert"
-                        style={{ width: `${barsAnimated ? m.pct : 0}%` }}
+                        style={{ width: `${live("hardestModules") ? m.pct : 0}%` }}
                       />
                     </div>
                     <span className="mgr-bar-value">
-                      {m.failed}/{m.total} · {m.pct}%
+                      {n("hardestModules", m.failed, "a")}/{m.total} · {n("hardestModules", m.pct, "b")}%
                     </span>
                   </Link>
                 </li>
@@ -1791,7 +1834,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <PeopleIcon /> <span className="mgr-card-title">Люди × курси</span>
             <ChartHint text="Уся команда одним поглядом: рядок — людина (проблемні зверху), стовпчик — курс, клітинка — стан призначення. Клік по клітинці відкриває цей курс у цієї людини, по імені — сторінку людини, по назві курсу — усі призначення курсу." />
           </h2>
-          <TeamMatrix data={team.matrix} />
+          <TeamMatrix key={inView.has("peopleStatus") ? "in" : "out"} data={team.matrix} />
         </div>
           )],
 
@@ -1821,10 +1864,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                       {t.overdue > 0 ? <span className="mgr-bar-label-sub">{t.overdue} прострочено</span> : null}
                     </span>
                     <div className="mgr-bar-track">
-                      <div className="mgr-bar-fill" style={{ width: `${barsAnimated ? t.pct : 0}%` }} />
+                      <div className="mgr-bar-fill" style={{ width: `${live("teamCompare") ? t.pct : 0}%` }} />
                     </div>
                     <span className="mgr-bar-value">
-                      {t.completed}/{t.total} · {t.pct}%
+                      {n("teamCompare", t.completed, "a")}/{t.total} · {n("teamCompare", t.pct, "b")}%
                     </span>
                   </Link>
                 </li>
@@ -1870,10 +1913,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                     </span>
                   </span>
                   <div className="mgr-bar-track">
-                    <div className="mgr-bar-fill mgr-bar-fill-alert" style={{ width: `${barsAnimated ? q.pct : 0}%` }} />
+                    <div className="mgr-bar-fill mgr-bar-fill-alert" style={{ width: `${live("hardestQuestions") ? q.pct : 0}%` }} />
                   </div>
                   <span className="mgr-bar-value">
-                    {q.correct}/{q.total} · {q.pct}%
+                    {n("hardestQuestions", q.correct, "a")}/{q.total} · {n("hardestQuestions", q.pct, "b")}%
                   </span>
                 </li>
               ))}

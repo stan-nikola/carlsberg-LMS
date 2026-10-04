@@ -201,7 +201,7 @@ export function DesignStand() {
                   <p className="admin-hint">{fix.problem}</p>
                   <div className="ds-fix-compare">
                     {[false, true].map((rec) => (
-                      <div key={String(rec)} className="ds-fix-side" style={perceptionValues(fix.id, rec) as React.CSSProperties & Record<string, string>}>
+                      <div key={String(rec)} className="ds-fix-side" style={Object.fromEntries(Object.entries(perceptionValues(fix.id, rec)).map(([k, v]) => [`--${k}`, v])) as React.CSSProperties}>
                         <span className="ds-fix-label">
                           {rec ? "Рекомендовано" : "Як зараз"}
                           {fix.contrast && <em className={(rec ? fix.contrast[1] : fix.contrast[0]) >= (fix.id === "input-border" ? 3 : 4.5) ? "is-ok" : "is-bad"}>{(rec ? fix.contrast[1] : fix.contrast[0]).toFixed(1)}:1</em>}
