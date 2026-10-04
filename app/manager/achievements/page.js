@@ -27,7 +27,7 @@ export default async function ManagerAchievementsPage({ searchParams }) {
 
   return (
     <div className="manager-page manager-achievements-page">
-      <h1 className="greeting hub-greeting-h1">ВАШ ПРОГРЕС</h1>
+      <h1 className="greeting hub-greeting-h1">МІЙ ПРОГРЕС</h1>
       <AchievementsPanel
         rating={rating}
         badges={badges}

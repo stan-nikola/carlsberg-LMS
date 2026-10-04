@@ -47,7 +47,8 @@ const DEFAULT_URL = "/hub/notifications";
 self.addEventListener("install", () => self.skipWaiting());
 // v2 (2026-09-27): у v1 могли лишитись сторінки /admin і /manager з
 // чужими даними — activate нижче видаляє всі кеші з іншою назвою.
-const CACHE = "carls-offline-v2";
+// v3 (2026-10-04): скинути застарілі dev-чанки з кешу (див. DEV_HOST нижче).
+const CACHE = "carls-offline-v3";
 // Не кешуються ніколи: кабінет керівника, адмінка й профіль — персональні
 // дані, які на спільному телефоні польової команди після виходу одного
 // співробітника відкрились би офлайн наступному (аудит безпеки, S-M3).
@@ -69,6 +70,11 @@ self.addEventListener("activate", (event) =>
 // url фото йде в query-рядку: /_next/image?url=...&w=...&q=...) — окрема
 // перевірка, не той самий regex.
 const STATIC_ASSET = /^\/_next\/static\//;
+// На локальному dev-сервері (Turbopack) назви чанків НЕ міняються з кожною
+// правкою, тож stale-while-revalidate віддавав старий JS до нового CSS —
+// встановлена з localhost PWA поводилась «глючно» (2026-10-04). Тут —
+// network-first, як для сторінок; продакшн-збірка (хеш у назві) — як була.
+const DEV_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(self.location.hostname);
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
@@ -79,7 +85,7 @@ self.addEventListener("fetch", (event) => {
   // сам вирішує з власного Router Cache, без вимушеного мережевого
   // round-trip щоразу. Див. великий коментар на початку файла.
   if (url.searchParams.has("_rsc")) return;
-  const isStatic = STATIC_ASSET.test(url.pathname) || url.pathname === "/_next/image";
+  const isStatic = (STATIC_ASSET.test(url.pathname) && !DEV_HOST) || url.pathname === "/_next/image";
   event.respondWith(isStatic ? staleWhileRevalidate(event, req, url) : networkFirst(req, url));
 });
 

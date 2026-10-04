@@ -25,6 +25,8 @@ import { PageSkeleton, LinesSkeleton } from "@/components/Skeleton";
 import { Avatar } from "@/components/Avatar";
 import { ProfileCard } from "@/components/ProfileCard";
 import { MarqueeText } from "@/components/MarqueeText";
+import { startOneline, stopOneline, truncatedOnelineAt } from "@/lib/onelineMarquee";
+import { hasHoles, holeFillSteps, snapWidth, standardRows } from "@/lib/dashboardHeights";
 import { ManagerDashboardSettings } from "@/components/ManagerDashboardSettings";
 import { EnrollmentRow, formatDuration } from "@/components/EnrollmentRow";
 import { TeamStatusBar } from "@/components/TeamStatusBar";
@@ -117,15 +119,22 @@ const LONG_PRESS_MOVE_TOLERANCE_PX = 8;
 // картки «спливають» угору в порожнє місце (float:false), перетягування
 // з плейсхолдером і автоскролом сторінки біля краю. Зберігається лише
 // {x,y,w} по картках; старі ключі юнітів/пікселів ігноруються.
-const DASHBOARD_GRID_STORAGE_KEY = "carls_manager_dashboard_grid_v3";
+const DASHBOARD_GRID_STORAGE_KEY = "carls_manager_dashboard_grid_v4";
+// v3 — та сама розкладка, але y у клітинках по 24px; читаємо її, переводячи
+// y у нові клітинки, щоб розстановка керівника не загубилась.
+const LEGACY_GRID_STORAGE_KEY = "carls_manager_dashboard_grid_v3";
+const LEGACY_CELL_HEIGHT_PX = 24;
 const GRID_COLUMNS = 12;
-// Крок висоти. Дрібний — щоб картка «по вмісту» майже не мала повітря
-// знизу (округлення вгору не більше за одну клітинку).
-const GRID_CELL_HEIGHT_PX = 24;
+// Крок висоти. Висота «по вмісту» округлюється вгору до цілої клітинки, і
+// цей залишок стає повітрям під карткою — тобто зайвим проміжком до
+// сусідньої. При 24px він гуляв від 0 до 23px, і проміжки між картками
+// виходили різними (скарга користувача з iPhone, 2026-10-04); при 2px —
+// не більше 1px, на око рівно.
+const GRID_CELL_HEIGHT_PX = 2;
 // Половина проміжку між картками: gridstack ставить margin з кожного боку.
 const GRID_MARGIN_PX = 8;
-// Дефолтна ширина картки в колонках із 12; вужче за MIN_CARD_W картку не
-// стиснути — у 2 колонках (~180px) не читається жодна діаграма.
+// Дефолтна ширина картки в колонках із 12 — лише ¼/½/уся (3/6/12, див.
+// lib/dashboardHeights.ts snapWidth).
 const DEFAULT_CARD_W = {
   status: 6,
   attention: 6,
@@ -141,33 +150,44 @@ const DEFAULT_CARD_W = {
   teamCompare: 6,
   hardestQuestions: 6,
 };
-const MIN_CARD_W = 3;
-// Телефон (той самий поріг, що columnOpts нижче): картки йдуть звичайним
-// стовпчиком у потоці, а не абсолютними позиціями gridstack (manager.css,
-// @media max-width:599px). Висота «по вмісту» в кроках по 24px на телефоні
-// пливла (шрифти, анімація барів) — картки лишали дірки або налазили одна
-// на одну (скарга користувача, 2026-10-04). Перетягування тут вимкнене.
-const PHONE_QUERY = "(max-width: 599px)";
-const isPhone = () => typeof window !== "undefined" && window.matchMedia?.(PHONE_QUERY).matches;
-
-/** Порядок карток у телефонному стовпчику = порядок у розкладці (згори вниз, зліва направо). */
-function applyFlowOrder(grid) {
-  [...grid.engine.nodes]
-    .sort((a, b) => a.y - b.y || a.x - b.x)
-    .forEach((node, i) => {
-      if (node.el) node.el.style.order = String(i);
-    });
+// Мінімальна ширина за змістом (рішення користувача 2026-10-04): на ¼ —
+// лише картки з короткими рядками; кільця, тренд, списки — від ½; матриця
+// людей × курси — тільки на всю ширину.
+const QUARTER_CARDS = new Set(["status", "deadlines", "scoreDist", "firstTry", "duration"]);
+function minCardW(id) {
+  if (id === "peopleStatus") return 12;
+  return QUARTER_CARDS.has(id) ? 3 : 6;
+}
+/**
+ * Стежити за висотою кожної картки сітки І її прямих дітей: картка
+ * розтягнута на весь ряд (min-height:100%, manager.css), тож коли її вміст
+ * росте чи меншає, власна висота картки може й не змінитись — змінюються
+ * діти. observe() на вже підписаному елементі нічого не робить.
+ */
+function observeCards(root, observer) {
+  if (!root || !observer) return;
+  for (const card of root.querySelectorAll(":scope > .grid-stack-item > .grid-stack-item-content > *")) {
+    observer.observe(card);
+    for (const child of card.children) observer.observe(child);
+  }
 }
 
 /** Збережена розкладка gridstack: масив {id,x,y,w}; будь-яке сміття → null. */
 function readStoredGrid() {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(DASHBOARD_GRID_STORAGE_KEY);
+    let raw = window.localStorage.getItem(DASHBOARD_GRID_STORAGE_KEY);
+    let yScale = 1;
+    if (!raw) {
+      raw = window.localStorage.getItem(LEGACY_GRID_STORAGE_KEY);
+      yScale = LEGACY_CELL_HEIGHT_PX / GRID_CELL_HEIGHT_PX;
+    }
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return null;
-    return parsed.filter((n) => n && typeof n.id === "string" && Number.isInteger(n.x) && Number.isInteger(n.y) && Number.isInteger(n.w));
+    return parsed
+      .filter((n) => n && typeof n.id === "string" && Number.isInteger(n.x) && Number.isInteger(n.y) && Number.isInteger(n.w))
+      .map((n) => ({ ...n, y: n.y * yScale }));
   } catch {
     return null;
   }
@@ -578,6 +598,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // Екземпляр gridstack живе в ref, не в стані: React про його зміни
   // знати не мусить, вони не впливають на розмітку карток.
   const gridRef = useRef(null);
+  // Спостерігач висоти карток (ініціалізація сітки) — ефект видимості
+  // підписує на нього щойно ввімкнені картки.
+  const cardObserverRef = useRef(null);
+  const fitCardsRef = useRef(null);
   const [editMode, setEditMode] = useState(false);
   const longPressRef = useRef(null);
 
@@ -606,6 +630,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     try {
       window.localStorage.removeItem(DASHBOARD_ORDER_STORAGE_KEY);
       window.localStorage.removeItem(DASHBOARD_GRID_STORAGE_KEY);
+      window.localStorage.removeItem(LEGACY_GRID_STORAGE_KEY);
       // Ключі попередніх движків сітки — прибираємо заодно.
       window.localStorage.removeItem("carls_manager_dashboard_layout_v2");
       window.localStorage.removeItem("carls_manager_dashboard_spans_v1");
@@ -650,8 +675,31 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // в iOS. Саме перетягування далі веде gridstack (сітка стає
   // не-static в ефекті нижче); наступне натискання вже тягне картку.
   // Обробники — на секції (делегування), а не на кожній картці.
+  // Однорядкові підписи карток (lib/onelineMarquee.ts): миша — біжить, поки
+  // наведена; тап по обрізаному підпису — один прохід замість переходу за
+  // посиланням рядка, другий тап — уже звичайний перехід.
+  const lastPointerTypeRef = useRef("mouse");
+  function handleOnelineOver(e) {
+    if (e.pointerType !== "mouse") return;
+    const el = truncatedOnelineAt(e.target);
+    if (el) startOneline(el, false);
+  }
+  function handleOnelineOut(e) {
+    const el = e.target?.closest?.(".is-scrolling:not(.is-once)");
+    if (el && !el.contains(e.relatedTarget)) stopOneline(el);
+  }
+  function handleOnelineTap(e) {
+    if (lastPointerTypeRef.current === "mouse" || editMode) return;
+    const el = truncatedOnelineAt(e.target);
+    if (!el || el.classList.contains("is-scrolling")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    startOneline(el, true);
+  }
+
   function handleCardPointerDown(e) {
-    if (editMode || isPhone() || !e.target?.closest?.("[data-card-id]")) return;
+    lastPointerTypeRef.current = e.pointerType;
+    if (editMode || !e.target?.closest?.("[data-card-id]")) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     // Посилання й кнопки всередині картки — це клік, не «взяти картку».
     if (e.target.closest("a, button, input, select")) return;
@@ -709,7 +757,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         </button>
       ) : null;
       return (
-        <div key={id} className="grid-stack-item" data-card-id={id} gs-id={id} gs-w={DEFAULT_CARD_W[id] || 6} gs-min-w={MIN_CARD_W}>
+        <div key={id} className="grid-stack-item" data-card-id={id} gs-id={id} gs-w={DEFAULT_CARD_W[id] || 6} gs-min-w={minCardW(id)}>
           <div className="grid-stack-item-content">
             {cloneElement(node, { className: `${node.props.className}${editMode ? " is-editable" : ""}` })}
           </div>
@@ -744,7 +792,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         // місця на кожному перезавантаженні (скарга користувача,
         // 2026-09-24). Вмикаємо анімацію нижче, коли розкладка вже стала.
         animate: false,
-        sizeToContent: true,
+        // Висоти рахує fitCards нижче (по вмісту + вирівнювання ряду), не
+        // вбудований sizeToContent: той міряє саму картку, а вона розтягнута
+        // на висоту ряду, тож зменшитись після вирівнювання вже не могла б.
+        sizeToContent: false,
         staticGrid: true,
         // Телефон — один стовпчик, порядок зберігається (moveScale).
         columnOpts: { breakpoints: [{ w: 599, c: 1 }], breakpointForWindow: true, layout: "moveScale" },
@@ -772,6 +823,17 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // картками після першого заміру висот.
     const fresh = storedGrid.length === 0;
     if (!fresh) grid.load(storedGrid, false);
+    // Ширини лише ¼/½/уся (lib/dashboardHeights.ts): довільна ширина зі
+    // старої розкладки чи з ручки — до найближчої дозволеної. На телефоні
+    // (одна колонка) ширина одна для всіх — нічого не чіпаємо.
+    const snapWidths = () => {
+      if (grid.getColumn() !== GRID_COLUMNS) return;
+      for (const n of [...grid.engine.nodes]) {
+        const w = snapWidth(n.w, minCardW(n.id));
+        if (n.el && w !== n.w) grid.update(n.el, { w });
+      }
+    };
+    snapWidths();
     // Показуємо картки лише КОЛИ розкладка вже стала: init + load + перший
     // замір висот під вміст відбулись, але без анімації й під
     // visibility:hidden (.mgr-charts до .is-ready). Два кадри — щоб
@@ -782,7 +844,6 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       revealRaf = requestAnimationFrame(() => {
         if (!grid.el) return;
         if (fresh) grid.compact();
-        applyFlowOrder(grid);
         grid.setAnimation(true);
         el.classList.add("is-ready");
       });
@@ -791,7 +852,6 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // після прибирання картки) — у localStorage. h не зберігаємо: воно
     // щоразу рахується з вмісту.
     grid.on("change", () => {
-      applyFlowOrder(grid);
       const nodes = grid.save(false).map(({ id, x, y, w }) => ({ id, x, y, w }));
       try {
         window.localStorage.setItem(DASHBOARD_GRID_STORAGE_KEY, JSON.stringify(nodes));
@@ -810,8 +870,20 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // розтягування картки за ширину). Вимикаємо анімацію на весь грід на
     // час активного жесту (як і setAnimation(true) нижче в reveal —
     // той самий перемикач), вмикаємо назад на відпускання.
-    grid.on("dragstart resizestart", () => grid.setAnimation(false));
-    grid.on("dragstop resizestop", () => grid.setAnimation(true));
+    // Поки картку тягнуть чи міняють ширину — висоти не чіпаємо (інакше
+    // сусіди «повзуть» просто під рукою); перерахунок — на відпускання.
+    let gesture = false;
+    grid.on("dragstart resizestart", () => {
+      gesture = true;
+      grid.setAnimation(false);
+    });
+    grid.on("dragstop resizestop", () => {
+      gesture = false;
+      grid.setAnimation(true);
+      snapWidths();
+      // Ширину картки змінили — її вміст, а з ним S чи L, міг змінитись.
+      fitCardsRef.current?.();
+    });
     // Ширина секції міняється плавно (згортання бічної панелі — 250ms
     // анімації, вікно тягнуть мишею), а власний throttle gridstack ловить
     // лише ПЕРШИЙ кадр зміни й міг пропустити кінцеву ширину — картки
@@ -825,10 +897,92 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       settle = setTimeout(() => grid.el && grid.onResize(), 180);
     });
     observer.observe(el);
+    // Висоти карток (2026-10-04). Природна висота — від верху картки до низу
+    // її найнижчого блока (сама картка розтягнута на висоту клітинки й для
+    // цього не годиться). На десктопі — лише стандартні S або L = 2 × S
+    // (lib/dashboardHeights.ts standardRows): картки складаються як цеглинки,
+    // без дір. На телефоні (одна колонка) рівняти нема з чим — кожна картка
+    // рівно по вмісту, без повітря.
+    // Чому не вбудований перемір gridstack: він іде всередині batchUpdate,
+    // і там частина нових висот не застосовується (живий замір — вміст
+    // 439px, картка 200px), а після переходу в одну колонку нижню картку
+    // не відсуває (на телефоні «attention» 137…314, а «trend» на 168).
+    // Тому — по одній картці без batch і в кінці перевірка перетинів:
+    // compact("list") зберігає порядок і лише щільно складає (намірених
+    // проміжків при float:false і так не буває).
+    const naturalPx = (n) => {
+      const content = n.el.querySelector(".grid-stack-item-content");
+      const card = content?.firstElementChild;
+      if (!card) return 0;
+      const top = card.getBoundingClientRect().top;
+      let bottom = top;
+      for (const child of card.children) {
+        // + нижній margin блока (у <p>/<ul> він є) — інакше картка вилазила
+        // за свою клітинку на ці пікселі й з'їдала проміжок до сусідньої.
+        if (child.getClientRects().length) {
+          bottom = Math.max(bottom, child.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0));
+        }
+      }
+      const cs = getComputedStyle(card);
+      return bottom - top + parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth);
+    };
+    // Проміжок між картками по вертикалі = margin сітки зверху й знизу.
+    const GAP_PX = 2 * GRID_MARGIN_PX;
+    // grid.update() сам синхронно шле resizecontent — без прапорця fitCards
+    // викликав би себе ж нескінченно.
+    let fitting = false;
+    const fitCards = () => {
+      if (!grid.el || fitting || gesture) return;
+      fitting = true;
+      try {
+        const cell = grid.getCellHeight(true);
+        const phone = grid.getColumn() === 1;
+        const nodes = grid.engine.nodes.filter((n) => n.el).sort((a, b) => a.y - b.y || a.x - b.x);
+        // Міряємо без вертикального центрування вмісту (.is-measuring,
+        // manager.css): з ним блоки зсунуті вниз на половину вільного місця,
+        // і «природна» висота картки L ніколи не опустилась би назад до S.
+        // Клас знімається в тому ж кадрі — ResizeObserver цього не бачить.
+        el.classList.add("is-measuring");
+        const natural = new Map(nodes.map((n) => [n, naturalPx(n)]));
+        el.classList.remove("is-measuring");
+        // Згори вниз — щоб вирівнювання верхніх карток не смикало нижні двічі.
+        for (const n of nodes) {
+          const px = natural.get(n);
+          if (!px) continue;
+          const h = phone ? Math.ceil((px + GAP_PX) / cell) : standardRows(px, GAP_PX, cell);
+          if (n.h !== h) grid.update(n.el, { h });
+        }
+        // Перетин (не мав би бути) — ущільнити зі збереженням порядку. Діра
+        // (вільне місце, під яким ще картки: звузили картку, змінили S↔L) —
+        // ущільнити із заповненням дір: наступні картки займають вільне
+        // місце. Діра, яку жодна картка не закриває (ширини в ряду не дають
+        // 12), — розтягнути сусідню (holeFillSteps), по кроку за раз.
+        const sRows = standardRows(0, GAP_PX, cell);
+        for (let i = 0; i < 2 * nodes.length; i++) {
+          if (grid.engine.nodes.some((n) => grid.engine.collide(n))) grid.compact("list");
+          if (hasHoles(grid.engine.nodes, grid.getColumn())) grid.compact("compact");
+          if (phone) break;
+          const steps = holeFillSteps(grid.engine.nodes, grid.getColumn(), sRows, minCardW);
+          if (steps.length === 0) break;
+          for (const { id, ...change } of steps) grid.update(grid.engine.nodes.find((n) => n.id === id).el, change);
+        }
+      } finally {
+        fitting = false;
+      }
+    };
+    fitCardsRef.current = fitCards;
+    // Зміна ширини/колонок (onResize сітки) і зміна вмісту будь-якої картки.
+    grid.on("resizecontent", fitCards);
+    const cardObserver = new ResizeObserver(fitCards);
+    cardObserverRef.current = cardObserver;
+    observeCards(el, cardObserver);
     return () => {
       cancelAnimationFrame(revealRaf);
       clearTimeout(settle);
       observer.disconnect();
+      cardObserver.disconnect();
+      cardObserverRef.current = null;
+      fitCardsRef.current = null;
       grid.destroy(false);
       gridRef.current = null;
       el.classList.remove("is-ready");
@@ -864,22 +1018,22 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       if (!item.gridstackNode) grid.makeWidget(item, { x: 0, y: bottom, w: Number(item.getAttribute("gs-w")) || 6, autoPosition: false });
     }
     grid.batchUpdate(false);
-    applyFlowOrder(grid);
+    observeCards(el, cardObserverRef.current);
+    // Прибрана картка могла бути найвищою у своїй групі висоти.
+    fitCardsRef.current?.();
   }, [visibleKey, orderKey]);
+
+  // Вміст карток перемальовується з даними (скелетон → список, порожній
+  // стан → діаграма) — нові дочірні блоки теж мають бути під наглядом.
+  useEffect(() => {
+    observeCards(chartsRef.current, cardObserverRef.current);
+  });
 
   // Режим перетягування ↔ static-сітка. Поза режимом картки не тягнуться
   // і ручок немає — як і було з власним движком.
   useEffect(() => {
     gridRef.current?.setStatic(!editMode);
   }, [editMode, gridEpoch, hasData]);
-
-  // Вміст карток міняється після даних (дерево команди, найскладніші
-  // питання, анімація барів) — сітка міряє висоту сама (ResizeObserver у
-  // sizeToContent), тут лише підштовхуємо перерахунок, коли React уже
-  // домалював новий вміст.
-  useEffect(() => {
-    gridRef.current?.onResize();
-  }, [teamTree.data, hardestQuestions.items, barsAnimated, state.data]);
 
 
   // Клік повз картки виходить із режиму перетягування — як тап по вільному
@@ -1120,7 +1274,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ) : (
             <button
               type="button"
-              className="mgr-dashboard-settings-btn mgr-dashboard-move-btn"
+              className="mgr-dashboard-settings-btn"
               onClick={() => setEditMode(true)}
               aria-label="Переставити картки"
               title="Переставити картки: перетягніть їх або утримуйте картку"
@@ -1159,6 +1313,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         dbName={me.name}
         levelLabel={me.levelLabel}
         avatarUrl={me.avatarUrl}
+        stats={me.stats}
         href="/manager/achievements?highlight=rating"
       />
 
@@ -1176,6 +1331,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         onPointerMove={handleCardPointerMove}
         onPointerUp={cancelLongPress}
         onPointerCancel={cancelLongPress}
+        onPointerOver={handleOnelineOver}
+        onPointerOut={handleOnelineOut}
+        onClickCapture={handleOnelineTap}
       >
         {renderChartCards([
           /* Замість п'яти KPI-плиток (2026-09-23): полоса статусів команди
@@ -1187,7 +1345,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["status", enabledCards.has("status") && (
         <div className="mgr-chart-card">
           <h2>
-            <PeopleIcon /> Стан команди
+            <PeopleIcon /> <span className="mgr-card-title">Стан команди</span>
             <span className="admin-hint mgr-card-note">
               {team.statusBar.total} {pluralPeople(team.statusBar.total)} із призначеннями
             </span>
@@ -1202,7 +1360,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["attention", enabledCards.has("attention") && (
         <div className="mgr-chart-card">
           <h2>
-            <PeopleIcon /> Потребують уваги
+            <PeopleIcon /> <span className="mgr-card-title">Потребують уваги</span>
             <ChartHint text="П'ятеро найтерміновіших: прострочення важать найбільше, далі відставання від графіка, не розпочате й відсутність на платформі. Чипи називають одиницю («2 курси прострочено»), а «Нагадати» надсилає сповіщення з готовим текстом за причиною." />
           </h2>
           <AttentionList items={team.attention} />
@@ -1212,7 +1370,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["rings", enabledCards.has("rings") && (
         <div className="mgr-chart-card">
           <h2>
-            <RingsIcon /> Показники команди
+            <RingsIcon /> <span className="mgr-card-title">Показники команди</span>
             <ChartHint text="Усі чотири кільця рахують ПРИЗНАЧЕННЯ (людина × курс), лише знаменники різні: «Виконано» — частка доведених до кінця; «Складено» — з них ті, що набрали прохідний бал курсу; «Вчасно» — вкладені в дедлайн серед тих, де дедлайн уже вирішено; «Розпочато» — ті, де є будь-який рух. Скільки ЛЮДЕЙ у якому стані — у полосі «Стан команди» вгорі. Клік веде до того, по чому треба діяти: «Вчасно» — до тих, хто не вклався, «Розпочато» — до ще не розпочатих." />
           </h2>
           {/* Кожне кільце — посилання на список за тим самим критерієм:
@@ -1234,7 +1392,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["trend", enabledCards.has("trend") && (
         <div className="mgr-chart-card mgr-trend-card">
           <h2>
-            <CalendarIcon /> Активність по тижнях
+            <CalendarIcon /> <span className="mgr-card-title">Активність по тижнях</span>
             <ChartHint text="Скільки модулів команда склала кожного з останніх 6 тижнів — за реальними датами складання. Наведіть на стовпчик, щоб побачити, хто саме складав того тижня." />
           </h2>
           {weeklyTrend.every((w) => w.count === 0) ? (
@@ -1281,7 +1439,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["deadlines", enabledCards.has("deadlines") && (
         <div className="mgr-chart-card">
           <h2>
-            <ClockIcon /> Дедлайни на горизонті
+            <ClockIcon /> <span className="mgr-card-title">Дедлайни на горизонті</span>
             <ChartHint text="Незавершені призначення за тим, скільки лишилось до дедлайну. Завершені сюди не входять — у них дедлайн уже вирішено. Відповідає на питання «кому написати цього тижня», а не «що вже сталось»." />
           </h2>
           {deadlineTotal === 0 ? (
@@ -1313,7 +1471,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["scoreDist", enabledCards.has("scoreDist") && (
         <div className="mgr-chart-card">
           <h2>
-            <MedalIcon /> Розподіл балів
+            <MedalIcon /> <span className="mgr-card-title">Розподіл балів</span>
             <ChartHint text="Скільки завершених курсів потрапило в кожен діапазон балу. Показує розкид, який ховається за одним середнім балом. Межі тут — просто рівні відрізки шкали, а не прохідний бал: він свій у кожного курсу." />
           </h2>
           {scoreTotal === 0 ? (
@@ -1345,7 +1503,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["firstTry", enabledCards.has("firstTry") && (
         <div className="mgr-chart-card mgr-first-try-card">
           <h2>
-            <CheckIcon /> З першої спроби
+            <CheckIcon /> <span className="mgr-card-title">З першої спроби</span>
             <ChartHint text="Частка призначень, де ПЕРША ж спроба була успішною, серед усіх, де спроба взагалі була. Ті, хто склав із другого разу або не склав досі, знижують показник. Низьке значення при високому «Складено» — курс беруть повторами, а не з розуміння." />
           </h2>
           {stats.firstAttempt.total === 0 ? (
@@ -1377,7 +1535,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["duration", enabledCards.has("duration") && (
         <div className="mgr-chart-card">
           <h2>
-            <ClockIcon /> Час на проходження
+            <ClockIcon /> <span className="mgr-card-title">Час на проходження</span>
             <ChartHint text="Скільки часу займала одна спроба проходження. Поруч — МЕДІАНА, а не середнє: одна забута відкритою вкладка на три години зсунула б середнє так, що воно перестало б описувати команду. «У фокусі» — час, коли вкладка справді була активною; велика різниця між ним і загальним означає «відкрив і пішов»." />
           </h2>
           {stats.durations.total === 0 ? (
@@ -1420,7 +1578,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["courseBreakdown", enabledCards.has("courseBreakdown") && (
         <div className="mgr-chart-card">
           <h2>
-            <TrendIcon /> % складання по курсу
+            <TrendIcon /> <span className="mgr-card-title">% складання по курсу</span>
             <ChartHint text="Скільки людей РЕАЛЬНО склали курс (набрали його прохідний бал) із тих, кому він призначений. Той, хто дійшов до кінця й не набрав порогу, у зелену частину не рахується." />
           </h2>
           {stats.courseBreakdown.length === 0 ? (
@@ -1477,7 +1635,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["hardestModules", enabledCards.has("hardestModules") && (
         <div className="mgr-chart-card">
           <h2>
-            <CourseIcon /> Найскладніші модулі
+            <CourseIcon /> <span className="mgr-card-title">Найскладніші модулі</span>
             <ChartHint text="Модулі, які команда найчастіше провалює — за кількістю людей, що не набрали прохідний бал модуля. Сортування за кількістю провалів, а не за відсотком: «1 з 1» дало б 100% і витіснило б реально проблемний «3 з 8». Модулі без жодного провалу в список не потрапляють. «У середньому спроб» — скільки разів людині доводилось проходити модуль: 1.0 означає «склали з першого разу», більше — матеріал давався важко навіть тим, хто зрештою склав." />
           </h2>
           {stats.hardestModules.length === 0 ? (
@@ -1522,7 +1680,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["peopleStatus", enabledCards.has("peopleStatus") && (
         <div className="mgr-chart-card">
           <h2>
-            <PeopleIcon /> Люди × курси
+            <PeopleIcon /> <span className="mgr-card-title">Люди × курси</span>
             <ChartHint text="Уся команда одним поглядом: рядок — людина (проблемні зверху), стовпчик — курс, клітинка — стан призначення. Клік по клітинці відкриває цей курс у цієї людини, по імені — сторінку людини, по назві курсу — усі призначення курсу." />
           </h2>
           <TeamMatrix data={team.matrix} />
@@ -1536,7 +1694,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["teamCompare", enabledCards.has("teamCompare") && (
         <div className="mgr-chart-card" ref={teamCompareSectionRef}>
           <h2>
-            <PeopleIcon /> Порівняння команд
+            <PeopleIcon /> <span className="mgr-card-title">Порівняння команд</span>
             <ChartHint text="Для кожного прямого підлеглого — підсумок по ньому й усіх, хто під ним (не лише його власні призначення). Дозволяє побачити, чия команда відстає, а не лише загальний середній по всіх одразу." />
           </h2>
           {!teamTree.data ? (
@@ -1576,7 +1734,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           ["hardestQuestions", enabledCards.has("hardestQuestions") && (
         <div className="mgr-chart-card">
           <h2>
-            <CourseIcon /> Найскладніші питання
+            <CourseIcon /> <span className="mgr-card-title">Найскладніші питання</span>
             <ChartHint text="Питання (не цілі модулі), на яких команда найчастіше помиляється, по всіх курсах разом. Точніше за «Найскладніші модулі» — показує конкретне питання, яке варто переформулювати чи пояснити в матеріалі. Питання з менш ніж 3 відповідями в список не потрапляють." />
           </h2>
           {hardestQuestions.loading ? (
@@ -1622,7 +1780,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       <section className="mgr-section" ref={teamTreeSectionRef}>
         <div className="mgr-team-header">
           <h2>
-            <PeopleIcon /> Детально по команді
+            <PeopleIcon /> <span className="mgr-card-title">Детально по команді</span>
           </h2>
           <div className="mgr-team-controls">
             <select className="admin-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>

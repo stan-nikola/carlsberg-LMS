@@ -23,7 +23,7 @@ export default async function HubAchievementsPage({ searchParams }) {
 
   return (
     <section className="hub-screen">
-      <h1 className="greeting hub-greeting-h1">ВАШ ПРОГРЕС</h1>
+      <h1 className="greeting hub-greeting-h1">МІЙ ПРОГРЕС</h1>
       <AchievementsPanel
         rating={rating}
         badges={badges}

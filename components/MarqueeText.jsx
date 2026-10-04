@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 // швидкість читання бігучого рядка, -20% (перший запит), потім ще -15%
 // (другий запит) — сукупно ×0.8×0.85 від бази.
 const MARQUEE_BASE_SPEED_PX_PER_SEC = 50;
-const MARQUEE_SPEED_PX_PER_SEC = MARQUEE_BASE_SPEED_PX_PER_SEC * 0.8 * 0.85;
+export const MARQUEE_SPEED_PX_PER_SEC = MARQUEE_BASE_SPEED_PX_PER_SEC * 0.8 * 0.85;
 // @keyframes marquee-scroll (app/globals.css) тримає текст нерухомим
 // перші й останні 15% циклу (читабельна пауза замість завжди-в-русі) —
 // сам рух займає лише середні 70% загальної тривалості. Ділимо на цю ж

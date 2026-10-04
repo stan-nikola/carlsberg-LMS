@@ -15,7 +15,7 @@ import { finishLogout, prepareLogout } from "@/lib/logoutCleanup";
 const SIDEBAR_COLLAPSED_KEY = "manager-sidebar-collapsed";
 
 const NAV_ITEMS = [
-  { href: "/manager", label: "Команда", Icon: HomeIcon },
+  { href: "/manager", label: "Головна", Icon: HomeIcon },
   { href: "/manager/courses", label: "Курси", Icon: LearnIcon },
   { href: "/manager/achievements", label: "Досягнення", Icon: AchievementsIcon },
   { href: "/manager/profile", label: "Профіль", Icon: ProfileIcon },
@@ -57,7 +57,7 @@ function NavPending() {
   return <span className={`nav-pending${pending ? " is-pending" : ""}`} aria-hidden="true" />;
 }
 
-/** «Команда» лишається активною і на drill-down сторінках /manager/team/*
+/** «Головна» лишається активною і на drill-down сторінках /manager/team/*
  *  (2026-09-23): вони — підрозділи дашборда, окремого пункту меню не мають. */
 function isNavActive(pathname, href) {
   if (href === "/manager") return pathname === "/manager" || pathname.startsWith("/manager/team");
@@ -118,7 +118,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   // Поки що єдине джерело маркера "нове" — недавно призначені курси, але
   // тримаємо це окремим прапорцем на пункт меню (не просто на "Курси"
   // напряму), щоб згодом легко додати ще один сигнал (напр. зміни в
-  // "Команда") без переписування розмітки.
+  // "Головна") без переписування розмітки.
   const navBadges = { "/manager/courses": hasNewCourses };
 
   // Дефолтний prefetch на <Link> нижче — навмисно: під partialPrefetching
@@ -191,7 +191,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
           блок «ім’я · посада» знизу прибрано — він і так у профілі. */}
       <aside className={`mgr-sidebar${collapsed ? " is-collapsed" : ""}`}>
         <div className="mgr-sidebar-brand">
-          <PlatformBrand size="lg" />
+          <PlatformBrand size="lg" href="/manager" />
         </div>
         {/* Дзвіночок — у тому ж стовпчику, що й іконки розділів, нижче лого. */}
         <div className="mgr-nav-bell">
@@ -221,7 +221,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
 
       {/* ---- Мобільний (<900px): верхній appbar ---- */}
       <header className="mgr-appbar">
-        <PlatformBrand size="sm" />
+        <PlatformBrand size="sm" href="/manager" />
         <NotificationBell href="/manager/notifications" />
         <button type="button" className="iconbtn" aria-label="Налаштування" title="Налаштування" onClick={() => setSettingsOpen(true)}>
           <GearIcon />

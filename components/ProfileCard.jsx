@@ -18,15 +18,19 @@ let avatarFlipPlayed = false;
 
 /**
  * @param {{ dbName: string, levelLabel: string,
- *   avatarUrl?: string | null, editable?: boolean, href?: string }} props
+ *   avatarUrl?: string | null, editable?: boolean, href?: string,
+ *   stats?: { points: number, rank: number | null, cohortSize: number, badgesCount: number } }} props
  * `href` (лише на Home, `/hub/achievements?highlight=rating`) — уся
  * картка стає посиланням туди; лише коли не `editable` — усередині
  * editable-картки вже є власна кнопка (аватар), вкладений `<a>` навколо
  * `<button>` невалідний. Рядок "Ще N балів..." під карткою (був тут
  * 2026-09-22) прибрано зовсім третьою ітерацією того самого дня —
  * повна картка рейтингу вже є на "Досягнення", куди клік і веде.
+ * `stats` (лише кабінет керівника, 2026-10-04) — бали, місце серед своєї
+ * посади й кількість нагород праворуч у картці; видно лише на десктопі
+ * (.profile-stats, hub.css) — на телефоні картці бракує ширини.
  */
-export function ProfileCard({ dbName, levelLabel, avatarUrl = null, editable = false, href }) {
+export function ProfileCard({ dbName, levelLabel, avatarUrl = null, editable = false, href, stats }) {
   const displayName = dbName;
   const cardRef = useRef(null);
 
@@ -158,6 +162,26 @@ export function ProfileCard({ dbName, levelLabel, avatarUrl = null, editable = f
           {editable && !avatar && !busy && !avatarError && <div className="profile-avatar-hint">Торкніться кружка, щоб додати фото</div>}
           {avatarError && <div className="profile-avatar-hint is-error">{avatarError}</div>}
         </div>
+        {stats && (
+          <dl className="profile-stats">
+            <div>
+              <dt>Бали</dt>
+              <dd>{stats.points.toLocaleString("uk-UA")}</dd>
+            </div>
+            {stats.rank != null && (
+              <div>
+                <dt>Рейтинг</dt>
+                <dd>
+                  № {stats.rank} <span className="profile-stats-of">з {stats.cohortSize}</span>
+                </dd>
+              </div>
+            )}
+            <div>
+              <dt>Нагороди</dt>
+              <dd>{stats.badgesCount}</dd>
+            </div>
+          </dl>
+        )}
       </div>
     </CardTag>
   );

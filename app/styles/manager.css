@@ -139,10 +139,14 @@ body:has(.manager-shell:not([style*="display: none"])) {
 .mgr-page-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  /* Заголовок по центру висоти кнопок праворуч, а не по їхньому верху; і
+     щільніше до шапки застосунку й до зеленої картки (користувач,
+     2026-10-04). Від’ємний верх з’їдає частину верхнього паддингу
+     .manager-page лише тут — інші сторінки кабінету його не мають. */
+  align-items: center;
   justify-content: space-between;
   gap: 10px 16px;
-  margin-bottom: 16px;
+  margin: -6px 0 8px;
 }
 .mgr-page-header h1 {
   margin-bottom: 0;
@@ -721,21 +725,16 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   margin-left: auto;
   white-space: nowrap;
 }
-/* У вузькій картці (3–4 колонки з 12) примітка не вміщається поруч із
-   назвою й вилазила за правий край (скарга користувача, 2026-09-24) —
-   переносимо її окремим рядком під назву, дрібнішим шрифтом. Поріг — від
-   ширини САМОЇ картки (@container mgr-chart), не вікна. */
-@container mgr-chart (max-width: 460px) {
-  .mgr-chart-card > h2 {
-    flex-wrap: wrap;
-  }
-  .mgr-card-note {
-    flex-basis: 100%;
-    order: 10;
-    margin-left: 0;
-    white-space: normal;
-    font-size: 11px;
-  }
+/* Заголовок картки — завжди один рядок (рішення користувача 2026-10-04,
+   замість переносу примітки під назву у вузькій картці): назва й примітка
+   стискаються з «…» і біжать на вимогу (блок «Однорядкові підписи» нижче). */
+.mgr-chart-card > h2 {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.mgr-chart-card > h2 > .mgr-card-title,
+.mgr-chart-card > h2 > .mgr-card-note {
+  flex: 0 1 auto;
 }
 .mgr-attention-all {
   align-self: flex-start;
@@ -803,15 +802,24 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
 .is-done .mgr-status-dot {
   background: var(--ink-soft);
 }
+/* Стовпчиком, по одному стану в рядок (користувач, 2026-10-04): картка
+   стоїть в одній групі висоти з «Дедлайнами»/«Розподілом балів», і легенда
+   заповнює її донизу, а не лежить двома рядками зверху з порожнечею під ними. */
 .mgr-status-legend {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
+  flex-direction: column;
+  gap: 6px;
 }
+/* Один рядок на стан, без переносу: інакше у вузькій картці легенда
+   ставала вищою, а з нею — уся група висоти (HEIGHT_GROUPS), і картки
+   «росли разом», щойно «Стан команди» звужували (2026-10-04). */
 .mgr-status-legend-item {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1335,11 +1343,78 @@ a.mgr-matrix-cell:focus-visible {
   width: auto;
   flex: 0 0 auto;
 }
+/* Таблиця «Команда» — як Excel, за зразком журналу /admin/audit
+   (.audit-grid, admin.css): сітка ліній між клітинками, текст в один рядок,
+   таблиця ширша за екран — скрол уліво-вправо всередині рамки, шапка й
+   колонки «вибір + людина» закріплені. До 2026-10-04 на телефоні назва курсу
+   ламалась по складах у колонці шириною з три літери (скарга користувача). */
 .mgr-table-wrap {
-  overflow-x: auto;
+  max-width: 100%;
+  max-height: min(72vh, 960px);
+  overflow: auto;
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
 }
-.mgr-team-table tbody tr.is-selected {
+/* overflow:visible і без власної рамки: .admin-table має overflow:hidden і
+   рамку з радіусом — з ними липкі клітинки не липнуть (таблиця сама стає
+   контейнером прокрутки), а рамка дублювала б рамку обгортки. */
+.mgr-team-table {
+  width: max-content;
+  min-width: 100%;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+.mgr-team-table th,
+.mgr-team-table td {
+  white-space: nowrap;
+  padding: 6px 10px;
+  background: var(--surface);
+  border-right: var(--border-w) solid var(--line);
+  border-bottom: var(--border-w) solid var(--line);
+}
+.mgr-team-table tr > :last-child {
+  border-right: none;
+}
+.mgr-team-table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--surface-1) 55%, var(--surface));
+}
+.mgr-team-table tbody tr:hover td {
+  background: var(--green-tint);
+}
+.mgr-team-table tbody tr.is-selected td {
   background: var(--cb-secondary-tint);
+}
+.mgr-team-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-1);
+}
+/* Закріплені колонки: прапорець (фіксованої ширини) і людина одразу за ним. */
+.mgr-team-table tr > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 40px;
+  min-width: 40px;
+  text-align: center;
+}
+.mgr-team-table tr > :nth-child(2) {
+  position: sticky;
+  left: 40px;
+  z-index: 1;
+  max-width: min(46vw, 280px);
+}
+.mgr-team-table thead tr > :nth-child(-n + 2) {
+  z-index: 3;
+}
+.mgr-team-course {
+  display: block;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .mgr-team-table .mgr-num {
   text-align: right;
@@ -1360,17 +1435,25 @@ a.mgr-matrix-cell:focus-visible {
   color: var(--ink);
   text-decoration: none;
 }
+.mgr-team-person {
+  max-width: 100%;
+}
 .mgr-team-person-text {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+.mgr-team-person-text > *,
+.mgr-team-table td > .mgr-team-person-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .mgr-team-person-name,
 .mgr-team-course {
   color: var(--ink);
   font-weight: 600;
   text-decoration: none;
-  overflow-wrap: anywhere;
 }
 .mgr-team-person:hover .mgr-team-person-name,
 .mgr-team-person-name:hover,
@@ -1381,10 +1464,10 @@ a.mgr-matrix-cell:focus-visible {
   text-decoration: underline;
   outline: none;
 }
-.mgr-team-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+/* Клас стоїть на самій <td>: display:flex виривав клітинку з таблиці —
+   рамка під нею йшла окремо від рядка (скріншот користувача з iPhone). */
+.mgr-team-status > * + * {
+  margin-left: 4px;
 }
 
 /* ---- Шапка drill-down сторінок (/manager/team, /manager/team/[id]):
@@ -1774,12 +1857,14 @@ a.mgr-matrix-cell:focus-visible {
 .mgr-chart-card > h2 {
   flex: none;
 }
-/* Довгі списки не роздувають картку на кілька екранів — стеля, далі
-   скрол усередині тіла картки. Решта карток — рівно по вмісту. */
+/* Довгі списки не роздувають картку — стеля, далі скрол усередині тіла.
+   440px — щоб картка зі списком (заголовок + список + паддінги) вміщалась у
+   стандартну висоту L = 576px (lib/dashboardHeights.ts, CARD_S_PX × 2 +
+   проміжок) і ніколи не вилазила за свою клітинку. */
 .mgr-chart-card > .mgr-matrix-wrap,
 .mgr-chart-card > ul {
   min-height: 0;
-  max-height: 520px;
+  max-height: 440px;
   overflow: auto;
 }
 /* Стовпчики тренду задані у відсотках від доріжки — їй потрібна власна
@@ -1941,47 +2026,25 @@ a.mgr-matrix-cell:focus-visible {
   container-type: inline-size;
   container-name: mgr-chart;
 }
+/* Підпис · смуга · значення — ЗАВЖДИ одним рядком, на будь-якій ширині
+   картки (рішення користувача 2026-10-04): підпис не переноситься, а
+   стискається з «…» і біжить на вимогу (блок «Однорядкові підписи»). */
 .mgr-bar-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "label label"
-    "track value";
+  /* Підпису — більша частка: у вузькій картці (3 з 12) смуга 1.2fr з’їдала
+     підпис до «Простроч…». */
+  grid-template-columns: minmax(0, 1.6fr) minmax(40px, 1fr) auto;
+  grid-template-areas: "label track value";
   align-items: center;
-  gap: 4px 12px;
+  gap: 10px;
 }
-@container mgr-chart (min-width: 260px) {
-  .mgr-bar-row {
-    grid-template-columns: minmax(0, 1fr) minmax(56px, 1.6fr) auto;
-    grid-template-areas: "label track value";
-    gap: 12px;
-  }
-  /* Дворядковому підпису (назва модуля + курс) в один рядок треба
-     помітно більше місця, ніж «10-20 хв», інакше він розсипається на
-     три рядки в колонці шириною 100px. */
-  .mgr-bar-row:has(.mgr-bar-label-stack) {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "label label"
-      "track value";
-    gap: 4px 12px;
-  }
-}
-@container mgr-chart (min-width: 440px) {
-  .mgr-bar-row:has(.mgr-bar-label-stack) {
-    grid-template-columns: minmax(0, 1.4fr) minmax(56px, 1fr) auto;
-    grid-template-areas: "label track value";
-    gap: 12px;
-  }
+/* Двоповерховому підпису (назва модуля + курс) — більша частка ширини. */
+.mgr-bar-row:has(.mgr-bar-label-stack) {
+  grid-template-columns: minmax(0, 2fr) minmax(40px, 1fr) auto;
 }
 .mgr-bar-label {
-  /* Звичайний перенос, не MarqueeText (правило сіток у CLAUDE.md): у
-     вузькій картці (3 колонки з 12) біжучий рядок стартував на кожному
-     підписі одразу й у застиглій фазі читався обрізаним з початку —
-     «остроченно» замість «Прострочено» (спіймано живим тестом 2026-09-24). */
   grid-area: label;
   min-width: 0;
-  overflow-wrap: anywhere;
   font-size: 13px;
   color: var(--ink);
 }
@@ -2011,8 +2074,6 @@ a.mgr-matrix-cell:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  white-space: normal;
-  overflow: visible;
 }
 .mgr-bar-label-main {
   font-size: 13px;
@@ -2513,38 +2574,64 @@ a.mgr-matrix-cell:focus-visible {
   margin-top: 6px;
 }
 
-/* Телефон (<600px, components/ManagerDashboard.jsx PHONE_QUERY): картки
-   дашборда — звичайний стовпчик у потоці з однаковим проміжком, висота —
-   рівно по вмісту. Позиції/висоти gridstack (inline-стилі й CSS-змінні)
-   тут перекриваються: на телефоні його замір висоти пливув — дірки між
-   картками або картки одна на одній (2026-10-04). Порядок — style.order,
-   який ставить applyFlowOrder (той самий, що в десктопній розкладці).
-   Перетягування на телефоні вимкнене — кнопку режиму ховаємо. */
-@media (max-width: 599px) {
-  .mgr-charts.grid-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    height: auto !important;
-    min-height: 0 !important;
+/* ---- Однорядкові підписи карток дашборда (2026-10-04) ----
+   Той самий список, що ONELINE_SELECTOR у lib/onelineMarquee.ts: у спокої —
+   один рядок із «…», біжучий рядок (text-indent на довжину обрізаного) —
+   поки наведена миша або один прохід після тапу. Пауза на початку й у
+   кінці, як у MarqueeText. */
+.mgr-chart-card .mgr-card-title,
+.mgr-chart-card .mgr-card-note,
+.mgr-chart-card .mgr-bar-label:not(.mgr-bar-label-stack),
+.mgr-chart-card .mgr-bar-label-main,
+.mgr-chart-card .mgr-bar-label-sub {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mgr-chart-card .is-scrolling {
+  text-overflow: clip;
+  animation: mgr-oneline-scroll var(--oneline-dur, 4s) linear infinite;
+}
+.mgr-chart-card .is-scrolling.is-once {
+  animation-iteration-count: 1;
+}
+@keyframes mgr-oneline-scroll {
+  0%,
+  15% {
+    text-indent: 0;
   }
-  .mgr-charts.grid-stack > .grid-stack-item {
-    position: relative !important;
-    top: auto !important;
-    left: auto !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    transform: none !important;
+  85%,
+  100% {
+    text-indent: calc(-1 * var(--oneline-shift, 0px));
   }
-  .mgr-charts.grid-stack > .grid-stack-item > .grid-stack-item-content {
-    position: relative !important;
-    inset: auto !important;
-    height: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mgr-chart-card .is-scrolling {
+    animation: none;
   }
-  .mgr-charts .grid-stack-placeholder,
-  .mgr-charts .grid-stack-item > .ui-resizable-handle,
-  .mgr-dashboard-move-btn {
-    display: none !important;
-  }
+}
+
+/* Стандартні висоти S/L (lib/dashboardHeights.ts, рішення користувача
+   2026-10-04): висоту ставить fitCards у components/ManagerDashboard.jsx, а
+   сама картка тягнеться на всю висоту свого місця в сітці — повітря
+   лишається всередині картки знизу, а не дірою між картками. */
+.mgr-charts .grid-stack-item-content > .mgr-chart-card {
+  min-height: 100%;
+}
+/* Картка вища за свій вміст (стандартна S/L) — вміст по центру вертикалі
+   під заголовком, а не притиснутий догори з порожнечею знизу (користувач,
+   2026-10-04). На час заміру висот (.is-measuring, fitCards) — вимкнено. */
+.mgr-charts:not(.is-measuring) .mgr-chart-card > h2 + * {
+  margin-top: auto;
+}
+.mgr-charts:not(.is-measuring) .mgr-chart-card > :last-child:not(h2) {
+  margin-bottom: auto;
+}
+/* На час заміру — кожен блок картки рівно по своєму вмісту: тіло з flex:1
+   (.mgr-first-try-body тощо) інакше тягнулось на всю висоту картки, і замір
+   бачив L замість вмісту — картка, раз ставши L, вже не верталась у S. */
+.mgr-charts.is-measuring .mgr-chart-card > * {
+  flex-grow: 0 !important;
+  flex-basis: auto !important;
 }
