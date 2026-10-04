@@ -1,0 +1,1306 @@
+openapi: 3.1.0
+info:
+  title: CarLS — Carlsberg Learning & Support API
+  version: 1.0.0
+  description: |
+    Опис усіх Route Handlers з `app/api/**/route.*` (2026-10-04).
+
+    **Правило:** новий або змінений ендпоінт = правка цього файлу в тому ж PR.
+    `lib/openapi.test.ts` валить CI, якщо роут і цей файл розходяться
+    (шлях або метод є лише з одного боку), а `oasdiff` у PR позначає
+    ламаючі зміни описаних контрактів.
+
+    Повні схеми тіл — для зовнішніх контрактів (Power Query `/api/data/*`,
+    Telegram, cron, health) і для відповіді на питання / завершення модуля.
+    Решта (адмінка, кабінет) — шлях, метод, авторизація й коди відповідей:
+    їхні клієнти живуть у цьому ж репозиторії й перевіряються рев'ю коду.
+
+    Перегляд — `/admin/api` (Swagger UI, лише для супер-адміна).
+servers:
+  - url: /
+tags:
+  - name: auth
+    description: Вхід співробітника (код + PIN) і тестовий вхід
+  - name: courses
+    description: Проходження курсу в плеєрі
+  - name: notifications
+    description: Центр сповіщень, вподобання, Telegram у профілі
+  - name: profile
+    description: Фото профілю
+  - name: push
+    description: Web Push підписки
+  - name: manager
+    description: Кабінет керівника
+  - name: admin
+    description: Адмінка (`admin_session`, один спільний пароль)
+  - name: data
+    description: Жива Excel-книга (Power Query) — зовнішній контракт
+  - name: telegram
+    description: Бот і Mini App — зовнішній контракт
+  - name: system
+    description: Cron і перевірка здоров'я
+
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Сесія співробітника після входу кодом + PIN (lib/session.js). Підписана, зі sessionVersion — адмін може відкликати.
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: admin_session
+      description: Окремий вхід в /admin по ADMIN_PASSWORD (lib/adminSession.js), не пов'язаний із співробітником.
+    superAdminSession:
+      type: apiKey
+      in: cookie
+      name: admin_session
+      description: admin_session рівня "super" (SUPER_ADMIN_PASSWORD).
+    apiToken:
+      type: http
+      scheme: bearer
+      description: Токен Power Query, виданий в /admin (AdminApiToken). Власник має бути активним admin/hr_manager.
+    cronSecret:
+      type: http
+      scheme: bearer
+      description: CRON_SECRET — Vercel Cron підставляє його сам.
+    telegramSecret:
+      type: apiKey
+      in: header
+      name: X-Telegram-Bot-Api-Secret-Token
+      description: TELEGRAM_WEBHOOK_SECRET, заданий при реєстрації webhook.
+
+  parameters:
+    slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+      description: Slug курсу
+    idPath:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+
+  responses:
+    BadRequest:
+      description: Невалідне тіло або параметри
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Unauthorized:
+      description: Немає валідної сесії / ключа
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Forbidden:
+      description: Сесія є, але роль не дозволяє
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    NotFound:
+      description: Не знайдено (або не належить цій людині)
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Conflict:
+      description: Конфлікт стану
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Ok:
+      description: Успіх (JSON)
+      content: { application/json: { schema: { type: object } } }
+    Created:
+      description: Створено
+      content: { application/json: { schema: { type: object } } }
+    Xlsx:
+      description: Файл Excel
+      content:
+        application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+          schema: { type: string, format: binary }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    EnrollmentStatus:
+      type: string
+      enum: [not_started, in_progress, completed, overdue]
+    DataEmployee:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        externalCode: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        role: { type: string, enum: [employee, manager, admin, hr_manager] }
+        isActive: { type: boolean }
+        managerId: { type: [integer, "null"] }
+        positionCode: { type: [string, "null"] }
+        positionName: { type: [string, "null"] }
+        territoryName: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        firstLoginAt: { type: [string, "null"], format: date-time }
+      required: [id, name, externalCode, email, role, isActive, managerId, positionCode, positionName, territoryName, createdAt, firstLoginAt]
+    DataCourse:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        category: { type: [string, "null"] }
+        isMandatory: { type: boolean }
+        deadlineDays: { type: [integer, "null"] }
+        publishAt: { type: [string, "null"], format: date-time }
+      required: [id, title, category, isMandatory, deadlineDays, publishAt]
+    DataEnrollment:
+      type: object
+      properties:
+        id: { type: integer }
+        employeeId: { type: integer }
+        courseId: { type: integer }
+        status: { $ref: "#/components/schemas/EnrollmentStatus" }
+        scorePercent: { type: [integer, "null"] }
+        passed: { type: [boolean, "null"] }
+        assignedAt: { type: string, format: date-time }
+        dueDate: { type: [string, "null"], format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
+        durationSeconds: { type: [integer, "null"] }
+      required: [id, employeeId, courseId, status, scorePercent, passed, assignedAt, dueDate, completedAt, durationSeconds]
+    Health:
+      type: object
+      description: Анонімно — лише ok. Деталі — тільки з admin_session.
+      properties:
+        ok: { type: boolean }
+        db: { type: boolean }
+        lastMigration: { type: [string, "null"] }
+        push: { type: boolean }
+        telegram: { type: boolean }
+        demoLogin: { type: boolean }
+        env: { type: string }
+        ms: { type: integer }
+      required: [ok]
+    AnswerRequest:
+      type: object
+      description: Порожнє тіло `{}` — прогрів функції з плеєра (404 без запису).
+      properties:
+        enrollmentId: { type: integer }
+        moduleId: { type: integer }
+        componentId: { type: integer }
+        response:
+          type: object
+          description: |
+            Сира відповідь, ≤ 4000 символів JSON. Ключі — непрозорі HMAC з publicContent:
+            quiz `{selected: [key]}`, ordering `{order: [key]}`,
+            matching `{links: {leftKey: rightKey}}`, hotspot `{x, y, aspect}` (відсотки кадру).
+      required: [enrollmentId, moduleId, componentId, response]
+    AnswerResult:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        correct: { type: boolean }
+        alreadyAnswered: { type: boolean, description: Відповідь на це питання в цій спробі вже була — повертається записана. }
+        response: { type: object }
+        reveal:
+          type: object
+          description: Розбір. Повний — лише після правильної відповіді; після помилки — лише пояснення до обраного варіанта.
+      required: [ok, correct, alreadyAnswered, response, reveal]
+    ModuleCompleteRequest:
+      type: object
+      properties:
+        enrollmentId: { type: integer }
+        moduleId: { type: integer }
+        clientAttemptId: { type: string, pattern: "^[A-Za-z0-9-]{8,64}$", description: UUID з браузера; повтор повертає вже записаний результат. }
+        answers:
+          type: object
+          additionalProperties: { type: object }
+          description: "Відповіді, дані без мережі, `{componentId: response}` — перевіряються тут."
+        durationSeconds: { type: integer, minimum: 0 }
+      required: [enrollmentId, moduleId, clientAttemptId]
+    CourseState:
+      type: object
+      properties:
+        completed: { type: boolean }
+        scoreRaw: { type: integer }
+        scoreMax: { type: integer }
+        scorePercent: { type: integer }
+        passed: { type: boolean }
+      required: [completed, scoreRaw, scoreMax, scorePercent, passed]
+    ModuleCompleteResult:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        moduleId: { type: integer }
+        attemptNumber: { type: integer }
+        scoreRaw: { type: integer }
+        scoreMax: { type: integer }
+        scorePercent: { type: integer }
+        passed: { type: boolean }
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              componentId: { type: integer }
+              correct: { type: boolean }
+        retry:
+          type: object
+          properties:
+            canRetryNow: { type: boolean }
+            attemptsLeft: { type: [integer, "null"] }
+            attemptsMade: { type: integer }
+            nextAttemptAt: { type: [string, "null"], format: date-time }
+            waitLabel: { type: [string, "null"] }
+        course:
+          description: Підсумок курсу, якщо після цього модуля результат є в кожного модуля; інакше null.
+          oneOf:
+            - $ref: "#/components/schemas/CourseState"
+            - type: "null"
+      required: [ok, moduleId, attemptNumber, scoreRaw, scoreMax, scorePercent, passed, results, retry, course]
+    CronResult:
+      type: object
+      description: Кожен крок — у власному try/catch; помилка кроку → `{error}` у його полі і статус 500.
+      properties:
+        overdue:
+          type: object
+          properties: { markedCount: { type: integer }, notifiedCount: { type: integer } }
+        published:
+          type: object
+          properties: { publishedCount: { type: integer }, assignedCount: { type: integer } }
+        toppedUp:
+          type: object
+          properties: { coursesChecked: { type: integer }, assignedCount: { type: integer } }
+        reminders:
+          type: object
+          properties: { candidates: { type: integer }, created: { type: integer } }
+        badges:
+          type: object
+          properties: { awardedCount: { type: integer } }
+        digests:
+          type: object
+          properties: { managers: { type: integer }, created: { type: integer } }
+    TelegramUpdate:
+      type: object
+      description: "Апдейт Bot API (https://core.telegram.org/bots/api#update). Обробляються лише текстові повідомлення в приватному чаті."
+      properties:
+        update_id: { type: integer }
+        message:
+          type: object
+          properties:
+            text: { type: string, description: "/start <token> — прив'язати чат, /stop — відв'язати, інше — у журнал вхідних." }
+            chat:
+              type: object
+              properties:
+                id: { type: integer }
+                type: { type: string }
+            from:
+              type: object
+              properties:
+                username: { type: string }
+                first_name: { type: string }
+
+paths:
+  # ------------------------------------------------------------------ auth
+  /api/auth/register:
+    post:
+      security: []
+      tags: [auth]
+      summary: Крок 1 входу — знайти співробітника за кодом і надіслати PIN на пошту керівника
+      description: "`demoEmail` — лише для кодів із DEMO_LOGIN_CODES (тестовий вхід), інакше 403."
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                externalCode: { type: string }
+                demoEmail: { type: string, format: email }
+              required: [externalCode]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/auth/confirm:
+    post:
+      security: []
+      tags: [auth]
+      summary: Крок 2 входу — перевірити PIN і видати cookie-сесію
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                externalCode: { type: string }
+                pin: { type: string, pattern: "^\\d{4}$" }
+              required: [externalCode, pin]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/auth/logout:
+    post:
+      security: []
+      tags: [auth]
+      summary: Вийти — стерти cookie-сесію
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+  /api/auth/demo:
+    get:
+      security: []
+      tags: [auth]
+      summary: Чи увімкнено тестовий вхід і кого можна обрати (публічний, до сесії)
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+
+  # --------------------------------------------------------------- courses
+  /api/courses/{slug}/answer:
+    post:
+      tags: [courses]
+      summary: Перевірити одну відповідь на сервері й записати її в поточну спробу модуля
+      security: [{ session: [] }]
+      parameters: [{ $ref: "#/components/parameters/slug" }]
+      requestBody:
+        content: { application/json: { schema: { $ref: "#/components/schemas/AnswerRequest" } } }
+      responses:
+        "200":
+          description: Вердикт і розбір
+          headers:
+            Server-Timing: { schema: { type: string }, description: "answer;dur=<мс> — час на сервері" }
+          content: { application/json: { schema: { $ref: "#/components/schemas/AnswerResult" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Модуль зараз закритий (порядок, пауза, гальмо перескладання) або питання не входить у поточну спробу
+          content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+  /api/courses/{slug}/module-complete:
+    post:
+      tags: [courses]
+      summary: Закрити поточну спробу модуля; бал рахує лише сервер. Закриває курс, коли результат є в кожного модуля
+      security: [{ session: [] }]
+      parameters: [{ $ref: "#/components/parameters/slug" }]
+      requestBody:
+        content: { application/json: { schema: { $ref: "#/components/schemas/ModuleCompleteRequest" } } }
+      responses:
+        "200":
+          description: Результат модуля (і курсу, якщо закрито)
+          content: { application/json: { schema: { $ref: "#/components/schemas/ModuleCompleteResult" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Модуль зараз недоступний або clientAttemptId належить іншому модулю
+          content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+  /api/courses/{slug}/submit:
+    post:
+      tags: [courses]
+      deprecated: true
+      summary: Закрити курс (лише для старої офлайн-черги — тепер курс закриває module-complete)
+      security: [{ session: [] }]
+      parameters: [{ $ref: "#/components/parameters/slug" }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { enrollmentId: { type: integer } }
+              required: [enrollmentId]
+      responses:
+        "200":
+          description: Підсумок курсу
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  course: { $ref: "#/components/schemas/CourseState" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/courses/{slug}/certificate:
+    get:
+      tags: [courses]
+      summary: PDF-сертифікат курсу (лише складений на 100%)
+      security: [{ session: [] }]
+      parameters: [{ $ref: "#/components/parameters/slug" }]
+      responses:
+        "200":
+          description: PDF
+          content: { application/pdf: { schema: { type: string, format: binary } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # --------------------------------------------------------- notifications
+  /api/notifications:
+    get:
+      tags: [notifications]
+      summary: Стрічка сповіщень (курсор по id) + кількість непрочитаних; `?count=1` — лише лічильник для дзвіночка
+      security: [{ session: [] }]
+      parameters:
+        - { name: cursor, in: query, schema: { type: integer } }
+        - { name: count, in: query, schema: { type: string, enum: ["1"] }, description: "Лише {unreadCount}: одне звернення до бази, відкликана сесія бачить 0" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/notifications/read:
+    post:
+      tags: [notifications]
+      summary: "Позначити прочитаними — `{ids}` або `{all: true}` (лише свої)"
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/notifications/preferences:
+    get:
+      tags: [notifications]
+      summary: Вподобання сповіщень по категоріях і каналах + чи є push-підписки
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    put:
+      tags: [notifications]
+      summary: Змінити вподобання сповіщень
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/notifications/telegram:
+    get:
+      tags: [notifications]
+      summary: Стан Telegram у профілі — чи прив'язано чат, deep link для «Підключити» (токен на 15 хв)
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [notifications]
+      summary: Відв'язати Telegram
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # -------------------------------------------------------- profile & push
+  /api/profile/avatar:
+    post:
+      tags: [profile]
+      summary: Завантажити фото профілю (multipart `file` → 256×256 WebP у Vercel Blob)
+      security: [{ session: [] }]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties: { file: { type: string, format: binary } }
+              required: [file]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { description: Не вдалося зберегти у Blob }
+    delete:
+      tags: [profile]
+      summary: Прибрати фото профілю
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/push/public-key:
+    get:
+      security: []
+      tags: [push]
+      summary: Публічний VAPID-ключ для підписки на Web Push
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+  /api/push/subscriptions:
+    post:
+      tags: [push]
+      summary: Зберегти push-підписку пристрою
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [push]
+      summary: Видалити push-підписку пристрою
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ---------------------------------------------------------------- manager
+  /api/manager/overview:
+    get:
+      tags: [manager]
+      summary: Агрегат кабінету керівника JSON-ом (сам кабінет рахує те саме на сервері, без цього роуту)
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/manager/team-tree:
+    get:
+      tags: [manager]
+      summary: Дерево команди керівника (підвантажується окремо від кабінету) + рейтинг підлеглих
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/manager/hardest-questions:
+    get:
+      tags: [manager]
+      summary: Питання, на яких команда найчастіше помиляється
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/manager/employees/{id}:
+    get:
+      tags: [manager]
+      summary: Призначення однієї людини з команди (лише в межах підлеглих)
+      security: [{ session: [] }]
+      parameters: [{ $ref: "#/components/parameters/idPath" }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/manager/export:
+    get:
+      tags: [manager]
+      summary: Excel-звіт по команді — листи за увімкненими картками кабінету
+      security: [{ session: [] }]
+      parameters:
+        - { name: cards, in: query, schema: { type: string }, description: "Id карток через кому в порядку кабінету; без параметра — усі" }
+      responses:
+        "200": { $ref: "#/components/responses/Xlsx" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/manager/reminders:
+    post:
+      tags: [manager]
+      summary: «Нагадати» підлеглим — центр сповіщень + push + Telegram, 1 раз на людину/курс/день
+      security: [{ session: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                employeeIds: { type: array, items: { type: integer }, minItems: 1, maxItems: 100 }
+                courseId: { type: [integer, "null"] }
+                message: { type: string, minLength: 1, maxLength: 500 }
+              required: [employeeIds, message]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ------------------------------------------------------------------ admin
+  /api/admin/login:
+    post:
+      security: []
+      tags: [admin]
+      summary: Вхід в адмінку по спільному паролю (ліміт спроб на IP)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { password: { type: string } }
+              required: [password]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { description: ADMIN_PASSWORD не задано }
+  /api/admin/logout:
+    post:
+      security: []
+      tags: [admin]
+      summary: Вийти з адмінки
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+  /api/admin/audit:
+    get:
+      tags: [admin]
+      summary: Журнал дій адмінки (фільтри targetType, q)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/design:
+    get:
+      tags: [admin]
+      summary: Збережені для всіх дизайн-токени
+      security: [{ superAdminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [admin]
+      summary: Зберегти дизайн-токени для всіх (whitelist lib/designSettings.ts)
+      security: [{ superAdminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [admin]
+      summary: Повернути дефолтні дизайн-токени
+      security: [{ superAdminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/openapi:
+    get:
+      tags: [admin]
+      summary: Цей опис API (openapi.yaml) для Swagger UI на /admin/api
+      security: [{ superAdminSession: [] }]
+      responses:
+        "200":
+          description: openapi.yaml
+          content: { application/yaml: { schema: { type: string } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/export:
+    get:
+      tags: [admin]
+      summary: Повний дамп бази в Excel
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Xlsx" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/upload:
+    post:
+      tags: [admin]
+      summary: Завантажити фото для курсу (стискається перед Vercel Blob)
+      security: [{ adminSession: [] }]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties: { file: { type: string, format: binary } }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { description: Не вдалося зберегти у Blob }
+
+  /api/admin/courses:
+    get:
+      tags: [admin]
+      summary: Список курсів для дерева на дашборді адмінки (з кількістю призначень)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [admin]
+      summary: Створити курс
+      security: [{ adminSession: [] }]
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/courses/{courseId}:
+    parameters: [{ name: courseId, in: path, required: true, schema: { type: integer } }]
+    get:
+      tags: [admin]
+      summary: Курс з модулями, екранами й компонентами для конструктора
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [admin]
+      summary: Змінити налаштування курсу
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [admin]
+      summary: Видалити курс
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/admin/courses/{courseId}/assign:
+    post:
+      tags: [admin]
+      summary: Призначити курс зараз — на посади, території та/або конкретних людей
+      security: [{ adminSession: [] }]
+      parameters: [{ name: courseId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                positionCodes: { type: array, items: { type: string } }
+                territoryIds: { type: array, items: { type: integer } }
+                employeeIds: { type: array, items: { type: integer } }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { description: Помилка призначення }
+  /api/admin/courses/{courseId}/enrollments:
+    delete:
+      tags: [admin]
+      summary: Зняти курс з усіх (видалити призначення разом із балами)
+      security: [{ adminSession: [] }]
+      parameters: [{ name: courseId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/courses/{courseId}/question-stats:
+    get:
+      tags: [admin]
+      summary: Частка правильних відповідей по кожному питанню курсу
+      security: [{ adminSession: [] }]
+      parameters: [{ name: courseId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/course-folders:
+    get:
+      tags: [admin]
+      summary: Папки курсів
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [admin]
+      summary: Створити папку курсів
+      security: [{ adminSession: [] }]
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/admin/course-folders/{folderId}:
+    parameters: [{ name: folderId, in: path, required: true, schema: { type: integer } }]
+    patch:
+      tags: [admin]
+      summary: Змінити папку курсів (назва тощо)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [admin]
+      summary: Видалити папку
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/admin/modules:
+    post:
+      tags: [admin]
+      summary: Створити модуль курсу
+      security: [{ adminSession: [] }]
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/modules/{moduleId}:
+    parameters: [{ name: moduleId, in: path, required: true, schema: { type: integer } }]
+    patch:
+      tags: [admin]
+      summary: Змінити модуль (назва, порядок, паузи, гальмо перескладання, пул питань)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [admin]
+      summary: Видалити модуль
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/screens:
+    post:
+      tags: [admin]
+      summary: Створити екран модуля
+      security: [{ adminSession: [] }]
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/screens/{screenId}:
+    parameters: [{ name: screenId, in: path, required: true, schema: { type: integer } }]
+    patch:
+      tags: [admin]
+      summary: Змінити екран (назва, порядок)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [admin]
+      summary: Видалити екран
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/components:
+    post:
+      tags: [admin]
+      summary: Створити компонент екрана (інфо, питання тощо)
+      security: [{ adminSession: [] }]
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/components/{componentId}:
+    parameters: [{ name: componentId, in: path, required: true, schema: { type: integer } }]
+    patch:
+      tags: [admin]
+      summary: Змінити компонент (вміст, порядок)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [admin]
+      summary: Видалити компонент
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/employees:
+    get:
+      tags: [admin]
+      summary: Список співробітників (пошук, фільтри)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [admin]
+      summary: Створити співробітника
+      security: [{ adminSession: [] }]
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/admin/employees/tree:
+    get:
+      tags: [admin]
+      summary: Дерево підпорядкування всієї організації
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/employees/import:
+    post:
+      tags: [admin]
+      summary: Імпорт співробітників з xlsx
+      security: [{ adminSession: [] }]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties: { file: { type: string, format: binary } }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/employees/import-template:
+    get:
+      tags: [admin]
+      summary: Шаблон xlsx для імпорту співробітників
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Xlsx" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/employees/{employeeId}:
+    parameters: [{ name: employeeId, in: path, required: true, schema: { type: integer } }]
+    get:
+      tags: [admin]
+      summary: Картка співробітника
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [admin]
+      summary: Змінити співробітника (поля, роль, керівник, деактивація — відкликає сесії)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/admin/employees/{employeeId}/reset-pin:
+    post:
+      tags: [admin]
+      summary: Скинути PIN співробітника
+      security: [{ adminSession: [] }]
+      parameters: [{ name: employeeId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { description: "Нема пошти, на яку слати PIN" }
+  /api/admin/employees/{employeeId}/enrollments:
+    get:
+      tags: [admin]
+      summary: Призначення співробітника
+      security: [{ adminSession: [] }]
+      parameters: [{ name: employeeId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/employees/{employeeId}/badges:
+    parameters: [{ name: employeeId, in: path, required: true, schema: { type: integer } }]
+    get:
+      tags: [admin]
+      summary: Відзнаки співробітника
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [admin]
+      summary: Видати відзнаку співробітнику вручну
+      security: [{ adminSession: [] }]
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { description: Ця відзнака вже видана }
+        "500": { description: Помилка видачі }
+  /api/admin/employees/{employeeId}/badges/{employeeBadgeId}:
+    delete:
+      tags: [admin]
+      summary: Забрати видану відзнаку (разом із балами за неї)
+      security: [{ adminSession: [] }]
+      parameters:
+        - { name: employeeId, in: path, required: true, schema: { type: integer } }
+        - { name: employeeBadgeId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/enrollments/{enrollmentId}:
+    parameters: [{ name: enrollmentId, in: path, required: true, schema: { type: integer } }]
+    patch:
+      tags: [admin]
+      summary: Ручна корекція проходження (статус, бал, дати; adminNote обов'язковий)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [admin]
+      summary: Зняти одне призначення (разом із балами)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/admin/positions:
+    get:
+      tags: [admin]
+      summary: Довідник посад
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/territories:
+    get:
+      tags: [admin]
+      summary: Території (і співробітники для вибору адресатів)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/badges:
+    get:
+      tags: [admin]
+      summary: Типи відзнак (з кількістю виданих)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [admin]
+      summary: Створити ручну відзнаку
+      security: [{ adminSession: [] }]
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/badges/{badgeId}:
+    parameters: [{ name: badgeId, in: path, required: true, schema: { type: integer } }]
+    patch:
+      tags: [admin]
+      summary: Змінити відзнаку (зміна балів перераховує всіх власників)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [admin]
+      summary: Видалити відзнаку (`?force=1` — навіть якщо вже видана)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Відзнаку вже видано — потрібен force }
+  /api/admin/badges/{badgeId}/award:
+    post:
+      tags: [admin]
+      summary: Масова видача ручної відзнаки (посади, території, люди)
+      security: [{ adminSession: [] }]
+      parameters: [{ name: badgeId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/admin/rating:
+    get:
+      tags: [admin]
+      summary: Правила рейтингу (ваги) і рівні
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [admin]
+      summary: Змінити правила рейтингу й рівні
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/rating/recalculate:
+    post:
+      tags: [admin]
+      summary: Стерти журнал балів і перерахувати всіх за поточними правилами
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/admin/notifications/broadcast:
+    get:
+      tags: [admin]
+      summary: Історія ручних розсилок (останні 50)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [admin]
+      summary: Надіслати ручну розсилку (канали push/Telegram на вибір)
+      security: [{ adminSession: [] }]
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [admin]
+      summary: Відкликати розсилки — `{ids}`; сповіщення зникають із центрів адресатів (доставлений push відкликати не можна)
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/telegram:
+    get:
+      tags: [admin]
+      summary: Стан Telegram-бота — токен, webhook, прив'язки, вхідні
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [admin]
+      summary: "Дія з ботом — `{action: \"webhook\"}` зареєструвати webhook, `{action: \"test\", employeeId}` тестове повідомлення"
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [admin]
+      summary: Відв'язати Telegram у співробітників — `{employeeIds}`
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/tokens:
+    get:
+      tags: [admin]
+      summary: Токени Power Query
+      security: [{ adminSession: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [admin]
+      summary: Видати токен Power Query (показується один раз)
+      security: [{ adminSession: [] }]
+      responses:
+        "201": { $ref: "#/components/responses/Created" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/admin/tokens/{tokenId}:
+    delete:
+      tags: [admin]
+      summary: Відкликати токен Power Query
+      security: [{ adminSession: [] }]
+      parameters: [{ name: tokenId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  # ------------------------------------------------- data (Power Query) — зовнішній контракт
+  /api/data/employees:
+    get:
+      tags: [data]
+      summary: Співробітники для живої Excel-книги
+      security: [{ apiToken: [] }]
+      responses:
+        "200":
+          description: Усі співробітники за id
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DataEmployee" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/data/courses:
+    get:
+      tags: [data]
+      summary: Курси для живої Excel-книги
+      security: [{ apiToken: [] }]
+      responses:
+        "200":
+          description: Усі курси за id
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DataCourse" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/data/enrollments:
+    get:
+      tags: [data]
+      summary: Призначення для живої Excel-книги
+      security: [{ apiToken: [] }]
+      responses:
+        "200":
+          description: Усі призначення за id
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DataEnrollment" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ---------------------------------------------------- telegram — зовнішній контракт
+  /api/telegram/webhook:
+    post:
+      tags: [telegram]
+      summary: Webhook бота — /start (прив'язати чат), /stop, інше → журнал вхідних
+      description: Завжди 200 (крім невірного секрету) — інакше Telegram повторює апдейт безкінечно.
+      security: [{ telegramSecret: [] }]
+      requestBody:
+        content: { application/json: { schema: { $ref: "#/components/schemas/TelegramUpdate" } } }
+      responses:
+        "200":
+          description: Прийнято
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  reason: { type: string, enum: [not_configured] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/tg/overview:
+    post:
+      security: []
+      tags: [telegram]
+      summary: Дані Mini App — курси співробітника або команда керівника
+      description: Авторизація — підписаний Telegram `initData` у тілі (lib/telegramLogic.ts verifyInitData), не cookie.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { initData: { type: string } }
+              required: [initData]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/tg/remind:
+    post:
+      security: []
+      tags: [telegram]
+      summary: «Нагадати» одній людині з Mini App готовим шаблоном
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                initData: { type: string }
+                employeeId: { type: integer }
+                courseSlug: { type: string }
+                reason: { type: string }
+              required: [initData, employeeId, reason]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ----------------------------------------------------------------- system
+  /api/cron/check-overdue-enrollments:
+    get:
+      tags: [system]
+      summary: Щоденний cron — прострочення, публікація й доназначення курсів, нагадування, авто-відзнаки, дайджести
+      description: Кожен крок ідемпотентний (dedupeKey / skipDuplicates) — повторний запуск нічого не дублює.
+      security: [{ cronSecret: [] }]
+      responses:
+        "200":
+          description: Підсумок кроків
+          content: { application/json: { schema: { $ref: "#/components/schemas/CronResult" } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500":
+          description: Один із кроків упав (решта виконались)
+          content: { application/json: { schema: { $ref: "#/components/schemas/CronResult" } } }
+  /api/health:
+    get:
+      tags: [system]
+      summary: Перевірка після деплою — анонімно лише `{ok}`, з admin_session ще стан бази й каналів
+      security: [{}, { adminSession: [] }]
+      responses:
+        "200":
+          description: Живий
+          content: { application/json: { schema: { $ref: "#/components/schemas/Health" } } }
+        "503":
+          description: База недоступна (лише з admin_session)
+          content: { application/json: { schema: { $ref: "#/components/schemas/Health" } } }

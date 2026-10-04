@@ -304,6 +304,17 @@ export function RootIcon() {
 
 /** База даних (циліндр) — пункт сайдбару /admin "Дані": імпорт, експорт,
  * жива Excel-книга (components/AdminDataPage.tsx). */
+/** Код «</>» — розділ «API» в адмінці (Swagger UI). */
+export function CodeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 7l-5 5 5 5" />
+      <path d="M16 7l5 5-5 5" />
+      <path d="M14 4l-4 16" />
+    </svg>
+  );
+}
+
 export function DataIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

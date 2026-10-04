@@ -166,6 +166,8 @@ const nextConfig = {
       "public/icons/icon-192.png",
       "public/assets/brand/trefoil-solid-green.png",
       "app/generated/prisma/**",
+      // Опис API для /admin/api (app/api/admin/openapi читає його з диска).
+      "openapi.yaml",
     ],
   },
   // Дозволяє відкривати dev-сервер із телефону в тій самій Wi-Fi мережі
