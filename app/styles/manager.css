@@ -2679,7 +2679,7 @@ a.mgr-matrix-cell:focus-visible {
    number-flow (TeamStatusBar.tsx). */
 .mgr-status-seg {
   transform-origin: left;
-  animation: mgrSegGrow 0.6s var(--ease-out) calc(0.2s + var(--i, 0) * 120ms) both;
+  animation: mgrSegGrow 0.6s var(--ease-spring) calc(0.2s + var(--i, 0) * 120ms) both;
 }
 @keyframes mgrSegGrow {
   from {

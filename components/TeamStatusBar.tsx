@@ -26,7 +26,7 @@ export function SegmentPill({ segment }: { segment: PersonSegment | null }) {
  * перемагає), кожен сегмент — посилання на список саме цих людей.
  */
 /** «7 людей · 8 курсів» — одиниця завжди названа: сегмент рахує ЛЮДЕЙ, а
- *  друге число каже, скільки призначень команди в цьому стані. */
+ *  друге число каже, скільки курсів у цьому стані саме в цих людей. */
 function segmentTitle(s: StatusBarSegment): string {
   const people = `${s.count} ${pluralPeople(s.count)}`;
   return s.courses == null ? `${s.label}: ${people}` : `${s.label}: ${people} · ${s.courses} ${pluralCourses(s.courses)}`;

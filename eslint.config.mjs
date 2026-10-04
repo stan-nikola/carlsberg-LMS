@@ -3,6 +3,9 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
+  // JS не перевіряє tsc (checkJs:false) — неоголошена змінна в .jsx доходила
+  // до прода й валила сторінку (2026-10-04: `pointsEarned` на чекпоінті модуля).
+  { files: ["**/*.{js,jsx,mjs,cjs}"], rules: { "no-undef": "error" } },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

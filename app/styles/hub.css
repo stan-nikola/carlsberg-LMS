@@ -316,7 +316,7 @@ a.profile-card-link:focus-visible {
   font-size: calc(17px * var(--fs-scale));
   color: var(--green-700);
 }
-.stat-pill span {
+.stat-pill > span {
   font-size: calc(9.8px * var(--fs-scale));
   color: var(--ink-soft);
   text-transform: uppercase;
@@ -896,7 +896,7 @@ a.profile-card-link:focus-visible {
   border-color: var(--green-700);
   background: color-mix(in srgb, var(--green-700) 8%, var(--surface-1));
   /* Рядок «я» піднімається на своє місце з коротким сяйвом (демо-тур). */
-  animation: lbSelfIn 0.65s ease-in-out 0.25s both;
+  animation: lbSelfIn 0.65s ease-in-out 0.35s both;
 }
 @keyframes lbSelfIn {
   0% {

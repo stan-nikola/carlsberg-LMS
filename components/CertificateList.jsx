@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSeenValue } from "@/lib/useSeenValue";
 import { CertificateIcon, SpinnerIcon } from "@/components/icons";
 import { downloadCertificate } from "@/lib/downloadCertificate";
 
@@ -8,9 +9,13 @@ import { downloadCertificate } from "@/lib/downloadCertificate";
  * Сертифікати на екрані «Досягнення» — кожен складений курс із прямим
  * завантаженням PDF (той самий downloadCertificate, що в CourseTile/
  * CourseReview).
+ * `storageKey` — «новий з минулого візиту» (localStorage, стенд Motion
+ * Tuner «E»): сертифікати, яких не було минулого разу, ставлять печатку.
  */
-export function CertificateList({ certificates }) {
+export function CertificateList({ certificates, storageKey = null }) {
   const [busy, setBusy] = useState(null);
+  const prevSeen = useSeenValue(storageKey, certificates.map((c) => c.slug).join(","));
+  const fresh = new Set(prevSeen == null ? [] : certificates.map((c) => c.slug).filter((s) => !prevSeen.split(",").includes(s)));
   const [error, setError] = useState("");
 
   async function download(slug) {
@@ -32,7 +37,7 @@ export function CertificateList({ certificates }) {
   return (
     <div className="cert-list">
       {certificates.map((c) => (
-        <div key={c.slug} className="cert-row">
+        <div key={c.slug} className={`cert-row${fresh.has(c.slug) ? " is-new" : ""}`}>
           <span className="cert-ico">
             <CertificateIcon />
           </span>

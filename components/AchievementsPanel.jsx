@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LockIcon } from "@/components/icons";
 import { RatingCard } from "@/components/RatingBlocks";
+import { CountUp } from "@/components/CountUp";
 import { BadgeGrid } from "@/components/BadgeGrid";
 import { CertificateList } from "@/components/CertificateList";
 import { Avatar } from "@/components/Avatar";
@@ -73,15 +74,21 @@ export function AchievementsPanel({
       <RatingCard rating={rating} cohortLabel={cohortLabel} href="#leaderboard" highlighted={highlightRating} employeeId={currentEmployeeId} />
       <div className="stats-row rt-breakdown">
         <div className="stat-pill">
-          <b>{rating.courses}</b>
+          <b>
+            <CountUp to={rating.courses} up />
+          </b>
           <span>за курси</span>
         </div>
         <div className="stat-pill">
-          <b>{rating.bonuses}</b>
+          <b>
+            <CountUp to={rating.bonuses} up />
+          </b>
           <span>бонуси</span>
         </div>
         <div className="stat-pill">
-          <b>{rating.badges}</b>
+          <b>
+            <CountUp to={rating.badges} up />
+          </b>
           <span>за відзнаки</span>
         </div>
       </div>
@@ -99,7 +106,7 @@ export function AchievementsPanel({
       <div className="hub-sec-title">
         <h3>Сертифікати</h3>
       </div>
-      <CertificateList certificates={certificates} />
+      <CertificateList certificates={certificates} storageKey={currentEmployeeId != null ? `carls_certs_seen:${currentEmployeeId}` : null} />
       </section>
       </div>
 
