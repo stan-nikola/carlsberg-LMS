@@ -1145,6 +1145,26 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   top: 3px;
   bottom: 4px;
 }
+/* Палець: ручка межі в 9px недосяжна — розтягуємо зону дотику до 24px (смужка
+   підсвітки лишається тонкою), і ловить її pointer-capture так само. */
+@media (pointer: coarse) {
+  .mgr-matrix-handle-col {
+    right: -12px;
+    width: 24px;
+  }
+  .mgr-matrix-handle-col::after {
+    left: 10px;
+    right: 10px;
+  }
+  .mgr-matrix-handle-row {
+    bottom: -10px;
+    height: 20px;
+  }
+  .mgr-matrix-handle-row::after {
+    top: 8px;
+    bottom: 8px;
+  }
+}
 .mgr-matrix-legend-hint {
   flex-basis: 100%;
   opacity: 0.8;
