@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requestLoginPin } from "@/lib/auth";
 import { isDemoLoginEnabled, isDemoCode } from "@/lib/demoLogin";
 import { clientIp, hitRateLimit, normalizeExternalCode, tooManyRequests } from "@/lib/loginThrottle";
+import { auditEmployee } from "@/lib/audit";
 
 /**
  * POST /api/auth/register
@@ -52,6 +53,7 @@ export async function POST(request) {
   if (limited) return tooManyRequests(limited.retryAt, "rate_limited");
 
   const result = await requestLoginPin(externalCode, "", { recipientOverride });
+  if (result.ok) auditEmployee({ externalCode }, "auth.pin_requested", undefined, recipientOverride ? { demo: true } : undefined);
   const status = result.ok
     ? 200
     : result.error === "not_found"

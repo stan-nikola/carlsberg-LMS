@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auditEmployee } from "@/lib/audit";
 import type { PrismaClient } from "@/app/generated/prisma";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { verifyInitData } from "@/lib/telegramLogic";
@@ -48,5 +49,6 @@ export async function POST(request: Request) {
     message,
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  auditEmployee(me.id, "manager.remind", { type: "employee", id: employeeId }, { via: "telegram", reason, course: course?.title ?? null, sent: result.sent });
   return NextResponse.json({ sent: result.sent, skipped: result.skipped });
 }

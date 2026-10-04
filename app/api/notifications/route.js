@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, getSessionClaims } from "@/lib/session";
+import { auditEmployee } from "@/lib/audit";
 
 const PAGE_SIZE = 30;
 
@@ -15,6 +16,12 @@ function touchLastSeen(where) {
   const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
   return prisma.employee
     .updateMany({ where: { ...where, OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: hourAgo } }] }, data: { lastSeenAt: now } })
+    .then((r) => {
+      // Той самий сигнал — і в журнал «Активність»: запис лише тоді, коли
+      // lastSeenAt справді оновився, тобто не частіше разу на годину.
+      if (r.count > 0) auditEmployee(where.id, "activity.visit");
+      return r;
+    })
     .catch(() => null);
 }
 

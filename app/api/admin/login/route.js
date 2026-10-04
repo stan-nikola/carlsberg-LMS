@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminSession } from "@/lib/adminSession";
+import { auditAs } from "@/lib/audit";
 import { clientIp, recordSuccess, registerAttempt, settleFailure, tooManyRequests } from "@/lib/loginThrottle";
 
 /**
@@ -41,10 +42,12 @@ export async function POST(request) {
   if (!level) {
     const settled = await settleFailure(throttleKey, attempt.attempt);
     if (settled.locked) return tooManyRequests(settled.retryAt);
+    await auditAs("admin", "admin.login_failed", "admin");
     return NextResponse.json({ ok: false, error: "invalid_password" }, { status: 401 });
   }
 
   await recordSuccess(throttleKey);
   await createAdminSession(level);
+  await auditAs(level === "super" ? "super" : "admin", "admin.login", "admin");
   return NextResponse.json({ ok: true, level });
 }
