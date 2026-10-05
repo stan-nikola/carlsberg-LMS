@@ -33,7 +33,7 @@ describe("sanitizeDesignValues — whitelist для <style> у layout", () => {
   it("кольори елементів: вибір проходить whitelist і читається назад; дефолт коду не зберігається", async () => {
     const { accentTokenValues, readAccent, defaultValues } = await import("@/lib/designTokens");
     expect(readAccent("avatar", defaultValues())).toEqual({ color: "green-deep", style: "fill" });
-    expect(readAccent("ring", defaultValues())).toEqual({ color: "brand-green", style: null });
+    expect(readAccent("ring", defaultValues())).toEqual({ color: "gold-light", style: null });
     expect(sanitizeDesignValues(accentTokenValues("avatar", "green-deep", "fill"))).toEqual({});
     // Темний колір у заливці — білий текст; усі чотири токени проходять whitelist.
     const blue = accentTokenValues("avatar", "blue-main", "fill");

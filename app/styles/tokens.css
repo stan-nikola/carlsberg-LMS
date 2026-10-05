@@ -104,8 +104,9 @@
   --accent-course-bg: color-mix(in srgb, color-mix(in srgb, var(--cb-secondary) 70%, var(--cb-black)) 20%, var(--cb-white));
   --accent-course-fg: color-mix(in srgb, color-mix(in srgb, var(--cb-secondary) 70%, var(--cb-black)) 75%, var(--cb-black));
   --accent-course-bd: transparent;
-  /* Кільце фото на зеленій картці: Carlsberg green */
-  --accent-ring: var(--cb-primary);
+  /* Кільце фото на зеленій картці: золото світле (Carlsberg green зливався з
+     темно-зеленою карткою — рамки не було видно; користувач, 2026-10-05) */
+  --accent-ring: color-mix(in srgb, var(--cb-tertiary) 55%, var(--cb-white));
   /* Зірка рівня (.lv-star): жовтий (янтар), заливка */
   --accent-level: var(--cb-brand-yellow);
   --accent-level-bg: var(--cb-brand-yellow);
