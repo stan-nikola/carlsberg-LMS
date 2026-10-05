@@ -84,22 +84,6 @@ a.rt-card:focus-visible {
   color: var(--ink-soft);
   margin-top: 3px;
 }
-/* Той самий кружок, що на зеленій картці (hub.css .profile-level .lv-star):
-   колір і вигляд з конструктора читаються однаково в обох місцях, а голий
-   символ світлим відтінком на білому губився. */
-.rt-level .lv-star {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  vertical-align: -2px;
-  font-size: 9px;
-  background: var(--accent-level-bg);
-  color: var(--accent-level-fg);
-  box-shadow: inset 0 0 0 1px var(--accent-level-bd);
-}
 .rt-overdue {
   color: var(--p-danger-text);
   font-weight: 600;
@@ -253,9 +237,6 @@ a.rt-card:focus-visible {
   padding: 2px 8px;
   margin: -2px -8px;
   border-radius: var(--radius-badge);
-}
-.rt-level-pill .lv-star {
-  display: inline-block;
 }
 .rt-level-pill::before,
 .rt-level-pill::after {

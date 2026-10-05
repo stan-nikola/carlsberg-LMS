@@ -75,19 +75,19 @@ export function AchievementsPanel({
       <div className="stats-row rt-breakdown">
         <div className="stat-pill">
           <b>
-            <CountUp to={rating.courses} up />
+            <CountUp to={rating.courses} up playKey="ach-courses" />
           </b>
           <span>за курси</span>
         </div>
         <div className="stat-pill">
           <b>
-            <CountUp to={rating.bonuses} up />
+            <CountUp to={rating.bonuses} up playKey="ach-bonuses" />
           </b>
           <span>бонуси</span>
         </div>
         <div className="stat-pill">
           <b>
-            <CountUp to={rating.badges} up />
+            <CountUp to={rating.badges} up playKey="ach-badges" />
           </b>
           <span>за відзнаки</span>
         </div>

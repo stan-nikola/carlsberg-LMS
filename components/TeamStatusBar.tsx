@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { CountUp } from "@/components/CountUp";
 import { SEGMENT_META, pluralCourses, pluralPeople, type PersonSegment, type StatusBarSegment } from "@/lib/teamInsights";
 
 const SEGMENT_PILL: Record<PersonSegment, string> = {
@@ -55,7 +54,7 @@ export function TeamStatusBar({ data }: { data: { segments: StatusBarSegment[]; 
               <span className="mgr-status-dot" aria-hidden="true" />
               <span className="mgr-status-legend-label">{s.label}</span>
               <b>
-                <CountUp to={s.count} from={0} /> {pluralPeople(s.count)}
+                {s.count} {pluralPeople(s.count)}
               </b>
               {s.courses != null && s.courses > 0 && (
                 <span className="mgr-status-legend-sub">

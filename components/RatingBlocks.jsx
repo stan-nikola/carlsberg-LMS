@@ -29,7 +29,7 @@ export function RatingCard({ rating, cohortLabel, href = "/hub/achievements", hi
       <div className="rt-top">
         <div>
           <div className="rt-points">
-            <CountUp to={total} up /> <span>балів</span>
+            <CountUp to={total} up playKey="rating-total" /> <span>балів</span>
           </div>
           <div className="rt-level">
             {employeeId != null ? <LevelLabel label={level.label} storageKey={`carls_level_seen:${employeeId}`} /> : <><span className="lv-star">★</span> Рівень: {level.label}</>}
@@ -38,7 +38,7 @@ export function RatingCard({ rating, cohortLabel, href = "/hub/achievements", hi
         {rank && (
           <div className="rt-rank">
             <b>
-              № <CountUp to={rank} max={size} />
+              № <CountUp to={rank} max={size} playKey="rating-rank" />
             </b>
             <span>
               з {size} {cohortLabel}

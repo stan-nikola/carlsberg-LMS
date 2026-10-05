@@ -195,21 +195,21 @@ export function ProfileCard({ dbName, levelLabel, avatarUrl = null, editable = f
             <div>
               <dt>Бали</dt>
               <dd>
-                <CountUp to={stats.points} up />
+                <CountUp to={stats.points} up playKey="profile-points" />
               </dd>
             </div>
             {stats.rank != null && (
               <div>
                 <dt>Рейтинг</dt>
                 <dd>
-                  № <CountUp to={stats.rank} max={stats.cohortSize} /> <span className="profile-stats-of">з {stats.cohortSize}</span>
+                  № <CountUp to={stats.rank} max={stats.cohortSize} playKey="profile-rank" /> <span className="profile-stats-of">з {stats.cohortSize}</span>
                 </dd>
               </div>
             )}
             <div>
               <dt>Нагороди</dt>
               <dd>
-                <CountUp to={stats.badgesCount} up />
+                <CountUp to={stats.badgesCount} up playKey="profile-badges" />
               </dd>
             </div>
           </dl>

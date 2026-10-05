@@ -19,6 +19,12 @@ import { useEffect, useState } from "react";
  * свого. «Зменшити рух» бібліотека поважає сама (respectMotionPreference).
  */
 const TIMING = { duration: 2010, easing: "cubic-bezier(0.5, 0, 0.4, 1)" };
+/**
+ * Ключі, чия анімація вже відіграла в цьому завантаженні сторінки (користувач,
+ * 2026-10-05: «один раз при перезавантаженні чи вході, а не при кожному переході
+ * зі сторінки на сторінку»). Модульна змінна: переживає SPA-навігацію, F5 обнуляє.
+ */
+const playedKeys = new Set<string>();
 const OPACITY_TIMING = { duration: 90, easing: "ease-out" };
 
 export function CountUp({
@@ -29,6 +35,7 @@ export function CountUp({
   delayMs = 0,
   prefix,
   locales = "uk-UA",
+  playKey,
 }: {
   to: number;
   from?: number;
@@ -38,14 +45,20 @@ export function CountUp({
   delayMs?: number;
   prefix?: string;
   locales?: Intl.LocalesArgument;
+  /** Якщо задано — число крутиться лише при ПЕРШОМУ показі за завантаження сторінки; далі одразу кінцеве. */
+  playKey?: string;
 }) {
-  const start = from ?? (up ? Math.max(0, to - Math.max(9, Math.round(to * 0.01))) : Math.min(to + Math.max(1, Math.round(to * 3)), max ?? Infinity));
+  const already = playKey ? playedKeys.has(playKey) : false;
+  const start = already ? to : from ?? (up ? Math.max(0, to - Math.max(9, Math.round(to * 0.01))) : Math.min(to + Math.max(1, Math.round(to * 3)), max ?? Infinity));
   const [state, setState] = useState({ value: to, animated: false });
 
   useEffect(() => {
     if (start === to) return undefined;
     let raf = 0;
     let timer = 0;
+    // Відмічаємо «зіграло» вже ПІСЛЯ повного ходу: якщо пішли зі сторінки раніше —
+    // чистимо таймер і наступного разу число знову крутиться.
+    const mark = playKey ? window.setTimeout(() => playedKeys.add(playKey), TIMING.duration + delayMs + 200) : 0;
     // updateProperties() обгортки виставляє `animated` ДО зміни даних, тож
     // «старт без анімації» і «рух до свого» — два звичайні рендери.
     raf = requestAnimationFrame(() => {
@@ -57,8 +70,9 @@ export function CountUp({
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(timer);
+      clearTimeout(mark);
     };
-  }, [to, start, delayMs]);
+  }, [to, start, delayMs, playKey]);
 
   return (
     <NumberFlow

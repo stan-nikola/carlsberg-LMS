@@ -129,6 +129,29 @@ body:has(.manager-shell:not([style*="display: none"])) {
 .card-grid .course-tile .ct-enter-link {
   margin-top: auto;
 }
+/* Усе під описом — термін, прогрес, «Залік · N%» з датою й сертифікатом —
+   притиснуте донизу, тож у ряду карток ці блоки стоять на одній лінії над
+   кнопкою, а різна довжина опису дає порожнє місце над ними, а не «стрибки»
+   (користувач, 2026-10-05). Ланцюжок: .ct-head і .ct-toggle ростуть, .ct-body —
+   колонка, перший елемент після опису (.ct-due або смуга) має margin-top:auto;
+   .ct-done-row лежить поза .ct-toggle і опускається разом із ним. */
+.card-grid .course-tile .ct-head {
+  flex: 1 1 auto;
+}
+.card-grid .course-tile .ct-toggle {
+  flex: 1 1 auto;
+  align-items: stretch;
+}
+.card-grid .course-tile .ct-toggle > .ct-icon {
+  align-self: flex-start;
+}
+.card-grid .course-tile .ct-body {
+  display: flex;
+  flex-direction: column;
+}
+.card-grid .course-tile .ct-desc + * {
+  margin-top: auto;
+}
 
 .manager-topbar-name {
   font-weight: 600;
@@ -1973,6 +1996,14 @@ a.mgr-matrix-cell:focus-visible {
   max-height: 440px;
   overflow: auto;
 }
+/* Списки зі смугами не скролляться вбік (користувач, 2026-10-05): прозорі поля
+   маски анімованого числа (number-flow) виходять за ячейку на ~6px і давали
+   горизонтальну смугу. Те, що не влазить, — однорядковий підпис із «…» і бігучим
+   рядком (блок «Однорядкові підписи» нижче). Таблиця-матриця скролиться вбік
+   (.mgr-matrix-wrap) — її це не стосується. */
+.mgr-chart-card > ul {
+  overflow-x: hidden;
+}
 /* Стовпчики тренду задані у відсотках від доріжки — їй потрібна власна
    мінімальна висота, інакше графік схлопується у смужку. */
 .mgr-chart-card > .mgr-trend-row {
@@ -2743,11 +2774,10 @@ a.mgr-matrix-cell:focus-visible {
 }
 
 /* «Стан команди»: сегменти виростають зліва направо по черзі (стенд Motion
-   Tuner «G», 2026-10-04): 0.6s ease-out, крок 120ms. Числа в легенді —
-   number-flow (TeamStatusBar.tsx). */
+   Tuner «G», 2026-10-04): 0.6s ease-out, крок 120ms. Запуск — нижче, за
+   [data-live]. */
 .mgr-status-seg {
   transform-origin: left;
-  animation: mgrSegGrow 0.6s var(--ease-spring) calc(0.2s + var(--i, 0) * 120ms) both;
 }
 @keyframes mgrSegGrow {
   from {
@@ -2760,13 +2790,27 @@ a.mgr-matrix-cell:focus-visible {
   transition: transform 0.45s ease;
 }
 
-/* Поява списків дашборда по черзі (користувач, 2026-10-05): картка, що
-   заїхала на екран, перемонтовується (ManagerDashboard: key за inView), і
-   рядки «Потребують уваги» виїжджають один за одним, а клітинки матриці
-   «люди × курси» спалахують хвилею зліва направо. */
-.mgr-attention-row {
-  animation: mgrRowIn 0.45s var(--ease-premium) both;
-  animation-delay: calc(var(--i, 0) * 80ms);
+/* Поява графіків дашборда (користувач, 2026-10-05): одноразово, коли картка
+   вперше потрапила в кадр (ManagerDashboard: data-live на grid-item; DOM не
+   перемонтується — перемонтаж давав перерахунок усієї сітки під час скролу).
+   До появи — прихований стан, з data-live — анімація; картка, що вже грала
+   (data-played), одразу готова. Матриця анімує РЯДКИ (≤15), а не кожну
+   клітинку (~120 елементів) — легше для скролу. */
+.grid-stack-item:not([data-live]):not([data-played]) .mgr-status-seg {
+  transform: scaleX(0);
+}
+.grid-stack-item:not([data-live]):not([data-played]) .mgr-attention-row,
+.grid-stack-item:not([data-live]):not([data-played]) .mgr-matrix tbody tr {
+  opacity: 0;
+}
+[data-live]:not([data-played]) .mgr-status-seg {
+  animation: mgrSegGrow 0.6s var(--ease-spring) calc(0.2s + var(--i, 0) * 120ms) both;
+}
+[data-live]:not([data-played]) .mgr-attention-row {
+  animation: mgrRowIn 0.45s var(--ease-premium) calc(var(--i, 0) * 80ms) both;
+}
+[data-live]:not([data-played]) .mgr-matrix tbody tr {
+  animation: mgrRowFade 0.4s var(--ease-premium) calc(var(--r, 0) * 60ms) both;
 }
 @keyframes mgrRowIn {
   from {
@@ -2774,26 +2818,17 @@ a.mgr-matrix-cell:focus-visible {
     transform: translateX(-14px);
   }
 }
-.mgr-matrix-td .mgr-matrix-cell {
-  animation: mgrCellIn 0.4s var(--ease-spring) both;
-  animation-delay: calc(var(--c, 0) * 70ms + var(--r, 0) * 30ms);
-}
-@keyframes mgrCellIn {
+@keyframes mgrRowFade {
   from {
     opacity: 0;
-    transform: scale(0.4);
   }
 }
-/* Картка вже грала в цьому завантаженні сторінки (ManagerDashboard: playedCards,
-   data-played) — малюємо одразу готовою, без повторної анімації. */
-[data-played] .mgr-status-seg,
-[data-played] .mgr-attention-row,
-[data-played] .mgr-matrix-td .mgr-matrix-cell {
-  animation: none;
-}
 @media (prefers-reduced-motion: reduce) {
+  .mgr-status-seg,
   .mgr-attention-row,
-  .mgr-matrix-td .mgr-matrix-cell {
-    animation: none;
+  .mgr-matrix tbody tr {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
