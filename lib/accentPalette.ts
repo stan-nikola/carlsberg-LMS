@@ -144,10 +144,10 @@ const okText = (c: string, w: string) => `color-mix(in srgb, var(--cb-${c}) ${w}
 export const ACCENT_ELEMENTS = [
   // Великі елементи
   { id: "avatar", group: "main", label: "Аватари-ініціали", hint: "команда, лідери, «Потребують уваги», картка без фото", styles: ["fill", "tint", "outline"], restBorder: "var(--cb-white-overlay-50)", pick: { color: "green-deep", style: "fill" } },
-  { id: "badge", group: "main", label: "Кружки нагород", hint: "«Досягнення» → Відзнаки", styles: ["gradient", "flat", "tint"], pick: { color: "green-light", style: "tint" } },
+  { id: "badge", group: "main", label: "Кружки нагород", hint: "«Досягнення» → Відзнаки", styles: ["gradient", "flat", "tint"], pick: { color: "yellow-main", style: "gradient" } },
   { id: "course", group: "main", label: "Іконки курсів", hint: "квадрат на картці курсу", styles: ["fill", "tint", "outline"], pick: { color: "green-deep", style: "tint" } },
   { id: "ring", group: "main", label: "Кільце фото", hint: "обвідка аватара на зеленій картці", styles: [], pick: { color: "brand-green", style: null } },
-  { id: "level", group: "main", label: "Зірка рівня", hint: "зелена картка й «Мій прогрес»", styles: ["fill", "tint"], pick: { color: "teal-light", style: "tint" } },
+  { id: "level", group: "main", label: "Зірка рівня", hint: "зелена картка й «Мій прогрес»", styles: ["fill", "tint"], pick: { color: "yellow-main", style: "fill" } },
   { id: "cert", group: "main", label: "Сертифікати", hint: "«Досягнення» і фінальний екран курсу", styles: ["tint", "outline"], tint: 22, restBorder: "color", pick: { color: "gold-light", style: "outline" } },
   { id: "quiz", group: "main", label: "Іконка банера тесту", hint: "кружок «Перевірте себе» в плеєрі", styles: ["fill", "tint", "outline"], pick: { color: "gold-main", style: "fill" } },
   { id: "settings", group: "main", label: "Іконки налаштувань", hint: "квадрати в шестерні й налаштуваннях сповіщень", styles: ["tint", "fill", "outline"], tint: 12, pick: { color: "green-main", style: "tint" } },

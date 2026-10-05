@@ -94,10 +94,10 @@
   --accent-avatar-bg: color-mix(in srgb, var(--cb-secondary) 70%, var(--cb-black));
   --accent-avatar-fg: var(--cb-white);
   --accent-avatar-bd: var(--cb-white-overlay-50);
-  /* Кружки нагород (.badge-ico): зелений світлий, тон */
-  --accent-badge: color-mix(in srgb, var(--cb-secondary) 55%, var(--cb-white));
-  --accent-badge-bg: color-mix(in srgb, color-mix(in srgb, var(--cb-secondary) 55%, var(--cb-white)) 20%, var(--cb-white));
-  --accent-badge-fg: color-mix(in srgb, color-mix(in srgb, var(--cb-secondary) 55%, var(--cb-white)) 45%, var(--cb-black));
+  /* Кружки нагород (.badge-ico): жовтий (янтар) гайду, градієнт — яскраво на світлому фоні */
+  --accent-badge: var(--cb-brand-yellow);
+  --accent-badge-bg: linear-gradient(150deg, var(--cb-brand-yellow), color-mix(in srgb, var(--cb-brand-yellow) 78%, var(--cb-black)));
+  --accent-badge-fg: color-mix(in srgb, var(--cb-brand-yellow) 25%, var(--cb-black));
   --accent-badge-bd: transparent;
   /* Іконки курсів (.course-tile .ct-icon): зелений глибокий, тон */
   --accent-course: color-mix(in srgb, var(--cb-secondary) 70%, var(--cb-black));
@@ -106,10 +106,10 @@
   --accent-course-bd: transparent;
   /* Кільце фото на зеленій картці: Carlsberg green */
   --accent-ring: var(--cb-primary);
-  /* Зірка рівня (.lv-star): бірюзовий світлий, тон */
-  --accent-level: color-mix(in srgb, var(--cb-brand-teal) 55%, var(--cb-white));
-  --accent-level-bg: color-mix(in srgb, color-mix(in srgb, var(--cb-brand-teal) 55%, var(--cb-white)) 20%, var(--cb-white));
-  --accent-level-fg: color-mix(in srgb, color-mix(in srgb, var(--cb-brand-teal) 55%, var(--cb-white)) 45%, var(--cb-black));
+  /* Зірка рівня (.lv-star): жовтий (янтар), заливка */
+  --accent-level: var(--cb-brand-yellow);
+  --accent-level-bg: var(--cb-brand-yellow);
+  --accent-level-fg: color-mix(in srgb, var(--cb-brand-yellow) 25%, var(--cb-black));
   --accent-level-bd: transparent;
   /* Сертифікати (.cert-row, .cp-cert-block): золото світле, контур */
   --accent-cert: color-mix(in srgb, var(--cb-tertiary) 55%, var(--cb-white));

@@ -808,6 +808,8 @@ a.profile-card-link:focus-visible {
   font-size: 23px;
   background: var(--accent-badge-bg);
   color: var(--accent-badge-fg);
+  /* Жовта эмодзі (⭐) на янтарному фоні зливалась — легка тінь її відокремлює. */
+  text-shadow: 0 1px 3px color-mix(in srgb, var(--cb-black) 40%, transparent);
   box-shadow: inset 0 0 0 var(--border-w) var(--accent-badge-bd), 0 8px 16px -8px color-mix(in srgb, var(--accent-badge) 55%, transparent);
   position: relative;
   overflow: hidden;
