@@ -4,6 +4,12 @@ import { confirmLoginPin, invalidateLoginPin } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { clientIp, hitRateLimit, normalizeExternalCode, pinThrottleKey, recordSuccess, registerAttempt, settleFailure, tooManyRequests } from "@/lib/loginThrottle";
 import { auditEmployee } from "@/lib/audit";
+import { PIN_LENGTH } from "@/lib/pin";
+
+// Формат PIN: лише цифри, 4…PIN_LENGTH. Нижня межа 4 — перехід 2026-10-05 з
+// 4 на 6 цифр: код, виданий до деплою, доживає свої 12 годин. Після
+// 2026-10-07 звузити до рівно PIN_LENGTH (і pattern у openapi.yaml разом).
+const PIN_FORMAT = new RegExp(`^\\d{4,${PIN_LENGTH}}$`);
 
 /**
  * POST /api/auth/confirm
@@ -25,6 +31,11 @@ export async function POST(request) {
       { ok: false, error: "missing_external_code_or_pin" },
       { status: 400 }
     );
+  }
+  // Не-цифри чи не та довжина — одразу 400, без витрати спроби з ліміту:
+  // такий рядок жодному PIN не дорівнює, а лічильник перебору — для справжніх спроб.
+  if (!PIN_FORMAT.test(pin)) {
+    return NextResponse.json({ ok: false, error: "invalid_pin" }, { status: 400 });
   }
   // Лише літери й цифри — інакше % і _ давали окремий лічильник спроб на
   // кожне написання того самого коду (lib/loginThrottle.ts).
