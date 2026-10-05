@@ -1,4 +1,74 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 @AGENTS.md
+
+## Команди
+
+Windows: у новому шеллі `node`/`npx` часто нема на PATH — спершу
+`$env:Path = "C:\Program Files\nodejs;" + $env:Path` (PowerShell) або
+`export PATH="/c/Program Files/nodejs:$PATH"` (Git Bash).
+
+- Dev-сервер — **скіл `/restart-dev`**, не `npm run dev` напряму (залиплий
+  `node` дає `EPERM … .next\dev`). Прод-збірка локально: зупинити dev (вони
+  ділять `.next`), `npx next build`, `npx next start -p 3002`.
+- `npm run lint` — ESLint; `npx tsc --noEmit -p .` — типи (лише нові
+  `.ts/.tsx`, `checkJs:false`).
+- `npm test` — усі тести (vitest, `**/*.test.{js,ts}`); один файл —
+  `npx vitest run lib/auth.test.js`; один тест —
+  `npx vitest run lib/auth.test.js -t "назва"`; `npm run test:watch`.
+- `npx prisma validate` / `npx prisma generate` (`postinstall` генерує сам);
+  міграції на реальних даних — **скіл `/db-migrate`**, ніколи `migrate reset`.
+- Pre-commit (husky): `lint-staged` (eslint --fix) і відмова, якщо в коміті є
+  файл у невідомій теці верхнього рівня чи `.pptx/.docx/.xlsx/.pdf`.
+- CI (`.github/workflows/ci.yml`): `prisma validate`, lint, test, build, окремий
+  job `api-diff` (`oasdiff` по `openapi.yaml`). `lib/openapi.test.ts` валить
+  тести, якщо `app/api/**/route.*` розійшовся зі специфікацією.
+- Агенти проєкту (`.claude/agents/`): `architecture-guardian` — після змін
+  схеми, `design-guardian` — після будь-якого CSS, `request-guardian` — після
+  пачки дрібних правок (звіряє, що кожне прохання реально виконано).
+
+## Карта застосунку
+
+Три кабінети з різними входами (деталі — у розділах нижче):
+
+| Кабінет | Маршрути | Вхід | Для кого |
+|---|---|---|---|
+| Співробітник | `/hub`, `/courses/[slug]`, `/register` | код + PIN на пошту (`lib/auth.js`, cookie `session`) | польові ролі, телефон |
+| Керівник | `/manager/*` | та сама сесія, роль `isManagerTier` (`lib/permissions.js`) | SV/ASM/RM, десктоп |
+| Адмін | `/admin/*` | окремий `ADMIN_PASSWORD` → `admin_session` (`lib/adminSession.js`), без зв'язку з Employee | T&D |
+
+Ще два канали: Excel через Power Query (`/api/data/*`, Bearer-токен
+`AdminApiToken`) і Telegram Mini App (`/tg`, `/api/tg/*`).
+
+**Потік даних сторінки.** Server Component `app/**/page.js` →
+`getCurrentUser()` (`lib/session.js`, React `cache()` над
+`"use cache: private"`) → функція-огляд у `lib/*Overview.js` /
+`lib/employeeProgress.js` (теж `"use cache: private"`,
+`cacheLife("minutes")`, у аргументах лише примітиви) → Prisma
+(`lib/prisma.js`, singleton на `@prisma/adapter-pg`). Клієнтські `fetch` до
+`/api/*` — лише для дій (відповідь у плеєрі, нагадування, підвантаження важких
+блоків дашборда). `cacheComponents: true` у `next.config.mjs`; кожен
+`page/layout` поки що має `export const instant = false` (TODO adoption).
+
+**Де яка логіка.** Чиста математика — `lib/*.ts` із тестом поруч
+(`coursePlan`, `retryPolicy`, `ratingLogic`, `teamInsights`,
+`dashboardHeights`, `snakePath`, `pin`); доступ до БД — `lib/*.js`;
+`components/` — React, а великі файли (`ManagerDashboard.jsx`,
+`AdminCourseEditor.jsx`, `CoursePlayer.jsx`) тримають стан екрана цілком.
+`app/generated/prisma` — згенерований клієнт, не редагувати.
+
+**Стилі.** Усі `app/styles/*.css` імпортуються в кореневому `app/layout.js` у
+фіксованому порядку (gridstack ДО `manager.css`). Розміри й кольори — лише
+токени з `app/styles/tokens.css`; адаптація компонента, що живе і в телефонній
+рамці, і в сітці, — `@container`, не `@media`.
+
+**Фонове.** Один cron-маршрут `app/api/cron/check-overdue-enrollments` (у
+`vercel.json` на нього два розклади): прострочення, авто-відзнаки,
+авто-призначення за `publishAt`, дайджести, ретенція журналу дій.
+
+**Легасі.** `legacy/` — архів vanilla JS + Google Sheets, не розвивається.
 
 # Правила та конвенції проєкту
 
