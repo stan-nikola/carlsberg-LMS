@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { PIN_LENGTH } from "@/lib/pin";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -291,6 +292,13 @@ export default function RegisterPage() {
       setPinError("Введіть PIN-код.");
       return;
     }
+    // Неповний код не шлемо: сервер рахує кожен запит у ліміт 5 спроб, і
+    // Enter після п'яти з шести цифр спалював би одну з них. Нижня межа 4 —
+    // перехід 4 → 6 цифр (див. app/api/auth/confirm/route.js), потім PIN_LENGTH.
+    if (pin.length < 4) {
+      setPinError(`PIN-код має ${PIN_LENGTH} цифр — введіть усі.`);
+      return;
+    }
     setPinError("");
     setPinSubmitBusy(true);
     // Після успішного входу спінер НЕ гасимо: router.push лише запускає
@@ -529,7 +537,7 @@ export default function RegisterPage() {
                       onChange={(e) => setDemoEmail(e.target.value)}
                       suppressHydrationWarning
                     />
-                    <div className="reg-field-hint">Лист із 4-значним PIN прийде сюди протягом хвилини; код діє 12 годин.</div>
+                    <div className="reg-field-hint">{`Лист із ${PIN_LENGTH}-значним PIN прийде сюди протягом хвилини; код діє 12 годин.`}</div>
                   </div>
                 )}
               </form>
@@ -542,13 +550,13 @@ export default function RegisterPage() {
                   ref={pinInputRef}
                   type="text"
                   inputMode="numeric"
-                  maxLength={4}
+                  maxLength={PIN_LENGTH}
                   id="fPin"
                   className="reg-pin-input"
-                  placeholder="••••"
+                  placeholder={"•".repeat(PIN_LENGTH)}
                   autoComplete="one-time-code"
                   value={pin}
-                  onChange={(e) => setPin(e.target.value)}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH))}
                   suppressHydrationWarning
                 />
                 {pinError && <div className="field-error">{pinError}</div>}

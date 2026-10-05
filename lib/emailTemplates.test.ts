@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { buildLoginPinEmail, escapeHtml } from "@/lib/emailTemplates";
 
-const base = { employeeName: "Технік HoReCa", externalCode: "TECH0072", pin: "4821" };
+const base = { employeeName: "Технік HoReCa", externalCode: "TECH0072", pin: "482130" };
 
 describe("buildLoginPinEmail", () => {
   it("лист співробітнику: PIN, код і введене ім'я є і в text, і в html", () => {
     const mail = buildLoginPinEmail({ ...base, enteredName: "Олена Коваль", isSelf: true });
     for (const body of [mail.text, mail.html]) {
-      expect(body).toContain("4821");
+      expect(body).toContain("482130");
       expect(body).toContain("TECH0072");
       expect(body).toContain("Олена Коваль");
     }

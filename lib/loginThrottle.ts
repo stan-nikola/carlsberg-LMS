@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * Rate-limit входу (2026-09-18, переписано атомарно 2026-09-27) — захист від
- * перебору 4-значного PIN (lib/auth.js) і пароля /admin. Лічильник у таблиці
+ * перебору PIN (довжина — PIN_LENGTH у lib/pin.ts) і пароля /admin. Лічильник у таблиці
  * LoginAttempt, не в пам'яті: serverless-інстанси Vercel пам'яті не ділять.
  *
  * Спроба рахується ДО перевірки PIN одним UPSERT … RETURNING. Попередня

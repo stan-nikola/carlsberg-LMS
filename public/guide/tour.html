@@ -218,8 +218,8 @@
   .login .field span{font-size:5.4cqw;font-weight:900;letter-spacing:.08em;min-height:6.8cqw;display:block}
   .login .field.focus span::after{content:"";display:inline-block;width:.5cqw;height:5cqw;background:var(--accent);margin-left:.4cqw;vertical-align:-.6cqw;animation:caret 1s steps(1) infinite}
   @keyframes caret{50%{opacity:0}}
-  .login .pins{display:flex;gap:2.6cqw;justify-content:center}
-  .login .pins i{width:12.4cqw;height:14.6cqw;border-radius:3.2cqw;background:#fff;border:.5cqw solid var(--line);display:grid;place-items:center;font-style:normal;font-size:7cqw;font-weight:900;color:var(--brand)}
+  .login .pins{display:flex;gap:2cqw;justify-content:center}
+  .login .pins i{width:11cqw;height:13.2cqw;border-radius:3cqw;background:#fff;border:.5cqw solid var(--line);display:grid;place-items:center;font-style:normal;font-size:7cqw;font-weight:900;color:var(--brand)}
   .login .pins i.f{border-color:var(--accent);animation:pinf .35s var(--spring)}
   @keyframes pinf{40%{transform:scale(1.15)}}
   .login .pins.okk i{background:var(--tint);border-color:var(--ok)}
@@ -1147,7 +1147,7 @@
           <div class="field in" id="fld" style="--d:.35s"><span id="code" class="ph">Наприклад: MR0000</span></div>
           <div class="btn in" id="regBtn" style="--d:.45s">Зареєструватись <span>→</span></div>
           <div class="pinwrap" id="pinwrap"><small>PIN-код підтвердження</small>
-            <div class="pins" id="pins"><i></i><i></i><i></i><i></i></div>
+            <div class="pins" id="pins"><i></i><i></i><i></i><i></i><i></i><i></i></div>
             <small class="pinnote">PIN-код надіслано вашому керівнику — зверніться до нього. Діє 12 годин.</small></div>
         </div>
         <div class="shov" id="shov">
@@ -1563,7 +1563,7 @@
         t.tap(7900, "#regBtn");
         t.at(8100, function () { $("#ltoast").classList.add("show"); $("#pinwrap").classList.add("on2"); });
         var pins = document.querySelectorAll("#pins i");
-        for (var j = 0; j < 4; j++) (function (n) { t.at(9100 + n * 280, function () { pins[n].textContent = "•"; pins[n].classList.add("f"); }); })(j);
+        for (var j = 0; j < 6; j++) (function (n) { t.at(9100 + n * 200, function () { pins[n].textContent = "•"; pins[n].classList.add("f"); }); })(j);
         t.at(10400, function () { $("#pins").classList.add("okk"); $("#ltoast span").textContent = "Вхід виконано — вітаємо в CarLS!"; });
       } },
     { id: "LW", dur: 10500, em: "🤝", title: "Вітання в команді після реєстрації",
