@@ -147,7 +147,7 @@ export function TeamMatrix({ data }: { data: TeamMatrixData }) {
             {data.rows.map(({ person, cells }, ri) => {
               const rowKey = String(person.id);
               return (
-                <tr key={person.id} style={{ height: sizeOf(sizes, "row", rowKey) }}>
+                <tr key={person.id} style={{ height: sizeOf(sizes, "row", rowKey), "--r": ri } as React.CSSProperties}>
                   <th scope="row" className="mgr-matrix-corner">
                     <Link href={`/manager/team/${person.id}`} prefetch={false} className="mgr-matrix-person">
                       {person.name}

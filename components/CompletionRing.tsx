@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 /**
@@ -56,7 +56,6 @@ export function CompletionRing({
   const clamped = Math.max(0, Math.min(100, pct));
   const on = animated && active;
   const dash = on ? (clamped / 100) * circumference : 0;
-  const shown = useCountUp(on ? clamped : 0);
   const inner = (
     <>
       <svg viewBox="0 0 120 120" className="mgr-ring" role="img" aria-label={`${label ? label + ": " : ""}${clamped}%`}>
@@ -76,7 +75,7 @@ export function CompletionRing({
           transform="rotate(-90 60 60)"
         />
         <text x="60" y="67" textAnchor="middle" className="mgr-ring-text">
-          {shown}%
+          {clamped}%
         </text>
       </svg>
       {label && <span className="mgr-ring-label">{label}</span>}
@@ -90,36 +89,4 @@ export function CompletionRing({
   ) : (
     <div className="mgr-ring-item">{inner}</div>
   );
-}
-
-/**
- * Відсоток у центрі «біжить» разом із дугою (0 → значення), а не стоїть
- * готовим над порожнім кільцем. Число в SVG <text> — number-flow
- * (CountUp) туди не вставити, тож тут простий rAF з тим самим затуханням.
- * «Зменшити рух» — одразу кінцеве значення.
- */
-const COUNT_MS = 1100;
-function useCountUp(target: number): number {
-  const [value, setValue] = useState(target);
-  const fromRef = useRef(target);
-  useEffect(() => {
-    const from = fromRef.current;
-    if (from === target || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      fromRef.current = target;
-      setValue(target);
-      return undefined;
-    }
-    let raf = 0;
-    const start = performance.now();
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / COUNT_MS);
-      const v = Math.round(from + (target - from) * (1 - (1 - t) ** 3));
-      fromRef.current = v;
-      setValue(v);
-      if (t < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [target]);
-  return value;
 }

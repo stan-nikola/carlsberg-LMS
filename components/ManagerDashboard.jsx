@@ -32,7 +32,6 @@ import { TeamStatusBar } from "@/components/TeamStatusBar";
 import { pluralPeople } from "@/lib/teamInsights";
 import { AttentionList } from "@/components/AttentionList";
 import { TeamMatrix } from "@/components/TeamMatrix";
-import { CountUp } from "@/components/CountUp";
 import { ExportReportLink } from "@/components/ExportReportLink";
 
 // localStorage, не БД (рішення користувача, 2026-09-19) — вибір карток
@@ -787,7 +786,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         </button>
       ) : null;
       return (
-        <div key={id} className="grid-stack-item" data-card-id={id} data-played={playedAtMount.has(id) ? "" : undefined} gs-id={id} gs-w={DEFAULT_CARD_W[id] || 6} gs-min-w={minCardW(id)}>
+        <div key={id} className="grid-stack-item" data-card-id={id} data-played={playedAtMount.has(id) ? "" : undefined} data-live={inView.has(id) ? "" : undefined} gs-id={id} gs-w={DEFAULT_CARD_W[id] || 6} gs-min-w={minCardW(id)}>
           <div className="grid-stack-item-content">
             {cloneElement(node, { className: `${node.props.className}${editMode ? " is-editable" : ""}` })}
           </div>
@@ -1338,7 +1337,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // на «Команду» з іншої вкладки анімацію не повторюють. -15% знизу: стартуємо,
   // коли картку вже видно, а не на самому краї.
   // playedAtMount — що зіграло ДО цього монтування: такі картки малюємо одразу
-  // готовими (без CountUp, дуги й CSS-анімацій).
+  // готовими (без дуги й CSS-анімацій).
   const [playedAtMount] = useState(() => new Set(playedCards));
   const [inView, setInView] = useState(() => new Set(playedCards));
   const enabledKey = orderedIds.filter((id) => enabledCards.has(id)).join(",");
@@ -1364,11 +1363,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     return () => io.disconnect();
   }, [enabledKey, state.data, gridReady, gridEpoch]);
   const live = (id) => barsAnimated && inView.has(id);
-  // Число біля смуги «крутиться» одометром від 0 (той самий CountUp, що бали
-  // в картці профілю); key — щоб при новій появі картки рахувати знову.
-  // slot — коли в одному рядку два числа («3/7 · 43%»).
-  // Уже зіграла до монтування — число одразу кінцеве (from === to → без анімації).
-  const n = (id, v, slot = "v") => <CountUp key={`${slot}-${live(id)}`} from={playedAtMount.has(id) ? v : 0} to={live(id) ? v : 0} />;
+  // Числа на картках дашборда статичні (користувач, 2026-10-05: «убрать анимацию
+  // цифр совсем, только диаграммы») — 59 number-flow одночасно гальмували скрол.
+  const n = (_id, v) => v;
 
   const flatTeam = useMemo(() => (teamTree.data ? flattenTree(teamTree.data) : []), [teamTree.data]);
 
@@ -1543,7 +1540,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             </span>
             <ChartHint text="Кожна людина рівно в ОДНОМУ сегменті — за найгіршим своїм станом (прострочено → відстає → не почала → неактивна → за графіком). Число в сегменті — люди; друге число поруч у легенді — скільки курсів у цьому стані саме в цих людей. Клік відкриває список саме цих людей." />
           </h2>
-          <TeamStatusBar key={inView.has("status") ? "in" : "out"} data={team.statusBar} />
+          <TeamStatusBar data={team.statusBar} />
         </div>
           )],
 
@@ -1555,7 +1552,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <PeopleIcon /> <span className="mgr-card-title">Потребують уваги</span>
             <ChartHint text="П'ятеро найтерміновіших: прострочення важать найбільше, далі відставання від графіка, не розпочате й відсутність на платформі. Чипи називають одиницю («2 курси прострочено»), а «Нагадати» надсилає сповіщення з готовим текстом за причиною." />
           </h2>
-          <AttentionList key={inView.has("attention") ? "in" : "out"} items={team.attention} />
+          <AttentionList items={team.attention} />
         </div>
           )],
 
@@ -1875,7 +1872,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <PeopleIcon /> <span className="mgr-card-title">Люди × курси</span>
             <ChartHint text="Уся команда одним поглядом: рядок — людина (проблемні зверху), стовпчик — курс, клітинка — стан призначення. Клік по клітинці відкриває цей курс у цієї людини, по імені — сторінку людини, по назві курсу — усі призначення курсу." />
           </h2>
-          <TeamMatrix key={inView.has("peopleStatus") ? "in" : "out"} data={team.matrix} />
+          <TeamMatrix data={team.matrix} />
         </div>
           )],
 
@@ -1930,7 +1927,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <ChartHint text="Питання (не цілі модулі), на яких команда найчастіше помиляється, по всіх курсах разом. Точніше за «Найскладніші модулі» — показує конкретне питання, яке варто переформулювати чи пояснити в матеріалі. Питання з менш ніж 3 відповідями в список не потрапляють." />
           </h2>
           {hardestQuestions.loading ? (
-            <LinesSkeleton rows={4} />
+            // Скелет на висоту готового списку (до 8 питань = картка L): інакше картка
+            // з S після завантаження стрибала в L і зсувала все нижче посеред скролу.
+            <LinesSkeleton rows={8} />
           ) : hardestQuestions.error ? (
             <p className="admin-hint">Не вдалося завантажити.</p>
           ) : !hardestQuestions.items || hardestQuestions.items.length === 0 ? (
