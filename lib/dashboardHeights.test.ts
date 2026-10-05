@@ -60,6 +60,13 @@ describe("holeFillSteps", () => {
     ];
     expect(holeFillSteps(nodes, 12, S)).toEqual([{ id: "small", h: 2 * S }]);
   });
+  it("картка на всю ширину висоту S не «достроюється» до L, навіть коли нижче є картки", () => {
+    const nodes = [
+      { id: "matrix", x: 0, y: 0, w: 12, h: S },
+      { id: "below", x: 0, y: 2 * S, w: 12, h: S },
+    ];
+    expect(holeFillSteps(nodes, 12, S)).not.toContainEqual({ id: "matrix", h: 2 * S });
+  });
   it("¼ + ½ + порожня ¼ — ¼ ширшає до ½, ½ зсувається праворуч", () => {
     const nodes = [
       { id: "q", x: 0, y: 0, w: 3, h: 2 * S },
