@@ -27,6 +27,7 @@ import "gridstack/dist/gridstack.min.css";
 import "@/app/styles/manager.css";
 import "@/app/styles/notifications.css";
 import "@/app/styles/rating.css";
+import "@/app/styles/status-pages.css";
 
 // Carlsberg Sans — справжній фірмовий шрифт (не заміна на щось схоже під
 // тим самим іменем). Файли — з ліцензійного пакету "Carlsberg Sans v3100"

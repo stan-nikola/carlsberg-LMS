@@ -1,0 +1,61 @@
+/* Сторінки стану: 404 (app/not-found.js) і помилка (app/error.js). Кнопки — спільні
+   .btn-primary-full / .btn-secondary-full з globals.css, кольори й розміри — токени.
+   global-error.js має власні inline-стилі: він замінює кореневий layout, і ці
+   файли до нього не доходять. */
+.sp-card {
+  box-sizing: border-box;
+  width: calc(100% - 32px); /* боковий відступ: паддінг body тут не діє */
+  max-width: 420px;
+  /* body тут align-items:stretch — без цього картка тягнулась би на всю висоту */
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  background: var(--surface-1);
+  border: var(--border-w) solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 32px 24px;
+  box-shadow: var(--card-shadow);
+}
+.sp-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-btn);
+}
+.sp-code {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: calc(64px * var(--fs-scale));
+  line-height: 1;
+  color: var(--green-700);
+}
+.sp-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: calc(22px * var(--fs-scale));
+  line-height: 1.2;
+}
+.sp-text {
+  margin: 0;
+  font-size: calc(14px * var(--fs-scale));
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.sp-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.sp-digest {
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--fs-scale));
+  color: var(--ink-soft);
+  word-break: break-all;
+}
