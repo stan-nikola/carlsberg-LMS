@@ -2784,6 +2784,13 @@ a.mgr-matrix-cell:focus-visible {
     transform: scale(0.4);
   }
 }
+/* Картка вже грала в цьому завантаженні сторінки (ManagerDashboard: playedCards,
+   data-played) — малюємо одразу готовою, без повторної анімації. */
+[data-played] .mgr-status-seg,
+[data-played] .mgr-attention-row,
+[data-played] .mgr-matrix-td .mgr-matrix-cell {
+  animation: none;
+}
 @media (prefers-reduced-motion: reduce) {
   .mgr-attention-row,
   .mgr-matrix-td .mgr-matrix-cell {

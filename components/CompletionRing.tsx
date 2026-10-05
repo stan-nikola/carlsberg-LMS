@@ -33,6 +33,7 @@ export function CompletionRing({
   color = "var(--accent-ring-chart)",
   href,
   active = true,
+  instant = false,
 }: {
   pct: number;
   label?: string;
@@ -41,8 +42,10 @@ export function CompletionRing({
   href?: string;
   /** false — кільце порожнє; true — заповнюється з нуля (дашборд вмикає, коли картка на екрані). */
   active?: boolean;
+  /** true — кільце одразу готове, без заповнення (картка вже грала в цьому завантаженні). */
+  instant?: boolean;
 }) {
-  const [animated, setAnimated] = useState(false);
+  const [animated, setAnimated] = useState(instant);
   useEffect(() => {
     const id = requestAnimationFrame(() => setAnimated(true));
     return () => cancelAnimationFrame(id);

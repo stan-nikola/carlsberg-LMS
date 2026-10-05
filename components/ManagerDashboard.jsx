@@ -247,6 +247,13 @@ function mergeCardOrder(stored, canonical) {
 // Карта дашборда (користувач, 2026-10-04): кільця, «Потребують уваги»,
 // «Стан команди»; далі дедлайни й розподіл балів (¼ + ¼ закривають ряд біля
 // «Стану» на ½), матриця на всю ширину, решта.
+// Картки, чиє заповнення вже зіграло в цьому завантаженні сторінки (користувач,
+// 2026-10-05: «один раз при перезагрузке чи вході, не щоразу, коли картка
+// потрапляє в кадр — усе мигає»). Живе в модулі, тож переживає повернення на
+// «Команду» з іншої вкладки (SPA-навігація), а F5 чи новий вхід в застосунок
+// обнуляють його разом зі сторінкою.
+const playedCards = new Set();
+
 const CANONICAL_CARD_IDS = [
   "rings",
   "attention",
@@ -780,7 +787,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         </button>
       ) : null;
       return (
-        <div key={id} className="grid-stack-item" data-card-id={id} gs-id={id} gs-w={DEFAULT_CARD_W[id] || 6} gs-min-w={minCardW(id)}>
+        <div key={id} className="grid-stack-item" data-card-id={id} data-played={playedAtMount.has(id) ? "" : undefined} gs-id={id} gs-w={DEFAULT_CARD_W[id] || 6} gs-min-w={minCardW(id)}>
           <div className="grid-stack-item-content">
             {cloneElement(node, { className: `${node.props.className}${editMode ? " is-editable" : ""}` })}
           </div>
@@ -1325,12 +1332,15 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     return () => cancelAnimationFrame(id);
   }, [state.data]);
 
-  // Графіки картки заповнюються з нуля щоразу, як картка з’являється на
-  // екрані при прокрутці, а не лише раз при завантаженні (користувач,
-  // 2026-10-05): кільця крутяться, смуги й сегменти ростуть. Картка, що
-  // повністю пішла з екрана, скидається — наступного разу зіграє знову.
-  // -15% знизу: анімація стартує, коли картку вже видно, а не на самому краї.
-  const [inView, setInView] = useState(() => new Set());
+  // Графіки картки заповнюються з нуля ОДИН раз за завантаження сторінки — коли
+  // картка вперше з’являється на екрані (кільця крутяться, смуги й сегменти
+  // ростуть). Далі вона лишається заповненою: ні вихід із кадру, ні повернення
+  // на «Команду» з іншої вкладки анімацію не повторюють. -15% знизу: стартуємо,
+  // коли картку вже видно, а не на самому краї.
+  // playedAtMount — що зіграло ДО цього монтування: такі картки малюємо одразу
+  // готовими (без CountUp, дуги й CSS-анімацій).
+  const [playedAtMount] = useState(() => new Set(playedCards));
+  const [inView, setInView] = useState(() => new Set(playedCards));
   const enabledKey = orderedIds.filter((id) => enabledCards.has(id)).join(",");
   useEffect(() => {
     const root = chartsRef.current;
@@ -1341,26 +1351,24 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           const next = new Set(prev);
           for (const e of entries) {
             const id = e.target.getAttribute("data-card-id");
-            if (e.isIntersecting) next.add(id);
-            else next.delete(id);
+            if (e.isIntersecting) {
+              next.add(id);
+              playedCards.add(id);
+            }
           }
-          return next.size === prev.size && [...next].every((id) => prev.has(id)) ? prev : next;
+          return next.size === prev.size ? prev : next;
         }),
       { rootMargin: "0px 0px -15% 0px" }
     );
     root.querySelectorAll("[data-card-id]").forEach((node) => io.observe(node));
-    return () => {
-      io.disconnect();
-      // Пішли з «Команди» (сторінка може лишитись у пам’яті роутера) —
-      // при поверненні все заповнюється з нуля знову.
-      setInView(new Set());
-    };
+    return () => io.disconnect();
   }, [enabledKey, state.data, gridReady, gridEpoch]);
   const live = (id) => barsAnimated && inView.has(id);
   // Число біля смуги «крутиться» одометром від 0 (той самий CountUp, що бали
   // в картці профілю); key — щоб при новій появі картки рахувати знову.
   // slot — коли в одному рядку два числа («3/7 · 43%»).
-  const n = (id, v, slot = "v") => <CountUp key={`${slot}-${live(id)}`} from={0} to={live(id) ? v : 0} />;
+  // Уже зіграла до монтування — число одразу кінцеве (from === to → без анімації).
+  const n = (id, v, slot = "v") => <CountUp key={`${slot}-${live(id)}`} from={playedAtMount.has(id) ? v : 0} to={live(id) ? v : 0} />;
 
   const flatTeam = useMemo(() => (teamTree.data ? flattenTree(teamTree.data) : []), [teamTree.data]);
 
@@ -1561,10 +1569,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
               «Вчасно» веде до доповнення (хто НЕ вчасно), «Розпочали» —
               до тих, хто ще не почав: діяти треба саме по них. */}
           <div className="mgr-ring-grid">
-            <CompletionRing active={inView.has("rings")} pct={stats.completionRate} label="Виконано" color={rateColor(stats.completionRate, ringValues)} href="/manager/team?view=courses&status=completed" />
-            <CompletionRing active={inView.has("rings")} pct={stats.passRate} label="Складено (80%+)" color={rateColor(stats.passRate, ringValues)} href="/manager/team?view=courses&status=passed" />
-            <CompletionRing active={inView.has("rings")} pct={stats.onTimeRate} label="Вчасно" color={rateColor(stats.onTimeRate, ringValues)} href="/manager/team?view=courses&timing=late" />
-            <CompletionRing active={inView.has("rings")} pct={stats.startedRate} label="Розпочато" color={rateColor(stats.startedRate, ringValues)} href="/manager/team?view=courses&status=not_started" />
+            <CompletionRing active={inView.has("rings")} instant={playedAtMount.has("rings")} pct={stats.completionRate} label="Виконано" color={rateColor(stats.completionRate, ringValues)} href="/manager/team?view=courses&status=completed" />
+            <CompletionRing active={inView.has("rings")} instant={playedAtMount.has("rings")} pct={stats.passRate} label="Складено (80%+)" color={rateColor(stats.passRate, ringValues)} href="/manager/team?view=courses&status=passed" />
+            <CompletionRing active={inView.has("rings")} instant={playedAtMount.has("rings")} pct={stats.onTimeRate} label="Вчасно" color={rateColor(stats.onTimeRate, ringValues)} href="/manager/team?view=courses&timing=late" />
+            <CompletionRing active={inView.has("rings")} instant={playedAtMount.has("rings")} pct={stats.startedRate} label="Розпочато" color={rateColor(stats.startedRate, ringValues)} href="/manager/team?view=courses&status=not_started" />
           </div>
         </div>
           )],
@@ -1694,7 +1702,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <p className="admin-hint">Немає жодної завершеної спроби.</p>
           ) : (
             <div className="mgr-first-try-body">
-              <CompletionRing active={inView.has("firstTry")} pct={stats.firstAttempt.pct} label="З першої спроби" />
+              <CompletionRing active={inView.has("firstTry")} instant={playedAtMount.has("firstTry")} pct={stats.firstAttempt.pct} label="З першої спроби" />
               <ul className="mgr-first-try-legend">
                 <li>
                   <b>{n("firstTry", stats.firstAttempt.passedFirst)}</b>
