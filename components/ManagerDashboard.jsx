@@ -253,6 +253,13 @@ function mergeCardOrder(stored, canonical) {
 // обнуляють його разом зі сторінкою.
 const playedCards = new Set();
 
+// Остання усталена розкладка СІТКИ з висотами (x, y, w, h) — для повторного показу вкладки:
+// Next тримає попередню сторінку в Activity і заново запускає ефекти, сітку пересоздають, і без
+// цього всі картки стартували б з висоти 1 клітинки й по черзі «виростали» (13 оновлень, кожне
+// зсуває решту — ~секунда перерахунків). З висотами сітка стає одразу в потрібний вигляд, а
+// fitCards лише перевіряє. Тільки пам’ять модуля: на F5 нічого не живе, висоти завжди з вмісту.
+let settledGrid = null;
+
 const CANONICAL_CARD_IDS = [
   "rings",
   "attention",
@@ -625,7 +632,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // підписує на нього щойно ввімкнені картки.
   const cardObserverRef = useRef(null);
   const fitCardsRef = useRef(null);
-  const visibilityFirstRunRef = useRef(true);
+  const visibleSigRef = useRef(null);
   const [editMode, setEditMode] = useState(false);
   const longPressRef = useRef(null);
 
@@ -850,8 +857,15 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // після — з'їжджають»). compact доречний ЛИШЕ для новоствореної
     // розкладки без збереження — щоб заповнити дірки під короткими
     // картками після першого заміру висот.
-    const fresh = storedGrid.length === 0;
-    if (!fresh) grid.load(storedGrid, false);
+    // Джерело — НАЙСВІЖІША збережена розкладка (localStorage), а не стан storedGrid з першого
+    // монтування: сітку пересоздають і при повторному показі вкладки (Next Activity), і там
+    // стан уже застарів відносно того, що людина встигла перетягнути.
+    const latestStored = readStoredGrid();
+    const source = latestStored && latestStored.length > 0 ? latestStored : storedGrid;
+    const fresh = source.length === 0;
+    // Та сама картка-за-карткою розкладка з висотами, якщо набір карток не змінився.
+    const sameIds = settledGrid && settledGrid.length === source.length && settledGrid.every((n) => source.some((m) => m.id === n.id));
+    if (!fresh) grid.load(sameIds ? settledGrid : source, false);
     // Ширини лише ¼/½/уся (lib/dashboardHeights.ts): довільна ширина зі
     // старої розкладки чи з ручки — до найближчої дозволеної. На телефоні
     // (одна колонка) ширина одна для всіх — нічого не чіпаємо.
@@ -861,7 +875,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // своєї ширини, і лише тоді діри закриваються наново — інакше картки,
     // увімкнені по одній, ставали кожна смугою на всю ширину й такими й
     // лишались (живий тест 2026-10-04).
-    const prefW = new Map(storedGrid.map((n) => [n.id, Number.isInteger(n.pw) ? n.pw : n.w]));
+    const prefW = new Map(source.map((n) => [n.id, Number.isInteger(n.pw) ? n.pw : n.w]));
     const prefOf = (n) => snapWidth(prefW.get(n.id) ?? DEFAULT_CARD_W[n.id] ?? 6, minCardW(n.id));
     const snapWidths = () => {
       if (grid.getColumn() !== GRID_COLUMNS) return;
@@ -900,7 +914,11 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       revealRaf = requestAnimationFrame(() => {
         if (!grid.el) return;
         if (fresh) grid.compact();
-        grid.setAnimation(true);
+        // Анімація позицій/розмірів сітки лишається ВИМКНЕНОЮ: fitCards після показу ще кілька
+        // разів міняє розміри карток, і 0.3s-перехід на кожну зміну давав зворотний зв’язок —
+        // спостерігач розмірів реагував на кожен кадр переходу й запускав перерахунок знову
+        // (≈15 проходів і сотні перерахунків стилів щоразу, як вкладку «Команда» показують знову;
+        // при ×4 CPU повернення на дашборд займало ~5 с). Анімація — лише після жесту людини.
         el.classList.add("is-ready");
         setGridReady(true);
       });
@@ -951,7 +969,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     });
     grid.on("dragstop resizestop", (event, item) => {
       gesture = false;
+      // Після жесту сусіди плавно займають місце, потім анімація знову вимкнена.
       grid.setAnimation(true);
+      setTimeout(() => grid.el && grid.setAnimation(false), 600);
       snapWidths();
       if (event.type === "dragstop" && grid.getColumn() === 1) {
         const ids = grid.engine.nodes.filter((n) => n.el).sort((a, b) => a.y - b.y).map((n) => n.id);
@@ -1101,7 +1121,10 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         for (const n of nodes) {
           const px = natural.get(n);
           if (!px) continue;
-          const h = phone ? Math.ceil((px + GAP_PX) / cell) : standardRows(px, GAP_PX, cell);
+          // Картка на всю ширину рядка (матриця «люди × курси») сусідів по ряду не має,
+          // тож рівнятись на S/L їй нема з чим — висота рівно по вмісту, без порожнечі
+          // зверху й знизу (скарга користувача, 2026-10-05).
+          const h = phone || n.w >= GRID_COLUMNS ? Math.ceil((px + GAP_PX) / cell) : standardRows(px, GAP_PX, cell);
           if (n.h !== h) grid.update(n.el, { h });
         }
         // Перетин (не мав би бути) — ущільнити зі збереженням порядку. Діра
@@ -1118,6 +1141,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
           if (steps.length === 0) break;
           for (const { id, ...change } of steps) grid.update(grid.engine.nodes.find((n) => n.id === id).el, change);
         }
+        if (!phone) settledGrid = grid.engine.nodes.filter((n) => n.el).map(({ id, x, y, w, h }) => ({ id, x, y, w, h }));
       } finally {
         fitting = false;
       }
@@ -1166,6 +1190,14 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     //    засовував картку в першу ж діру згори. Тепер дір немає (fitCards),
     //    тож перше вільне місце — кінець дашборда, а кілька щойно увімкнених
     //    ½ стають парами поруч, а не кожна окремою смугою на всю ширину.
+    // Повторний показ вкладки (Next тримає попередні сторінки в Activity і заново
+    // запускає ефекти): набір карток той самий, перепакування від власних ширин —
+    // зайва робота на ~секунду з десятками перерахунків. Пересоздана сітка вже підхопила
+    // DOM і розкладку у своєму ефекті вище.
+    const sig = `${visibleKey}#${orderKey}`;
+    if (visibleSigRef.current === sig) return;
+    const first = visibleSigRef.current === null;
+    visibleSigRef.current = sig;
     const domById = new Map([...el.querySelectorAll(":scope > .grid-stack-item")].map((i) => [i.getAttribute("gs-id"), i]));
     grid.batchUpdate();
     for (const node of [...grid.engine.nodes]) {
@@ -1187,8 +1219,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // на першому запуску (монтування): збережена розкладка вже узгоджена, а
     // перепакування з нуля могло дати інший порядок — після F5 картки
     // «з'їжджали» (живий тест 2026-10-04).
-    fitCardsRef.current?.({ resetWidths: !visibilityFirstRunRef.current });
-    visibilityFirstRunRef.current = false;
+    fitCardsRef.current?.({ resetWidths: !first });
   }, [visibleKey, orderKey]);
 
   // Вміст карток перемальовується з даними (скелетон → список, порожній

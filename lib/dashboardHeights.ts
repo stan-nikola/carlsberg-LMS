@@ -74,7 +74,8 @@ export function holeFillSteps(
   // Розтягувати вгору-вниз — лише коли вшир нікому: ширина корисна вмісту,
   // зайва висота — порожнеча в картці.
   for (const n of [...nodes].sort((a, b) => a.y - b.y || a.x - b.x)) {
-    if (n.h === sRows) {
+    // Картка на всю ширину (columns) висоту бере по вмісту, а не S/L — її не «достроюємо».
+    if (n.h === sRows && n.w < columns) {
       let emptyBelow = true;
       for (let x = n.x; x < n.x + n.w && emptyBelow; x++) {
         for (let y = n.y + sRows; y < n.y + 2 * sRows && emptyBelow; y++) if (taken(x, y, n)) emptyBelow = false;
