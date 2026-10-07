@@ -55,6 +55,7 @@ next-env.d.ts
 # з'являться) лишається проігнорованим блоковим правилом.
 !.claude/skills/
 !.claude/agents/
+!.claude/rules/
 !.claude/settings.json
 
 # сгенерированный Prisma Client — пересоздаётся `prisma generate`
