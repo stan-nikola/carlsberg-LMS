@@ -256,7 +256,16 @@ export function CoursePlanPanel({
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(grid);
-    return () => ro.disconnect();
+    // І кожну картку окремо: ширина однієї картки (підпис «Через N днів…»
+    // переноситься, догрузився шрифт) міняє X її станції, а розмір сітки — ні;
+    // без цього лінія повертала вниз, не дійшовши до вузла (2026-10-08).
+    for (const cell of cellRefs.current) if (cell) ro.observe(cell);
+    let alive = true;
+    document.fonts?.ready.then(() => alive && measure());
+    return () => {
+      alive = false;
+      ro.disconnect();
+    };
   }, [plan.modules.length, stopIndex]);
 
   // Автоскрол до поточного модуля (2026-10-04, скарга користувача: одразу після
