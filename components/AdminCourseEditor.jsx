@@ -13,6 +13,7 @@ import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, RETIRED_COMPONENT_TYPES, defaul
 import { ListRowControls, useListOps } from "@/components/ListEditor";
 import { HintDot } from "@/components/HintDot";
 import { numberComponents } from "@/lib/coursePlayerLogic";
+import { moduleCooldownDays } from "@/lib/coursePlan";
 import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import { useDragReorder } from "@/lib/useDragReorder";
 import { HANDLES, boxFromDrag, moveBox, resizeBox, tapBox, toBox, zoneShapeClass, zoneStyle } from "@/lib/hotspotZones";
@@ -1533,8 +1534,11 @@ function ComponentEditForm({ component, onSaved, onDeleted, onDuplicate, onLiveC
 
   // Батько зберігає цей компонент перед переходом на інший — тому йому
   // потрібен доступ і до самої функції, і до того, чи є що зберігати.
+  // Після видалення форма зникає — реєстрацію знімаємо, інакше наступний
+  // перехід намагався б зберегти вже видалений компонент і не пускав далі.
   useEffect(() => {
     onRegisterSave?.({ save: () => saveRef.current({ silent: true }), isDirty });
+    return () => onRegisterSave?.(null);
   }, [onRegisterSave, isDirty]);
 
   function handleTypeChange(newType) {
@@ -2025,7 +2029,7 @@ function CourseRunPreview({ course, onClose }) {
                 }}
                 screens={screens}
                 enrollmentId={null}
-                moduleCooldowns={Object.fromEntries((course.modules || []).map((m) => [m.id, m.cooldownDays || 0]))}
+                moduleCooldowns={Object.fromEntries((course.modules || []).map((m) => [m.id, moduleCooldownDays(course, m)]))}
               />
             )}
             {/* Та сама рамка пристрою, що й у докнутому мокапі (DeviceMockup) —

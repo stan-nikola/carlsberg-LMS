@@ -40,6 +40,9 @@ export async function POST(request, { params }) {
   const body = await request.json();
   const badgeId = Number(body.badgeId);
   if (!badgeId) return NextResponse.json({ error: "badgeId is required" }, { status: 400 });
+  const badge = await prisma.badge.findUnique({ where: { id: badgeId }, select: { kind: true } });
+  if (!badge) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (badge.kind !== "manual") return NextResponse.json({ error: "Автоматичні відзнаки нараховує cron, вручну їх не видають" }, { status: 400 });
 
   const systemAdmin = await prisma.employee.findFirst({ where: { externalCode: SYSTEM_ADMIN_EXTERNAL_CODE } });
   if (!systemAdmin) {

@@ -2,19 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { SpinnerIcon } from "@/components/icons";
+import { StatusPill } from "@/components/EnrollmentRow";
 
 const STATUS_LABELS = {
   not_started: "Не розпочато",
   in_progress: "В процесі",
   completed: "Завершено",
   overdue: "Прострочено",
-};
-// Стани призначення — спільна статус-пілюля (.status-pill, globals.css),
-// як у хабі й кабінеті керівника; «не розпочато» — нейтральна базова.
-const STATUS_PILL = {
-  in_progress: "status-pill-alert",
-  completed: "status-pill-success",
-  overdue: "status-pill-fail",
 };
 
 /**
@@ -131,7 +125,7 @@ export function EmployeeCoursesSection({ employeeId }) {
                     {e.adminNote && <div className="admin-hint">Ручна корекція: {e.adminNote}</div>}
                   </td>
                   <td>
-                    <span className={`status-pill ${STATUS_PILL[e.status] || ""}`}>{STATUS_LABELS[e.status] || e.status}</span>
+                    <StatusPill status={e.status} passed={e.passed} />
                   </td>
                   <td className="adm-num">{e.scorePercent != null ? `${e.scorePercent}%` : "—"}</td>
                   <td className="adm-actions-cell">

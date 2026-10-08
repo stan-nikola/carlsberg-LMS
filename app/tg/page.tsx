@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { pluralize } from "@/lib/pluralize";
 
 /**
  * Єдиний екран Mini App — сам підлаштовується під роль (рішення
@@ -213,7 +214,7 @@ function EmployeeScreen({ name, courses }: { name: string; courses: EmployeeCour
         <div className="tg-summary is-attention">
           <span className="ico">⚠️</span>
           <span>
-            {attention.length === 1 ? "Один курс потребує уваги" : `${attention.length} курси(ів) потребують уваги`} — див. нижче.
+            {attention.length === 1 ? "Один курс потребує уваги" : `${pluralize(attention.length, "курс потребує", "курси потребують", "курсів потребують")} уваги`} — див. нижче.
           </span>
         </div>
       )}
@@ -301,7 +302,7 @@ function ManagerScreen({ name, people }: { name: string; people: TeamPersonRow[]
       ) : (
         <div className="tg-summary is-attention">
           <span className="ico">⚠️</span>
-          <span>{attention.length === 1 ? "1 людина потребує уваги" : `${attention.length} людей потребують уваги`}</span>
+          <span>{attention.length === 1 ? "1 людина потребує уваги" : `${pluralize(attention.length, "людина потребує", "людини потребують", "людей потребують")} уваги`}</span>
         </div>
       )}
 

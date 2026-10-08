@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
-import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
+import { removeEnrollments } from "@/lib/courseAssignment";
 
 // DELETE /api/admin/courses/:courseId/enrollments — знімає ВСІ призначення
 // (Enrollment) з курсу, нічого не видаляючи з самого курсу. Існує окремо
@@ -16,12 +16,7 @@ export async function DELETE(request, { params }) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { courseId } = await params;
-  // Спершу — id, бо після deleteMany не буде за чим прибрати бали:
-  // RatingEvent посилається на enrollment через refType/refId, без FK і
-  // без каскаду.
-  const ids = (await prisma.enrollment.findMany({ where: { courseId: Number(courseId) }, select: { id: true } })).map((e) => e.id);
-  const { count } = await prisma.enrollment.deleteMany({ where: { courseId: Number(courseId) } });
-  const { count: pointsRemoved } = await prisma.ratingEvent.deleteMany({ where: { refType: "enrollment", refId: { in: ids } } });
-  await audit("course.unassign_all", "course", courseId, { removedCount: count, pointsRemoved });
-  return NextResponse.json({ removedCount: count, pointsRemoved });
+  const { removedCount, pointsRemoved } = await removeEnrollments({ courseId: Number(courseId) });
+  await audit("course.unassign_all", "course", courseId, { removedCount, pointsRemoved });
+  return NextResponse.json({ removedCount, pointsRemoved });
 }

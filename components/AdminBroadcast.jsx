@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SpinnerIcon, XIcon } from "@/components/icons";
+import { pluralize } from "@/lib/pluralize";
 
 /**
  * /admin/notifications — ручна розсилка («новини платформи») усім або за
@@ -18,7 +19,7 @@ export function AdminBroadcast({ children = null }) {
   const [deleting, setDeleting] = useState(false);
   async function removeBroadcasts(ids) {
     const n = ids.length;
-    if (!window.confirm(`Видалити ${n === 1 ? "розсилку" : n + " розсилок"}? Повідомлення зникне і з центру сповіщень адресатів.`)) return;
+    if (!window.confirm(`Видалити ${n === 1 ? "розсилку" : pluralize(n, "розсилку", "розсилки", "розсилок")}? Повідомлення зникне і з центру сповіщень адресатів.`)) return;
     setDeleting(true);
     try {
       const res = await fetch("/api/admin/notifications/broadcast", {

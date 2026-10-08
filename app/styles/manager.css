@@ -2370,108 +2370,10 @@ a.mgr-matrix-cell:focus-visible {
   text-overflow: ellipsis;
 }
 
-/* ---- Дерево команди ---- */
-.mgr-team-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 16px;
-  margin-bottom: 14px;
-}
-.mgr-team-header h2 {
-  margin-bottom: 0;
-}
-.mgr-team-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  flex: 1 1 auto;
-  justify-content: flex-end;
-}
+/* Поле пошуку на /manager/team (TeamList) — ширина в рядку панелі. */
 .mgr-team-search {
   flex: 1 1 200px;
   max-width: 280px;
-}
-.mgr-team-tree,
-.mgr-team-children {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.mgr-team-children {
-  /* clamp — на вузькому екрані відступ вкладеності стискається (щоб 2-3
-     рівні дерева не з'їдали всю ширину картки), на широкому лишається
-     повний 26px. */
-  margin: 8px 0 0 clamp(12px, 5vw, 26px);
-  padding-left: clamp(8px, 3vw, 14px);
-  border-left: 2px solid var(--line);
-}
-.mgr-team-node {
-  border: var(--border-w) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--surface);
-  padding: var(--card-pad-compact);
-}
-.mgr-team-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: var(--card-pad-compact);
-}
-.mgr-team-row-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.mgr-team-row-bottom {
-  display: flex;
-  /* 20px (каретка) + 8px (gap) — вирівнює бейджі під іменем, а не під
-     кареткою "розгорнути підлеглих" зліва. */
-  padding-left: 28px;
-}
-.mgr-team-name-btn {
-  /* 2 рядки: ім'я зверху, посада·територія знизу меншим шрифтом —
-     замість одного рядка "Ім'я  Посада…", який на вузьких картках
-     обрізав посаду в "Торгови…". */
-  flex: 1 1 160px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  min-width: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-  padding: 2px 0;
-}
-.mgr-team-name-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--cb-focus-ring);
-}
-.mgr-team-name {
-  width: 100%;
-  font-weight: 600;
-  font-size: 13.5px;
-  color: var(--ink);
-}
-.mgr-team-meta {
-  /* Менший шрифт за ім'я — другорядна інформація (посада·територія). */
-  width: 100%;
-  font-size: 11px;
-  color: var(--ink-soft);
-}
-.mgr-team-badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
 }
 .mgr-badge {
   font-size: 11px;
@@ -2486,11 +2388,7 @@ a.mgr-matrix-cell:focus-visible {
 .mgr-badge-score {
   color: var(--green-700);
 }
-/* Середній бал команди по цій людині, коли є хоч одне ЗАВЕРШЕНЕ, але НЕ
-   складене призначення (summary.failed > 0) — той самий сигнал, що вже
-   реально порахований на бекенді (Enrollment.passed, кожен модуль ≥
-   Course.passThreshold — per-курс поріг, не захардкоджені 80%), просто
-   візуалізований тут червоним замість звичайного зеленого тексту. */
+/* Середній бал червоний, коли є завершене, але не складене призначення. */
 .mgr-badge-score.mgr-badge-fail {
   background: var(--cb-fail-light);
   color: color-mix(in srgb, var(--cb-fail) 45%, var(--cb-black));
@@ -2499,23 +2397,9 @@ a.mgr-matrix-cell:focus-visible {
   background: var(--cb-fail-light);
   color: color-mix(in srgb, var(--cb-fail) 45%, var(--cb-black));
 }
-/* "Курс виконано" — усі призначені курси завершені й усі складені
-   (summary.completed === summary.total && summary.failed === 0). */
 .mgr-badge-success {
   background: var(--cb-success-light);
   color: color-mix(in srgb, var(--cb-success) 45%, var(--cb-black));
-}
-.mgr-badge-medal {
-  display: inline-flex;
-  align-items: center;
-}
-.mgr-team-detail {
-  /* Та сама "лінія структури", що .mgr-team-children (border-left + відступ)
-     — щоб було візуально очевидно, що список курсів нижче належить САМЕ
-     цій картці підлеглого, а не є окремим сусіднім блоком. */
-  margin: 8px 14px 4px clamp(18px, 10vw, 42px);
-  padding: 10px 0 2px 14px;
-  border-left: 2px solid var(--line);
 }
 
 /* Згорнутий сайдбар кабінету керівника — той самий патерн і та сама
@@ -2764,6 +2648,19 @@ a.mgr-matrix-cell:focus-visible {
 }
 .mgr-charts:not(.is-measuring) .mgr-chart-card > :last-child:not(h2) {
   margin-bottom: auto;
+}
+/* Списки (смуги, «Потребують уваги», питання) не центруються блоком із повітрям
+   над і під ним, а заповнюють картку: рядки розходяться рівномірно по всій
+   висоті (користувач, 2026-10-08: порожній блок під заголовком читався як збій).
+   Довший за картку список і далі скролиться (стеля вище). */
+.mgr-charts:not(.is-measuring) .mgr-chart-card > ul,
+.mgr-charts:not(.is-measuring) .mgr-chart-card > .mgr-status-body {
+  flex: 1 1 auto;
+  justify-content: space-evenly;
+}
+.mgr-charts:not(.is-measuring) .mgr-chart-card > .mgr-status-body > .mgr-status-legend {
+  flex: 1 1 auto;
+  justify-content: space-evenly;
 }
 /* На час заміру — кожен блок картки рівно по своєму вмісту: тіло з flex:1
    (.mgr-first-try-body тощо) інакше тягнулось на всю висоту картки, і замір

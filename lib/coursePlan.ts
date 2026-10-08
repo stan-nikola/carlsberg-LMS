@@ -24,6 +24,7 @@
 
 import { resolveRetryRules, retryGate } from "./retryPolicy";
 import { medalTier } from "./progress";
+import { pluralize } from "./pluralize";
 
 /** Пауза перед повторним проходженням, коли Module.retakeCooldownDays не задано. */
 export const RETAKE_COOLDOWN_DAYS_DEFAULT = 2;
@@ -294,9 +295,21 @@ const NO_PACING: CoursePacing = { moduleDays: null, pauseDays: null };
 
 /** Пауза перед модулем: власна (Module.cooldownDays), інакше загальна для
  *  курсу (Course.modulePauseDays). Перший модуль паузи не має ніколи. */
+/**
+ * Пауза перед модулем: власна Module.cooldownDays, інакше Course.modulePauseDays.
+ * Одне правило для плану, сесії плеєра (lib/courseContent.js) і прев'ю в
+ * конструкторі — інакше план каже «через 3 дні», а плеєр пускає одразу.
+ */
+export function moduleCooldownDays(
+  course: { modulePauseDays?: number | null },
+  courseModule: { cooldownDays?: number | null }
+): number {
+  return courseModule.cooldownDays ?? course.modulePauseDays ?? 0;
+}
+
 function effectiveCooldown(m: PlanModuleInput, index: number, pacing: CoursePacing): number {
   if (index === 0) return 0;
-  return m.cooldownDays ?? pacing.pauseDays ?? 0;
+  return moduleCooldownDays({ modulePauseDays: pacing.pauseDays }, m);
 }
 
 export function buildCoursePlan(
@@ -546,7 +559,7 @@ function paceLabel(plan: CoursePlan): string | null {
   if (pace.daysLeft <= 7) {
     return `Лишилось ${pace.daysLeft} ${pluralDays(pace.daysLeft)} і ${plan.remainingCount} модулів — плануйте ${formatMinutes(plan.remainingMinutes)}`;
   }
-  return `Щоб встигнути: ${pace.modulesPerWeek} ${pace.modulesPerWeek === 1 ? "модуль" : "модулі"} на тиждень`;
+  return `Щоб встигнути: ${pluralize(pace.modulesPerWeek, "модуль", "модулі", "модулів")} на тиждень`;
 }
 
 /** Підпис «наступна спроба через …» рахується від МОМЕНТУ показу плану:

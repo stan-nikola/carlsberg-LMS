@@ -1750,7 +1750,7 @@ export function AdminDashboard() {
               return (
                 <div className="adm-explorer-detail">
                   <div className="admin-hint" style={{ marginBottom: 5, fontSize: "0.95em" }}>
-                    /{course.slug} · {course.modules.length} {course.modules.length === 1 ? "модуль" : "модулів"} ·
+                    /{course.slug} · {pluralize(course.modules.length, "модуль", "модулі", "модулів")} ·
                     Призначено: {course._count?.enrollments ?? 0}
                   </div>
                   <CourseExpandedBody
@@ -2034,7 +2034,7 @@ function FolderRow({
               {folder.name}
             </span>
             <span className="admin-hint">
-              {itemCount === 0 ? "порожньо" : `${itemCount} ${itemCount === 1 ? "елемент" : "елементів"}`}
+              {itemCount === 0 ? "порожньо" : pluralize(itemCount, "елемент", "елементи", "елементів")}
             </span>
           </button>
           <button

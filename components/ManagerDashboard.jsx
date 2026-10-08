@@ -3,7 +3,6 @@
 import { cloneElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ChevronIcon,
   TrendIcon,
   PeopleIcon,
   ClockIcon,
@@ -19,15 +18,12 @@ import {
 import { HintDot } from "@/components/HintDot";
 import { CompletionRing } from "@/components/CompletionRing";
 import { GridStack } from "gridstack";
-import { medalTier } from "@/lib/progress";
 import { PageSkeleton, LinesSkeleton } from "@/components/Skeleton";
-import { Avatar } from "@/components/Avatar";
 import { ProfileCard } from "@/components/ProfileCard";
-import { MarqueeText } from "@/components/MarqueeText";
 import { startOneline, stopOneline, truncatedOnelineAt } from "@/lib/onelineMarquee";
 import { hasHoles, holeFillSteps, snapWidth, standardRows } from "@/lib/dashboardHeights";
 import { ManagerDashboardSettings } from "@/components/ManagerDashboardSettings";
-import { EnrollmentRow, formatDuration } from "@/components/EnrollmentRow";
+import { formatDuration } from "@/components/EnrollmentRow";
 import { TeamStatusBar } from "@/components/TeamStatusBar";
 import { pluralPeople } from "@/lib/teamInsights";
 import { AttentionList } from "@/components/AttentionList";
@@ -53,17 +49,7 @@ const DASHBOARD_CARDS_STORAGE_KEY = "carls_manager_dashboard_cards_v2";
 // НЕ-SV/НЕ-ASM керівників (RM, голови HR/маркетингу/виробництва): saме
 // вони дивляться на команду згори, без щоденної роботи з конкретними
 // людьми — той самий "зверху вниз, якість контенту" погляд.
-// peopleStatus прибрано з дефолтів (2026-09-20, аудит "вообще без
-// скелетонов мгновенно") — ця картка спирається на дерево команди
-// (getTeamTree), найважчий за рендер-ціною запит сторінки; лишаючись
-// дефолтною, вона змушувала його рахуватись одразу для більшості
-// керівників (SV/ASM), зводячи нанівець відкладене підвантаження
-// дерева нижче (ensureTeamTree). Керівник, кому вона реально потрібна,
-// вмикає її сам — тоді дерево підвантажується одразу для НЬОГО, а не
-// для всіх за замовчуванням.
 const ROLE_DEFAULT_CARDS = {
-  // peopleStatus (матриця люди × курси) повернуто в дефолт СВ/АСМ
-  // (2026-09-23): дерева команди вона більше не потребує.
   SV: ["rings", "attention", "status", "deadlines", "scoreDist", "peopleStatus"],
   ASM: ["rings", "attention", "status", "deadlines", "scoreDist", "peopleStatus"],
 };
@@ -249,7 +235,7 @@ function mergeCardOrder(stored, canonical) {
 // Картки, чиє заповнення вже зіграло в цьому завантаженні сторінки (користувач,
 // 2026-10-05: «один раз при перезагрузке чи вході, не щоразу, коли картка
 // потрапляє в кадр — усе мигає»). Живе в модулі, тож переживає повернення на
-// «Команду» з іншої вкладки (SPA-навігація), а F5 чи новий вхід в застосунок
+// «Головну» з іншої вкладки (SPA-навігація), а F5 чи новий вхід в застосунок
 // обнуляють його разом зі сторінкою.
 const playedCards = new Set();
 
@@ -308,190 +294,6 @@ function ChartHint({ text }) {
   return <HintDot text={text} />;
 }
 
-function TeamNode({ node, summaryByEmployeeId, ratingByEmployeeId }) {
-  const [showChildren, setShowChildren] = useState(false);
-  const [showDetail, setShowDetail] = useState(false);
-  const [detail, setDetail] = useState(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState(false);
-
-  const summary = summaryByEmployeeId[node.id];
-  const hasChildren = node.children && node.children.length > 0;
-  // Усі призначені курси реально завершені й усі складені — не лише
-  // "дійшов до кінця" (summary.completed), а й жодного summary.failed
-  // (Enrollment.passed === false десь серед завершених).
-  const allCoursesPassed = Boolean(summary && summary.total > 0 && summary.completed === summary.total && summary.failed === 0);
-
-  async function toggleDetail() {
-    const next = !showDetail;
-    setShowDetail(next);
-    if (next && !detail && !detailLoading) {
-      setDetailLoading(true);
-      setDetailError(false);
-      try {
-        const res = await fetch(`/api/manager/employees/${node.id}`);
-        if (!res.ok) throw new Error("failed");
-        const data = await res.json();
-        setDetail(data.enrollments || []);
-      } catch {
-        setDetailError(true);
-      } finally {
-        setDetailLoading(false);
-      }
-    }
-  }
-
-  return (
-    <li className="mgr-team-node">
-      <div className="mgr-team-row">
-        {/* Завжди 2 фіксовані підрядки (не "коли не влазить в один") —
-            один/два бейджі більше не перекидають рядок в інший layout:
-            раніше в рядків з 2 бейджами (є прострочення + середній бал)
-            вміст переносився на другий рядок і "стрибав" ліворуч
-            відносно рядків з 1 бейджем, що виглядало як зламаний
-            контейнер із зайвим відступом. */}
-        <div className="mgr-team-row-top">
-          {/* Один шеврон зліва, ПЕРЕД іменем/посадою — той самий
-              ChevronIcon+.open поворот, що скрізь у проєкті
-              (admin-course-row-caret — CourseRow в AdminDashboard.jsx).
-              Коли є підлеглі (глибша ланка ієрархії, напр. у ASM/RM) —
-              він розкриває ЇХ, а деталі власних курсів людини відкриваються
-              кліком по імені; коли підлеглих нема (як у всієї поточної
-              команди СВ) — цей самий шеврон зліва розкриває деталі курсів,
-              а не порожній заповнювач. */}
-          {hasChildren ? (
-            <button
-              type="button"
-              className={`admin-course-row-caret${showChildren ? " open" : ""}`}
-              onClick={() => setShowChildren((v) => !v)}
-              aria-label={showChildren ? "Згорнути підлеглих" : "Розгорнути підлеглих"}
-            >
-              <ChevronIcon />
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={`admin-course-row-caret${showDetail ? " open" : ""}`}
-              onClick={toggleDetail}
-              aria-label={showDetail ? "Згорнути деталі" : "Розгорнути деталі"}
-            >
-              <ChevronIcon />
-            </button>
-          )}
-
-          <Avatar name={node.name} src={node.avatarUrl} size="sm" />
-          {/* Ім'я — посилання на сторінку людини (/manager/team/[id],
-              2026-09-23); розкриття курсів на місці лишилось за шевроном. */}
-          <Link href={`/manager/team/${node.id}`} className="mgr-team-name-btn">
-            <MarqueeText className="mgr-team-name">{node.name}</MarqueeText>
-            <MarqueeText className="mgr-team-meta">
-              {node.position?.name || "—"}
-              {/* Territory для польових ролей (ТП/Технік/Мерчендайзер, рівень
-                  4-5) резолвиться лише до цілого RM-регіону при імпорті (див.
-                  CLAUDE.md) — показувати її тут оманливо ("Північно-Східний
-                  регіон" однаковий для всіх, нічого не каже про конкретну
-                  людину). Видимо territory лише для SV і вище, де вона
-                  реально означає їхню зону відповідальності. */}
-              {node.territory && (node.position?.level ?? 99) <= 3 ? ` · ${node.territory.name}` : ""}
-            </MarqueeText>
-          </Link>
-        </div>
-
-        {summary && (
-          <div className="mgr-team-row-bottom">
-            <div className="mgr-team-badges">
-              <span className="mgr-badge">
-                {summary.completed}/{summary.total} курсів
-              </span>
-              {/* Червона заливка, коли є завершене, але НЕ складене
-                  призначення (summary.failed — реальний Enrollment.passed,
-                  кожен модуль ≥ Course.passThreshold per-курс, а не
-                  порівняння з захардкодженими 80% тут). */}
-              {summary.avgScore != null && (
-                <span className={`mgr-badge mgr-badge-score${summary.failed > 0 ? " mgr-badge-fail" : ""}`}>
-                  {summary.avgScore}%
-                </span>
-              )}
-              {/* "Курс виконано" + медаль — лише коли ВСІ призначені курси
-                  завершені і ВСІ складені (жодного summary.failed). */}
-              {allCoursesPassed && (
-                <>
-                  <span className="mgr-badge mgr-badge-success">Курс виконано</span>
-                  {medalTier(summary.avgScore) && (
-                    <span className="mgr-badge-medal" title={`${summary.avgScore}% — медаль`}>
-                      <MedalIcon tier={medalTier(summary.avgScore)} />
-                    </span>
-                  )}
-                </>
-              )}
-              {summary.overdue > 0 && <span className="mgr-badge mgr-badge-overdue">{summary.overdue} прострочено</span>}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {showDetail && (
-        <div className="mgr-team-detail">
-          {detailLoading && <LinesSkeleton rows={4} />}
-          {detailError && <p className="admin-hint">Не вдалося завантажити.</p>}
-          {detail && detail.length === 0 && <p className="admin-hint">Курсів не призначено.</p>}
-          {detail && detail.length > 0 && (
-            <ul className="mgr-enrollment-list card-grid">
-              {detail.map((e) => (
-                <EnrollmentRow key={e.id} enrollment={e} />
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {hasChildren && showChildren && (
-        <ul className="mgr-team-children">
-          {node.children.map((child) => (
-            <TeamNode key={child.id} node={child} summaryByEmployeeId={summaryByEmployeeId} ratingByEmployeeId={ratingByEmployeeId} />
-          ))}
-        </ul>
-      )}
-    </li>
-  );
-}
-
-// Фільтр "Моєї команди" за статусом — окремо від текстового пошуку за
-// іменем, обидва можуть діяти одночасно (AND). "all" — без фільтра,
-// показується повне дерево; будь-який інший варіант перемикає на
-// плаский список (як і пошук) — фільтрувати ЗА СТАТУСОМ і зберігати
-// вкладеність одночасно сенсу не має.
-const STATUS_FILTER_OPTIONS = [
-  { value: "all", label: "Усі" },
-  { value: "overdue", label: "Прострочено" },
-  { value: "in_progress", label: "В процесі" },
-  { value: "not_started", label: "Не розпочав" },
-  { value: "failed", label: "Не склав" },
-];
-
-function matchesStatusFilter(summary, filter) {
-  if (filter === "all") return true;
-  if (!summary) return false;
-  if (filter === "overdue") return summary.overdue > 0;
-  if (filter === "in_progress") return summary.inProgress > 0;
-  if (filter === "not_started") return summary.notStarted > 0;
-  if (filter === "failed") return summary.failed > 0;
-  return true;
-}
-
-const SORT_OPTIONS = [
-  { value: "overdue", label: "Прострочені спочатку" },
-  { value: "rating", label: "За рейтингом" },
-];
-
-function sortNodes(nodes, sortBy, summaryByEmployeeId, ratingByEmployeeId) {
-  const key =
-    sortBy === "rating"
-      ? (n) => ratingByEmployeeId?.[n.id]?.normalized || 0
-      : (n) => summaryByEmployeeId[n.id]?.overdue || 0;
-  return nodes.slice().sort((a, b) => key(b) - key(a));
-}
-
 function flattenTree(nodes, out = []) {
   for (const node of nodes) {
     out.push(node);
@@ -530,9 +332,6 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     setPrevInitialError(initialError);
     setState({ loading: false, data: initialData, error: initialError });
   }
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("overdue");
   // Той самий "стартуємо з 0, після монтування переходимо на реальне
   // значення" прийом, що CompletionRing — для горизонтальних барів
   // (% виконання по курсу) і стовпчиків тренду по тижнях, щоб їхнє
@@ -562,19 +361,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // "Запит уже пішов" — саме ref, а не стан: стан у залежностях ефекту
   // перезапускав би його сам на себе (див. коментар при ефекті нижче).
   const hardestQuestionsRequestedRef = useRef(false);
-  // "Детально по команді" — унизу сторінки, найважчий за DOM блок (по
-  // вузлу на кожного підлеглого). Дерево команди (getTeamTree) БІЛЬШЕ НЕ
-  // приходить разом з рештою /api/manager/overview (аудит "вообще без
-  // скелетонов мгновенно", 2026-09-20) — підвантажується окремим
-  // /api/manager/team-tree лише коли ця секція реально потрібна
-  // (ensureTeamTree нижче: IntersectionObserver, або одразу для
-  // peopleStatus/teamCompare, якщо керівник їх увімкнув).
-  const [teamTreeVisible, setTeamTreeVisible] = useState(false);
-  const teamTreeSectionRef = useRef(null);
+  // Дерево команди потрібне лише картці «Порівняння команд» — окремий запит
+  // /api/manager/team-tree, коли картка вперше наближається до екрана.
   const [teamTree, setTeamTree] = useState({ loading: false, data: null, error: false });
-  // "Запит уже пішов" — ref, не стан, той самий прийом, що вже є для
-  // hardestQuestions нижче: стан у залежностях перезапускав би ефект сам
-  // на себе.
   const teamTreeRequestedRef = useRef(false);
   function ensureTeamTree() {
     if (teamTreeRequestedRef.current) return;
@@ -917,7 +706,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         // Анімація позицій/розмірів сітки лишається ВИМКНЕНОЮ: fitCards після показу ще кілька
         // разів міняє розміри карток, і 0.3s-перехід на кожну зміну давав зворотний зв’язок —
         // спостерігач розмірів реагував на кожен кадр переходу й запускав перерахунок знову
-        // (≈15 проходів і сотні перерахунків стилів щоразу, як вкладку «Команда» показують знову;
+        // (≈15 проходів і сотні перерахунків стилів щоразу, як вкладку «Головна» показують знову;
         // при ×4 CPU повернення на дашборд займало ~5 с). Анімація — лише після жесту людини.
         el.classList.add("is-ready");
         setGridReady(true);
@@ -1040,21 +829,24 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     // Тому — по одній картці без batch і в кінці перевірка перетинів:
     // compact("list") зберігає порядок і лише щільно складає (намірених
     // проміжків при float:false і так не буває).
+    // offsetTop/offsetHeight, не getBoundingClientRect: у режимі перестановки
+    // картка хитається (rotate), і її описаний прямокутник на 2–3px вищий —
+    // кожен жест дорощував картку на всю ширину, а S на межі перескакувала в L
+    // (2026-10-08). Offset-метрики трансформацій не бачать.
     const naturalPx = (n) => {
       const content = n.el.querySelector(".grid-stack-item-content");
       const card = content?.firstElementChild;
       if (!card) return 0;
-      const top = card.getBoundingClientRect().top;
-      let bottom = top;
+      let bottom = 0;
       for (const child of card.children) {
         // + нижній margin блока (у <p>/<ul> він є) — інакше картка вилазила
         // за свою клітинку на ці пікселі й з'їдала проміжок до сусідньої.
         if (child.getClientRects().length) {
-          bottom = Math.max(bottom, child.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0));
+          bottom = Math.max(bottom, child.offsetTop + child.offsetHeight + (parseFloat(getComputedStyle(child).marginBottom) || 0));
         }
       }
       const cs = getComputedStyle(card);
-      return bottom - top + parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth);
+      return bottom + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
     };
     // Проміжок між картками по вертикалі = margin сітки зверху й знизу.
     const GAP_PX = 2 * GRID_MARGIN_PX;
@@ -1295,48 +1087,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     };
   }, [wantsHardestQuestions]);
 
-  // ВИДИМІСТЬ секції, щоб не монтувати важкий список заздалегідь — і
-  // тригер ленивого fetch дерева (ensureTeamTree, ідемпотентний — сам
-  // стежить, щоб не піти в мережу двічі). state.data у залежностях
-  // ОБОВ'ЯЗКОВИЙ, не лише teamTreeVisible: поки state.loading===true,
-  // компонент повертає скелетон РАНІШЕ цього <section ref=...> — ref ще
-  // null, ефект виходить без спостерігача. Без state.data у залежностях
-  // повторний рендер (коли дані нарешті прийшли й ref з'явився) нічого
-  // не змінює у [teamTreeVisible] (той самий false і до, і після) —
-  // ефект просто НЕ перезапускається, і список навіки лишається на
-  // скелетоні (знайдено живим тестом скролу, не лише збіркою, 2026-09-19).
-  useEffect(() => {
-    const el = teamTreeSectionRef.current;
-    if (!el || teamTreeVisible) return undefined;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setTeamTreeVisible(true);
-          ensureTeamTree();
-        }
-      },
-      // 150px запасу знизу — монтується, поки керівник ще скролить до
-      // секції, а не в момент, коли вона вже впирається в нижній край
-      // екрана (інакше короткий "скелетон-спалах" видно щоразу). Було
-      // 600px — на мобільному (картки в стовпчик, не в ряд, короткий
-      // viewport) це фактично покривало всю сторінку одразу від
-      // завантаження, і "відкладена" секція та peopleStatus/teamCompare
-      // однаково тягли дерево команди миттєво (скарга користувача,
-      // перевірка на телефоні, 2026-09-20) — весь сенс відкладеного
-      // fetch зникав саме там, де він найпотрібніший (повільна мережа).
-      { rootMargin: "150px 0px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [teamTreeVisible, state.data]);
 
-  // teamCompare (спирається на дерево команди) стоїть ВИЩЕ секції
-  // "Детально по команді" — раніше при увімкненій картці дерево тягнулось
-  // одразу на монтуванні, навіть коли сама картка ще не в екрані (скарга
-  // користувача, 2026-09-20). Тепер у неї своя IntersectionObserver-
-  // підв'язка до її ж DOM-вузла, той самий rootMargin, що в "Детально по
-  // команді" — ensureTeamTree() ідемпотентний. Матриця люди × курси
-  // (peopleStatus) дерева більше не потребує — дані приходять з overview.
+  // Дерево вантажиться, лише коли картка «Порівняння команд» увімкнена й
+  // наближається до екрана (150px запасу); ensureTeamTree() ідемпотентний.
   const teamCompareWanted = enabledCards.has("teamCompare");
   const teamCompareSectionRef = useRef(null);
   useEffect(() => {
@@ -1365,7 +1118,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // Графіки картки заповнюються з нуля ОДИН раз за завантаження сторінки — коли
   // картка вперше з’являється на екрані (кільця крутяться, смуги й сегменти
   // ростуть). Далі вона лишається заповненою: ні вихід із кадру, ні повернення
-  // на «Команду» з іншої вкладки анімацію не повторюють. -15% знизу: стартуємо,
+  // на «Головну» з іншої вкладки анімацію не повторюють. -15% знизу: стартуємо,
   // коли картку вже видно, а не на самому краї.
   // playedAtMount — що зіграло ДО цього монтування: такі картки малюємо одразу
   // готовими (без дуги й CSS-анімацій).
@@ -1398,8 +1151,6 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   // цифр совсем, только диаграммы») — 59 number-flow одночасно гальмували скрол.
   const n = (_id, v) => v;
 
-  const flatTeam = useMemo(() => (teamTree.data ? flattenTree(teamTree.data) : []), [teamTree.data]);
-
   // "Порівняння команд" (нова картка, блок АСМ) — кожен ПРЯМИЙ підлеглий
   // керівника (для АСМ — його СВ, для СВ — просто кожна людина окремо,
   // деградує до "команди з однієї людини", теж має сенс), з підсумком по
@@ -1427,16 +1178,6 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       .sort((a, b) => b.pct - a.pct);
   }, [state.data, teamTree.data]);
 
-  const filteredFlat = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const hasFilter = Boolean(q) || statusFilter !== "all";
-    if (!hasFilter) return null;
-    const summaryMap = state.data?.team.summaryByEmployeeId || {};
-    return flatTeam
-      .filter((n) => (q ? n.name.toLowerCase().includes(q) : true))
-      .filter((n) => matchesStatusFilter(summaryMap[n.id], statusFilter))
-      .map((n) => ({ ...n, children: [] }));
-  }, [flatTeam, query, statusFilter, state.data]);
 
   if (state.loading) {
     return (
@@ -1454,14 +1195,9 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   }
 
   const { me, team } = state.data;
-  const { stats, summaryByEmployeeId, weeklyTrend, rating, funnels } = team;
+  const { stats, weeklyTrend, funnels } = team;
   const funnelByCourseId = new Map((funnels || []).map((f) => [f.id, f]));
   const trendMax = Math.max(1, ...weeklyTrend.map((w) => w.count));
-  // team.tree більше не приходить разом з рештою (ensureTeamTree/teamTree
-  // вище) — БЕЗ фільтра показуємо вкладене дерево (teamTree.data, той
-  // самий формат, що раніше team.tree), З фільтром — пласкі filteredFlat
-  // (уже без children, той самий принцип, що й був).
-  const visibleNodes = sortNodes(filteredFlat ?? teamTree.data ?? [], sortBy, summaryByEmployeeId, rating.byEmployeeId);
   // Для rateColor нижче — 4 показники "Показники команди" ранжуються один
   // відносно одного, не за фіксованим per-метрика кольором.
   const ringValues = [stats.completionRate, stats.passRate, stats.onTimeRate, stats.startedRate];
@@ -1999,59 +1735,6 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
       </section>
       </div>
 
-      <section className="mgr-section" ref={teamTreeSectionRef}>
-        <div className="mgr-team-header">
-          <h2>
-            <PeopleIcon /> <span className="mgr-card-title">Детально по команді</span>
-          </h2>
-          <div className="mgr-team-controls">
-            <select className="admin-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-              {SORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <select className="admin-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              {STATUS_FILTER_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <input
-              className="admin-input-flex mgr-team-search"
-              placeholder="Пошук за ім'ям…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {teamTree.error ? (
-          <p className="admin-hint">Не вдалося завантажити список команди.</p>
-        ) : !teamTree.data ? (
-          // Дерево команди підвантажується ОКРЕМИМ запитом
-          // (/api/manager/team-tree, ensureTeamTree вище) — найважчий за
-          // кількістю DOM-вузлів блок сторінки (по вузлу-компоненту на
-          // кожного підлеглого, з бейджами/MarqueeText/можливими дітьми),
-          // а долистовує сюди не кожен керівник одразу (аудит "вообще без
-          // скелетонов мгновенно", 2026-09-20). IntersectionObserver вище
-          // запускає і видимість, і сам fetch, щойно секція наближається
-          // до вʼюпорта.
-          <LinesSkeleton rows={6} />
-        ) : flatTeam.length === 0 ? (
-          <p className="admin-hint">У вас немає підлеглих.</p>
-        ) : filteredFlat && filteredFlat.length === 0 ? (
-          <p className="admin-hint">Нікого не знайдено.</p>
-        ) : (
-          <ul className="mgr-team-tree">
-            {visibleNodes.map((node) => (
-              <TeamNode key={node.id} node={node} summaryByEmployeeId={summaryByEmployeeId} ratingByEmployeeId={rating.byEmployeeId} />
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
   );
 }
