@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import sharp from "sharp";
@@ -54,8 +55,8 @@ export async function POST(request) {
   // Найпоширеніші растрові формати для фото на екранах курсу — SVG свідомо
   // не пускаємо (потенційний XSS: SVG може містити <script>), інші формати
   // (HEIC, TIFF тощо) браузер однаково не показує напряму через <img>.
-  const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-  if (!ALLOWED_TYPES.has(file.type)) {
+  const EXT_BY_TYPE = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
+  if (!EXT_BY_TYPE[file.type]) {
     return NextResponse.json(
       { error: `Непідтримуваний формат (${file.type || "невідомий"}). Дозволені: JPEG, PNG, WebP, GIF.` },
       { status: 400 }
@@ -67,16 +68,20 @@ export async function POST(request) {
     return NextResponse.json({ error: "Файл завеликий (максимум 8 МБ)." }, { status: 400 });
   }
 
+  // Файл, який sharp не може декодувати, не кладемо: MIME каже лише браузер
+  // клієнта, і «оригінал як є» міг бути будь-чим (HTML, поліглот) у публічному
+  // сховищі. Справжнє фото завжди перекодовується — це й перевірка.
+  let body;
   try {
-    let body = file;
-    try {
-      body = await compressImage(Buffer.from(await file.arrayBuffer()), file.type);
-    } catch (err) {
-      // Пошкоджений/нестандартний файл, який пройшов перевірку MIME, але
-      // не декодується sharp — не блокуємо завантаження, кладемо оригінал.
-      console.warn("[admin/upload] compression failed, uploading original:", err.message);
-    }
-    const blob = await put(`course-images/${Date.now()}-${file.name}`, body, {
+    body = await compressImage(Buffer.from(await file.arrayBuffer()), file.type);
+  } catch (err) {
+    console.warn("[admin/upload] not a decodable image:", err?.message);
+    return NextResponse.json({ error: "Файл пошкоджений або не є зображенням." }, { status: 400 });
+  }
+
+  try {
+    // Ім'я генерує сервер: ім'я файлу з диска клієнта в шлях не потрапляє.
+    const blob = await put(`course-images/${randomUUID()}.${EXT_BY_TYPE[file.type]}`, body, {
       access: "public",
       contentType: file.type,
       token: process.env.BLOB_READ_WRITE_TOKEN,
@@ -87,7 +92,7 @@ export async function POST(request) {
     // "Unexpected end of JSON input" замість реальної причини. Тепер
     // повертаємо саме те, що каже Vercel Blob (невірний токен, немає
     // доступу до сховища тощо).
-    console.error("[admin/upload] put() failed:", err);
+    console.error("[admin/upload] put() failed:", err?.message);
     return NextResponse.json({ error: `Завантаження не вдалося: ${err.message}` }, { status: 500 });
   }
 }
