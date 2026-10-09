@@ -20,7 +20,7 @@ paths:
   наживо як прев’ю (localStorage, `DesignTokensOverride`) і «Зберегти для
   всіх» пише їх в `AppSetting(design-tokens)` — кореневий layout вставляє
   `<style>:root{…}</style>` поверх tokens.css (`lib/designSettings.ts`,
-  whitelist по DESIGN_TOKENS, кеш 60с; layout через це force-dynamic).
+  whitelist по DESIGN_TOKENS; кеш до години, збереження скидає його тегом).
   Рішення користувача 2026-09-16: зміни дизайну без git. Новий регульований
   токен = рядок у `DESIGN_TOKENS` + дефолт у tokens.css. Кольори стенд не
   чіпає (рішення користувача) — **крім одного вторинного кольору бренду
