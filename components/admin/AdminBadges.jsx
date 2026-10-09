@@ -1,0 +1,401 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { SpinnerIcon, PencilIcon, PeopleIcon, XIcon } from "@/components/ui/icons";
+import { TerritoryPicker } from "@/components/admin/TerritoryPicker";
+import { AccordionField } from "@/components/ui/AccordionField";
+import { LoadingLine } from "@/components/ui/Skeleton";
+import { api } from "@/lib/api";
+
+const KIND_LABELS = { manual: "Ручна (винагорода)", auto: "Автоматична" };
+
+/**
+ * /admin/badges — керування ТИПАМИ ачивок (не видачею конкретній людині —
+ * та на картці співробітника, components/admin/EmployeeDetail.jsx). auto-типи
+ * створюються самі (lib/badgeRules.js ensureAutoBadgesExist) — тут їх
+ * можна тільки перейменувати/поміняти опис/іконку, не видалити й не
+ * змінити правило нарахування.
+ */
+export function AdminBadges() {
+  const [badges, setBadges] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  // Довідники для масової видачі — ті самі ендпоінти, що й пікер
+  // призначення курсу (AdminDashboard.jsx).
+  const [targets, setTargets] = useState({ positions: [], territories: [], employees: [] });
+
+  async function load() {
+    setLoading(true);
+    try {
+      const [b, positions, terr] = await Promise.all([
+        fetch("/api/admin/badges").then((r) => r.json()),
+        fetch("/api/admin/positions").then((r) => r.json()),
+        fetch("/api/admin/territories").then((r) => r.json()),
+      ]);
+      setBadges(b.badges || []);
+      setTargets({ positions: positions || [], territories: terr.territories || [], employees: terr.employees || [] });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load();
+  }, []);
+
+  return (
+    <div className="admin-page adm-page">
+      <div className="adm-page-head">
+        <div>
+          <h1>Відзнаки та винагороди</h1>
+          <p className="admin-subtitle">
+            Типи відзнак. Автоматичні нараховуються щоденним cron за реальними даними; винагороди видає адмін з картки
+            конкретного співробітника або одразу групі — «Призначити» в рядку.
+          </p>
+        </div>
+        <div className="adm-page-actions">
+          <button className={`admin-btn${showCreate ? " adm-btn-secondary" : ""}`} onClick={() => setShowCreate((v) => !v)}>
+            + Новий тип винагороди
+          </button>
+        </div>
+      </div>
+
+      {showCreate && (
+        <BadgeCreateForm
+          onCreated={(created) => {
+            setShowCreate(false);
+            setBadges((prev) => [...prev, { ...created, _count: { awards: 0 } }]);
+          }}
+          onCancel={() => setShowCreate(false)}
+        />
+      )}
+
+      {loading ? (
+        <LoadingLine />
+      ) : (
+        <div className="adm-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Іконка</th>
+              <th>Назва</th>
+              <th>Тип</th>
+              <th className="adm-num">Видано разів</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+          {badges.map((b) => (
+            <BadgeRow
+              key={b.id}
+              badge={b}
+              targets={targets}
+              onUpdated={(updated) => setBadges((prev) => prev.map((x) => (x.id === updated.id ? { ...x, ...updated } : x)))}
+              onDeleted={(id) => setBadges((prev) => prev.filter((x) => x.id !== id))}
+            />
+          ))}
+          </tbody>
+        </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BadgeCreateForm({ onCreated, onCancel }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [icon, setIcon] = useState("⭐");
+  const [points, setPoints] = useState(50);
+  const [hidden, setHidden] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleCreate() {
+    if (!title.trim()) return;
+    setSaving(true);
+    setError("");
+    try {
+      const data = await api("/api/admin/badges", { method: "POST", body: { title: title.trim(), description: description.trim() || null, icon: icon.trim() || "⭐", points: Number(points) || 0, hiddenUntilEarned: hidden } });
+      onCreated(data);
+    } catch (err) {
+      setError("Помилка: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="adm-card">
+      <div className="adm-card-head">
+        <h2>Новий тип винагороди</h2>
+      </div>
+      <div className="adm-field-grid">
+        <div className="admin-field">
+          <label className="admin-label" htmlFor="badgeTitle">
+            Назва
+          </label>
+          <input id="badgeTitle" className="admin-input-flex" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="напр. Співробітник місяця" />
+        </div>
+        <div className="admin-field">
+          <label className="admin-label" htmlFor="badgeIcon">
+            Іконка (emoji)
+          </label>
+          <input id="badgeIcon" className="admin-input-flex adm-input-icon" value={icon} onChange={(e) => setIcon(e.target.value)} />
+        </div>
+        <div className="admin-field">
+          <label className="admin-label" htmlFor="badgePoints">
+            Бали рейтингу
+          </label>
+          <input id="badgePoints" type="number" min="0" className="admin-input-flex adm-input-short" value={points} onChange={(e) => setPoints(e.target.value)} />
+        </div>
+        <div className="admin-field admin-field-wide">
+          <label className="admin-label" htmlFor="badgeDesc">
+            Опис (опційно)
+          </label>
+          <input id="badgeDesc" className="admin-input-flex" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+      </div>
+      <label className="admin-checkbox">
+        <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} />
+        Показувати лише тим, кому видано (не світити «заблокованою» у решти)
+      </label>
+      <div className="adm-card-foot">
+        {error && <p className="admin-error">{error}</p>}
+        <button className="admin-btn adm-btn-secondary" onClick={onCancel} disabled={saving}>
+          Скасувати
+        </button>
+        <button className="admin-btn" disabled={!title.trim() || saving} onClick={handleCreate}>
+          {saving && <SpinnerIcon />}
+          Створити
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function BadgeRow({ badge, targets, onUpdated, onDeleted }) {
+  const [editing, setEditing] = useState(false);
+  const [awarding, setAwarding] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Видалення — лише manual; якщо відзнаку вже видано, сервер відповідає
+  // 409 з кількістю, і адмін підтверджує видалення разом із видачами
+  // (і їхніми балами рейтингу).
+  async function handleDelete() {
+    if (!window.confirm(`Видалити тип «${badge.title}»?`)) return;
+    setDeleting(true);
+    try {
+      let res = await fetch(`/api/admin/badges/${badge.id}`, { method: "DELETE" });
+      if (res.status === 409) {
+        const data = await res.json();
+        if (!window.confirm(`${data.error} Видалити разом із цими видачами та їхніми балами рейтингу?`)) return;
+        res = await fetch(`/api/admin/badges/${badge.id}?force=1`, { method: "DELETE" });
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      onDeleted(badge.id);
+    } catch (err) {
+      window.alert("Не вдалося видалити: " + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+  const [title, setTitle] = useState(badge.title);
+  const [description, setDescription] = useState(badge.description || "");
+  const [icon, setIcon] = useState(badge.icon || "");
+  const [points, setPoints] = useState(badge.points ?? 0);
+  const [hidden, setHidden] = useState(badge.hiddenUntilEarned === true);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/badges/${badge.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim(), description: description.trim() || null, icon: icon.trim() || null, points: Number(points) || 0, hiddenUntilEarned: hidden }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        onUpdated(data);
+        setEditing(false);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <tr>
+        <td>
+          <input className="admin-input-flex adm-input-icon" value={icon} onChange={(e) => setIcon(e.target.value)} aria-label="Іконка (emoji)" />
+        </td>
+        <td>
+          <div className="admin-badge-edit">
+            <input className="admin-input-flex" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Назва" />
+            <input className="admin-input-flex" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Опис" aria-label="Опис" />
+            <input type="number" min="0" className="admin-input-flex adm-input-short" value={points} onChange={(e) => setPoints(e.target.value)} placeholder="Бали рейтингу" aria-label="Бали рейтингу" />
+            <label className="admin-checkbox">
+              <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} />
+              Лише тим, кому видано
+            </label>
+          </div>
+        </td>
+        <td>{KIND_LABELS[badge.kind]}</td>
+        <td className="adm-num">{badge._count?.awards ?? 0}</td>
+        <td className="adm-actions-cell">
+          <span className="adm-row-actions">
+            <button className="admin-btn adm-btn-secondary" onClick={() => setEditing(false)} disabled={saving}>
+              Скасувати
+            </button>
+            <button className="admin-btn" disabled={saving} onClick={handleSave}>
+              {saving && <SpinnerIcon />}
+              Зберегти
+            </button>
+          </span>
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <>
+      <tr>
+        <td className="admin-badge-ico">{badge.icon}</td>
+        <td>
+          <b>{badge.title}</b>
+          {badge.description && <div className="admin-hint">{badge.description}</div>}
+          <div className="admin-hint">
+            {badge.points ? `${badge.points} балів рейтингу` : "без балів"}
+            {badge.hiddenUntilEarned && " · лише власникам"}
+          </div>
+        </td>
+        <td>{KIND_LABELS[badge.kind]}</td>
+        <td className="adm-num">{badge._count?.awards ?? 0}</td>
+        <td className="adm-actions-cell">
+        {/* Дії — однакові квадратні кнопки в фіксованих колонках, щоб у
+            всіх рядках вони стояли одна під одною (auto-типи мають лише
+            «Редагувати», решта клітинок порожні). */}
+        <span className="admin-badge-actions">
+          <button type="button" className="iconbtn" title="Редагувати" aria-label="Редагувати" onClick={() => setEditing(true)}>
+            <PencilIcon />
+          </button>
+          {badge.kind === "manual" ? (
+            <>
+              <button
+                type="button"
+                className={`iconbtn${awarding ? " is-active" : ""}`}
+                title={awarding ? "Сховати видачу" : "Призначити групі"}
+                aria-label={awarding ? "Сховати видачу" : "Призначити групі"}
+                aria-expanded={awarding}
+                onClick={() => setAwarding((v) => !v)}
+              >
+                <PeopleIcon />
+              </button>
+              <button type="button" className="iconbtn iconbtn-danger" title="Видалити" aria-label="Видалити" onClick={handleDelete} disabled={deleting}>
+                {deleting ? <SpinnerIcon /> : <XIcon />}
+              </button>
+            </>
+          ) : (
+            <>
+              <span />
+              <span />
+            </>
+          )}
+        </span>
+        </td>
+      </tr>
+      {awarding && (
+        <tr>
+          <td colSpan={5}>
+            <BadgeAwardPanel
+              badge={badge}
+              targets={targets}
+              onDone={(count) => {
+                onUpdated({ id: badge.id, _count: { awards: (badge._count?.awards ?? 0) + count } });
+              }}
+            />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+/**
+ * Масова видача ручної відзнаки — те саме «дерево», що й у призначенні
+ * курсу: посади, території/конкретні люди (TerritoryPicker), коментар.
+ * Хто вже має відзнаку — пропускається (сервер, skipDuplicates).
+ */
+function BadgeAwardPanel({ badge, targets, onDone }) {
+  const [positionCodes, setPositionCodes] = useState([]);
+  const [territoryIds, setTerritoryIds] = useState([]);
+  const [employeeIds, setEmployeeIds] = useState([]);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const nothing = positionCodes.length === 0 && territoryIds.length === 0 && employeeIds.length === 0;
+
+  async function submit() {
+    setBusy(true);
+    setMsg("");
+    try {
+      const data = await api(`/api/admin/badges/${badge.id}/award`, { method: "POST", body: { positionCodes, territoryIds, employeeIds, note: note.trim() || null } });
+      setMsg(`Видано ${data.awardedCount} співробітник(ам)${data.skippedCount > 0 ? `, ${data.skippedCount} уже мали цю відзнаку` : ""}.`);
+      onDone(data.awardedCount);
+    } catch (err) {
+      setMsg("Помилка: " + err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="admin-badge-award">
+      <AccordionField title="За посадами" summary={positionCodes.length ? positionCodes.join(", ") : "не обрано"}>
+        <div className="admin-checkbox-grid">
+          {targets.positions.map((p) => (
+            <label key={p.code} className="admin-checkbox">
+              <input
+                type="checkbox"
+                checked={positionCodes.includes(p.code)}
+                onChange={(e) => setPositionCodes((v) => (e.target.checked ? [...v, p.code] : v.filter((c) => c !== p.code)))}
+              />
+              {p.name} ({p.code})
+            </label>
+          ))}
+        </div>
+      </AccordionField>
+      <AccordionField
+        title="За територіями / конкретним людям"
+        summary={territoryIds.length + employeeIds.length ? `обрано: ${territoryIds.length + employeeIds.length}` : "не обрано"}
+        footer="Посада + територія = усі з цієї посади на цій території; лише територія = усі на ній; людина — лише вона."
+      >
+        <TerritoryPicker
+          territories={targets.territories}
+          employees={targets.employees}
+          value={territoryIds}
+          onChange={setTerritoryIds}
+          employeeValue={employeeIds}
+          onEmployeeChange={setEmployeeIds}
+        />
+      </AccordionField>
+      <div className="admin-field">
+        <label className="admin-label" htmlFor={`awardNote${badge.id}`}>
+          Коментар (опційно, потрапить у сповіщення)
+        </label>
+        <input id={`awardNote${badge.id}`} className="admin-input-flex" value={note} onChange={(e) => setNote(e.target.value)} />
+      </div>
+      <div className="admin-btn-group">
+        <button type="button" className="admin-btn" onClick={submit} disabled={busy || nothing}>
+          {busy && <SpinnerIcon />}
+          Видати {badge.icon} {badge.title}
+        </button>
+        {msg && <span className="admin-hint">{msg}</span>}
+      </div>
+    </div>
+  );
+}

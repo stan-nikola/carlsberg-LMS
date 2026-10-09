@@ -6,7 +6,7 @@ export PATH="/c/Program Files/nodejs:$PATH"
 # .git/info/exclude; той файл локальний, на іншому комп'ютері його нема, і
 # `git add -A` затягнув би таку теку цілком. Ця перевірка їде разом із репо.
 # Нова справжня тека проєкту = один рядок у allowed нижче.
-allowed=" .agents .claude .github .husky app components e2e legacy lib prisma public types "
+allowed=" .claude .github .husky app components e2e hooks legacy lib prisma public types "
 bad=$(git -c core.quotepath=false diff --cached --name-only --diff-filter=ACR | awk -v allowed="$allowed" '
   {
     f = $0
