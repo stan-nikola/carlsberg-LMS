@@ -3,8 +3,7 @@
    телефонної картки (.stage/.course-card/.appbar), кнопки, механіка
    bottom sheet (використовується і settings sheet, і code-hint sheet) —
    спільне для всіх екранів (реєстрація + хаб).
-   Шрифти (--font-montserrat/--font-ibm-plex-mono) підключені
-   через next/font у app/layout.js замість <link> на fonts.googleapis.com. */
+   Шрифт — Carlsberg Sans (--font-carlsberg-sans), next/font/local у app/layout.js. */
 
 :root {
   color-scheme: light only;
@@ -36,13 +35,12 @@
 
   --shadow: var(--shadow-lg);
 
-  /* Carlsberg Sans — лише для великого display-тексту (h1/h2/h3), саме
-     так, як його й застосовує офіційний брендбук; для щільного UI/
-     параграфного тексту лишається Montserrat (у Carlsberg Sans немає
-     проміжних 400/500/600 різів). */
-  --font-display: var(--font-carlsberg-sans), var(--font-montserrat), system-ui, sans-serif;
-  --font-body: var(--font-montserrat), system-ui, sans-serif;
-  --font-mono: var(--font-ibm-plex-mono), ui-monospace, monospace;
+  /* Усе — Carlsberg Sans, як на carlsbergukraine.com (2026-10-08). Три
+     токени лишаються, щоб місця не переписувати: display — заголовки,
+     body — текст, mono — колишній моноширинний (мітки, коди, числа). */
+  --font-display: var(--font-carlsberg-sans), system-ui, sans-serif;
+  --font-body: var(--font-carlsberg-sans), system-ui, sans-serif;
+  --font-mono: var(--font-carlsberg-sans), system-ui, sans-serif;
   --fs-scale: 1;
 }
 * {

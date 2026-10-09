@@ -51,9 +51,11 @@ Key facts worth internalizing (but verify against the live file):
 - Progress bars: solid fill color, no gradient, track background
   `--cb-overlay-10`, height/radius from the `--size-*` scale (see
   `.ct-progress-track`/`.ct-progress-fill` in app/styles/hub.css).
-- Typography: `--font-display` (Carlsberg Sans — only weights 300/700/900
-  are real; never set 400/500/600/800 on it) for large headings only;
-  `--font-body` (Montserrat) for everything else. This is an internal
+- Typography: everything is Carlsberg Sans (`--font-display`,
+  `--font-body`, `--font-mono` all point to it — user decision 2026-10-08,
+  matching carlsbergukraine.com). Only 300/700/900 faces exist: CSS 400/500
+  render as Light, 600/700 as Bold, 800/900 as Black. Never add another
+  font family (no Google Fonts). This is an internal
   employee tool, not a marketing site — do not add hero sections,
   parallax, or animated counters to login/course/quiz screens. `/admin`
   stays dense and functional, but on the same tokens.

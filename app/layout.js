@@ -1,5 +1,4 @@
 import localFont from "next/font/local";
-import { Montserrat, IBM_Plex_Mono } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { OfflineSync } from "@/components/OfflineSync";
 import { DesignTokensOverride } from "@/components/DesignTokensOverride";
@@ -47,31 +46,10 @@ const carlsbergSans = localFont({
   ],
   variable: "--font-carlsberg-sans",
   display: "swap",
-  // Тільки 3 фірмові насичення (Light/Bold/Black) — саме тому в самому
-  // гайді Carlsberg Sans використовується ЛИШЕ для великого display-
-  // тексту/заголовків (усі приклади в брендбуку — "WE WILL CREATE A
-  // WINNING CULTURE", ALL CAPS, великий кегль), ніколи для щільного
-  // основного тексту. Тому --font-display (нижче) — Carlsberg Sans, а
-  // --font-body лишається на Montserrat (є 400/500/600, потрібні для UI/
-  // параграфів; це також той самий шрифт, що й офіційна цифрова
-  // дизайн-система Carlsberg "Malty" використовує для власних продуктів).
-});
-const montserrat = Montserrat({
-  subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600", "700"],
-  // Курсив — справжнім накресленням, а не синтетичним нахилом. Автор
-  // курсу може поставити курсив кнопкою в конструкторі (lib/richText.jsx),
-  // і без italic-фейса браузер просто перекошував звичайний Montserrat:
-  // на iOS такий «нахил» особливо помітно відрізняється від справжнього
-  // курсиву. 700 у списку вище — так само причина, чому жирний уже
-  // виглядав правильно.
-  style: ["normal", "italic"],
-  variable: "--font-montserrat",
-});
-const ibmPlexMono = IBM_Plex_Mono({
-  subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600"],
-  variable: "--font-ibm-plex-mono",
+  // Лише 3 фірмові накреслення (Light/Bold/Black) — і ними написане все:
+  // так само, як офіційний carlsbergukraine.com (текст — Light, жирне —
+  // Bold, великі заголовки — Black; рішення користувача 2026-10-08). CSS-ваги
+  // 400/500 браузер бере з Light, 600/700 — з Bold, 800/900 — з Black.
 });
 
 // Абсолютна адреса сайту — потрібна метаданим (og:image мусить бути
@@ -169,7 +147,7 @@ export default async function RootLayout({ children }) {
   return (
     <html
       lang="uk"
-      className={`${carlsbergSans.variable} ${montserrat.variable} ${ibmPlexMono.variable}`}
+      className={carlsbergSans.variable}
       // Гасить попередження гідратації САМЕ для цього тега (не рекурсивно —
       // реальні розбіжності глибше в дереві й далі покажуться). Побачили
       // "A tree hydrated but some attributes... didn't match" однаково і на
