@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { getRules, getLevels } from "@/lib/rating";
 
 /** GET — правила (ваги) і рівні. */
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
   const [rules, levels] = await Promise.all([getRules(), getLevels()]);
   return NextResponse.json({ rules, levels });
 }
@@ -19,8 +19,8 @@ export async function GET() {
  * поріг завжди 0).
  */
 export async function PUT(request) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const body = await request.json().catch(() => ({}));
   const ops = [];

@@ -1,7 +1,5 @@
-import type { AuditLog, Prisma, PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
-
-const prisma = prismaUntyped as PrismaClient;
+import type { AuditLog, Prisma } from "@/app/generated/prisma";
+import { prisma } from "@/lib/prisma";
 
 /**
  * Вибірка журналу дій (AuditLog) з фільтрами /admin/audit — одна для екрана

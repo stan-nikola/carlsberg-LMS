@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 
 const RESULT_LIMIT = 30;
 
@@ -13,8 +13,8 @@ const RESULT_LIMIT = 30;
 // false) не показуємо — showInactive=1 вмикає їх назад (для пошуку
 // конкретної деактивованої людини, щоб її реактивувати).
 export async function GET(request) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const q = request.nextUrl.searchParams.get("q")?.trim();
   const showInactive = request.nextUrl.searchParams.get("showInactive") === "1";
@@ -57,10 +57,10 @@ export async function GET(request) {
 // обов'язкових полів: name + externalCode (той самий login-ключ, що й у
 // реального імпорту, має лишатись унікальним).
 export async function POST(request) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const name = String(body.name || "").trim();
   const externalCode = String(body.externalCode || "").trim();
 

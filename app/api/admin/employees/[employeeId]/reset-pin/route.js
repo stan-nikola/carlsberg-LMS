@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { requestLoginPin } from "@/lib/auth";
 
 // POST /api/admin/employees/:employeeId/reset-pin — "скидання PIN" адміном:
@@ -12,8 +12,8 @@ import { requestLoginPin } from "@/lib/auth";
 // співробітника, якому не прийшов лист: реальна потреба тут ("забув / не
 // отримав код") закривається саме форсованою повторною відправкою.
 export async function POST(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { employeeId } = await params;
   const employee = await prisma.employee.findUnique({

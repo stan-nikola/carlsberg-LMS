@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
-import { requireAdmin, SYSTEM_ADMIN_EXTERNAL_CODE } from "@/lib/adminAuth";
+import { adminGuard, getSystemAdminId } from "@/lib/adminAuth";
 import { assignCourseToPositionsAndTerritories } from "@/lib/courseAssignment";
-import { prisma } from "@/lib/prisma";
 
 /**
  * POST /api/admin/courses/:courseId/assign
@@ -13,13 +12,11 @@ import { prisma } from "@/lib/prisma";
  * posada/territoryId, див. lib/courseAssignment.js) одним действием.
  */
 export async function POST(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { courseId } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const { positionCodes = [], territoryIds = [], employeeIds = [] } = body;
 
   if (positionCodes.length === 0 && territoryIds.length === 0 && employeeIds.length === 0) {
@@ -29,12 +26,9 @@ export async function POST(request, { params }) {
     );
   }
 
-  // /admin — отдельный вход по паролю (см. lib/adminAuth.js), у запроса
-  // нет "своего" Employee — Enrollment.assignedById пишем от системного.
-  const systemAdmin = await prisma.employee.findFirst({
-    where: { externalCode: SYSTEM_ADMIN_EXTERNAL_CODE },
-  });
-  if (!systemAdmin) {
+  // У /admin нема «свого» Employee — Enrollment.assignedById пишемо від системного.
+  const systemAdminId = await getSystemAdminId();
+  if (!systemAdminId) {
     return NextResponse.json(
       { error: "System admin employee not found — run prisma/seed.js" },
       { status: 500 }
@@ -45,7 +39,7 @@ export async function POST(request, { params }) {
     positionCodes,
     territoryIds,
     employeeIds,
-    assignedByUserId: systemAdmin.id,
+    assignedByUserId: systemAdminId,
   });
   await audit("course.assign", "course", courseId, { positionCodes, territoryIds, employeeIds, result });
 

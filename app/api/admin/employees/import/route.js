@@ -6,7 +6,8 @@ import { audit } from "@/lib/audit";
 // exceljs і так уже є для експорту. CLI-скрипти prisma/import-*.js
 // лишились на xlsx — вони читають лише власні довірені файли локально.
 import ExcelJS from "exceljs";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
+import { prisma } from "@/lib/prisma";
 
 const COLUMNS = ["externalCode", "name", "email", "positionCode", "territoryName", "managerExternalCode"];
 
@@ -22,7 +23,6 @@ function cellText(value) {
   }
   return String(value);
 }
-import { prisma } from "@/lib/prisma";
 
 // POST /api/admin/employees/import — Фаза B2. multipart/form-data, поле
 // "file" — заповнений шаблон з GET .../import-template. ТІЛЬКИ створює
@@ -37,8 +37,8 @@ import { prisma } from "@/lib/prisma";
 // знайдено — рядок все одно створюється, але БЕЗ managerId (не
 // вигадувати зв'язок), із поясненням у звіті "пропущено/попереджень".
 export async function POST(request) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const formData = await request.formData();
   const file = formData.get("file");

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import sharp from "sharp";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 
 // Довша сторона — 1920px вистачає для будь-якого реального показу фото
 // курсу (телефон, планшет, прев'ю в адмінці); більше — зайва вага без
@@ -39,8 +39,8 @@ async function compressImage(buffer, mimeType) {
 // однаково локально і на Vercel (на відміну від запису на диск, який на
 // Vercel не переживає навіть один redeploy).
 export async function POST(request) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json({ error: "not_configured" }, { status: 500 });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { syncBadgeAwards } from "@/lib/rating";
 
@@ -10,11 +10,10 @@ import { syncBadgeAwards } from "@/lib/rating";
 // немає причини лишати слід "видано і одразу відкликано", це просто
 // виправлення помилки адміна, не історична подія.
 export async function DELETE(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
-  const { employeeBadgeId } = await params;
-  const { employeeId } = await params;
+  const { employeeId, employeeBadgeId } = await params;
   const removed = await prisma.employeeBadge.delete({ where: { id: Number(employeeBadgeId) }, select: { badgeId: true } });
   // Разом із відзнакою зникають і її бали — інакше відкликана відзнака
   // лишалась би в рейтингу назавжди (RatingEvent на відзнаку посилається

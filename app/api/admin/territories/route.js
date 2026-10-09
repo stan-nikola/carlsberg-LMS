@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/admin/territories — для пікера "кому призначати" (по
@@ -19,8 +19,8 @@ import { prisma } from "@/lib/prisma";
 // на листках: коли географія закінчилась, навігація продовжується по
 // реальній оргструктурі.
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const [territories, employees] = await Promise.all([
     prisma.territory.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, parentId: true } }),

@@ -1,11 +1,11 @@
-import { getCurrentUser } from "@/lib/session";
+import { requireManager } from "@/lib/session";
 import { auditEmployee } from "@/lib/audit";
-import { isManagerTier, getAllSubordinates } from "@/lib/permissions";
+import { getAllSubordinates } from "@/lib/permissions";
 import { getExportData, dashboardStatsFromRaw, getHardestQuestions, getTeamTree, weeklyTrendFromRaw } from "@/lib/managerDashboard";
 import { fetchTeamRaw } from "@/lib/teamEnrollments";
 import { buildPeople, buildTeamRows } from "@/lib/teamInsights";
 import { buildManagerReport, parseCardIds } from "@/lib/managerReport";
-import { fmtDate } from "@/lib/excelReport";
+import { fmtDate, xlsxResponse } from "@/lib/excelReport";
 
 // GET /api/manager/export?cards=status,attention,… — Excel-звіт по видимій
 // команді керівника. Склад і порядок листів приходять із дашборда (набір
@@ -36,9 +36,8 @@ const CANONICAL_CARD_IDS = [
 
 
 export async function GET(request: Request) {
-  const employee = await getCurrentUser();
-  if (!employee) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
-  if (!isManagerTier(employee)) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
+  const { manager: employee, denied } = await requireManager();
+  if (denied) return denied;
 
   const cardIds = parseCardIds(new URL(request.url).searchParams.get("cards"), CANONICAL_CARD_IDS);
   auditEmployee(employee.id, "manager.export", undefined, { cards: cardIds.length });
@@ -69,10 +68,5 @@ export async function GET(request: Request) {
     exportData,
   });
 
-  return new Response(new Blob([buffer as BlobPart]), {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="zvit-komandy-${fmtDate(now)}.xlsx"`,
-    },
-  });
+  return xlsxResponse(buffer, `zvit-komandy-${fmtDate(now)}.xlsx`);
 }

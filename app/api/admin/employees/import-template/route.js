@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
-import { autoSheet, styleHeaderRow } from "@/lib/excelReport";
+import { autoSheet, styleHeaderRow, xlsxResponse } from "@/lib/excelReport";
 import { PLATFORM_NAME } from "@/lib/branding";
 
 // GET /api/admin/employees/import-template — Фаза B2. Шаблон для масового
@@ -13,8 +13,8 @@ import { PLATFORM_NAME } from "@/lib/branding";
 // довідка (реальні коди посад і назви територій), щоб заповнювач не
 // вгадував, що саме писати в positionCode/territoryName.
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const [positions, territories] = await Promise.all([
     prisma.position.findMany({ orderBy: { level: "asc" }, select: { code: true, name: true } }),
@@ -49,10 +49,5 @@ export async function GET() {
   autoSheet(wb, "Територiї", [{ header: "Назва території", key: "a", width: 40 }], territories.map((t) => ({ a: t.name })));
 
   const buffer = await wb.xlsx.writeBuffer();
-  return new Response(buffer, {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="shablon-novi-spivrobitnyky.xlsx"`,
-    },
-  });
+  return xlsxResponse(buffer, "shablon-novi-spivrobitnyky.xlsx");
 }

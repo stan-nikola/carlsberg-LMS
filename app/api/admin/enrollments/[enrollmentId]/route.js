@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { syncEnrollmentEvents } from "@/lib/rating";
 import { endOfKyivDayFromInput } from "@/lib/kyivTime";
@@ -16,11 +16,11 @@ const VALID_STATUSES = ["not_started", "in_progress", "completed", "overdue"];
 // відкориговано, щоб пізніше було видно, що це не реальний результат
 // проходження, а ручне втручання.
 export async function PATCH(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { enrollmentId } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
 
   const adminNote = String(body.adminNote || "").trim();
   if (!adminNote) {
@@ -106,8 +106,8 @@ export async function PATCH(request, { params }) {
 // людини (гранулярна версія вже існуючого масового
 // DELETE /api/admin/courses/:courseId/enrollments, той самий принцип).
 export async function DELETE(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { enrollmentId } = await params;
   const { removedCount } = await removeEnrollments({ id: Number(enrollmentId) });

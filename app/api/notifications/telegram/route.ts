@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { auditEmployee } from "@/lib/audit";
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { isTelegramConfigured, telegramBotUsername } from "@/lib/telegram";
 import { deepLink, signLinkToken } from "@/lib/telegramLogic";
-
-const prisma = prismaUntyped as PrismaClient;
 
 /**
  * Telegram у профілі співробітника (components/NotificationSettings.jsx).

@@ -1,13 +1,8 @@
-import type { PrismaClient } from "@/app/generated/prisma";
 import { unstable_cache } from "next/cache";
-import { prisma as prismaUntyped } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { getRules } from "@/lib/rating";
 import { badgePoints } from "@/lib/ratingLogic";
 import { certificateEarned } from "@/lib/progress";
-
-// lib/prisma.js віддає `any` (синглтон через globalThis) — звужуємо, як і
-// в lib/rating.ts.
-const prisma = prismaUntyped as PrismaClient;
 
 export type BadgeView = {
   id: number;

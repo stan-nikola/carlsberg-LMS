@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/adminAuth";
-import { prisma } from "@/lib/prisma";
+import { adminGuard } from "@/lib/adminAuth";
 import { audit } from "@/lib/audit";
 import { resolveTargetEmployeeIds } from "@/lib/courseAssignment";
-import { recordBadgeAwards } from "@/lib/rating";
-import { notifyBadgeAwarded } from "@/lib/notifications";
+import { NOT_MANUAL_MESSAGE, awardManualBadge } from "@/lib/manualBadges";
 
 /**
  * POST /api/admin/badges/:badgeId/award — масова видача ручної відзнаки
@@ -14,15 +12,11 @@ import { notifyBadgeAwarded } from "@/lib/notifications";
  * сповіщення — лише за новими видачами, як і при ручній видачі з картки.
  */
 export async function POST(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { badgeId } = await params;
-  const badge = await prisma.badge.findUnique({ where: { id: Number(badgeId) }, select: { id: true, title: true, kind: true, points: true, icon: true, description: true } });
-  if (!badge) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  if (badge.kind !== "manual") return NextResponse.json({ error: "Автоматичні відзнаки нараховує cron, вручну їх не видають" }, { status: 400 });
-
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   let ids;
   try {
     ids = await resolveTargetEmployeeIds({
@@ -33,24 +27,11 @@ export async function POST(request, { params }) {
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
-  const systemAdmin = await prisma.employee.findFirst({ where: { externalCode: "SYSTEM-ADMIN" }, select: { id: true } });
-
-  const created = await prisma.employeeBadge.createManyAndReturn({
-    data: ids.map((employeeId) => ({ employeeId, badgeId: badge.id, awardedById: systemAdmin?.id ?? null, note: body.note || null })),
-    skipDuplicates: true,
-    select: { employeeId: true },
-  });
-  try {
-    await recordBadgeAwards(created.map((c) => ({ employeeId: c.employeeId, badge })));
-  } catch (err) {
-    console.warn("[rating] mass badge:", err?.message);
-  }
-  try {
-    await notifyBadgeAwarded(created.map((c) => ({ employeeId: c.employeeId, badge })));
-  } catch (err) {
-    console.warn("[notifications] mass badge:", err?.message);
-  }
-  const result = { awardedCount: created.length, skippedCount: ids.length - created.length };
+  const award = await awardManualBadge(Number(badgeId), ids, body.note || null);
+  if (award.error === "not_found") return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (award.error === "not_manual") return NextResponse.json({ error: NOT_MANUAL_MESSAGE }, { status: 400 });
+  const { badge, awardedIds } = award;
+  const result = { awardedCount: awardedIds.length, skippedCount: ids.length - awardedIds.length };
   await audit("badge.award_bulk", "badge", badge.id, { title: badge.title, positionCodes: body.positionCodes, territoryIds: body.territoryIds, employeeIds: body.employeeIds, ...result });
   return NextResponse.json(result);
 }

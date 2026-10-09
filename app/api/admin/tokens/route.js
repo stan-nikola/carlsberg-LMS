@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { createApiToken } from "@/lib/adminApiToken";
 
@@ -8,8 +8,8 @@ import { createApiToken } from "@/lib/adminApiToken";
 // вони ніде не зберігаються у відкритому вигляді, лише хеш) для екрана
 // керування "Excel — жива книга".
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const tokens = await prisma.adminApiToken.findMany({
     orderBy: { createdAt: "desc" },
@@ -30,10 +30,10 @@ export async function GET() {
 // конкретної людини, не анонімний /admin-пароль). Сирий токен
 // повертається лише в цій відповіді — більше ніде і ніколи.
 export async function POST(request) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const employeeId = Number(body.employeeId);
   if (!employeeId) return NextResponse.json({ error: "employeeId is required" }, { status: 400 });
 

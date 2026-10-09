@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { slugify, uniqueSlug } from "@/lib/slug";
+import { courseFieldsFromBody } from "@/lib/courseFields";
 import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
 
 // GET /api/admin/courses/:courseId — повне дерево курс -> модулі -> екрани
 // -> компоненти, для адмінського редактора контенту.
 export async function GET(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { courseId } = await params;
   const course = await prisma.course.findUnique({
@@ -40,15 +41,14 @@ export async function GET(request, { params }) {
 // призначенням "тут і зараз" через /assign. Зміна title перегенеровує slug
 // (транслітерація), якщо на курс ще нема жодного Enrollment.
 export async function PATCH(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { courseId } = await params;
   const id = Number(courseId);
-  const body = await request.json();
-  const data = {};
+  const body = await request.json().catch(() => ({}));
+  const data = courseFieldsFromBody(body);
   if (body.title !== undefined) {
-    data.title = body.title;
 
     // Перегенеровуємо slug під нову назву — АЛЕ тільки якщо на курс ще
     // ніхто не записаний: slug живе в публічному URL (/courses/[slug]),
@@ -66,33 +66,9 @@ export async function PATCH(request, { params }) {
       }
     }
   }
-  if (body.description !== undefined) data.description = body.description;
-  if (body.category !== undefined) data.category = body.category || null;
-  if (body.isMandatory !== undefined) data.isMandatory = body.isMandatory;
-  if (body.deadlineDays !== undefined) data.deadlineDays = body.deadlineDays === "" || body.deadlineDays == null ? null : Number(body.deadlineDays);
-  if (body.moduleDays !== undefined) data.moduleDays = body.moduleDays === "" || body.moduleDays == null ? null : Number(body.moduleDays);
-  if (body.modulePauseDays !== undefined) {
-    data.modulePauseDays = body.modulePauseDays === "" || body.modulePauseDays == null ? null : Number(body.modulePauseDays);
-  }
-  if (body.passThreshold !== undefined) data.passThreshold = body.passThreshold === "" || body.passThreshold == null ? 80 : Number(body.passThreshold);
-  if (body.points !== undefined) data.points = body.points === "" || body.points == null ? null : Number(body.points);
-  if (body.certificateEnabled !== undefined) data.certificateEnabled = Boolean(body.certificateEnabled);
-  if (body.assignOnFirstLogin !== undefined) data.assignOnFirstLogin = Boolean(body.assignOnFirstLogin);
-  // "phone"/"laptop" — перемикач прев'ю над макетом у AdminCourseEditor.jsx,
-  // не впливає на реальний застосунок співробітника.
-  if (body.previewDevice !== undefined) data.previewDevice = body.previewDevice === "laptop" ? "laptop" : "phone";
-  if (body.streakMessages !== undefined) data.streakMessages = body.streakMessages || null;
-  if (body.targetPositions !== undefined) data.targetPositions = body.targetPositions;
-  if (body.targetTerritories !== undefined) data.targetTerritories = body.targetTerritories;
-  if (body.targetEmployeeIds !== undefined) data.targetEmployeeIds = body.targetEmployeeIds;
-  if (body.folderId !== undefined) data.folderId = body.folderId === null ? null : Number(body.folderId);
-  if (body.publishAt !== undefined) {
-    data.publishAt = body.publishAt ? new Date(body.publishAt) : null;
-    // Дату публікації змінили вручну — скидаємо позначку "вже
-    // авто-призначено", інакше зміна дати на майбутнє нічого не зробить
-    // (cron бачив би autoAssignedAt і пропускав курс назавжди).
-    data.autoAssignedAt = null;
-  }
+  // Дату публікації змінили вручну — скидаємо позначку «вже авто-призначено»,
+  // інакше cron бачив би autoAssignedAt і пропускав курс назавжди.
+  if (body.publishAt !== undefined) data.autoAssignedAt = null;
 
   const course = await prisma.course.update({ where: { id: Number(courseId) }, data });
   // Назва, терміни, поріг — у плитках і плані курсу співробітника.
@@ -107,8 +83,8 @@ export async function PATCH(request, { params }) {
 // якщо на курс уже хтось записаний, відмовляємо заздалегідь із зрозумілою
 // причиною, а не даємо Postgres впасти сирим 500 на FK-обмеженні.
 export async function DELETE(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { courseId } = await params;
   const id = Number(courseId);

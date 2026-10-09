@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { finalizeEnrollment } from "@/lib/moduleAttempts";
 import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
-
-const prisma = prismaUntyped as PrismaClient;
 
 /**
  * POST /api/courses/:slug/submit

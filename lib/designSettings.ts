@@ -1,9 +1,6 @@
-import type { PrismaClient } from "@/app/generated/prisma";
 import { unstable_cache, revalidateTag } from "next/cache";
-import { prisma as prismaUntyped } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { DESIGN_TOKENS, type TokenValues } from "@/lib/designTokens";
-
-const prisma = prismaUntyped as PrismaClient;
 
 /**
  * Дизайн-токени, збережені «для всіх» із /admin/design (супер-адмін):

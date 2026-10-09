@@ -550,15 +550,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   # ---------------------------------------------------------------- manager
-  /api/manager/overview:
-    get:
-      tags: [manager]
-      summary: Агрегат кабінету керівника JSON-ом (сам кабінет рахує те саме на сервері, без цього роуту)
-      security: [{ session: [] }]
-      responses:
-        "200": { $ref: "#/components/responses/Ok" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
   /api/manager/team-tree:
     get:
       tags: [manager]

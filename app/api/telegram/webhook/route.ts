@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { auditEmployee } from "@/lib/audit";
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { isTelegramConfigured, replyToChat, telegramBotUsername } from "@/lib/telegram";
 import { parseCommand, verifyLinkToken } from "@/lib/telegramLogic";
 import { safeEqual } from "@/lib/safeEqual";
-
-const prisma = prismaUntyped as PrismaClient;
 
 /**
  * Webhook Telegram-бота (реєструється з /admin/notifications → «Увімкнути

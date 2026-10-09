@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/session";
-import { isManagerTier, getAllSubordinates } from "@/lib/permissions";
+import { requireManager } from "@/lib/session";
+import { getAllSubordinates } from "@/lib/permissions";
 import { getEmployeeDetail } from "@/lib/managerDashboard";
 
 // GET /api/manager/employees/[id] — детальний список призначень +
@@ -14,9 +14,8 @@ import { getEmployeeDetail } from "@/lib/managerDashboard";
 // перевірку — /manager це кабінет для штатної ієрархії, а не для
 // admin/hr_manager (ті мають /admin з повним доступом окремо).
 export async function GET(request, { params }) {
-  const employee = await getCurrentUser();
-  if (!employee) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isManagerTier(employee)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { manager: employee, denied } = await requireManager();
+  if (denied) return denied;
 
   const { id } = await params;
   const targetId = Number(id);

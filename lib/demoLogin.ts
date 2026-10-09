@@ -1,5 +1,4 @@
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { isManagerTier } from "@/lib/permissions";
 
 /**
@@ -13,8 +12,6 @@ import { isManagerTier } from "@/lib/permissions";
  * а API відкидає demoEmail. Список — свідомо у змінній оточення, а не в
  * коді: на проді його можна вимкнути або звузити без деплою.
  */
-const prisma = prismaUntyped as PrismaClient;
-
 export function demoLoginCodes(): string[] {
   return (process.env.DEMO_LOGIN_CODES || "")
     .split(",")

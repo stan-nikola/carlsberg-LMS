@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { getSessionClaims } from "@/lib/session";
 import { finishModuleAttempt } from "@/lib/moduleAttempts";
 
@@ -17,8 +16,6 @@ import { finishModuleAttempt } from "@/lib/moduleAttempts";
  * записаний результат. Коли результат є в кожного модуля, курс закривається
  * тут же (lib/moduleAttempts.ts finalizeEnrollment) — у відповіді `course`.
  */
-const prisma = prismaUntyped as PrismaClient;
-
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const claims = await getSessionClaims();
   if (!claims) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
