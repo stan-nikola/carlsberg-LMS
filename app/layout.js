@@ -66,7 +66,7 @@ export const metadata = {
   // Прев'ю посилання в месенджерах. Без цього блока месенджер брав із
   // сторінки першу-ліпшу картинку — і на /register нею виявлялась
   // підказка «де взяти код» зі скріном Monolit Agent (скарга
-  // користувача, 2026-09-23). Саме зображення — app/opengraph-image.tsx.
+  // користувача, 2026-09-23). Саме зображення — app/opengraph-image.png (скрін 1200×630 у Carlsberg Sans).
   openGraph: {
     type: "website",
     siteName: PLATFORM_SHORT_NAME,
