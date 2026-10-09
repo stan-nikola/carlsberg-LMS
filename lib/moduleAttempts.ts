@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { after } from "next/server";
-import type { Prisma, PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
+import type { Prisma } from "@/app/generated/prisma";
+import { prisma } from "@/lib/prisma";
 import { isScored, SCORED_COMPONENT_TYPES } from "@/lib/componentTypes";
 import { canStartModuleAttempt } from "@/lib/courseContent";
 import { DEFAULT_PASS_THRESHOLD, gradeResponse, publicContent, revealFor, seededRandom, type KeyOf } from "@/lib/grading";
@@ -14,7 +14,6 @@ import { certificateEarned } from "@/lib/progress";
 import { evaluateAutoBadgesForEmployee } from "@/lib/badgeRules";
 import { auditEmployee } from "@/lib/audit";
 
-const prisma = prismaUntyped as PrismaClient;
 type Tx = Prisma.TransactionClient;
 
 /**

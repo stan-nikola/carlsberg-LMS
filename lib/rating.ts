@@ -1,6 +1,5 @@
-import type { PrismaClient } from "@/app/generated/prisma";
 import { unstable_cache } from "next/cache";
-import { prisma as prismaUntyped } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { getAllSubordinates } from "@/lib/permissions";
 import {
   DEFAULT_RULES,
@@ -27,10 +26,6 @@ const MODULE_ATTEMPT_STATS = { passed: true, attemptCount: true, firstPassedAtte
  * Усе best-effort у try/catch на боці викликача — бали не мають ламати
  * бізнес-дію.
  */
-
-// lib/prisma.js віддає `any` (синглтон через globalThis) — тут звужуємо до
-// реального клієнта, щоб запити нижче перевірялись типами.
-const prisma = prismaUntyped as PrismaClient;
 
 /** Мінімум, що потрібен від Employee (getCurrentUser віддає більше). */
 export type RatedEmployee = {
@@ -151,10 +146,6 @@ export async function recordBadgeAwards(awards: { employeeId: number; badge: Awa
   return { created: r.count };
 }
 
-/** Видано одну відзнаку — бали за неї (0 = декоративна). */
-export async function recordBadgeAward(employeeId: number, badge: AwardedBadge) {
-  return recordBadgeAwards([{ employeeId, badge }]);
-}
 
 /**
  * Синхронізує бали ВСІХ, кому видано цю відзнаку, з її поточною ціною —

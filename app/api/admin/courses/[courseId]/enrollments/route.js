@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { removeEnrollments } from "@/lib/courseAssignment";
 
 // DELETE /api/admin/courses/:courseId/enrollments — знімає ВСІ призначення
@@ -12,8 +12,8 @@ import { removeEnrollments } from "@/lib/courseAssignment";
 // усвідомлено підтвердив "так, зняти саме призначення" окремо від "видалити
 // курс".
 export async function DELETE(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { courseId } = await params;
   const { removedCount, pointsRemoved } = await removeEnrollments({ courseId: Number(courseId) });

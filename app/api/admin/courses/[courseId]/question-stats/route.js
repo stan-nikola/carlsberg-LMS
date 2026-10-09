@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -15,8 +15,8 @@ import { prisma } from "@/lib/prisma";
  * цифра живе саме в конструкторі, поруч із самим питанням.
  */
 export async function GET(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { courseId } = await params;
   const rows = await prisma.questionAnswer.groupBy({

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { revalidateSession } from "@/lib/session";
 import { getAllSubordinates } from "@/lib/permissions";
 import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
@@ -39,8 +39,8 @@ const EMPLOYEE_SELECT = {
 // підлеглих і enrollments (щоб UI міг попередити перед деактивацією, не
 // підвантажуючи для цього окремо весь список).
 export async function GET(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { employeeId } = await params;
   const employee = await prisma.employee.findUnique({
@@ -58,12 +58,12 @@ export async function GET(request, { params }) {
 // поля, які реально прийшли в тілі запиту (часткове оновлення) — щоб UI
 // міг зберігати, наприклад, тільки зміну isActive, не пересилаючи все.
 export async function PATCH(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { employeeId } = await params;
   const id = Number(employeeId);
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
 
   const data = {};
   for (const field of EDITABLE_FIELDS) {

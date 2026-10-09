@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/admin/employees/:employeeId/enrollments — список призначених
 // курсів конкретної людини (Фаза D, вкладка "Курси" на детальній картці)
 // разом з adminNote — щоб було видно, що вже корегувалось вручну раніше.
 export async function GET(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { employeeId } = await params;
   const enrollments = await prisma.enrollment.findMany({

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminAuth";
+import { prisma } from "@/lib/prisma";
+import { adminGuard } from "@/lib/adminAuth";
 import { audit } from "@/lib/audit";
 import {
   appBaseUrl,
@@ -17,8 +16,6 @@ import {
   webhookUrl,
 } from "@/lib/telegram";
 
-const prisma = prismaUntyped as PrismaClient;
-
 /**
  * /admin/notifications → блок Telegram (components/AdminTelegram.tsx).
  *  GET    — стан бота (токен, @username, webhook), прив’язки, вхідні.
@@ -27,7 +24,8 @@ const prisma = prismaUntyped as PrismaClient;
  *  DELETE — { employeeIds } відв’язати (одного або масово).
  */
 export async function GET() {
-  if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const configured = isTelegramConfigured();
   const [links, inbound, me, webhook, menuButton] = await Promise.all([
@@ -91,7 +89,8 @@ function resolveBase(body: { base?: unknown }): string | null {
 }
 
 export async function POST(request: Request) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
   const body = await request.json().catch(() => ({}));
 
   if (body.action === "webhook") {
@@ -129,7 +128,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
   const body = await request.json().catch(() => ({}));
   const ids: number[] = Array.isArray(body.employeeIds) ? body.employeeIds.map(Number).filter(Number.isInteger) : [];
   if (ids.length === 0) return NextResponse.json({ error: "employeeIds is required" }, { status: 400 });

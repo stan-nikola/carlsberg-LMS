@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
-import { verifyInitData } from "@/lib/telegramLogic";
+import { prisma } from "@/lib/prisma";
+import { resolveTelegramEmployee } from "@/lib/telegram";
 import { isManagerTier } from "@/lib/permissions";
 import { getHubLearnData } from "@/lib/employeeProgress";
 import { getManagerTeamRows } from "@/lib/managerOverview";
 import { isOverdue } from "@/lib/progress";
 import { formatDate } from "@/lib/coursePlan";
 import { SEGMENT_META } from "@/lib/teamInsights";
-import { dateKey } from "@/lib/notificationLogic";
-
-const prisma = prismaUntyped as PrismaClient;
+import { reminderDedupeKey } from "@/lib/managerReminders";
 
 /**
  * POST /api/tg/overview — єдина точка даних для Mini App CarLS (app/tg).
@@ -27,20 +24,11 @@ const prisma = prismaUntyped as PrismaClient;
  */
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const verified = verifyInitData(body?.initData, process.env.TELEGRAM_BOT_TOKEN);
-  if (!verified.ok) return NextResponse.json({ error: "invalid_init_data" }, { status: 401 });
-
-  const link = await prisma.telegramLink.findUnique({
-    where: { chatId: String(verified.user.id) },
-    select: { employeeId: true },
-  });
-  if (!link) return NextResponse.json({ linked: false as const });
-
-  const employee = await prisma.employee.findFirst({
-    where: { id: link.employeeId, isActive: true },
-    select: { id: true, name: true, position: { select: { level: true } } },
-  });
-  if (!employee) return NextResponse.json({ linked: false as const });
+  const who = await resolveTelegramEmployee(body?.initData, { id: true, name: true, position: { select: { level: true } } });
+  if (!who.ok && who.error === "invalid_init_data") return NextResponse.json({ error: "invalid_init_data" }, { status: 401 });
+  // Telegram ще не підключено в профілі — звичайний стан, не помилка.
+  if (!who.ok) return NextResponse.json({ linked: false as const });
+  const employee = who.employee;
 
   if (isManagerTier(employee)) {
     const { people } = await getManagerTeamRows(employee.id);
@@ -52,7 +40,7 @@ export async function POST(request: Request) {
     // раніше дізнавались про денний ліміт лише постфактум (скарга
     // користувача, 2026-09-28).
     const now = new Date();
-    const todayKeys = needsReminder.map((p) => `reminder:${employee.id}:${p.id}:all:${dateKey(now)}`);
+    const todayKeys = needsReminder.map((p) => reminderDedupeKey(employee.id, p.id, null, now));
     const already = todayKeys.length
       ? new Set(
           (await prisma.notification.findMany({ where: { dedupeKey: { in: todayKeys } }, select: { dedupeKey: true } })).map(
@@ -74,7 +62,7 @@ export async function POST(request: Request) {
           segmentLabel: p.segment ? SEGMENT_META[p.segment].label : null,
           activityLabel: p.activityLabel,
           counts: p.counts,
-          remindedToday: already.has(`reminder:${employee.id}:${p.id}:all:${dateKey(now)}`),
+          remindedToday: already.has(reminderDedupeKey(employee.id, p.id, null, now)),
         })),
     });
   }

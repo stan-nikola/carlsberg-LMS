@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 
 // GET /api/admin/course-folders — усі папки каталогу курсів, пласким
 // списком (реалістично одиниці-десятки, не сотні — клієнт сам будує
 // дерево/breadcrumb по parentId, той самий підхід, що
 // /api/admin/territories для TerritoryPicker).
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const folders = await prisma.courseFolder.findMany({
     orderBy: { name: "asc" },
@@ -21,10 +21,10 @@ export async function GET() {
 // POST /api/admin/course-folders — { name, parentId? } — створити нову
 // папку в корені каталогу (parentId: null) або всередині іншої.
 export async function POST(request) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const name = String(body.name || "").trim();
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
   const parentId = body.parentId != null ? Number(body.parentId) : null;

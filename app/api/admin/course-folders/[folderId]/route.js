@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 
 // PATCH /api/admin/course-folders/:folderId — { name? } перейменування,
 // { parentId? } переміщення (drag&drop папки на папку). Заборона циклу —
 // не можна перенести папку всередину її ж нащадка (той самий принцип, що
 // переприв'язка керівника в /admin/employees).
 export async function PATCH(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { folderId } = await params;
   const id = Number(folderId);
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const data = {};
 
   if ("name" in body) {
@@ -75,8 +75,8 @@ export async function PATCH(request, { params }) {
 // папці лишились курси або підпапки, той самий delete-guard патерн, що
 // вже є для курсів/enrollments — не видаляти "тихо" разом із вмістом.
 export async function DELETE(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { folderId } = await params;
   const id = Number(folderId);

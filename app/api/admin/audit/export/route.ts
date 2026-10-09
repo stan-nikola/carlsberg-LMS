@@ -1,13 +1,10 @@
 import ExcelJS from "exceljs";
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminAuth";
+import { prisma } from "@/lib/prisma";
+import { adminGuard } from "@/lib/adminAuth";
 import { audit } from "@/lib/audit";
 import { auditWhere, enrichAuditRows, parseAuditFilters } from "@/lib/auditQuery";
 import { AUDIT_ACTION_LABELS, AUDIT_ROLE_LABELS, describeAuditEntry } from "@/lib/auditFormat";
-import { autoSheet } from "@/lib/excelReport";
-
-const prisma = prismaUntyped as PrismaClient;
+import { autoSheet, xlsxResponse } from "@/lib/excelReport";
 
 /** Стеля одного файлу: більше — звужуйте фільтри (Excel і пам'ять функції). */
 const MAX_ROWS = 20000;
@@ -18,7 +15,8 @@ const MAX_ROWS = 20000;
  * той самий «розбір» (lib/auditFormat.ts). Саме вивантаження теж пишеться в журнал.
  */
 export async function GET(request: Request) {
-  if (!(await requireAdmin())) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
   const filters = parseAuditFilters(new URL(request.url).searchParams);
   const rows = await prisma.auditLog.findMany({ where: await auditWhere(filters), orderBy: { id: "desc" }, take: MAX_ROWS });
   const entries = await enrichAuditRows(rows);
@@ -59,10 +57,5 @@ export async function GET(request: Request) {
   await audit("audit.export", "audit", null, { rows: entries.length, filters });
   const buffer = await wb.xlsx.writeBuffer();
   const stamp = new Date().toISOString().slice(0, 10);
-  return new Response(new Blob([buffer as BlobPart]), {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="zhurnal-dii-${stamp}.xlsx"`,
-    },
-  });
+  return xlsxResponse(buffer, `zhurnal-dii-${stamp}.xlsx`);
 }

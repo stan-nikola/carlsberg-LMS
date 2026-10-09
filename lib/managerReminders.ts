@@ -1,10 +1,7 @@
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { isManagerTier, getAllSubordinates } from "@/lib/permissions";
 import { notifyEmployees, splitByManagerTier } from "@/lib/notifications";
 import { dateKey } from "@/lib/notificationLogic";
-
-const prisma = prismaUntyped as PrismaClient;
 
 const MAX_RECIPIENTS = 100;
 const MAX_MESSAGE = 500;
@@ -62,7 +59,7 @@ export async function sendManagerReminder(
         type: "manager_reminder",
         title: course ? `Нагадування від керівника: «${course.title}»` : "Нагадування від керівника",
         message,
-        dedupeKey: (id: number) => `reminder:${me.id}:${id}:${course ? course.id : "all"}:${dateKey(now)}`,
+        dedupeKey: (id: number) => reminderDedupeKey(me.id, id, course?.id ?? null, now),
       };
 
   let created = 0;
@@ -79,4 +76,9 @@ export async function sendManagerReminder(
   }
 
   return { ok: true, sent: created, skipped: ids.length - created };
+}
+
+/** Ключ «одне нагадування людині від керівника на день» — і для відправки, і для показу «вже надіслано» в Mini App. */
+export function reminderDedupeKey(managerId: number, employeeId: number, courseId: number | null, now: Date): string {
+  return `reminder:${managerId}:${employeeId}:${courseId ?? "all"}:${dateKey(now)}`;
 }

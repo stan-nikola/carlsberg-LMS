@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { sendBroadcast } from "@/lib/notifications";
 
 /** GET — історія розсилок (останні 50). */
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
   const broadcasts = await prisma.broadcast.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
   return NextResponse.json({ broadcasts });
 }
@@ -19,8 +19,8 @@ export async function GET() {
  * текст ≤ 500 символів: системні сповіщення на телефоні обрізають довше.
  */
 export async function POST(request) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const body = await request.json().catch(() => ({}));
   const title = String(body.title || "").trim().slice(0, 80);
@@ -54,8 +54,8 @@ export async function POST(request) {
  * сповіщень адресатів; вже доставлений системний push відкликати не можна.
  */
 export async function DELETE(request) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
   const body = await request.json().catch(() => ({}));
   const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter(Number.isInteger) : [];
   if (ids.length === 0) return NextResponse.json({ error: "ids is required" }, { status: 400 });

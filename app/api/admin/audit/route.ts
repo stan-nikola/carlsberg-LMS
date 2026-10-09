@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/adminAuth";
+import { prisma } from "@/lib/prisma";
+import { adminGuard } from "@/lib/adminAuth";
 import { isSuperAdmin } from "@/lib/adminSession";
 import { audit, AUDIT_RETENTION_MAX_DAYS, AUDIT_RETENTION_MIN_DAYS, getAuditRetentionDays, setAuditRetentionDays } from "@/lib/audit";
 import { auditWhere, enrichAuditRows, parseAuditFilters } from "@/lib/auditQuery";
 
-const prisma = prismaUntyped as PrismaClient;
 const PAGE = 100;
 
 /**
@@ -16,7 +14,8 @@ const PAGE = 100;
  * у /api/admin/audit/export (Excel).
  */
 export async function GET(request: Request) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
   const sp = new URL(request.url).searchParams;
   const where = await auditWhere(parseAuditFilters(sp));
   const cursor = Number(sp.get("cursor"));
@@ -38,7 +37,8 @@ export async function GET(request: Request) {
 
 /** PUT /api/admin/audit — { retentionDays } термін зберігання записів співробітників і системи. Лише супер-адмін. */
 export async function PUT(request: Request) {
-  if (!(await isSuperAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard("super");
+  if (denied) return denied;
   const body = await request.json().catch(() => ({}));
   const days = Number(body?.retentionDays);
   if (!Number.isInteger(days) || days < AUDIT_RETENTION_MIN_DAYS || days > AUDIT_RETENTION_MAX_DAYS) {

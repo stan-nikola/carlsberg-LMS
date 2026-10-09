@@ -1,8 +1,6 @@
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
-import { DEFAULT_BOT_USERNAME, formatTelegramMessage, absoluteUrl } from "@/lib/telegramLogic";
-
-const prisma = prismaUntyped as PrismaClient;
+import type { Prisma } from "@/app/generated/prisma";
+import { prisma } from "@/lib/prisma";
+import { DEFAULT_BOT_USERNAME, formatTelegramMessage, absoluteUrl, verifyInitData } from "@/lib/telegramLogic";
 
 /**
  * Telegram-бот CarlsON — ще один канал доставки сповіщень поруч із Web Push
@@ -183,4 +181,21 @@ export async function getMe() {
   const r = await telegramApi<{ username: string; first_name: string }>("getMe");
   meCache = { at: Date.now(), value: r.ok ? r.result : null };
   return meCache.value;
+}
+
+/**
+ * Хто відкрив Mini App: перевірка initData (lib/telegramLogic.ts) → прив'язка
+ * чату (TelegramLink) → активний Employee. Однаково для /api/tg/overview і
+ * /api/tg/remind; що робити з «не прив'язано», вирішує роут.
+ */
+export async function resolveTelegramEmployee<S extends Prisma.EmployeeSelect>(
+  initData: unknown,
+  select: S
+): Promise<{ ok: false; error: "invalid_init_data" | "not_linked" } | { ok: true; employee: Prisma.EmployeeGetPayload<{ select: S }> }> {
+  const verified = verifyInitData(typeof initData === "string" ? initData : undefined, process.env.TELEGRAM_BOT_TOKEN);
+  if (!verified.ok) return { ok: false, error: "invalid_init_data" };
+  const link = await prisma.telegramLink.findUnique({ where: { chatId: String(verified.user.id) }, select: { employeeId: true } });
+  if (!link) return { ok: false, error: "not_linked" };
+  const employee = await prisma.employee.findFirst({ where: { id: link.employeeId, isActive: true }, select });
+  return employee ? { ok: true, employee: employee as Prisma.EmployeeGetPayload<{ select: S }> } : { ok: false, error: "not_linked" };
 }

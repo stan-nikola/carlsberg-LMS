@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { auditEmployee } from "@/lib/audit";
-import type { PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
-import { verifyInitData } from "@/lib/telegramLogic";
+import { prisma } from "@/lib/prisma";
+import { resolveTelegramEmployee } from "@/lib/telegram";
 import { sendManagerReminder } from "@/lib/managerReminders";
 import { managerReminderText } from "@/lib/notificationLogic";
-
-const prisma = prismaUntyped as PrismaClient;
 
 /**
  * POST /api/tg/remind — «Нагадати» одній людині прямо з Mini App:
@@ -18,20 +15,9 @@ const prisma = prismaUntyped as PrismaClient;
  */
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const verified = verifyInitData(body?.initData, process.env.TELEGRAM_BOT_TOKEN);
-  if (!verified.ok) return NextResponse.json({ error: "invalid_init_data" }, { status: 401 });
-
-  const link = await prisma.telegramLink.findUnique({
-    where: { chatId: String(verified.user.id) },
-    select: { employeeId: true },
-  });
-  if (!link) return NextResponse.json({ error: "not_linked" }, { status: 401 });
-
-  const me = await prisma.employee.findFirst({
-    where: { id: link.employeeId, isActive: true },
-    select: { id: true, position: { select: { level: true } } },
-  });
-  if (!me) return NextResponse.json({ error: "not_linked" }, { status: 401 });
+  const who = await resolveTelegramEmployee(body?.initData, { id: true, position: { select: { level: true } } });
+  if (!who.ok) return NextResponse.json({ error: who.error }, { status: 401 });
+  const me = who.employee;
 
   const employeeId = Number(body?.employeeId);
   if (!Number.isInteger(employeeId) || employeeId <= 0) return NextResponse.json({ error: "Bad request" }, { status: 400 });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { syncBadgeAwards } from "@/lib/rating";
 
@@ -9,11 +9,11 @@ import { syncBadgeAwards } from "@/lib/rating";
 // для auto-типів — ruleKey прив'язаний до конкретної функції в
 // lib/badgeRules.js, зміна його вручну зламала б авто-нарахування.
 export async function PATCH(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { badgeId } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const data = {};
   if ("title" in body) data.title = String(body.title || "").trim();
   if ("description" in body) data.description = body.description || null;
@@ -44,8 +44,8 @@ export async function PATCH(request, { params }) {
 // ensureAutoBadgesExist). Якщо відзнаку вже комусь видано — 409 з
 // кількістю; ?force=1 видаляє разом із видачами та їхніми балами рейтингу.
 export async function DELETE(request, { params }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const { badgeId } = await params;
   const id = Number(badgeId);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { isSuperAdmin } from "@/lib/adminSession";
 import { audit } from "@/lib/audit";
 import { getSavedDesign, resetDesign, saveDesign } from "@/lib/designSettings";
+import { adminGuard } from "@/lib/adminAuth";
 
 /**
  * Збережені «для всіх» дизайн-токени (лише супер-адмін, SUPER_ADMIN_PASSWORD).
@@ -10,12 +10,14 @@ import { getSavedDesign, resetDesign, saveDesign } from "@/lib/designSettings";
  *  DELETE — повернути дефолти tokens.css для всіх
  */
 export async function GET() {
-  if (!(await isSuperAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard("super");
+  if (denied) return denied;
   return NextResponse.json({ saved: await getSavedDesign() });
 }
 
 export async function PUT(request: Request) {
-  if (!(await isSuperAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard("super");
+  if (denied) return denied;
   const body = await request.json().catch(() => ({}));
   const saved = await saveDesign(body.values);
   await audit("design.save", "design", null, saved.values);
@@ -23,7 +25,8 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE() {
-  if (!(await isSuperAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard("super");
+  if (denied) return denied;
   await resetDesign();
   await audit("design.reset", "design", null);
   return NextResponse.json({ saved: null });

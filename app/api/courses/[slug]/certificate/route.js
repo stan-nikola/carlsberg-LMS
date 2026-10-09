@@ -145,18 +145,18 @@ function buildCertificatePdf({ employeeName, courseTitle, completedAt, scorePerc
 export async function GET(_request, { params }) {
   const { slug } = await params;
   const employee = await getCurrentUser();
-  if (!employee) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  if (!employee) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const employeeName = employee.name;
 
   const course = await prisma.course.findUnique({ where: { slug }, include: { modules: { select: { id: true } } } });
-  if (!course) return new Response(JSON.stringify({ error: "Course not found" }), { status: 404 });
+  if (!course) return Response.json({ error: "Course not found" }, { status: 404 });
 
   // Вимикач сертифіката per-курс (Course.certificateEnabled, вкладка
   // "Розклад" в /admin). Перевірка саме тут, а не лише в UI: кнопку в
   // картці можна обійти прямим переходом за цим URL.
   if (!course.certificateEnabled) {
-    return new Response(JSON.stringify({ error: "Для цього курсу сертифікат не видається" }), { status: 403 });
+    return Response.json({ error: "Для цього курсу сертифікат не видається" }, { status: 403 });
   }
 
   const enrollment = await prisma.enrollment.findUnique({
@@ -165,9 +165,7 @@ export async function GET(_request, { params }) {
   });
   const scoreOf = new Map((enrollment?.moduleCompletions || []).map((c) => [c.moduleId, c.scorePercent]));
   if (!certificateEarned(enrollment, course.modules.map((m) => scoreOf.get(m.id)))) {
-    return new Response(JSON.stringify({ error: "Сертифікат доступний лише за курс, складений на 100%" }), {
-      status: 403,
-    });
+    return Response.json({ error: "Сертифікат доступний лише за курс, складений на 100% (кожен модуль)" }, { status: 403 });
   }
 
   const buffer = await buildCertificatePdf({

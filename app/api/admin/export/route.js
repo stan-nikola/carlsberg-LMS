@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { getExportData } from "@/lib/managerDashboard";
 import { PLATFORM_NAME } from "@/lib/branding";
@@ -10,6 +10,7 @@ import {
   medalEmoji,
   autoSheet,
   highlightPassColumn,
+  xlsxResponse,
 } from "@/lib/excelReport";
 
 const ROLE_LABELS = { employee: "Співробітник", admin: "Адміністратор", hr_manager: "HR-менеджер" };
@@ -22,8 +23,8 @@ const ROLE_LABELS = { employee: "Співробітник", admin: "Адміні
 // getExportData(employeeIds) — той самий виклик, що й manager-звіт, тут
 // просто БЕЗ обмеження підлеглими одного керівника: усі співробітники.
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const [allEmployees, courses] = await Promise.all([
     prisma.employee.findMany({
@@ -218,10 +219,5 @@ export async function GET() {
   const buffer = await wb.xlsx.writeBuffer();
   const filename = `carls-baza-povna-${fmtDate(new Date())}.xlsx`;
 
-  return new Response(buffer, {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-    },
-  });
+  return xlsxResponse(buffer, filename);
 }

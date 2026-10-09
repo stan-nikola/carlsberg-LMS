@@ -19,7 +19,7 @@ export async function POST(request) {
   const attempt = await registerAttempt(throttleKey);
   if (!attempt.allowed) return tooManyRequests(attempt.retryAt);
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const password = String(body.password || "");
 
   const expected = process.env.ADMIN_PASSWORD;

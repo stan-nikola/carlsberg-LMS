@@ -1,11 +1,9 @@
 import { after } from "next/server";
-import type { Prisma, PrismaClient } from "@/app/generated/prisma";
-import { prisma as prismaUntyped } from "@/lib/prisma";
+import type { Prisma } from "@/app/generated/prisma";
+import { prisma } from "@/lib/prisma";
 import { getAdminLevel } from "@/lib/adminSession";
 import { isManagerTier } from "@/lib/permissions";
 import { DAY_MS } from "@/lib/kyivTime";
-
-const prisma = prismaUntyped as PrismaClient;
 
 /**
  * Журнал дій платформи (AuditLog, /admin/audit). Усе best-effort: помилка

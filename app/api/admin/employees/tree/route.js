@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { getTeamTree } from "@/lib/managerDashboard";
 
 // GET /api/admin/employees/tree — дерево ВСІЄЇ організації (корінь —
@@ -8,8 +8,8 @@ import { getTeamTree } from "@/lib/managerDashboard";
 // підпорядкування, на відміну від /manager, де той самий getTeamTree
 // викликається з реальним managerId конкретного керівника).
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   const tree = await getTeamTree(null);
   return NextResponse.json({ tree });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { audit } from "@/lib/audit";
-import { requireAdmin } from "@/lib/adminAuth";
+import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { ensureAutoBadgesExist } from "@/lib/badgeRules";
 
@@ -9,8 +9,8 @@ import { ensureAutoBadgesExist } from "@/lib/badgeRules";
 // щоб авто-типи були видні в списку одразу, не лише після першого прогону
 // cron.
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
   await ensureAutoBadgesExist();
   const badges = await prisma.badge.findMany({
@@ -25,10 +25,10 @@ export async function GET() {
 // ruleKey має вказувати на реальну функцію в lib/badgeRules.js, довільний
 // новий auto-тип нізвідки нізвідки не порахується.
 export async function POST(request) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const denied = await adminGuard();
+  if (denied) return denied;
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const title = String(body.title || "").trim();
   if (!title) return NextResponse.json({ error: "title is required" }, { status: 400 });
 
