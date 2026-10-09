@@ -11,7 +11,7 @@ import { MorphRevealIcon } from "@/components/MorphRevealIcon";
 import { CoursePlanPanel } from "@/components/CoursePlan";
 import { OrderingScreen, MatchingScreen } from "@/components/QuestionScreens";
 import { AnswerStatus } from "@/components/AnswerStatus";
-import { DEFAULT_PASS_THRESHOLD, answerFor, isAnswerDone, viewContent } from "@/lib/grading";
+import { DEFAULT_PASS_THRESHOLD, answerFor, isAnswerDone, scorePercentOf, viewContent } from "@/lib/grading";
 import { newAttemptId } from "@/lib/offlineOutbox";
 import {
   AccordionScreen,
@@ -690,6 +690,9 @@ function CompleteScreen({ result, onRetake, onPlan, course, previewMode }) {
   const certificateAllowed = course?.certificateEnabled !== false;
   const isPerfect = scorePercent === 100;
   const showCertificate = certificateEarned && certificateAllowed;
+  // Не «бал нижче 100», а «сертифіката немає»: курсові 100% можуть стояти й
+  // тоді, коли окремий старий модуль записано округленим балом.
+  const canImprove = passed && !certificateEarned;
   // Кнопку тримаємо неактивною, поки результат не долетів до сервера:
   // роут сертифіката перевіряє саме збережений Enrollment і до того
   // моменту відповів би 403.
@@ -778,10 +781,10 @@ function CompleteScreen({ result, onRetake, onPlan, course, previewMode }) {
           не виданий (щоб мовчазна відсутність блоку вище не читалась як
           збій), а покращувати варто ОКРЕМИЙ слабший модуль із плану, не
           весь курс заново. */}
-      {passed && !isPerfect && certificateAllowed && (
+      {canImprove && certificateAllowed && (
         <p className="cp-cert-hint">Сертифікат видається за 100% — вам лишилось зовсім небагато.</p>
       )}
-      {passed && !isPerfect && !previewMode && (
+      {canImprove && !previewMode && (
         <button type="button" className="btn btn-ghost cp-complete-secondary" onClick={onPlan}>
           До плану курсу — покращити результат
         </button>
@@ -1261,8 +1264,7 @@ export function CoursePlayer({
     const rangeIds = segmentQuestionIds(segment);
     const scoreRaw = rangeIds.filter((id) => answers[id]?.correct === true).length;
     const scoreMax = rangeIds.length;
-    // Модуль без питань (лише інфо-екрани) нікого не блокує — 100%.
-    const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 100;
+    const scorePercent = scorePercentOf(scoreRaw, scoreMax);
     return { scoreRaw, scoreMax, scorePercent, passed: scorePercent >= (course.passThreshold ?? DEFAULT_PASS_THRESHOLD) };
   }
 
@@ -1367,9 +1369,18 @@ export function CoursePlayer({
       const scores = moduleSegments.map(previewScoreForSegment);
       const scoreRaw = scores.reduce((sum, s) => sum + s.scoreRaw, 0);
       const scoreMax = scores.reduce((sum, s) => sum + s.scoreMax, 0);
-      const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 100;
-      // Курс «складено» лише якщо КОЖЕН модуль окремо набрав поріг.
-      setResult({ scoreRaw, scoreMax, scorePercent, passed: scores.every((s) => s.passed), submitting: false, submitError: null });
+      const scorePercent = scorePercentOf(scoreRaw, scoreMax);
+      // Курс «складено» лише якщо КОЖЕН модуль окремо набрав поріг;
+      // сертифікат у прев'ю — за тим самим правилом, що на сервері.
+      setResult({
+        scoreRaw,
+        scoreMax,
+        scorePercent,
+        passed: scores.every((s) => s.passed),
+        certificateEarned: scores.every((s) => s.scorePercent === 100),
+        submitting: false,
+        submitError: null,
+      });
       return;
     }
     if (!segment) {

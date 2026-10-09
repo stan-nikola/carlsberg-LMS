@@ -4,7 +4,7 @@ import type { Prisma } from "@/app/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { isScored, SCORED_COMPONENT_TYPES } from "@/lib/componentTypes";
 import { canStartModuleAttempt } from "@/lib/courseContent";
-import { DEFAULT_PASS_THRESHOLD, gradeResponse, publicContent, revealFor, seededRandom, type KeyOf } from "@/lib/grading";
+import { DEFAULT_PASS_THRESHOLD, gradeResponse, publicContent, revealFor, scorePercentOf, seededRandom, type KeyOf } from "@/lib/grading";
 import { formatWait, pickQuestionPool, poolSeed, resolveRetryRules, retryGate } from "@/lib/retryPolicy";
 import { getRules, syncEnrollmentEvents } from "@/lib/rating";
 import { courseCompletionPoints, passedOnFirstAttempt } from "@/lib/ratingLogic";
@@ -452,8 +452,7 @@ export async function finishModuleAttempt(
     const correctById = new Map(answers.map((a) => [a.componentId, a.correct]));
     const scoreRaw = orderedPool.filter((id) => correctById.get(id)).length;
     const scoreMax = orderedPool.length;
-    // Модуль без питань (лише матеріал) нікого не блокує — 100%.
-    const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 100;
+    const scorePercent = scorePercentOf(scoreRaw, scoreMax);
     const passed = scorePercent >= threshold;
     const now = new Date();
 
@@ -638,7 +637,7 @@ export async function finalizeEnrollment(
     }
   }
   const modules = moduleIds.map((id) => ({ id }));
-  const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 100;
+  const scorePercent = scorePercentOf(scoreRaw, scoreMax);
   const passed = modules.every((m) => byModule.get(m.id)!.passed);
   const duration = modules.reduce((sum, m) => sum + (byModule.get(m.id)!.durationSeconds ?? 0), 0);
 
