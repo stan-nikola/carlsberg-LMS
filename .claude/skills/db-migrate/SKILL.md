@@ -1,15 +1,16 @@
 ---
 name: db-migrate
-description: Apply a prisma/schema.prisma change to carlsberg-LMS's live Neon Postgres database without losing or fabricating real data. Use this whenever a schema change touches a table that already has rows — adding a required column/relation, splitting one model into two, renaming or restructuring — anything where a plain `npx prisma migrate dev` would refuse, ask to reset, or want `--accept-data-loss`. This database holds real employee/course/enrollment data; never run `prisma migrate reset` or `db push --accept-data-loss` to route around a warning without the user explicitly confirming it first.
+description: Apply a prisma/schema.prisma change to carlsberg-LMS's live Neon Postgres database without losing or fabricating real data. Use this whenever a schema change touches a table that already has rows — adding a required column/relation, splitting one model into two, renaming or restructuring — anything where a plain `npx prisma migrate dev` would refuse, ask to reset, or want `--accept-data-loss`. This database is production (demo personas used for live demos, real course and enrollment content); never run `prisma migrate reset` or `db push --accept-data-loss` to route around a warning without the user explicitly confirming it first.
 ---
 
 # Migrate the database without losing data
 
 `prisma migrate dev` is interactive and, in this environment, cannot prompt
 for a resolution when a step would drop or fabricate data — it just refuses
-or reports data loss. That's the right thing for it to do: this database
-holds real production-like data (real employees, real course content, real
-enrollments imported earlier this project), and this project's hard rule is
+or reports data loss. That's the right thing for it to do. This database
+is production (see «Відомі незакриті пункти» in CLAUDE.md): the people in it
+are demo personas, but colleagues use them for live demos, and the courses
+and enrollments are real working content. This project's hard rule is
 **never guess data — leave it unresolved and ask, rather than write
 something plausible-but-wrong**. The workflow below gets a schema change
 applied safely, on your own terms, instead of letting the CLI force a

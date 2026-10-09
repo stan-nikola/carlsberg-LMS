@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     auditEmployee(employee.id, "profile.avatar_update");
     return NextResponse.json({ url: blob.url });
   } catch (err) {
-    console.error("[profile/avatar] put() failed:", err);
+    console.error("[profile/avatar] put() failed:", (err as Error)?.message);
     return NextResponse.json({ error: "Завантаження не вдалося. Спробуйте ще раз." }, { status: 500 });
   }
 }
