@@ -1,13 +1,13 @@
 import { getCurrentUser } from "@/lib/session";
 import { getEmployeeRating } from "@/lib/rating";
-import { ProfileCard } from "@/components/ProfileCard";
-import { ProfileDetailPanel } from "@/components/ProfileDetailPanel";
-import { NotificationSettings } from "@/components/NotificationSettings";
+import { ProfileCard } from "@/components/hub/ProfileCard";
+import { ProfileDetailPanel } from "@/components/hub/ProfileDetailPanel";
+import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 
 // Портовано з .hub-screen[data-tab="profile"] в legacy index.html.
 // pdSvEmail ("Керівник (email)") тепер employee.manager.email замість
 // плаского profile.svEmail; pdRegisteredAt — employee.firstLoginAt
-// замість profile.registeredAt. Рядки деталей — components/ProfileDetailPanel.jsx,
+// замість profile.registeredAt. Рядки деталей — components/hub/ProfileDetailPanel.jsx,
 // той самий блок рендерить і /manager/profile.
 export default async function HubProfilePage({ searchParams }) {
   // getCurrentUser() уже включає manager (lib/session.js, аудит швидкодії
@@ -19,7 +19,7 @@ export default async function HubProfilePage({ searchParams }) {
   const { level } = await getEmployeeRating(employee);
   const levelLabel = level.label;
   // ?highlight=notifications — прийшли з картки «Налаштуйте сповіщення» на
-  // головній (components/NotificationSettings.jsx variant="card").
+  // головній (components/notifications/NotificationSettings.jsx variant="card").
   const highlightNotifications = (await searchParams)?.highlight === "notifications";
 
   return (

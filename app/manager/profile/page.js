@@ -1,8 +1,8 @@
 import { getCurrentUser } from "@/lib/session";
 import { getEmployeeRating } from "@/lib/rating";
-import { ProfileCard } from "@/components/ProfileCard";
-import { ProfileDetailPanel } from "@/components/ProfileDetailPanel";
-import { NotificationSettings } from "@/components/NotificationSettings";
+import { ProfileCard } from "@/components/hub/ProfileCard";
+import { ProfileDetailPanel } from "@/components/hub/ProfileDetailPanel";
+import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 
 // "Профіль" керівника — той самий ProfileCard + ProfileDetailPanel, що й
 // app/hub/profile/page.js. Керівник теж має managerId вгору по ієрархії

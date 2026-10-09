@@ -1,6 +1,6 @@
 import { test, expect, loginAs, PERSONAS, type Page } from "./fixtures";
 
-/** Капсула нижнього таббару (components/shellCommon.tsx useTabPill) стоїть
+/** Капсула нижнього таббару (components/shell/shellCommon.tsx useTabPill) стоїть
  *  рівно під активною вкладкою і ховається на сторінці поза вкладками. */
 
 async function pillMatches(page: Page, tabSelector: string) {

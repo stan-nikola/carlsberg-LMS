@@ -53,7 +53,7 @@ export async function PATCH(request, { params }) {
     // Перегенеровуємо slug під нову назву — АЛЕ тільки якщо на курс ще
     // ніхто не записаний: slug живе в публічному URL (/courses/[slug]),
     // на нього зав'язаний прогрес у localStorage кожного співробітника
-    // (course_progress_<slug> — components/CoursePlayer.jsx) і пошук
+    // (course_progress_<slug> — components/course/player/CoursePlayer.tsx) і пошук
     // Enrollment. Змінити його заднім числом, коли прогрес уже є —
     // означає непомітно "загубити" той прогрес. Порожній курс (як
     // щойно перейменований "Адамтация" -> "Адаптація") це не зачіпає.

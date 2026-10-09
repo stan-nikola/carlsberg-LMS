@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { isManagerTier } from "@/lib/permissions";
 import { getHasNewCourses } from "@/lib/managerOverview";
-import { ManagerShell } from "@/components/ManagerShell";
-import { ManagerShellSkeleton } from "@/components/ManagerShellSkeleton";
+import { ManagerShell } from "@/components/shell/ManagerShell";
+import { ManagerShellSkeleton } from "@/components/shell/ManagerShellSkeleton";
 
 // Дзеркало app/hub/layout.js в інший бік: без сесії — на реєстрацію; є
 // сесія, але людина НЕ керівного рівня (SV..RM) — назад у звичайний /hub,

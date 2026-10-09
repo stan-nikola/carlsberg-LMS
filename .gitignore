@@ -70,3 +70,6 @@ next-env.d.ts
 # playwright
 /test-results/
 /playwright-report/
+
+# Копія скілів від `npx skills` — робочі лежать у .claude/skills
+.agents/

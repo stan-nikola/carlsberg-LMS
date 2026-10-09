@@ -6,10 +6,10 @@ paths:
   - "lib/telegram*"
   - "lib/offlineOutbox*"
   - "public/sw.js"
-  - "components/Notification*"
-  - "components/OfflineSync*"
-  - "components/AdminTelegram*"
-  - "components/AdminBroadcast*"
+  - "components/notifications/**"
+  - "components/app/OfflineSync*"
+  - "components/admin/AdminTelegram*"
+  - "components/admin/AdminBroadcast*"
   - "app/api/notifications/**"
   - "app/api/push/**"
   - "app/api/telegram/**"
@@ -67,6 +67,6 @@ paths:
   Плеєр при відкритті шле SW `{type:"precache", urls}` (сторінка + усі фото
   екранів), щоб курс можна було пройти в полі без зв’язку.
 - Відповіді без мережі — `lib/offlineOutbox.ts` (localStorage-черга
-  module-complete/submit по порядку), досилає `components/OfflineSync.jsx`
+  module-complete/submit по порядку), досилає `components/app/OfflineSync.jsx`
   на старті і на `online`. Background Sync API свідомо не використано —
   iOS його не має. Результат у черзі = сертифікат недоступний до синку.

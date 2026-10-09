@@ -5,8 +5,8 @@ import { PIN_LENGTH } from "@/lib/pin";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { SettingsSheet } from "@/components/SettingsSheet";
-import { InstallGuideEmbed } from "@/components/InstallGuide";
+import { SettingsSheet } from "@/components/shell/SettingsSheet";
+import { InstallGuideEmbed } from "@/components/shell/InstallGuide";
 import {
   ONBOARD_DELAY_MS,
   WELCOME_DELAY_MS,
@@ -15,10 +15,10 @@ import {
   shouldShowStandaloneIntro,
   shouldShowWelcome,
 } from "@/lib/installGuide";
-import { GearIcon, LockIcon, ProfileIcon, PeopleIcon, CourseIcon, ScreensIcon, AchievementsIcon, CheckIcon } from "@/components/icons";
-import { PlatformBrand } from "@/components/PlatformBrand";
-import { HintDot } from "@/components/HintDot";
-import { BottomSheet } from "@/components/BottomSheet";
+import { GearIcon, LockIcon, ProfileIcon, PeopleIcon, CourseIcon, ScreensIcon, AchievementsIcon, CheckIcon } from "@/components/ui/icons";
+import { PlatformBrand } from "@/components/shell/PlatformBrand";
+import { HintDot } from "@/components/ui/HintDot";
+import { BottomSheet } from "@/components/ui/BottomSheet";
 
 // Портовано з legacy index.html (regCard) + js/registration.js. Два кроки
 // одного екрана (код -> PIN), як і раніше, тільки замість Apps Script —
@@ -44,7 +44,7 @@ function minutesUntil(isoDate) {
 /**
  * Перший вхід у браузері: «Вітаємо» → (сам за ONBOARD_DELAY_MS або по
  * «Почати») → інструкція встановлення (крок "guide" у RegisterPage,
- * components/InstallGuide.tsx InstallGuideEmbed) → форма. «Пропустити» —
+ * components/shell/InstallGuide.tsx InstallGuideEmbed) → форма. «Пропустити» —
  * одразу до форми, минаючи й інструкцію теж (користувач, 2026-09-18).
  */
 function WelcomeScreen({ onStart, onSkip }) {

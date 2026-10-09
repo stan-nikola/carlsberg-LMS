@@ -1,8 +1,8 @@
 "use client";
 
-import { GripIcon } from "@/components/icons";
-import { HintDot } from "@/components/HintDot";
-import { useDragReorder } from "@/lib/useDragReorder";
+import { GripIcon } from "@/components/ui/icons";
+import { HintDot } from "@/components/ui/HintDot";
+import { useDragReorder } from "@/hooks/useDragReorder";
 import { ImageListEditor } from "@/components/course-editor/media";
 import { RichTextArea, ScreenHeaderFields, fieldSetter } from "@/components/course-editor/fields/common";
 import type { Content, FieldProps, MediaItem } from "@/components/course-editor/types";
@@ -69,7 +69,7 @@ export function OrderingFields({ content, onChange, onUploadingChange }: FieldPr
   // Ідентичність рядка — сам об'єкт `it` (референс), не index: індекс
   // міняється при кожній перестановці, а setItem вище лишає референс
   // НЕЗМІННИМ для всіх рядків, крім того, що редагують просто зараз —
-  // достатньо для lib/useDragReorder.ts, синтетичні id заводити не треба.
+  // достатньо для hooks/useDragReorder.ts, синтетичні id заводити не треба.
   const { containerRef, containerProps, registerRow, dragId, dragDeltaY, moveByKeyboard } = useDragReorder({
     ids: items,
     onReorder: set("items"),

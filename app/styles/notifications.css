@@ -1,5 +1,5 @@
 /* ===================== Сповіщення (центр, дзвіночок, налаштування) =====
-   components/NotificationBell.jsx, NotificationCenter.jsx,
+   components/notifications/NotificationBell.jsx, NotificationCenter.jsx,
    NotificationSettings.jsx, AdminBroadcast.jsx. Лише токени tokens.css. */
 
 .ntf-bell {
@@ -19,7 +19,7 @@
     background: var(--cb-primary);
   }
 }
-/* Тряска дзвоника на нове сповіщення (components/NotificationBell.jsx,
+/* Тряска дзвоника на нове сповіщення (components/notifications/NotificationBell.jsx,
    запит користувача 2026-09-19 — той самий рух, що вже перевірений в
    артефакті Morph Playground: ±22°, 720ms, синхронний сплеск масштабу
    на самій кнопці, щоб клік/подія читались однозначно, не губились у
@@ -328,9 +328,5 @@ a.ntf-item:focus-visible {
   height: 20px;
   accent-color: var(--cb-secondary);
   flex-shrink: 0;
-}
-.ntf-positions {
-  flex-wrap: wrap;
-  gap: 8px 16px;
 }
 

@@ -7,7 +7,7 @@
  * Інструкція встановлення сама — готова анімована сторінка
  * public/guide/install.html (iPhone/Android/комп’ютер визначається в НІЙ
  * САМІЙ за user agent, без ручного перемикача), показується або на весь
- * екран під час онбордингу (components/InstallGuide.tsx InstallGuideEmbed),
+ * екран під час онбордингу (components/shell/InstallGuide.tsx InstallGuideEmbed),
  * або в модалці з шторки налаштувань (InstallGuideModal).
  */
 export const GUIDE_URL = "/guide/install.html";

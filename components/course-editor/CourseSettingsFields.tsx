@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { TerritoryPicker } from "@/components/TerritoryPicker";
-import { AccordionField } from "@/components/AccordionField";
-import { HintDot } from "@/components/HintDot";
-import { CoursePacingCalculator } from "@/components/CoursePacingCalculator";
+import { TerritoryPicker } from "@/components/admin/TerritoryPicker";
+import { AccordionField } from "@/components/ui/AccordionField";
+import { HintDot } from "@/components/ui/HintDot";
+import { CoursePacingCalculator } from "@/components/course-editor/CoursePacingCalculator";
 import { DEFAULT_PASS_THRESHOLD } from "@/lib/grading";
 import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
 import { STREAK_PRESET_MESSAGES } from "@/lib/streakMessages";

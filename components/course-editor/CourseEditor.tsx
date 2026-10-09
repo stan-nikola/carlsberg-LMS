@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { pluralize } from "@/lib/pluralize";
 import { numberComponents } from "@/lib/coursePlayerLogic";
-import { LoadingLine } from "@/components/Skeleton";
-import { saveOrder, useIdOrder } from "@/lib/useIdOrder";
+import { LoadingLine } from "@/components/ui/Skeleton";
+import { saveOrder, useIdOrder } from "@/hooks/useIdOrder";
 import { api } from "@/lib/api";
 import { ComponentEditForm } from "@/components/course-editor/ComponentEditForm";
 import { CourseRunPreview, ComponentPreview } from "@/components/course-editor/preview";
@@ -37,7 +37,7 @@ import type {
 // екрану співробітника, щоб було видно ТОЧНО те, що побачить він.
 //
 // Налаштування курсу (посади/території, дата публікації, дедлайн) звідси
-// прибрані — вони на дашборді /admin (components/AdminDashboard.jsx), при
+// прибрані — вони на дашборді /admin (components/admin/AdminDashboard.jsx), при
 // розгортанні курсу.
 
 const NO_MODULES: EditorModule[] = [];

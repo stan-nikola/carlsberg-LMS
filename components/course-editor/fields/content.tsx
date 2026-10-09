@@ -1,7 +1,7 @@
 "use client";
 
-import { ListRowControls, useListOps } from "@/components/ListEditor";
-import { HintDot } from "@/components/HintDot";
+import { ListRowControls, useListOps } from "@/components/course-editor/ListEditor";
+import { HintDot } from "@/components/ui/HintDot";
 import { ImageListEditor } from "@/components/course-editor/media";
 import { OptionListEditor, RichTextArea, ScreenHeaderFields, GateMsgField, fieldSetter } from "@/components/course-editor/fields/common";
 import type { Content, FieldProps } from "@/components/course-editor/types";
@@ -26,7 +26,7 @@ export function InfoFields({ content, onChange, onUploadingChange }: FieldProps)
         <RichTextArea value={c.lead} onChange={set("lead")} rows={2} paragraphs={false} />
       </div>
       {/* Зображення ПЕРЕД текстом екрану — рівно в тому порядку, в якому
-          блок збирається на самому екрані (components/CoursePlayer.jsx
+          блок збирається на самому екрані (components/course/player/CoursePlayer.tsx
           InfoScreen: kicker → title → lead → mediaNode → textNode). Раніше
           поле фото стояло останнім, і порядок полів у конструкторі не
           збігався з тим, що автор бачив у прев'ю. */}
@@ -184,7 +184,7 @@ export function ChecklistFields({ content, onChange, onUploadingChange }: FieldP
 
 // Роль визначає і підпис, і бік/колір бульбашки. "me" — єдина ліворуч
 // (це говорить сам співробітник), решта співрозмовників праворуч.
-// Значення мають збігатися з BUBBLE_LABELS у ScreenComponents.jsx і
+// Значення мають збігатися з BUBBLE_LABELS у components/course/screens/ScriptScreen.tsx і
 // класами .bubble.* у course-player.css.
 const BUBBLE_ROLES = [
   { value: "me", label: "Ви кажете" },

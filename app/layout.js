@@ -1,9 +1,10 @@
 import localFont from "next/font/local";
-import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
-import { OfflineSync } from "@/components/OfflineSync";
-import { DesignTokensOverride } from "@/components/DesignTokensOverride";
-import { TableSizes } from "@/components/TableSizes";
-import { CopyGuard } from "@/components/CopyGuard";
+import { ServiceWorkerRegister } from "@/components/app/ServiceWorkerRegister";
+import { OfflineSync } from "@/components/app/OfflineSync";
+import { DesignTokensOverride } from "@/components/app/DesignTokensOverride";
+import { TableSizes } from "@/components/app/TableSizes";
+import { CopyGuard } from "@/components/app/CopyGuard";
+import { TimeZoneCookie } from "@/components/app/TimeZoneCookie";
 import { designCss, getSavedDesign } from "@/lib/designSettings";
 
 // Токени дизайну читаються через lib/designSettings.ts (unstable_cache,
@@ -20,7 +21,7 @@ import "@/app/styles/registration.css";
 import "@/app/styles/hub.css";
 import "@/app/styles/course-player.css";
 import "@/app/styles/admin.css";
-// Сітка дашборда керівника (components/ManagerDashboard.jsx) — базові
+// Сітка дашборда керівника (components/manager/dashboard/ManagerDashboard.tsx) — базові
 // стилі gridstack ДО manager.css, щоб наші правила їх перекривали.
 import "gridstack/dist/gridstack.min.css";
 import "@/app/styles/manager.css";
@@ -166,6 +167,7 @@ export default async function RootLayout({ children }) {
         <OfflineSync />
         <TableSizes />
         <CopyGuard />
+        <TimeZoneCookie />
       </body>
     </html>
   );

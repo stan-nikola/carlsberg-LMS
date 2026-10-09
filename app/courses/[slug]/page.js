@@ -9,14 +9,14 @@ import {
   getSessionModules,
   moduleCooldownDays,
 } from "@/lib/courseContent";
-import { buildCoursePlan, toPlanView, toPlanInputs, toPacing } from "@/lib/coursePlan";
+import { buildCoursePlan, formatDate, toPlanView, toPlanInputs, toPacing } from "@/lib/coursePlan";
 import { isScored } from "@/lib/componentTypes";
 import { attemptNumbersFrom, modulePool, openAttemptAnswersFrom, toPlayerComponent } from "@/lib/moduleAttempts";
-import { formatKyivDate } from "@/lib/kyivTime";
 import { isManagerTier } from "@/lib/permissions";
-import { CoursePlayer } from "@/components/CoursePlayer";
-import { CourseReview } from "@/components/CourseReview";
-import { XIcon } from "@/components/icons";
+import { CoursePlayer } from "@/components/course/player/CoursePlayer";
+import { CourseReview } from "@/components/course/CourseReview";
+import { XIcon } from "@/components/ui/icons";
+import { viewerTimeZone } from "@/lib/viewerZone";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -35,17 +35,15 @@ function componentCount(courseModule) {
 export default async function CoursePage({ params, searchParams }) {
   const { slug } = await params;
   // ?module=<id> — людина сама обрала модуль у плані курсу
-  // (components/CoursePlan.tsx). Раніше вибору не було взагалі: плеєр
-  // мовчки вирішував, з чого почати (скарга користувача, 2026-09-17).
+  // (components/course/CoursePlan.tsx); без нього плеєр бере поточну сесію.
   const requestedModuleId = Number((await searchParams)?.module) || null;
   // Сторінка рахує доступність модулів від «зараз» (new Date() у
   // getSessionModules/buildCoursePlan) — це запит-час, а не пререндер;
   // без явного connection() валідатор Cache Components лічив це за
   // блокування пререндера (blocking-prerender-current-time).
   await connection();
-  // Усе, що залежить лише від людини й курсу, — одним паралельним кроком
-  // (аудит запитів, 2026-10-03): раніше сесія → курс → призначення →
-  // результати → спроби → відповіді йшли по черзі, ~11 звернень до бази.
+  // Усе, що залежить лише від людини й курсу, — одним паралельним кроком,
+  // а не ланцюжком із ~11 послідовних звернень до бази.
   // Людина береться з підпису cookie; сама сесія (активність, відкликання)
   // перевіряється getCurrentUser у тому ж кроці, і без неї нічого з
   // прочитаного не показується — redirect нижче.
@@ -77,10 +75,8 @@ export default async function CoursePage({ params, searchParams }) {
 
   if (!enrollment) {
     // Досяжно, напр., зі старого сповіщення (курс, з якого людину вже
-    // зняли, лист лишився в центрі сповіщень) — раніше цей фолбек не мав
-    // ЖОДНОЇ навігації, просто текст на порожньому екрані без виходу
-    // (реальна скарга користувача, 2026-09-22). Той самий appbar/кнопка
-    // "На головну", що й у CourseReview.jsx/CoursePlayer.jsx.
+    // зняли). Той самий appbar/кнопка "На головну", що й у
+    // CourseReview.jsx/CoursePlayer.tsx — інакше екран без виходу.
     return (
       <div className="stage stage--course-player">
         <div className="course-col">
@@ -136,7 +132,8 @@ export default async function CoursePage({ params, searchParams }) {
     new Date(),
     toPacing(course)
   );
-  const planView = toPlanView(plan, course.certificateEnabled !== false);
+  const zone = await viewerTimeZone();
+  const planView = toPlanView(plan, course.certificateEnabled !== false, zone);
 
   // Обраний модуль грається сам по собі — але лише якщо план справді
   // дозволяє його зараз проходити. Інакше ?module= у рядку адреси став би
@@ -171,15 +168,14 @@ export default async function CoursePage({ params, searchParams }) {
     const { module: nl, reason, unlocksAt } = nextLocked;
     lockedNotice =
       reason === "cooldown"
-        ? `Модуль «${nl.title}» відкриється ${formatKyivDate(unlocksAt)}.`
+        ? `Модуль «${nl.title}» відкриється ${formatDate(unlocksAt, zone)}.`
         : reason === "pause"
           ? `Модуль «${nl.title}» відкриється через ${moduleCooldownDays(course, nl)} дн. після складання попереднього.`
           : `Модуль «${nl.title}» відкриється після того, як ви складете попередній модуль.`;
   }
 
   // Немає жодного модуля, який зараз варто (пере)проходити, але щось уже
-  // реально складено. Два РІЗНІ випадки, які до 2026-09-22 виглядали
-  // однаково (обидва відкривали методичку — скарга користувача):
+  // реально складено. Два РІЗНІ випадки:
   //
   // 1. Курс справді закінчено на 100% (perfectAndComplete) — покращувати
   //    нічого, лишається читальний режим: методичка з усім матеріалом.

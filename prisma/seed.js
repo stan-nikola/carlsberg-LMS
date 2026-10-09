@@ -24,7 +24,7 @@ function quizLesson(order, title, questionType, options) {
 }
 
 // externalCode должен совпадать с SYSTEM_ADMIN_EXTERNAL_CODE в
-// lib/adminAuth.js — "актор" для Enrollment.assignedById, когда курс
+// lib/adminAuth.ts — "актор" для Enrollment.assignedById, когда курс
 // назначают через /admin (отдельный вход по паролю, без employee-сессии,
 // так что писать реального Employee.id неоткуда).
 const SYSTEM_ADMIN_EXTERNAL_CODE = "SYSTEM-ADMIN";

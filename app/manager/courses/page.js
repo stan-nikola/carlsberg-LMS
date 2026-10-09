@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
 import { getManagerCoursesData } from "@/lib/employeeProgress";
-import { CourseTile } from "@/components/CourseTile";
+import { CourseTile } from "@/components/hub/CourseTile";
 
 // "Курси" керівника — його ВЛАСНІ призначені курси (керівник теж Employee
 // зі своїми enrollments), той самий CourseTile, що й app/hub/learn/page.js

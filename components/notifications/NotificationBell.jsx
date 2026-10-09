@@ -1,0 +1,109 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import NumberFlow from "@number-flow/react";
+import { BellIcon } from "@/components/ui/icons";
+
+/**
+ * Дзвіночок з лічильником непрочитаних. Опитує /api/notifications раз на
+ * хвилину і при поверненні на вкладку — без WebSocket/SSE: Vercel
+ * serverless їх не тримає, а хвилинна затримка для «прийшов курс» — ок;
+ * push і так приходить миттєво. ponytail: polling; SSE — якщо колись
+ * буде потрібна секундна свіжість.
+ *
+ * Дзвоник "трясеться" (.is-ringing, app/styles/notifications.css), коли
+ * непрочитаних стало БІЛЬШЕ, ніж на попередньому опитуванні (запит
+ * користувача, 2026-09-19) — не просто "unread > 0" (інакше трясло б на
+ * кожному монтуванні/переході між сторінками, поки лічильник не
+ * прочитано). Перший-у-сесії fetch лише запам'ятовує стартове значення,
+ * не трясе — немає "попереднього", з чим порівнювати.
+ */
+export function NotificationBell({ href }) {
+  // Активний стан — та сама роль, яку раніше (помилково) відігравала
+  // зелена капсула таббару на /hub/notifications (не своя вкладка, тому
+  // капсула тепер ховається там зовсім, HubShell.jsx) — тепер саме дзвоник
+  // показує "ви тут", як і належить кнопці appbar, що сюди й веде.
+  const isActive = usePathname() === href;
+  const [unread, setUnread] = useState(0);
+  const [ringing, setRinging] = useState(false);
+  // Лічильник виріс (не клік) — бейдж ще й пружинить (стенд Motion Tuner «F»).
+  const [grew, setGrew] = useState(false);
+  const prevUnreadRef = useRef(null);
+  const activeRef = useRef(isActive);
+  const ringTimeoutRef = useRef(null);
+
+  // Спільний тригер — і на нове сповіщення (нижче), і на сам клік по
+  // дзвонику (2026-09-22, рішення користувача): той самий рух, просто
+  // інший привід.
+  // 1000 мс = затримка 0.1s + рух 0.9s (.ntf-bell.is-ringing).
+  function ring(byGrowth = false) {
+    setRinging(true);
+    setGrew(byGrowth);
+    clearTimeout(ringTimeoutRef.current);
+    ringTimeoutRef.current = setTimeout(() => {
+      setRinging(false);
+      setGrew(false);
+    }, 1000);
+  }
+
+  // Відкрита сторінка сповіщень сама позначає їх прочитаними (POST у
+  // NotificationCenter) — лічильник гасимо одразу, а не чекаємо хвилинного
+  // опитування, інакше червона цифра висіла й після виходу на інші екрани.
+  useEffect(() => {
+    activeRef.current = isActive;
+    if (!isActive) return;
+    prevUnreadRef.current = 0;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUnread(0);
+  }, [isActive]);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch("/api/notifications?count=1")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!alive || !d) return;
+          // На сторінці сповіщень вони щойно прочитані — старе число з
+          // паралельного запиту не повертаємо.
+          const next = activeRef.current ? 0 : d.unreadCount;
+          if (prevUnreadRef.current != null && next > prevUnreadRef.current) ring(true);
+          prevUnreadRef.current = next;
+          setUnread(next);
+        })
+        .catch(() => {});
+    load();
+    // Прихована вкладка не опитує зовсім (2026-10-03): забута фонова вкладка
+    // інакше кожну хвилину будила функцію й базу. Повернення на вкладку
+    // оновлює лічильник одразу (onVis нижче).
+    const t = setInterval(() => document.visibilityState === "visible" && load(), 60000);
+    const onVis = () => document.visibilityState === "visible" && load();
+    document.addEventListener("visibilitychange", onVis);
+    // Push прийшов, поки застосунок відкритий — service worker шле message
+    // (public/sw.js), лічильник оновлюється миттєво.
+    const onSwMessage = (e) => e.data?.type === "push" && load();
+    navigator.serviceWorker?.addEventListener("message", onSwMessage);
+    return () => {
+      alive = false;
+      clearInterval(t);
+      clearTimeout(ringTimeoutRef.current);
+      document.removeEventListener("visibilitychange", onVis);
+      navigator.serviceWorker?.removeEventListener("message", onSwMessage);
+    };
+  }, []);
+
+  return (
+    <Link
+      className={`iconbtn ntf-bell${ringing ? " is-ringing" : ""}${grew ? " is-new" : ""}${isActive ? " is-active" : ""}`}
+      href={href}
+      onClick={() => ring()}
+      aria-current={isActive || undefined}
+      aria-label={unread ? `Сповіщення, непрочитаних: ${unread}` : "Сповіщення"}
+    >
+      <BellIcon />
+      {unread > 0 && <span className="ntf-bell-count">{unread > 99 ? "99+" : <NumberFlow value={unread} />}</span>}
+    </Link>
+  );
+}

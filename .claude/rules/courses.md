@@ -1,11 +1,9 @@
 ---
 paths:
-  - "components/Course*"
-  - "components/QuestionScreens.tsx"
-  - "components/ScreenComponentBlock*"
+  - "components/course/**"
   - "components/course-editor/**"
-  - "components/AdminDashboard.jsx"
-  - "components/PreviewQuiz*"
+  - "components/hub/CourseTile*"
+  - "components/admin/AdminDashboard.jsx"
   - "lib/course*"
   - "lib/coursePlan*"
   - "lib/retryPolicy*"
@@ -53,8 +51,8 @@ paths:
   (k-й модуль «до assignedAt + k×moduleDays», без штрафу, лише «за
   графіком / відстаєте»), жорсткий — один `deadlineDays`. Уся математика
   — `lib/coursePlan.ts` (чиста, з тестами), і ту саму функцію рендерять
-  три місця: план у плеєрі (`components/CoursePlan.tsx`), методичка і
-  калькулятор у конструкторі (`components/CoursePacingCalculator.tsx`) —
+  три місця: план у плеєрі (`components/course/CoursePlan.tsx`), методичка і
+  калькулятор у конструкторі (`components/course-editor/CoursePacingCalculator.tsx`) —
   прев'ю не може розійтись із плеєром. Ефективна пауза для сесії плеєра —
   `moduleCooldownDays(course, module)` у `lib/courseContent.js`; нову
   перевірку доступності писати через неї, а не читати `cooldownDays`
@@ -173,7 +171,7 @@ paths:
   (інакше база відкине запис) + рядок у `COMPONENT_TYPES` і
   `SCORED_COMPONENT_TYPES` + `defaultContentForType` + поля в
   `FIELDS_BY_TYPE` у `components/course-editor/ComponentTypeFields.tsx` + рендер у
-  `components/QuestionScreens.tsx` + гілка в `ScreenComponentBlock` і в
+  `components/course/QuestionScreens.tsx` + гілка в `ScreenComponentBlock` і в
   `PreviewQuiz`. Нові типи зроблено БЕЗ перетягування (стрілки й тапи):
   застосунок телефонний, drag на дотику промахується.
   **Розбір по варіантах** — `options[].explanation` у quiz: показується
@@ -198,7 +196,7 @@ paths:
   прибрано — дублювали сам план гірше за нього ж. Час на курс і статус
   сертифіката тепер усередині плану: `lib/coursePlan.ts
   appendRemainingTime`/`certificateStatus`, факт «Сертифікат» у
-  `components/CoursePlan.tsx` («Отримано» — курс складено і КОЖЕН модуль
+  `components/course/CoursePlan.tsx` («Отримано» — курс складено і КОЖЕН модуль
   на 100%, не лише пройдено прохідний бал).
 - **Підказки в конструкторі.** Просте керування — `title=` в один рядок;
   правило, яке в рядок не вміщається — `HintDot` («ⓘ», текст у `data-hint`,

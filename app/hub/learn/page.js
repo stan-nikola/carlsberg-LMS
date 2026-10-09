@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
 import { getHubLearnData } from "@/lib/employeeProgress";
-import { CourseTile } from "@/components/CourseTile";
+import { CourseTile } from "@/components/hub/CourseTile";
 
 // Портовано з .hub-screen[data-tab="learning"] в legacy index.html.
 // Захардкоджені картки-заглушки ("скоро", без реального курсу під ними)

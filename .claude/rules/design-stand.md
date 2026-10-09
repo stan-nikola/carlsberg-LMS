@@ -1,8 +1,8 @@
 ---
 paths:
-  - "components/DesignStand*"
-  - "components/ColorMap*"
-  - "components/DesignTokensOverride*"
+  - "components/admin/DesignStand*"
+  - "components/admin/ColorMap*"
+  - "components/app/DesignTokensOverride*"
   - "lib/designTokens*"
   - "lib/designSettings*"
   - "lib/accentPalette*"
@@ -14,7 +14,7 @@ paths:
 
 ## Стенд /admin/design і кольори елементів
 
-- Стенд `/admin/design` (`components/DesignStand.tsx`, `lib/designTokens.ts`)
+- Стенд `/admin/design` (`components/admin/DesignStand.tsx`, `lib/designTokens.ts`)
   — лише для **супер-адміна** (`SUPER_ADMIN_PASSWORD`, рівень "super" у
   admin_session, `lib/adminSession.js getAdminLevel`). Крутить токени
   наживо як прев’ю (localStorage, `DesignTokensOverride`) і «Зберегти для
@@ -61,7 +61,7 @@ paths:
   великий елемент = рядок в `ACCENT_ELEMENTS` + екрани в `ACCENT_SCREENS`
   (+ `NEAR_STATUS`, якщо поруч статуси) + CSS на `--accent-<id>-*` +
   дефолт у tokens.css + мініатюра в `AccentSample` і місце на макеті
-  (`SCREENS` + розмітка мок-екрана) у `components/ColorMap.tsx`.
+  (`SCREENS` + розмітка мок-екрана) у `components/admin/ColorMap.tsx`.
   **Карта екранів (2026-10-05):** на /admin/design «Кольори елементів» —
   `ColorMap`: п’ять макетів (Команда, Курси, Досягнення, Плеєр,
   Сповіщення) на тих самих `--accent-*` токенах; клік по елементу → панель

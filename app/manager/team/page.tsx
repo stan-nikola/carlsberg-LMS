@@ -1,9 +1,10 @@
 import { getCurrentUser } from "@/lib/session";
 import { getManagerTeamRows } from "@/lib/managerOverview";
 import { applyTeamFilters, describeTeamQuery, parseTeamQuery } from "@/lib/teamInsights";
-import { TeamList } from "@/components/TeamList";
-import { ExportReportLink } from "@/components/ExportReportLink";
-import { BackButton } from "@/components/BackButton";
+import { TeamList } from "@/components/manager/TeamList";
+import { ExportReportLink } from "@/components/manager/ExportReportLink";
+import { BackButton } from "@/components/ui/BackButton";
+import { viewerTimeZone } from "@/lib/viewerZone";
 
 // TODO: Cache Components adoption — той самий опт-аут, що на app/manager/page.js.
 export const instant = false;
@@ -22,7 +23,7 @@ export default async function ManagerTeamPage({ searchParams }: { searchParams: 
   // Лейаут рендериться паралельно зі сторінкою і сам переадресує на /register;
   // без цього сторінка падала TypeError-ом у логах для гостя.
   if (!me) return null;
-  const data = await getManagerTeamRows(me.id);
+  const data = await getManagerTeamRows(me.id, await viewerTimeZone());
   const sp = await searchParams;
   const query = parseTeamQuery(sp);
   const result = applyTeamFilters(data.rows, data.people, query, { now: new Date(data.now), retried: new Set(data.retried) });

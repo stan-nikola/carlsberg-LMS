@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { hasFullAccess, isManagerTier } from "@/lib/permissions";
-import { HubShell } from "@/components/HubShell";
-import { HubShellSkeleton } from "@/components/HubShellSkeleton";
+import { HubShell } from "@/components/shell/HubShell";
+import { HubShellSkeleton } from "@/components/shell/HubShellSkeleton";
 
 // Гейт хаба: без валідної сесії — на реєстрацію (аналог перевірки
 // telesale_profile_v1 в legacy js/main.js, тільки тепер на сервері,

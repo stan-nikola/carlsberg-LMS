@@ -1,6 +1,6 @@
 /**
  * Підписи й «розбір» записів журналу дій (AuditLog) — одне джерело для екрана
- * /admin/audit (components/AdminAudit.tsx) і Excel-вивантаження
+ * /admin/audit (components/admin/AdminAudit.tsx) і Excel-вивантаження
  * (app/api/admin/audit/export): інакше текст у файлі й на екрані розійдеться.
  * Нова дія = рядок в AUDIT_ACTION_LABELS (+ гілка в describeAuditEntry, якщо
  * деталі варто розказати словами).

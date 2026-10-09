@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { HintDot } from "@/components/HintDot";
+import { HintDot } from "@/components/ui/HintDot";
 import { ImageListEditor } from "@/components/course-editor/media";
 import type { Content, QuizOption } from "@/components/course-editor/types";
 

@@ -17,7 +17,7 @@ import { fmtDate, xlsxResponse } from "@/lib/excelReport";
 // getManagerOverview: "use cache: private" живе в рендері сторінки, а
 // звіт — одноразове завантаження, свіжі дані тут важливіші за секунду.
 
-// Той самий порядок, що CANONICAL_CARD_IDS у components/ManagerDashboard.jsx.
+// Той самий порядок, що CANONICAL_CARD_IDS у components/manager/dashboard/layout.ts.
 const CANONICAL_CARD_IDS = [
   "rings",
   "attention",

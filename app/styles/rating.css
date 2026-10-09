@@ -1,4 +1,4 @@
-/* ===================== Рейтинг (components/RatingBlocks.jsx,
+/* ===================== Рейтинг (components/hub/RatingBlocks.jsx,
    AchievementsPanel.jsx, CertificateList.jsx). Лише токени tokens.css. */
 
 /* Сіра лінія-роздільник між секціями "Досягнень" (2026-09-22, рішення
@@ -98,7 +98,7 @@ a.rt-card:focus-visible {
   font-size: calc(18px * var(--fs-scale));
   color: var(--accent-score);
 }
-/* Число в .rt-rank b і .rt-points — number-flow (components/CountUp.tsx):
+/* Число в .rt-rank b і .rt-points — number-flow (components/ui/CountUp.tsx):
    custom element сам тримає рамки цифр; .rt-rank span нижче — лише дрібна
    підпис «з 80», елемент бібліотеки під нього не підпадає. */
 .rt-rank span {
@@ -187,7 +187,7 @@ a.rt-card:focus-visible {
   color: var(--ink-soft);
 }
 
-/* ===== Досягнення: mobile-first, адаптація @container (components/AchievementsPanel.jsx) =====
+/* ===== Досягнення: mobile-first, адаптація @container (components/hub/AchievementsPanel.jsx) =====
    Базова розкладка — один стовпчик (телефонна рамка /hub). Від 640px
    ширини КОНТЕЙНЕРА (кабінет керівника) — дві колонки: рейтинг і
    відзнаки зліва, сертифікати і лідери справа; сітка відзнак росте по
@@ -228,7 +228,7 @@ a.rt-card:focus-visible {
 
 /* ---- Новий рівень (стенд Motion Tuner «A», 2026-10-04): зірка обертається,
    назва гасне й зʼявляється нова, два кільця розходяться від плашки. 1.3s
-   через 0.65s, розліт 1.8×. Клас ставить components/LevelLabel.tsx. ---- */
+   через 0.65s, розліт 1.8×. Клас ставить components/hub/LevelLabel.tsx. ---- */
 .rt-level-pill {
   position: relative;
   display: inline-flex;

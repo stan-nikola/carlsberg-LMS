@@ -11,7 +11,7 @@
  * «Однорядкові підписи»): CSS дає nowrap/ellipsis і анімацію, тут — коли її
  * вмикати.
  */
-import { MARQUEE_SPEED_PX_PER_SEC } from "@/components/MarqueeText";
+import { MARQUEE_SPEED_PX_PER_SEC } from "@/components/ui/MarqueeText";
 
 export const ONELINE_SELECTOR =
   ".mgr-chart-card .mgr-card-title, .mgr-chart-card .mgr-card-note, .mgr-chart-card .mgr-bar-label:not(.mgr-bar-label-stack), .mgr-chart-card .mgr-bar-label-main, .mgr-chart-card .mgr-bar-label-sub";

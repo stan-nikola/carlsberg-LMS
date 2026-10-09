@@ -39,6 +39,9 @@ export type EditorCourse = {
   previewDevice: string;
   modulePauseDays: number | null;
   passThreshold: number;
+  description?: string | null;
+  certificateEnabled?: boolean;
+  streakMessages?: unknown;
   modules: EditorModule[];
   [field: string]: unknown;
 };

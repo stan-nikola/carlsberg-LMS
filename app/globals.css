@@ -60,7 +60,7 @@
 /* Текст не виділяється й не копіюється ніде в застосунку (користувач,
    2026-10-05; до цього — лише на сенсорних екранах, де довгий тап відкривав
    лупу й «Копіювати» замість дії). Копіювання/контекстне меню глушить
-   components/CopyGuard.tsx; дані — кнопкою «Завантажити звіт» (Excel). Поля
+   components/app/CopyGuard.tsx; дані — кнопкою «Завантажити звіт» (Excel). Поля
    вводу лишаються виділюваними: PIN із листа, пошук, тексти конструктора. */
 body {
   -webkit-user-select: none;
@@ -76,7 +76,7 @@ select,
   user-select: text;
   -webkit-touch-callout: default;
 }
-/* Таблиці «як у Excel» (components/TableSizes.tsx): курсор над межею
+/* Таблиці «як у Excel» (components/app/TableSizes.tsx): курсор над межею
    клітинки й під час протягування. */
 html[data-ts-cursor="col"] *,
 html[data-ts-dragging="col"] * {
@@ -152,7 +152,7 @@ a {
   color: inherit;
 }
 
-/* /admin (components/AdminShell.jsx рендерить .adm-shell) — скидає
+/* /admin (components/shell/AdminShell.jsx рендерить .adm-shell) — скидає
    центрування/padding/градієнт вище, розраховані на телефонну
    .course-card, щоб дашборд адмінки був справжнім full-bleed (упритул
    до країв вьюпорту, без "рамки"). :has() — чистий CSS, рахується одразу
@@ -245,7 +245,7 @@ html:has(.stage--course-player:not([style*="display: none"])) {
   padding: 16px 14px 7px;
   flex-shrink: 0;
 }
-/* components/PlatformBrand.jsx — спільна бренд-мітка (хмелевий трилисток +
+/* components/shell/PlatformBrand.jsx — спільна бренд-мітка (хмелевий трилисток +
    "CarLS"/розшифровка), використовується і в .appbar хаба (компактний
    "sm"), і в сайдбарі/appbar кабінету керівника (app/styles/manager.css
    додає лише розмір "lg" — сама структура тут), і на реєстрації/логіні
@@ -694,7 +694,7 @@ html:has(.sheet-overlay.open) body {
   display: inline-block;
 }
 
-/* ---- Підказка по ховеру (components/HintDot.tsx) — спільний паттерн
+/* ---- Підказка по ховеру (components/ui/HintDot.tsx) — спільний паттерн
    для пояснень, які потрібні лише тому, хто спитав: що саме рахує
    діаграма, що робить неочевидна кнопка. Текст приходить у data-hint і
    малюється через ::after; ширина блоку обмежена, переноситься нормально.
@@ -802,7 +802,7 @@ html:has(.sheet-overlay.open) body {
   gap: var(--card-gap, 12px);
 }
 
-/* ---- Біжучий рядок (components/MarqueeText.jsx) — заміна text-overflow:
+/* ---- Біжучий рядок (components/ui/MarqueeText.jsx) — заміна text-overflow:
    ellipsis там, де текст не просто обрізається, а ламає контейнер
    (фіксовані вузькі колонки/пілли на різних ширинах екрана). Клас
    .is-overflowing додає сам компонент через ResizeObserver — короткий
@@ -824,7 +824,7 @@ html:has(.sheet-overlay.open) body {
   padding-right: 28px;
 }
 .marquee.is-overflowing .marquee-inner {
-  /* --marquee-duration — виставляється інлайново з components/MarqueeText.jsx
+  /* --marquee-duration — виставляється інлайново з components/ui/MarqueeText.jsx
      пропорційно довжині тексту, щоб швидкість (px/сек) була однаковою
      скрізь, а не тривалість анімації. 7s — фолбек, якщо змінна раптом
      не прийшла (не повинно траплятись у нормальному рендері). */
@@ -834,7 +834,7 @@ html:has(.sheet-overlay.open) body {
    місці, читабельний), рух — лише середні 70% часу. На статичному
    скріншоті (чи просто при першому погляді) текст частіше впіймано
    нерухомим від самого початку слова, а не посеред випадкового кадру
-   прокрутки. components/MarqueeText.jsx рахує --marquee-duration з
+   прокрутки. components/ui/MarqueeText.jsx рахує --marquee-duration з
    поправкою на цю ж частку 0.7, щоб фактична швидкість руху (px/сек)
    лишалась тією самою, а не пришвидшувалась через додані паузи. */
 @keyframes marquee-scroll {
@@ -953,7 +953,7 @@ html:has(.sheet-overlay.open) body {
   }
 }
 
-/* Курс-плеєр і "методичка" (CoursePlayer.jsx ТА CourseReview.jsx — обидва
+/* Курс-плеєр і "методичка" (CoursePlayer.tsx ТА CourseReview.jsx — обидва
    рендерять .stage--course-player, той самий контент курсу, лише
    CourseReview без тестів/гейтів) — навмисно ІНША ширина/висота за
    замовчуванням вище: та ж сама (0,1,0) вагома для .course-card/.course-col
@@ -1085,7 +1085,7 @@ html:has(.sheet-overlay.open) body {
   }
 }
 
-/* ---- Статус-пілюлі (components/StatusBadge.tsx): «Складено / Не складено»
+/* ---- Статус-пілюлі (components/ui/StatusBadge.tsx): «Складено / Не складено»
    і стани призначення (не розпочато / в процесі / прострочено) — один
    вигляд для хаба, кабінету керівника й адмінки. Форма — --radius-badge. ---- */
 .status-pill {
@@ -1120,7 +1120,7 @@ html:has(.sheet-overlay.open) body {
   color: var(--accent-st-alert-fg);
 }
 
-/* ---- Скелетон завантаження (components/Skeleton.tsx) ----
+/* ---- Скелетон завантаження (components/ui/Skeleton.tsx) ----
    Сірі плашки, по яких іде та сама повільна зелена хвиля, що на кнопках
    акордеону в курсі (.tap-next, 5.8s) — «вантажиться», а не «зламалось». */
 .sk {
@@ -1202,7 +1202,7 @@ html:has(.sheet-overlay.open) body {
   display: none;
 }
 
-/* ---- Інструкція встановлення (components/InstallGuide.tsx): iframe на
+/* ---- Інструкція встановлення (components/shell/InstallGuide.tsx): iframe на
    public/guide/install.html. На телефоні — на весь екран (сторінка сама
    верстає під 100dvh), на десктопі — «телефонне» вікно по центру. ---- */
 .install-guide-overlay {
@@ -1247,7 +1247,7 @@ html:has(.sheet-overlay.open) body {
   }
 }
 /* Той самий install.html — крок «guide» онбордингу реєстрації
-   (components/InstallGuide.tsx InstallGuideEmbed): не модалка поверх
+   (components/shell/InstallGuide.tsx InstallGuideEmbed): не модалка поверх
    іншого екрана, а ПОТОЧНИЙ екран — займає увесь .course-card. */
 .install-guide-embed {
   display: block;

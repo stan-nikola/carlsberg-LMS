@@ -74,7 +74,7 @@ model Employee {
   role  Role    @default(employee)
   /// Фото профілю — Vercel Blob (avatars/<id>-<ts>.webp, 256×256), завантажує
   /// сам співробітник у /hub|/manager/profile (app/api/profile/avatar). Без
-  /// нього — ініціали (components/Avatar.tsx).
+  /// нього — ініціали (components/ui/Avatar.tsx).
   avatarUrl String?
 
   /// Департамент компанії — незалежний від Position/Territory (та збутова
@@ -194,7 +194,7 @@ model Course {
   retryCooldownHours Int?
 
   /// Прохідний бал курсу (%) — те саме порогове значення, що раніше було
-  /// захардкоджене як 80 у components/CoursePlayer.jsx (і на рівні
+  /// захардкоджене як 80 у components/course/CoursePlayer.jsx (і на рівні
   /// КОЖНОГО модуля, і на рівні КУРСУ в цілому — Enrollment.passed
   /// рахується як АГРЕГАТ усіх quiz-питань курсу, не "кожен модуль
   /// окремо ≥поріг"; це так і лишається, змінюється лише саме число).
@@ -224,7 +224,7 @@ model Course {
 
   /// Під який екран НАСАМПЕРЕД узгоджували контент курсу — "phone" чи
   /// "laptop". Редагується РАЗ у "Загальна інформація"
-  /// (components/AdminDashboard.jsx CourseCreateForm/CourseSettingsBar),
+  /// (components/admin/AdminDashboard.jsx CourseCreateForm/CourseSettingsBar),
   /// не в самому конструкторі контенту (components/course-editor/
   /// лише ВІДОБРАЖАЄ, під що вже узгоджено — без окремого перемикача).
   /// Реальний застосунок співробітника (/courses/[slug]) на це поле НЕ
@@ -237,7 +237,7 @@ model Course {
   previewDevice String @default("phone")
 
   /// Тема курсу — показується як тег на картці курсу в хабі
-  /// (components/CourseTile.jsx). Обирається в /admin зі списку
+  /// (components/hub/CourseTile.jsx). Обирається в /admin зі списку
   /// департаментів (lib/employeeDepartments.ts); null для курсів без теми
   /// (тег не рендериться). Звичайний String, не enum/окрема таблиця.
   category String?
@@ -247,7 +247,7 @@ model Course {
   /// розробки "8 кроків телесейлінгу" (з конфеті-анімацією, lib/streakMessages.js
   /// містить реальний текст звідти як дефолт). Масив
   /// { threshold, repeatEvery, icon, title, sub } — редагується в /admin
-  /// (components/AdminDashboard.jsx, кнопка "+ Додати страйк-рейт з
+  /// (components/admin/AdminDashboard.jsx, кнопка "+ Додати страйк-рейт з
   /// мотивуванням"). null/порожньо — курс бере DEFAULT_STREAK_MESSAGES.
   streakMessages Json?
 
@@ -260,7 +260,7 @@ model Course {
   /// Технік, яких імпорт зміг прив'язати по territoryId лише до цілого
   /// RM-регіону, не до конкретного СВ-району — див. CLAUDE.md; тут можна
   /// обрати саме людину, побачивши її в реальній оргструктурі
-  /// managerId в components/TerritoryPicker.jsx). Об'єднується (не
+  /// managerId в components/admin/TerritoryPicker.jsx). Об'єднується (не
   /// замінює) з призначенням по positions/territories.
   targetEmployeeIds Int[]    @default([])
 
@@ -335,7 +335,7 @@ model Module {
   /// повторного проходження — модуль просто пропускається при вході в
   /// курс (не змушує переграти вже складене), а якщо жоден модуль курсу
   /// не потребує проходження — показується курс-методичка (тільки
-  /// контент, без тестів/гейтів, components/CourseReview.jsx). null —
+  /// контент, без тестів/гейтів, components/course/CourseReview.jsx). null —
   /// використовується дефолт (RETAKE_COOLDOWN_DAYS_DEFAULT, lib/coursePlan.ts).
   retakeCooldownDays Int?
 

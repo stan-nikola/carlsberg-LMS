@@ -18,7 +18,7 @@ import {
 // GET /api/admin/export — Фаза B1 (статичний багатолистовий дамп бази,
 // на відміну від Фази B3 нижче, яка буде живим Power Query-підключенням).
 // Ті самі хелпери (autoSheet/highlightPassColumn/medalEmoji/statusLabel),
-// що вже є в app/api/manager/export/route.js, тепер винесені в
+// що вже є в app/api/manager/export/route.ts, тепер винесені в
 // lib/excelReport.js саме для цього — не копіювати стиль вдруге.
 // getExportData(employeeIds) — той самий виклик, що й manager-звіт, тут
 // просто БЕЗ обмеження підлеглими одного керівника: усі співробітники.

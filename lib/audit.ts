@@ -3,7 +3,7 @@ import type { Prisma } from "@/app/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { getAdminLevel } from "@/lib/adminSession";
 import { isManagerTier } from "@/lib/permissions";
-import { DAY_MS } from "@/lib/kyivTime";
+import { DAY_MS } from "@/lib/ukraineTime";
 
 /**
  * Журнал дій платформи (AuditLog, /admin/audit). Усе best-effort: помилка
@@ -11,7 +11,7 @@ import { DAY_MS } from "@/lib/kyivTime";
  *
  * action — "<розділ>.<дія>": адмінка — enrollment.update, badge.award …;
  * співробітники (2026-10-04) — auth.*, learning.*, manager.*, profile.*,
- * activity.visit; cron — system.*. Підписи для UI — components/AdminAudit.jsx.
+ * activity.visit; cron — system.*. Підписи для UI — components/admin/AdminAudit.tsx.
  *
  * actor: "super" | "admin" — рівень admin_session (вхід спільним паролем, імені
  * людини немає); "manager" | "employee" — сесія співробітника (+ actorEmployeeId);

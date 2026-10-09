@@ -1,6 +1,6 @@
 import { test, expect, loginAs, PERSONAS } from "./fixtures";
 
-/** Таблиці «як у Excel» (components/TableSizes.tsx): ширина колонки тягнеться за межу заголовка й переживає F5. */
+/** Таблиці «як у Excel» (components/app/TableSizes.tsx): ширина колонки тягнеться за межу заголовка й переживає F5. */
 test("ширина колонки тягнеться мишею і зберігається після перезавантаження", async ({ page }) => {
   await loginAs(page, PERSONAS.manager);
   await page.goto("/manager/team");

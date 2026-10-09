@@ -3,8 +3,8 @@ paths:
   - "components/**"
   - "app/styles/**"
   - "app/globals.css"
-  - "lib/useSeenValue*"
-  - "lib/useFlip*"
+  - "hooks/useSeenValue*"
+  - "hooks/useFlip*"
 ---
 
 ## Анімації-нагороди з демо-туру (2026-10-04)
@@ -18,7 +18,7 @@ paths:
 фінальному екрані плеєра (`CourseState.pointsEarned` з
 `finalizeEnrollment` → `courseCompletionPoints` у `ratingLogic.ts`,
 `.cp-points-chip`); числа крутяться «одометром» — бібліотека `@number-flow/react`
-(`components/CountUp.tsx`: місце «№», бали на зеленій картці й у
+(`components/ui/CountUp.tsx`: місце «№», бали на зеленій картці й у
 `RatingCard`, «+N балів»; ~2 с без перельоту,
 через усі проміжні цифри, старт «знизу» для балів і «згори» для місця —
 значення підібрані користувачем на стенді; власний CSS-барабан прибрано —
@@ -32,10 +32,10 @@ paths:
 включно з псевдоелементами; JS-ефекти (літачок, лічильник) перевіряють
 його самі. Нова анімація = подія + один прохід + reduced-motion.
 **Друга хвиля (той самий день, відібрано зі стенду Motion Tuner):**
-«новий рівень» (`components/LevelLabel.tsx`, `.rt-level-pill.is-levelup`)
-і «↑ N місць з минулого разу» (`components/RankDelta.tsx`,
+«новий рівень» (`components/hub/LevelLabel.tsx`, `.rt-level-pill.is-levelup`)
+і «↑ N місць з минулого разу» (`components/hub/RankDelta.tsx`,
 `.rt-rank-delta`) — порівняння з тим, що бачили на ЦЬОМУ пристрої минулого
-разу, через `lib/useSeenValue.ts` (localStorage, ключ на співробітника;
+разу, через `hooks/useSeenValue.ts` (localStorage, ключ на співробітника;
 читає/пише рівно раз на монтування через ref — у dev StrictMode подвійний
 ефект інакше бачив би вже перезаписане значення й нічого не грало б);
 «модуль відкрився» в плані курсу (`CoursePlan.tsx`, той самий хук, ключ
@@ -56,7 +56,7 @@ grid-item гасить CSS-анімації. **Числа на картках д
 діаграми: дуга кілець, смуги й стовпчики, сегменти «Стан команди», рядки
 «Потребують уваги» по черзі (`.mgr-attention-row`, `--i`) і РЯДКИ матриці
 (`.mgr-matrix tbody tr`, `--r`; не кожна клітинка — їх ~120). Механіка — `inView` + IntersectionObserver у
-`ManagerDashboard.jsx` (лише додає, не знімає; стартує лише
+`ManagerDashboard.tsx` (лише додає, не знімає; стартує лише
 після `gridReady` — до `.is-ready` сітка під visibility:hidden, і графіки
 відігравали заповнення невидимими, тож «крутився» лише «Стан команди»), `live(id)`,
 проп `active` у `CompletionRing` і `data-live` на grid-item для CSS-запуску
@@ -67,7 +67,7 @@ grid-item гасить CSS-анімації. **Числа на картках д
 завантаження вона стрибає S→L і зсуває все нижче; смуги прогресу ростуть по черзі (`.ct-progress-fill.is-grow` + `--ct-i` з
 `CourseTile.jsx`, `.xp-fill.is-grow`); сегменти «Стан команди» виростають
 зліва направо (`.mgr-status-seg`, `--i`); рядки таблиці команди
-переїжджають при зміні сортування (`lib/useFlip.ts`, `data-flip-key`,
+переїжджають при зміні сортування (`hooks/useFlip.ts`, `data-flip-key`,
 `.is-flipping`); «Прострочено» двічі пульсує (`.status-pill.is-urgent`,
 `.ct-due.is-overdue`); зелена картка профілю нахиляється за курсором
 лише з мишею (`ProfileCard.jsx` пише `--tilt-*`, hub.css під

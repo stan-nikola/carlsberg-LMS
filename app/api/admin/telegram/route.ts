@@ -17,7 +17,7 @@ import {
 } from "@/lib/telegram";
 
 /**
- * /admin/notifications → блок Telegram (components/AdminTelegram.tsx).
+ * /admin/notifications → блок Telegram (components/admin/AdminTelegram.tsx).
  *  GET    — стан бота (токен, @username, webhook), прив’язки, вхідні.
  *  POST   — { action: "webhook" } зареєструвати webhook на публічній адресі
  *           { action: "test", employeeId } тестове повідомлення людині

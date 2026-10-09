@@ -365,8 +365,6 @@ export async function getTeamLeaderboardByPosition(managerId: number) {
   return cachedTeamLeaderboardByPosition(managerId);
 }
 
-export type TeamLeaderboardGroup = Awaited<ReturnType<typeof computeTeamLeaderboardByPosition>>[number];
-
 // Компанія-широкий зріз (усі активні + сума балів кожного) — один кеш на
 // всіх керівників (аудит запитів, 2026-10-03). Раніше ключем був
 // керівник, тож кожен активний керівник раз на хвилину окремо сканував

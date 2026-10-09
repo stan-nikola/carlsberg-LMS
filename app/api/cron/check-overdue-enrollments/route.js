@@ -5,13 +5,13 @@ import { evaluateAutoBadgesForAll } from "@/lib/badgeRules";
 import { remindDeadlines, sendTeamDigests } from "@/lib/notifications";
 import { safeEqual } from "@/lib/safeEqual";
 import { auditAs, purgeOldAuditEntries } from "@/lib/audit";
-import { kyivHour } from "@/lib/kyivTime";
+import { ukraineHour } from "@/lib/ukraineTime";
 
 /**
- * Година запуску за Києвом (рішення користувача 2026-10-04: сповіщення —
+ * Година запуску за українським часом (рішення користувача 2026-10-04: сповіщення —
  * о 9:00, не о 6:00). Vercel Cron рахує лише UTC, а Київ то UTC+3 (літо), то
  * UTC+2 (зима), тож у vercel.json два розклади — 06:00 і 07:00 UTC — і роут
- * працює лише в тому, що потрапив на 9-ту годину за Києвом; другий — нічого
+ * працює лише в тому, що потрапив на 9-ту годину за українським часом; другий — нічого
  * не робить. `?force=1` — ручний запуск будь-коли.
  */
 const RUN_AT_KYIV_HOUR = 9;
@@ -38,9 +38,9 @@ export async function GET(request) {
   if (!safeEqual(secret && `Bearer ${secret}`, request.headers.get("authorization"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const hour = kyivHour();
+  const hour = ukraineHour();
   if (hour !== RUN_AT_KYIV_HOUR && new URL(request.url).searchParams.get("force") !== "1") {
-    return NextResponse.json({ skipped: true, kyivHour: hour, runsAt: `${RUN_AT_KYIV_HOUR}:00 Europe/Kyiv` });
+    return NextResponse.json({ skipped: true, ukraineHour: hour, runsAt: `${RUN_AT_KYIV_HOUR}:00 Europe/Kyiv` });
   }
 
   const steps = {

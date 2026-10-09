@@ -1,4 +1,4 @@
-import { PageSkeleton } from "@/components/Skeleton";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 /** Вхід у плеєр з картки курсу: ТА САМА рамка, що й у самого плеєра
  *  (.stage.stage--course-player/.course-card — не голий .stage), усередині —
