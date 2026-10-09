@@ -108,14 +108,7 @@ export function retryGate(
   return { canRetryNow: false, attemptsLeft: 0, nextAttemptAt: opensAt, attemptsMade: made };
 }
 
-/** «за 2 години 15 хвилин» — підпис часу до наступної спроби. */
-export function formatWait(nextAttemptAt: Date, now: Date = new Date()): string {
-  const minutes = Math.max(1, Math.ceil((nextAttemptAt.getTime() - now.getTime()) / 60000));
-  if (minutes < 60) return `${minutes} хв`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest > 0 ? `${hours} год ${rest} хв` : `${hours} год`;
-}
+export { formatWait } from "./duration";
 
 /**
  * Скільки питань показати за спробу і які саме — випадкова вибірка з усіх

@@ -3,6 +3,7 @@ import PDFDocument from "pdfkit";
 import { getCurrentUser } from "@/lib/session";
 import { auditEmployee } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
+import { certificateEarned } from "@/lib/progress";
 import { PLATFORM_NAME, PLATFORM_TAGLINE, PLATFORM_LOGO_PATH } from "@/lib/branding";
 
 // Carlsberg-зелений (той самий, що --green-700/--green-900 у tokens.css) —
@@ -148,7 +149,7 @@ export async function GET(_request, { params }) {
 
   const employeeName = employee.name;
 
-  const course = await prisma.course.findUnique({ where: { slug } });
+  const course = await prisma.course.findUnique({ where: { slug }, include: { modules: { select: { id: true } } } });
   if (!course) return new Response(JSON.stringify({ error: "Course not found" }), { status: 404 });
 
   // Вимикач сертифіката per-курс (Course.certificateEnabled, вкладка
@@ -160,8 +161,10 @@ export async function GET(_request, { params }) {
 
   const enrollment = await prisma.enrollment.findUnique({
     where: { employeeId_courseId: { employeeId: employee.id, courseId: course.id } },
+    include: { moduleCompletions: { select: { moduleId: true, scorePercent: true } } },
   });
-  if (!enrollment || enrollment.status !== "completed" || enrollment.scorePercent !== 100) {
+  const scoreOf = new Map((enrollment?.moduleCompletions || []).map((c) => [c.moduleId, c.scorePercent]));
+  if (!certificateEarned(enrollment, course.modules.map((m) => scoreOf.get(m.id)))) {
     return new Response(JSON.stringify({ error: "Сертифікат доступний лише за курс, складений на 100%" }), {
       status: 403,
     });

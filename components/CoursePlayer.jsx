@@ -11,7 +11,7 @@ import { MorphRevealIcon } from "@/components/MorphRevealIcon";
 import { CoursePlanPanel } from "@/components/CoursePlan";
 import { OrderingScreen, MatchingScreen } from "@/components/QuestionScreens";
 import { AnswerStatus } from "@/components/AnswerStatus";
-import { answerFor, isAnswerDone, viewContent } from "@/lib/grading";
+import { DEFAULT_PASS_THRESHOLD, answerFor, isAnswerDone, viewContent } from "@/lib/grading";
 import { newAttemptId } from "@/lib/offlineOutbox";
 import {
   AccordionScreen,
@@ -37,6 +37,7 @@ import { peekScrollTo } from "@/lib/scrollHints";
 import { isVideoUrl } from "@/lib/videoEmbed";
 import { downloadCertificate } from "@/lib/downloadCertificate";
 import { markProgressDirty } from "@/lib/progressDirty";
+import { DAY_MS, formatKyivDate } from "@/lib/kyivTime";
 
 // Плеєр курсу. Крім info/quiz підтримує інтерактивні компоненти, портовані
 // з попередньої vanilla-JS розробки "8 кроків телесейлінгу": accordion,
@@ -652,7 +653,7 @@ function CompleteScreen({ result, onRetake, onPlan, course, previewMode }) {
   }
 
   if (!result) return null;
-  const { scorePercent, scoreRaw, scoreMax, passed, submitting, submitError, queued, pointsEarned = 0 } = result;
+  const { scorePercent, scoreRaw, scoreMax, passed, submitting, submitError, queued, pointsEarned = 0, certificateEarned = false } = result;
 
   // Підсумок курсу рахує сервер — поки його нема (перевіряємо / немає
   // мережі / помилка), без вердикту й без балу.
@@ -684,16 +685,11 @@ function CompleteScreen({ result, onRetake, onPlan, course, previewMode }) {
     );
   }
 
-  // Сертифікат = РІВНО 100% (не просто складений курс) — рішення
-  // користувача, 2026-09-22: "Сертификат только 100% пройденый курс",
-  // повернення до планки, що діяла до 2026-09-19. Той самий критерій
-  // тепер знову скрізь: «Досягнення» (lib/achievements.ts), PDF-роут
-  // (app/api/courses/[slug]/certificate) і статус у плані курсу
-  // (lib/coursePlan.ts certificateStatus) — новий поріг лише в усі місця
-  // одночасно, як і раніше.
+  // Сертифікат — за правилом lib/progress.ts certificateEarned (кожен модуль
+  // на 100%), вердикт рахує сервер разом із підсумком курсу.
   const certificateAllowed = course?.certificateEnabled !== false;
   const isPerfect = scorePercent === 100;
-  const showCertificate = isPerfect && certificateAllowed;
+  const showCertificate = certificateEarned && certificateAllowed;
   // Кнопку тримаємо неактивною, поки результат не долетів до сервера:
   // роут сертифіката перевіряє саме збережений Enrollment і до того
   // моменту відповів би 403.
@@ -964,7 +960,7 @@ export function CoursePlayer({
   // проходження — незалежно від того, скільки їх ділить один Screen з
   // іншими типами. `screens` тепер може бути лише ЧАСТИНОЮ курсу (модулі,
   // вже складені й ще на паузі перепроходження, сюди не потрапляють —
-  // lib/courseContent.js getPlayableModules), тому підсумковий бал курсу
+  // lib/courseContent.js getSessionModules), тому підсумковий бал курсу
   // в submitResult() рахує ЦІ id ПЛЮС збережені scoreRaw/scoreMax
   // пропущених модулів (skippedModuleScores), а не лише ці.
   const quizComponentIds = useMemo(
@@ -1267,7 +1263,7 @@ export function CoursePlayer({
     const scoreMax = rangeIds.length;
     // Модуль без питань (лише інфо-екрани) нікого не блокує — 100%.
     const scorePercent = scoreMax > 0 ? Math.round((scoreRaw / scoreMax) * 100) : 100;
-    return { scoreRaw, scoreMax, scorePercent, passed: scorePercent >= (course.passThreshold ?? 80) };
+    return { scoreRaw, scoreMax, scorePercent, passed: scorePercent >= (course.passThreshold ?? DEFAULT_PASS_THRESHOLD) };
   }
 
   // Ідентифікатор спроби модуля (UUID) — один на модуль у цьому
@@ -1402,6 +1398,9 @@ export function CoursePlayer({
       scorePercent: summary.scorePercent,
       passed: summary.passed,
       pointsEarned: summary.pointsEarned ?? 0,
+      // Лише від сервера, за всіма модулями курсу (lib/progress.ts certificateEarned);
+      // підсумок одного модуля (data без course) сертифіката не дає.
+      certificateEarned: data.course?.certificateEarned === true,
       submitting: false,
       submitError: null,
     });
@@ -1437,7 +1436,7 @@ export function CoursePlayer({
       // Пауза рахується від складання, яке щойно сталось — тож дата
       // відкриття відома саме тут, і саме її людина хоче бачити, а не
       // «через 3 дн.» для самостійного підрахунку.
-      const opensOn = (days) => new Date(Date.now() + days * 86400000).toLocaleDateString("uk-UA");
+      const opensOn = (days) => formatKyivDate(Date.now() + days * DAY_MS);
       const note = sessionEnd
         ? afterSession.pauseDays
           ? `Модуль «${afterSession.moduleTitle}» відкриється ${opensOn(afterSession.pauseDays)} (через ${afterSession.pauseDays} дн. після складання цього).`

@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarIcon, ClockIcon, CheckIcon, XIcon, MedalIcon } from "@/components/icons";
 import { StatusBadge } from "@/components/StatusBadge";
-import { medalTier } from "@/lib/progress";
+import { isOverdue, medalTier } from "@/lib/progress";
+import { formatMinutes } from "@/lib/duration";
+import { enrollmentStatusLabel } from "@/lib/enrollmentStatus";
 import { RemindButton, type ReminderReason } from "@/components/ReminderDialog";
 import type { ScheduleStatus } from "@/lib/coursePlan";
 
@@ -22,10 +24,10 @@ export type EnrollmentDetail = {
   modules?: { id: number; title: string; order: number; scorePercent: number | null; scoreMax?: number | null; passed: boolean | null }[];
 };
 
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  not_started: { label: "Не розпочато", cls: "status-pill-neutral" },
-  in_progress: { label: "В процесі", cls: "status-pill-alert" },
-  overdue: { label: "Прострочено", cls: "status-pill-fail" },
+const STATUS_PILL: Record<string, string> = {
+  not_started: "status-pill-neutral",
+  in_progress: "status-pill-alert",
+  overdue: "status-pill-fail",
 };
 
 // status="completed" саме по собі означає лише "пройшов до кінця" —
@@ -36,9 +38,9 @@ export function StatusPill({ status, passed }: { status: string; passed: boolean
   if (status === "completed") {
     return <StatusBadge passed={Boolean(passed)} />;
   }
-  const meta = STATUS_META[status] || STATUS_META.not_started;
+  const cls = STATUS_PILL[status] || STATUS_PILL.not_started;
   // «Прострочено» двічі пульсує при появі (стенд Motion Tuner «L»).
-  return <span className={`status-pill ${meta.cls}${status === "overdue" ? " is-urgent" : ""}`}>{meta.label}</span>;
+  return <span className={`status-pill ${cls}${status === "overdue" ? " is-urgent" : ""}`}>{enrollmentStatusLabel(status, passed)}</span>;
 }
 
 export function formatDate(value: Date | string | null | undefined): string | null {
@@ -48,12 +50,7 @@ export function formatDate(value: Date | string | null | undefined): string | nu
 
 /** durationSeconds -> "12 хв" / "1 год 40 хв". */
 export function formatDuration(seconds: number | null | undefined): string | null {
-  if (seconds == null) return null;
-  const totalMinutes = Math.round(seconds / 60);
-  if (totalMinutes < 60) return `${totalMinutes} хв`;
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return minutes > 0 ? `${hours} год ${minutes} хв` : `${hours} год`;
+  return seconds == null ? null : formatMinutes(Math.round(seconds / 60));
 }
 
 /**
@@ -94,7 +91,7 @@ export function EnrollmentRow({
   const failed = enrollment.status === "completed" && enrollment.passed === false;
   const passed = enrollment.status === "completed" && enrollment.passed === true;
   const reason: ReminderReason =
-    enrollment.status === "overdue" ? "overdue" : failed ? "failed" : schedule === "behind" ? "behind" : enrollment.status === "not_started" ? "not_started" : "general";
+    isOverdue(enrollment) ? "overdue" : failed ? "failed" : schedule === "behind" ? "behind" : enrollment.status === "not_started" ? "not_started" : "general";
 
   return (
     <li ref={ref} className={`mgr-enrollment-row${highlighted ? " is-highlighted" : ""}`} id={`enrollment-${enrollment.course.slug}`}>

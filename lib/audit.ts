@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient } from "@/app/generated/prisma";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { getAdminLevel } from "@/lib/adminSession";
 import { isManagerTier } from "@/lib/permissions";
+import { DAY_MS } from "@/lib/kyivTime";
 
 const prisma = prismaUntyped as PrismaClient;
 
@@ -105,7 +106,7 @@ export async function setAuditRetentionDays(days: number) {
  */
 export async function purgeOldAuditEntries(now = new Date()) {
   const days = await getAuditRetentionDays();
-  const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const cutoff = new Date(now.getTime() - days * DAY_MS);
   const { count } = await prisma.auditLog.deleteMany({
     where: { actor: { in: ["employee", "manager", "system"] }, createdAt: { lt: cutoff } },
   });

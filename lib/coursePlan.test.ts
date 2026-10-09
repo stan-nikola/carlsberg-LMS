@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  opensAfterPause,
   buildCoursePlan,
   formatMinutes,
   pickPlanFocusModuleId,
@@ -568,5 +569,16 @@ describe("pickPlanFocusModuleId — куди скролити/підсвітит
   it("null, коли все складено рівно на 100% — покращувати/чекати нічого", () => {
     const view = toPlanView(buildCoursePlan([mod({ id: 1 })], [done({ moduleId: 1, scorePercent: 100 })], NO_DATES, NOW));
     expect(pickPlanFocusModuleId(view)).toBeNull();
+  });
+});
+
+describe("opensAfterPause — спільне правило паузи (наступний модуль і перепроходження)", () => {
+  const done = new Date("2026-10-01T10:00:00Z");
+  it("без паузи (0/null) відкрито одразу", () => {
+    expect(opensAfterPause(done, 0)).toBeNull();
+    expect(opensAfterPause(done, null)).toBeNull();
+  });
+  it("з паузою — дата через N днів від складання", () => {
+    expect(opensAfterPause(done, 3)?.getTime()).toBe(new Date("2026-10-04T10:00:00Z").getTime());
   });
 });

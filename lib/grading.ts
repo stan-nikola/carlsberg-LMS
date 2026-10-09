@@ -21,6 +21,9 @@ import { isHotspotHit } from "@/lib/componentTypes";
 
 export type KeyOf = (kind: "o" | "s" | "l" | "r", index: number) => string;
 
+/** Прохідний бал курсу за замовчуванням — той самий, що @default(80) у Course.passThreshold. */
+export const DEFAULT_PASS_THRESHOLD = 80;
+
 export const indexKeyOf: KeyOf = (kind, index) => `${kind}${index}`;
 
 type Obj = Record<string, unknown>;

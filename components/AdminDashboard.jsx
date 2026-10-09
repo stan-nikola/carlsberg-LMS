@@ -19,6 +19,7 @@ import {
 import { TerritoryPicker } from "@/components/TerritoryPicker";
 import { AccordionField } from "@/components/AccordionField";
 import { pluralize } from "@/lib/pluralize";
+import { DEFAULT_PASS_THRESHOLD } from "@/lib/grading";
 import { HintDot } from "@/components/HintDot";
 import { CoursePacingCalculator } from "@/components/CoursePacingCalculator";
 import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
@@ -545,7 +546,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
   const [retryFreeAttempts, setRetryFreeAttempts] = useState(course.retryFreeAttempts ?? "");
   const [retryCooldownHours, setRetryCooldownHours] = useState(course.retryCooldownHours ?? "");
   const [modulePauseDays, setModulePauseDays] = useState(course.modulePauseDays ?? "");
-  const [passThreshold, setPassThreshold] = useState(course.passThreshold ?? 80);
+  const [passThreshold, setPassThreshold] = useState(course.passThreshold ?? DEFAULT_PASS_THRESHOLD);
   const [points, setPoints] = useState(course.points ?? "");
   const [previewDevice, setPreviewDevice] = useState(course.previewDevice || "phone");
   const [streakMessages, setStreakMessages] = useState(course.streakMessages || null);

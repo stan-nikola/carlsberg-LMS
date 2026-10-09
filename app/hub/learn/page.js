@@ -5,7 +5,7 @@ import { CourseTile } from "@/components/CourseTile";
 // Портовано з .hub-screen[data-tab="learning"] в legacy index.html.
 // Захардкоджені картки-заглушки ("скоро", без реального курсу під ними)
 // прибрані — показуємо лише реально призначені курси (Enrollment),
-// згруповані за пріоритетом (lib/progress.js groupLearning): обов'язкові
+// згруповані за пріоритетом (lib/progress.ts groupLearning): обов'язкові
 // з найближчим дедлайном → рекомендовані → пройдені.
 export default async function HubLearnPage() {
   const employee = await getCurrentUser();

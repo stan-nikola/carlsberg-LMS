@@ -4,12 +4,13 @@ import type { Prisma, PrismaClient } from "@/app/generated/prisma";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { isScored, SCORED_COMPONENT_TYPES } from "@/lib/componentTypes";
 import { canStartModuleAttempt } from "@/lib/courseContent";
-import { gradeResponse, publicContent, revealFor, seededRandom, type KeyOf } from "@/lib/grading";
+import { DEFAULT_PASS_THRESHOLD, gradeResponse, publicContent, revealFor, seededRandom, type KeyOf } from "@/lib/grading";
 import { formatWait, pickQuestionPool, poolSeed, resolveRetryRules, retryGate } from "@/lib/retryPolicy";
 import { getRules, syncEnrollmentEvents } from "@/lib/rating";
 import { courseCompletionPoints, passedOnFirstAttempt } from "@/lib/ratingLogic";
 import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
 import { notifySubordinateCourseResult } from "@/lib/notifications";
+import { certificateEarned } from "@/lib/progress";
 import { evaluateAutoBadgesForEmployee } from "@/lib/badgeRules";
 import { auditEmployee } from "@/lib/audit";
 
@@ -415,7 +416,7 @@ export async function finishModuleAttempt(
   const { course, enrollment, courseModule } = ctx;
   const duration = Number.isInteger(body.durationSeconds) && (body.durationSeconds as number) >= 0 ? (body.durationSeconds as number) : null;
   const payloadAnswers = body.answers && typeof body.answers === "object" ? (body.answers as Record<string, unknown>) : {};
-  const threshold = course.passThreshold ?? 80;
+  const threshold = course.passThreshold ?? DEFAULT_PASS_THRESHOLD;
 
   const outcome = await prisma.$transaction(async (tx) => {
     await lockModule(tx, enrollment.id, courseModule.id);
@@ -552,12 +553,33 @@ export async function finishModuleAttempt(
 // ------------------------------------------------------------------ курс
 
 /** pointsEarned — бали за ЦЕ складання (0 — курс уже був складений раніше чи не складено). */
-export type CourseState = { completed: boolean; scoreRaw: number; scoreMax: number; scorePercent: number; passed: boolean; pointsEarned: number };
+export type CourseState = {
+  completed: boolean;
+  scoreRaw: number;
+  scoreMax: number;
+  scorePercent: number;
+  passed: boolean;
+  pointsEarned: number;
+  /** lib/progress.ts certificateEarned — без перевірки Course.certificateEnabled. */
+  certificateEarned: boolean;
+};
 
 async function readCourseState(enrollmentId: number): Promise<CourseState | null> {
-  const e = await prisma.enrollment.findUnique({ where: { id: enrollmentId } });
+  const e = await prisma.enrollment.findUnique({
+    where: { id: enrollmentId },
+    include: { moduleCompletions: { select: { moduleId: true, scorePercent: true } }, course: { select: { modules: { select: { id: true } } } } },
+  });
   if (!e || e.status !== "completed") return null;
-  return { completed: true, scoreRaw: e.scoreRaw ?? 0, scoreMax: e.scoreMax ?? 0, scorePercent: e.scorePercent ?? 0, passed: e.passed === true, pointsEarned: 0 };
+  const scoreOf = new Map(e.moduleCompletions.map((c) => [c.moduleId, c.scorePercent]));
+  return {
+    completed: true,
+    scoreRaw: e.scoreRaw ?? 0,
+    scoreMax: e.scoreMax ?? 0,
+    scorePercent: e.scorePercent ?? 0,
+    passed: e.passed === true,
+    pointsEarned: 0,
+    certificateEarned: certificateEarned(e, e.course.modules.map((m) => scoreOf.get(m.id))),
+  };
 }
 
 /**
@@ -623,7 +645,8 @@ export async function finalizeEnrollment(
 
   const firstCompletion = enrollment.status !== "completed";
   const changed = firstCompletion || enrollment.passed !== passed || enrollment.scorePercent !== scorePercent;
-  if (!changed) return { completed: true, scoreRaw, scoreMax, scorePercent, passed, pointsEarned: 0 };
+  const certificate = certificateEarned({ status: "completed", scorePercent }, moduleIds.map((id) => byModule.get(id)!.scorePercent));
+  if (!changed) return { completed: true, scoreRaw, scoreMax, scorePercent, passed, pointsEarned: 0, certificateEarned: certificate };
 
   await prisma.$transaction([
     prisma.enrollment.update({
@@ -713,5 +736,5 @@ export async function finalizeEnrollment(
       console.warn("[notifications] subordinate course result:", (err as Error)?.message);
     }
   });
-  return { completed: true, scoreRaw, scoreMax, scorePercent, passed, pointsEarned };
+  return { completed: true, scoreRaw, scoreMax, scorePercent, passed, pointsEarned, certificateEarned: certificate };
 }

@@ -1,16 +1,20 @@
 import ExcelJS from "exceljs";
 import { BRAND_GREEN, FAIL_FILL, GREEN_TINT, HEADER_FILL, fmtDate, fmtMinutes, medalEmoji, statusLabel } from "@/lib/excelReport";
+import { isOverdue } from "@/lib/progress";
 import {
   SEGMENT_META,
   attentionTop,
   buildMatrix,
   courseFunnels,
   statusBar,
+  CELL_STATUS_META,
+  compareTeams,
   type CellStatus,
   type PersonCounts,
   type PersonSegment,
   type TeamPerson,
   type TeamRow,
+  type TreeNode,
 } from "@/lib/teamInsights";
 
 /**
@@ -66,7 +70,6 @@ export type DashboardStats = {
   durations: { total: number; medianSeconds: number | null; medianActiveSeconds: number | null; buckets: Bucket[] };
 };
 export type WeekPoint = { label: string; count: number; people: { name: string; count: number }[] };
-export type TreeNode = { id: number; name: string; children: TreeNode[] };
 export type HardQuestion = { title: string; module: string; course: string; total: number; correct: number; pct: number };
 export type ExportData = {
   employees: { id: number; name: string; externalCode: string | null; position: { name: string } | null; territory: { name: string } | null }[];
@@ -126,14 +129,17 @@ const SEGMENT_FILL: Record<PersonSegment, { fill: string; ink: string }> = {
   on_track: { fill: GREEN, ink: "FF212833" },
   done: { fill: "FF5C6B73", ink: "FFFFFFFF" },
 };
-const CELL_META: Record<CellStatus, { label: string; mark: string; fill: string }> = {
-  passed: { label: "Складено", mark: "✓", fill: "FFC9EFDA" },
-  failed: { label: "Не складено", mark: "✗", fill: FAIL_FILL },
-  overdue: { label: "Прострочено", mark: "!", fill: FAIL_FILL },
-  behind: { label: "Відстає", mark: "↓", fill: "FFFFF1CC" },
-  in_progress: { label: "В процесі", mark: "…", fill: "FFDCE9F7" },
-  not_started: { label: "Не розпочато", mark: "·", fill: "FFEFF3F0" },
+const CELL_FILL: Record<CellStatus, string> = {
+  passed: "FFC9EFDA",
+  failed: FAIL_FILL,
+  overdue: FAIL_FILL,
+  behind: "FFFFF1CC",
+  in_progress: "FFDCE9F7",
+  not_started: "FFEFF3F0",
 };
+const CELL_META = Object.fromEntries(
+  (Object.keys(CELL_STATUS_META) as CellStatus[]).map((k) => [k, { ...CELL_STATUS_META[k], fill: CELL_FILL[k] }])
+) as Record<CellStatus, { label: string; mark: string; fill: string }>;
 
 /* ---------------- Дрібні помічники ---------------- */
 
@@ -208,28 +214,6 @@ export function sheetName(raw: string, taken: Set<string>, suffix = ""): string 
   }
   taken.add(name.toLowerCase());
   return name;
-}
-
-/** Кожен прямий підлеглий з усім своїм піддеревом — те саме, що картка
- *  «Порівняння команд» на дашборді. Чиста функція, з тестом. */
-export function compareTeams(tree: TreeNode[], counts: Map<number, PersonCounts>) {
-  const flatten = (nodes: TreeNode[]): TreeNode[] => nodes.flatMap((n) => [n, ...flatten(n.children || [])]);
-  return tree
-    .map((node) => {
-      let total = 0;
-      let completed = 0;
-      let overdue = 0;
-      for (const n of flatten([node])) {
-        const c = counts.get(n.id);
-        if (!c) continue;
-        total += c.total;
-        completed += c.completed;
-        overdue += c.overdue;
-      }
-      return { id: node.id, name: node.name, total, completed, overdue, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
-    })
-    .filter((t) => t.total > 0)
-    .sort((a, b) => b.pct - a.pct);
 }
 
 /** Які блоки зведення й у якому порядку: з query `cards=a,b,c`, лише
@@ -425,7 +409,7 @@ const BLOCKS: Record<string, Block> = {
 
   teamCompare(ws, row, ctx) {
     const counts = new Map(ctx.people.map((p) => [p.id, p.counts]));
-    const teams = compareTeams(ctx.teamTree, counts);
+    const teams = compareTeams(ctx.teamTree, (id) => counts.get(id));
     if (teams.length === 0) return row;
     const t = table(ws, row, ["Команда", "Складено, %", "Складено", "Призначено", "Прострочено"], teams.map((x) => [x.name, x.pct, x.completed, x.total, x.overdue]));
     teams.forEach((x, i) => {
@@ -472,12 +456,14 @@ function buildSummary(ctx: Ctx) {
   const kpi: ExcelJS.CellValue[][] = [
     ["У команді, людей", stats.teamSize],
     ["Призначень", { formula: `COUNTA(${A("C")})`, result: n }],
-    ["Виконано, %", { formula: `IFERROR(ROUND((COUNTIF(${A("D")},"Складено")+COUNTIF(${A("D")},"Завершено, не складено"))/COUNTA(${A("C")})*100,0),0)`, result: n ? Math.round((completed / n) * 100) : 0 }],
+    ["Виконано, %", { formula: `IFERROR(ROUND((COUNTIF(${A("D")},"Складено")+COUNTIF(${A("D")},"Не складено"))/COUNTA(${A("C")})*100,0),0)`, result: n ? Math.round((completed / n) * 100) : 0 }],
     ["Складено, %", { formula: `IFERROR(ROUND(COUNTIF(${A("F")},"Так")/(COUNTIF(${A("F")},"Так")+COUNTIF(${A("F")},"Ні"))*100,0),0)`, result: yes + no ? Math.round((yes / (yes + no)) * 100) : 0 }],
     ["Вчасно, %", stats.onTimeRate],
     ["Розпочато, %", stats.startedRate],
     ["Середній бал, %", { formula: `IFERROR(ROUND(AVERAGE(${A("E")}),0),"")`, result: scored.length ? Math.round(scored.reduce((s, e) => s + (e.scorePercent as number), 0) / scored.length) : "" }],
-    ["Прострочено призначень", { formula: `COUNTIF(${A("D")},"Прострочено")`, result: ex.enrollments.filter((e) => e.status === "overdue").length }],
+    // Те саме правило, що на дашборді (дедлайн минув і не складено), — числом, а
+    // не формулою: колонка «Статус» показує стан призначення, не прострочення.
+    ["Прострочено призначень", ex.enrollments.filter((e) => isOverdue(e, ctx.generatedAt)).length],
   ];
   row = heading(ws, row, "Головне");
   const kt = table(ws, row, ["Показник", "Значення"], kpi);

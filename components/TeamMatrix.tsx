@@ -2,17 +2,10 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { CellStatus, TeamMatrixData } from "@/lib/teamInsights";
+import { CELL_STATUS_META, type CellStatus, type TeamMatrixData } from "@/lib/teamInsights";
 import { EMPTY_SIZES, parseSizes, resizedTo, sizeOf, withSize, type MatrixSizeKind, type MatrixSizes } from "@/lib/matrixSizes";
 
-const CELL_META: Record<CellStatus, { label: string; mark: string }> = {
-  passed: { label: "Складено", mark: "✓" },
-  failed: { label: "Не складено", mark: "✗" },
-  overdue: { label: "Прострочено", mark: "!" },
-  behind: { label: "Відстає від графіка", mark: "↓" },
-  in_progress: { label: "В процесі", mark: "…" },
-  not_started: { label: "Не розпочато", mark: "·" },
-};
+const CELL_META = CELL_STATUS_META;
 
 const SIZES_STORAGE_KEY = "carls_manager_matrix_sizes_v1";
 

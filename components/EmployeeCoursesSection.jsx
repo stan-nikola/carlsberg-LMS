@@ -3,13 +3,8 @@
 import { useEffect, useState } from "react";
 import { SpinnerIcon } from "@/components/icons";
 import { StatusPill } from "@/components/EnrollmentRow";
+import { ENROLLMENT_STATUS_LABELS as STATUS_LABELS } from "@/lib/enrollmentStatus";
 
-const STATUS_LABELS = {
-  not_started: "Не розпочато",
-  in_progress: "В процесі",
-  completed: "Завершено",
-  overdue: "Прострочено",
-};
 
 /**
  * Вкладка "Курси" на детальній картці співробітника (Фаза D) — список

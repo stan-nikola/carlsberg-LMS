@@ -5,6 +5,7 @@ import Link from "next/link";
 import { NOTIFICATION_CATEGORIES, telegramCategoryKey } from "@/lib/notificationTypes";
 import { getPushState, subscribeToPush, unsubscribeFromPush } from "@/lib/pushClient";
 import { BellIcon, ChevronIcon, TelegramIcon, SpinnerIcon } from "@/components/icons";
+import { DAY_MS } from "@/lib/kyivTime";
 
 const DISMISS_KEY = "carls_push_prompt_dismissed_until";
 const DISMISS_DAYS = 14;
@@ -134,7 +135,7 @@ export function NotificationSettings({ variant = "full", highlighted = false }) 
   }
   function dismiss() {
     try {
-      localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_DAYS * 86400000));
+      localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_DAYS * DAY_MS));
     } catch {
       // приватний режим — просто сховаємо до перезавантаження
     }

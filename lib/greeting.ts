@@ -11,7 +11,7 @@ import { kyivHour } from "@/lib/kyivTime";
  * Усі співробітники — в Україні (Carlsberg Ukraine), тому таймзона тут
  * навмисно НЕ параметризована під користувача.
  */
-export function getTimeBasedGreeting(date = new Date()) {
+export function getTimeBasedGreeting(date: Date = new Date()): string {
   const hour = kyivHour(date);
   if (hour < 12) return "Доброго ранку";
   if (hour < 18) return "Доброго дня";

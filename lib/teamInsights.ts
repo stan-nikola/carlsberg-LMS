@@ -14,17 +14,29 @@
 
 import { buildCoursePlan, formatDate, toPacing, toPlanInputs, type ScheduleStatus } from "./coursePlan";
 import { formatRelativeTime } from "./notificationTypes";
+import { pluralWord } from "./pluralize";
+import { isOverdue as isEnrollmentOverdue, isUnfinished } from "./progress";
 import type { RawAttempt, RawEmployee, TeamRaw } from "./teamEnrollments";
+import { DAY_MS } from "./kyivTime";
 
 export const INACTIVE_DAYS = 14;
 export const ATTENTION_LIMIT = 5;
 export const MATRIX_ROW_CAP = 15;
 export const TREND_WEEKS = 6;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type PersonSegment = "overdue" | "behind" | "not_started" | "inactive" | "on_track" | "done";
 export type CellStatus = "passed" | "failed" | "overdue" | "behind" | "in_progress" | "not_started";
+
+/** Клітинка матриці «люди × курси» — підпис і значок (дашборд і Excel-звіт). */
+export const CELL_STATUS_META: Record<CellStatus, { label: string; mark: string }> = {
+  passed: { label: "Складено", mark: "✓" },
+  failed: { label: "Не складено", mark: "✗" },
+  overdue: { label: "Прострочено", mark: "!" },
+  behind: { label: "Відстає від графіка", mark: "↓" },
+  in_progress: { label: "В процесі", mark: "…" },
+  not_started: { label: "Не розпочато", mark: "·" },
+};
 
 export type TeamRow = {
   enrollmentId: number;
@@ -98,20 +110,12 @@ export const SEGMENT_META: Record<PersonSegment, { label: string }> = {
 
 /** 1 курс / 2 курси / 5 курсів. */
 export function pluralCourses(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "курс";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "курси";
-  return "курсів";
+  return pluralWord(n, "курс", "курси", "курсів");
 }
 
 /** 1 людина / 2 людини / 5 людей. */
 export function pluralPeople(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "людина";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "людини";
-  return "людей";
+  return pluralWord(n, "людина", "людини", "людей");
 }
 
 /**
@@ -162,7 +166,7 @@ export function buildTeamRows(raw: TeamRaw, now: Date): TeamRow[] {
       toPacing(course)
     );
     const completed = e.status === "completed";
-    const isOverdue = !completed && (e.status === "overdue" || (e.dueDate != null && new Date(e.dueDate).getTime() < now.getTime()));
+    const isOverdue = isEnrollmentOverdue(e, now);
     const isLate = isOverdue || (completed && e.dueDate != null && e.completedAt != null && new Date(e.completedAt) > new Date(e.dueDate));
     const schedule = completed ? null : (plan.schedule?.status ?? null);
     const failedModuleIds = completions.filter((c) => c.passed === false).map((c) => c.moduleId);
@@ -330,7 +334,7 @@ export function statusBar(people: TeamPerson[], rows: TeamRow[]): { segments: St
   const segmentOf = new Map(people.map((p) => [p.id, p.segment]));
   const of = (key: PersonSegment) => rows.filter((r) => segmentOf.get(r.employeeId) === key);
   const courseCounts: Record<PersonSegment, number | null> = {
-    overdue: of("overdue").filter((r) => r.status !== "completed" && r.isOverdue).length,
+    overdue: of("overdue").filter((r) => r.isOverdue).length,
     behind: of("behind").filter((r) => r.status !== "completed" && r.schedule === "behind").length,
     not_started: of("not_started").filter((r) => r.status === "not_started").length,
     inactive: null,
@@ -555,6 +559,33 @@ export function teamQueryHref(query: Partial<TeamQuery>): string {
   return `/manager/team${s ? `?${s}` : ""}`;
 }
 
+export type TreeNode = { id: number; name: string; children: TreeNode[] };
+
+/** «Порівняння команд»: кожен прямий підлеглий з усім своїм піддеревом
+ *  (дашборд і Excel-звіт). Порожні команди відкидаються, найкращі — першими. */
+export function compareTeams(
+  tree: TreeNode[],
+  countsOf: (id: number) => Pick<PersonCounts, "total" | "completed" | "overdue"> | undefined
+) {
+  const flatten = (nodes: TreeNode[]): TreeNode[] => nodes.flatMap((n) => [n, ...flatten(n.children || [])]);
+  return tree
+    .map((node) => {
+      let total = 0;
+      let completed = 0;
+      let overdue = 0;
+      for (const n of flatten([node])) {
+        const c = countsOf(n.id);
+        if (!c) continue;
+        total += c.total;
+        completed += c.completed;
+        overdue += c.overdue;
+      }
+      return { id: node.id, name: node.name, total, completed, overdue, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
+    })
+    .filter((t) => t.total > 0)
+    .sort((a, b) => b.pct - a.pct);
+}
+
 /** id людей у піддереві rootId (включно з ним) — за ланцюжком managerId
  *  серед видимої команди. Чужий rootId → порожньо → фільтр ігнорується. */
 export function subtreeIds(people: TeamPerson[], rootId: number): Set<number> {
@@ -590,17 +621,26 @@ export function retriedEnrollmentIds(attempts: RawAttempt[]): Set<number> {
   return out;
 }
 
-function dueBucket(r: TeamRow, now: Date): string | null {
-  if (r.status === "completed") return null;
-  if (!r.dueDate) return "none";
-  const days = (new Date(r.dueDate).getTime() - now.getTime()) / DAY_MS;
-  if (r.isOverdue) return "overdue";
+/**
+ * Корзина «Дедлайни на горизонті» — одна для картки дашборда й списку за
+ * кліком. Лише несклaдені призначення; прострочено = дедлайн минув і курс не
+ * складено (lib/progress.ts isOverdue), без очікування нічного cron.
+ */
+export function deadlineBucket(
+  e: { status: string; passed?: boolean | null; dueDate: Date | string | null },
+  now: Date
+): "overdue" | "week" | "month" | "later" | "none" | null {
+  if (!isUnfinished(e)) return null;
+  if (!e.dueDate) return "none";
+  if (isEnrollmentOverdue(e, now)) return "overdue";
+  const days = (new Date(e.dueDate).getTime() - now.getTime()) / DAY_MS;
   if (days <= 7) return "week";
   if (days <= 30) return "month";
   return "later";
 }
 
-function scoreBucket(r: TeamRow): string | null {
+/** Корзина балу завершеного призначення — одна для картки «Розподіл балів» і списку за кліком. */
+export function scoreBucket(r: { status: string; scorePercent: number | null }): "lt60" | "s60" | "s80" | "s90" | "s100" | null {
   if (r.status !== "completed" || typeof r.scorePercent !== "number") return null;
   if (r.scorePercent < 60) return "lt60";
   if (r.scorePercent < 80) return "s60";
@@ -645,7 +685,7 @@ export function applyTeamFilters(
     else if (query.status === "behind") rows = rows.filter((r) => r.schedule === "behind");
     else if (query.status === "overdue") rows = rows.filter((r) => r.isOverdue);
     else if (query.status) rows = rows.filter((r) => r.status === query.status);
-    if (query.due) rows = rows.filter((r) => dueBucket(r, ctx.now) === query.due);
+    if (query.due) rows = rows.filter((r) => deadlineBucket(r, ctx.now) === query.due);
     if (query.score) rows = rows.filter((r) => scoreBucket(r) === query.score);
     if (query.stage === "started") rows = rows.filter((r) => r.status !== "not_started" || r.modulesPassed > 0);
     else if (query.stage === "passed") rows = rows.filter((r) => r.status === "completed" && r.passed === true);
