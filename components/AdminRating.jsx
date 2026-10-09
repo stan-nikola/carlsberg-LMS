@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SpinnerIcon } from "@/components/icons";
+import { LoadingLine } from "@/components/Skeleton";
 
 // Пояснення до кожного правила — адмін бачить, ЗА ЩО саме бали, а не
 // лише технічний ключ.
@@ -81,9 +82,7 @@ export function AdminRating() {
   if (loading)
     return (
       <div className="admin-page adm-page">
-        <p className="admin-subtitle">
-          <SpinnerIcon /> Завантаження…
-        </p>
+        <LoadingLine />
       </div>
     );
 

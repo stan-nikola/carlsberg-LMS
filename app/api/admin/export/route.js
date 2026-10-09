@@ -3,6 +3,7 @@ import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { getExportData } from "@/lib/managerDashboard";
 import { PLATFORM_NAME } from "@/lib/branding";
+import { ROLE_LABELS } from "@/lib/roleLabels";
 import {
   statusLabel,
   fmtDate,
@@ -13,7 +14,6 @@ import {
   xlsxResponse,
 } from "@/lib/excelReport";
 
-const ROLE_LABELS = { employee: "Співробітник", admin: "Адміністратор", hr_manager: "HR-менеджер" };
 
 // GET /api/admin/export — Фаза B1 (статичний багатолистовий дамп бази,
 // на відміну від Фази B3 нижче, яка буде живим Power Query-підключенням).

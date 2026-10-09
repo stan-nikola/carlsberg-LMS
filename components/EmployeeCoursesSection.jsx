@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { SpinnerIcon } from "@/components/icons";
 import { StatusPill } from "@/components/EnrollmentRow";
 import { ENROLLMENT_STATUS_LABELS as STATUS_LABELS } from "@/lib/enrollmentStatus";
+import { LoadingLine } from "@/components/Skeleton";
+import { api } from "@/lib/api";
 
 
 /**
@@ -51,13 +53,7 @@ export function EmployeeCoursesSection({ employeeId }) {
     setAssigning(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/courses/${selectedCourseId}/assign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeIds: [employeeId] }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await api(`/api/admin/courses/${selectedCourseId}/assign`, { method: "POST", body: { employeeIds: [employeeId] } });
       setSelectedCourseId("");
       await load();
     } catch (err) {
@@ -78,10 +74,7 @@ export function EmployeeCoursesSection({ employeeId }) {
 
   if (loading) {
     return (
-      <p className="admin-subtitle">
-        <SpinnerIcon />
-        Завантаження…
-      </p>
+      <LoadingLine />
     );
   }
 
@@ -182,19 +175,13 @@ function EnrollmentEditRow({ enrollment, onSaved, onCancel }) {
     setSaving(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/enrollments/${enrollment.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const data = await api(`/api/admin/enrollments/${enrollment.id}`, { method: "PATCH", body: {
           status,
           scorePercent: scorePercent === "" ? null : Number(scorePercent),
           completedAt: completedAt || null,
           dueDate: dueDate || null,
           adminNote: adminNote.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        } });
       onSaved();
     } catch (err) {
       setError("Помилка: " + err.message);

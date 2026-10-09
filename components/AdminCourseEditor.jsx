@@ -14,10 +14,11 @@ import { ListRowControls, useListOps } from "@/components/ListEditor";
 import { HintDot } from "@/components/HintDot";
 import { numberComponents } from "@/lib/coursePlayerLogic";
 import { moduleCooldownDays } from "@/lib/coursePlan";
-import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import { useDragReorder } from "@/lib/useDragReorder";
 import { HANDLES, boxFromDrag, moveBox, resizeBox, tapBox, toBox, zoneShapeClass, zoneStyle } from "@/lib/hotspotZones";
 import { parseVideoEmbed } from "@/lib/videoEmbed";
+import { LoadingLine } from "@/components/Skeleton";
+import { useDismiss } from "@/lib/useDismiss";
 
 // Десктопний редактор контенту курсу.
 //
@@ -1970,17 +1971,10 @@ function DeviceMockup({ device, components, componentNumbers, stepNumber, totalS
  * всередині нього тихо стискаються.
  */
 function CourseRunPreview({ course, onClose }) {
-  // Компонент монтується лише коли прев'ю відкрите, тож лок безумовний.
-  useBodyScrollLock(true);
+  // Компонент монтується лише коли прев'ю відкрите.
+  useDismiss(onClose);
   const mockupRef = useRef(null);
   const screenZoom = usePhoneScreenZoom(mockupRef, ".course-card", course.previewDevice !== "laptop");
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   // Той самий плаский список екранів, що будує сторінка курсу
   // (app/courses/[slug]/page.js) — плеєр очікує саме таку форму.
@@ -2046,8 +2040,8 @@ function CourseRunPreview({ course, onClose }) {
 function ComponentPreview({ components, componentNumbers, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext, previewDevice, onRunCourse }) {
   const [modalOpen, setModalOpen] = useState(false);
   const isLaptop = previewDevice === "laptop";
-  // Сторінка редактора під модалкою не скролиться, поки вона відкрита.
-  useBodyScrollLock(modalOpen);
+  // Esc закриває модалку, сторінка редактора під нею не скролиться.
+  useDismiss(() => setModalOpen(false), modalOpen);
 
   // Було: авто-відкриття модалки одразу, щойно isLaptop===true — за
   // словами користувача, це означало, що модалка вилазила ВІДРАЗУ при
@@ -2055,16 +2049,6 @@ function ComponentPreview({ components, componentNumbers, stepNumber, totalSteps
   // неочікуваний "сюрприз-модал". Тепер модалка відкривається ЛИШЕ явним
   // кліком (кнопка нижче), як і для телефону.
 
-  // Esc закриває модалку — очікувана клавіатурна поведінка для будь-якого
-  // overlay/діалогу.
-  useEffect(() => {
-    if (!modalOpen) return undefined;
-    function handleKey(e) {
-      if (e.key === "Escape") setModalOpen(false);
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [modalOpen]);
 
   const previewProps = { components, componentNumbers, stepNumber, totalSteps, onBack, onNext, canGoBack, canGoNext };
 
@@ -3167,10 +3151,7 @@ export function AdminCourseEditor({ courseId }) {
   if (loadError) return <p className="admin-page admin-error">Не вдалося завантажити курс: {loadError}</p>;
   if (!course)
     return (
-      <p className="admin-page">
-        <SpinnerIcon />
-        Завантаження…
-      </p>
+      <LoadingLine className="admin-page" />
     );
 
   return (

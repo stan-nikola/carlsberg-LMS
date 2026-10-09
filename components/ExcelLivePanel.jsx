@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { SpinnerIcon } from "@/components/icons";
+import { LoadingLine } from "@/components/Skeleton";
+import { api } from "@/lib/api";
 
 /**
  * "Жива" Excel-книга (Фаза B3) — керування персональними токенами
@@ -53,13 +55,7 @@ export function ExcelLivePanel() {
     setError("");
     setJustCreatedToken(null);
     try {
-      const res = await fetch("/api/admin/tokens", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeId: Number(selectedEmployeeId), label: label.trim() || null }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await api("/api/admin/tokens", { method: "POST", body: { employeeId: Number(selectedEmployeeId), label: label.trim() || null } });
       setJustCreatedToken(data.token);
       setLabel("");
       await load();
@@ -101,10 +97,7 @@ export function ExcelLivePanel() {
       </div>
 
       {loading ? (
-        <p className="admin-subtitle">
-          <SpinnerIcon />
-          Завантаження…
-        </p>
+        <LoadingLine />
       ) : (
         <div className="adm-stack">
           <div className="adm-field-grid">

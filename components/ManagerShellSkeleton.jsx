@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { GearIcon, BellIcon } from "@/components/icons";
-import { MANAGER_NAV as NAV_ITEMS } from "@/components/managerNav";
+import { MANAGER_NAV as NAV_ITEMS } from "@/components/shellNav";
 import { PlatformBrand } from "@/components/PlatformBrand";
 import { PageSkeleton } from "@/components/Skeleton";
 

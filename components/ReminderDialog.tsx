@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { managerPraiseText, managerReminderText } from "@/lib/notificationLogic";
 import { PaperPlaneIcon, SpinnerIcon } from "@/components/icons";
+import { prefersReducedMotion } from "@/lib/motion";
+import { api } from "@/lib/api";
 
 export type ReminderRecipient = { id: number; name: string };
 export type ReminderReason = "overdue" | "behind" | "not_started" | "inactive" | "failed" | "on_track" | "general";
@@ -75,19 +77,13 @@ export function ReminderDialog({
     setBusy(true);
     setError("");
     try {
-      const res = await fetch("/api/manager/reminders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeIds: recipients.map((r) => r.id), courseId, message, kind: mode }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await api("/api/manager/reminders", { method: "POST", body: { employeeIds: recipients.map((r) => r.id), courseId, message, kind: mode } });
       // Летить на КОЖНЕ «Надіслати», а не лише коли sent > 0 (користувач,
       // 2026-10-04): повтор того ж дня сервер не доставляє вдруге (dedupe), і
       // без літачка здавалось, що кнопка не спрацювала. Що саме дійшло — каже
       // рядок результату нижче («вже отримали сьогодні»).
       const rect = sendRef.current?.getBoundingClientRect();
-      if (rect && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (rect && !prefersReducedMotion()) {
         setPlane({ left: rect.left + rect.width / 2 - 14, top: rect.top + rect.height / 2 - 14 });
       }
       setResult({ sent: data.sent, skipped: data.skipped });

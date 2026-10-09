@@ -1,3 +1,5 @@
+import { SpinnerIcon } from "@/components/icons";
+
 /**
  * Скелетон замість спінера «Завантаження…»: сірі плашки у формі майбутнього
  * контенту, по яких іде та сама повільна хвиля, що на кнопках акордеону в
@@ -59,5 +61,15 @@ export function PageSkeleton({ cards = 9 }: { cards?: number }) {
         ))}
       </div>
     </div>
+  );
+}
+
+/** Рядок «⟳ Завантаження…» для адмінки, де скелетон у формі вмісту не потрібен. */
+export function LoadingLine({ className = "admin-subtitle" }: { className?: string }) {
+  return (
+    <p className={className || undefined}>
+      <SpinnerIcon />
+      Завантаження…
+    </p>
   );
 }

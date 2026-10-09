@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { SpinnerIcon, PencilIcon, PeopleIcon, XIcon } from "@/components/icons";
 import { TerritoryPicker } from "@/components/TerritoryPicker";
 import { AccordionField } from "@/components/AccordionField";
+import { LoadingLine } from "@/components/Skeleton";
+import { api } from "@/lib/api";
 
 const KIND_LABELS = { manual: "Ручна (винагорода)", auto: "Автоматична" };
 
@@ -70,10 +72,7 @@ export function AdminBadges() {
       )}
 
       {loading ? (
-        <p className="admin-subtitle">
-          <SpinnerIcon />
-          Завантаження…
-        </p>
+        <LoadingLine />
       ) : (
         <div className="adm-table-wrap">
         <table className="admin-table">
@@ -118,13 +117,7 @@ function BadgeCreateForm({ onCreated, onCancel }) {
     setSaving(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/badges", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), description: description.trim() || null, icon: icon.trim() || "⭐", points: Number(points) || 0, hiddenUntilEarned: hidden }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await api("/api/admin/badges", { method: "POST", body: { title: title.trim(), description: description.trim() || null, icon: icon.trim() || "⭐", points: Number(points) || 0, hiddenUntilEarned: hidden } });
       onCreated(data);
     } catch (err) {
       setError("Помилка: " + err.message);
@@ -350,13 +343,7 @@ function BadgeAwardPanel({ badge, targets, onDone }) {
     setBusy(true);
     setMsg("");
     try {
-      const res = await fetch(`/api/admin/badges/${badge.id}/award`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ positionCodes, territoryIds, employeeIds, note: note.trim() || null }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await api(`/api/admin/badges/${badge.id}/award`, { method: "POST", body: { positionCodes, territoryIds, employeeIds, note: note.trim() || null } });
       setMsg(`Видано ${data.awardedCount} співробітник(ам)${data.skippedCount > 0 ? `, ${data.skippedCount} уже мали цю відзнаку` : ""}.`);
       onDone(data.awardedCount);
     } catch (err) {

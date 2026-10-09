@@ -1,14 +1,9 @@
 import Link from "next/link";
-import { GearIcon, BellIcon, HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon } from "@/components/icons";
+import { GearIcon, BellIcon } from "@/components/icons";
+import { HUB_NAV as TABS } from "@/components/shellNav";
 import { PlatformBrand } from "@/components/PlatformBrand";
 import { PageSkeleton } from "@/components/Skeleton";
 
-const TABS = [
-  { href: "/hub", label: "Головна", Icon: HomeIcon },
-  { href: "/hub/learn", label: "Навчання", Icon: LearnIcon },
-  { href: "/hub/achievements", label: "Досягнення", Icon: AchievementsIcon },
-  { href: "/hub/profile", label: "Профіль", Icon: ProfileIcon },
-];
 
 /**
  * Suspense-фолбек у app/hub/layout.js на час, поки резолвиться
