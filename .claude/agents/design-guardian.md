@@ -33,10 +33,12 @@ auditing anything — don't rely on memory of what the tokens were last
 time, this file changes.
 
 Key facts worth internalizing (but verify against the live file):
-- `--radius-btn: 0` and `--radius-card: 0` — Malty's Button/Card/Select
-  have NO border-radius at all. This is a deliberate rectangular,
-  editorial brand language, not an oversight. `--radius-input: 7px` is
-  the one exception (real Malty Input value).
+- `--radius-btn`/`--radius-card` default to 0 in tokens.css (Malty's
+  rectangular language; `--radius-input: 7px` is Malty's Input value),
+  but a super-admin can override any token for all users on /admin/design
+  (AppSetting `design-tokens`, see `.claude/rules/design-stand.md`), so the
+  live value may be rounded. Never hardcode a radius — always use the
+  token, whatever its current value.
 - Legacy `--radius-xs/sm/md/lg/xl/pill` still exist as aliases for
   non-Malty chrome (phone-frame shell, bottom sheets, avatars) — their
   continued existence does NOT mean every rounded corner is fine. A
@@ -49,14 +51,18 @@ Key facts worth internalizing (but verify against the live file):
   hover (see `.btn-primary-full` in app/globals.css) — never a gradient,
   never a hover color-swap, never `translateY`-only feedback.
 - Progress bars: solid fill color, no gradient, track background
-  `--cb-overlay-10`, height/radius from the `--size-*` scale (see
-  `.ct-progress-track`/`.ct-progress-fill` in app/styles/hub.css).
+  `--cb-overlay-10`, height from the `--size-*` scale, radius from
+  `--chart-bar-radius` (see `.ct-progress-track`/`.ct-progress-fill` in
+  app/styles/hub.css).
 - Typography: `--font-display` (Carlsberg Sans — only weights 300/700/900
   are real; never set 400/500/600/800 on it) for large headings only;
   `--font-body` (Montserrat) for everything else. This is an internal
   employee tool, not a marketing site — do not add hero sections,
-  parallax, or animated counters to login/course/quiz screens. `/admin`
-  stays dense and functional, but on the same tokens.
+  parallax, or animated counters to login/course/quiz screens unless the
+  user asks for one by name. The one-shot reward animations listed in
+  `.claude/rules/animations.md` (e.g. the «+N балів» counter on the
+  player's final screen) are such user decisions — leave them alone.
+  `/admin` stays dense and functional, but on the same tokens.
   **Named exception, 2026-09-19:** the course player's screen-to-screen
   transitions (`.cp-viewport[data-nav]` keyframes, `app/styles/course-player.css`)
   are a deliberate, explicit user decision — asked for by name ("супер
