@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SpinnerIcon } from "@/components/icons";
+import { LoadingLine } from "@/components/Skeleton";
+import { api } from "@/lib/api";
 
 /**
  * Вкладка "Ачивки" на детальній картці співробітника (Фаза C) — список
@@ -45,13 +47,7 @@ export function EmployeeBadgesSection({ employeeId }) {
     setAwarding(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/employees/${employeeId}/badges`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ badgeId: Number(selectedBadgeId), note: note.trim() || null }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await api(`/api/admin/employees/${employeeId}/badges`, { method: "POST", body: { badgeId: Number(selectedBadgeId), note: note.trim() || null } });
       setSelectedBadgeId("");
       setNote("");
       await load();
@@ -70,10 +66,7 @@ export function EmployeeBadgesSection({ employeeId }) {
 
   if (loading) {
     return (
-      <p className="admin-subtitle">
-        <SpinnerIcon />
-        Завантаження…
-      </p>
+      <LoadingLine />
     );
   }
 

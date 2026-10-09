@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
 import { XIcon } from "@/components/icons";
 import { EmployeeDetail } from "@/components/EmployeeDetail";
-import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
+import { useDismiss } from "@/lib/useDismiss";
 
 type Props = {
   employeeId: number;
@@ -21,15 +20,7 @@ type Props = {
  * посилання з дерева й з картки керівника ведуть туди).
  */
 export function EmployeeDrawer({ employeeId, onClose, onChanged }: Props) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  // Поки панель відкрита — сторінка під нею не скролиться.
-  useBodyScrollLock(true);
+  useDismiss(onClose);
 
   return (
     <div

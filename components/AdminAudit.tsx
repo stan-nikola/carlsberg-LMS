@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ExcelIcon, SpinnerIcon, XIcon } from "@/components/icons";
 import { AUDIT_ACTION_LABELS as ACTION_LABELS, AUDIT_CATEGORIES as CATEGORIES, AUDIT_ROLE_LABELS, describeAuditEntry as describe } from "@/lib/auditFormat";
+import { LoadingLine } from "@/components/Skeleton";
 
 type Person = { id: number; name: string; externalCode?: string | null; position?: string | null };
 type Entry = {
@@ -374,9 +375,7 @@ export function AdminAudit() {
       </div>
 
       {!data ? (
-        <p className="admin-hint">
-          <SpinnerIcon /> Завантаження…
-        </p>
+        <LoadingLine className="admin-hint" />
       ) : data.entries.length === 0 ? (
         <p className="admin-hint">Записів за цими фільтрами нема.</p>
       ) : (

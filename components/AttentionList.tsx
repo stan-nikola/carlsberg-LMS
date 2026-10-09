@@ -3,16 +3,8 @@
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { RemindButton } from "@/components/ReminderDialog";
-import type { AttentionItem, PersonSegment } from "@/lib/teamInsights";
+import { SEGMENT_META, type AttentionItem } from "@/lib/teamInsights";
 
-const REASON_PILL: Record<PersonSegment, string> = {
-  overdue: "status-pill-fail",
-  behind: "status-pill-alert",
-  not_started: "status-pill-neutral",
-  inactive: "status-pill-fail",
-  on_track: "status-pill-success",
-  done: "status-pill-neutral",
-};
 
 /**
  * «Потребують уваги» — топ-5 людей за терміновістю (lib/teamInsights.ts
@@ -38,7 +30,7 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
                   <span className="mgr-attention-meta">{person.positionName || "—"}</span>
                   <span className="mgr-attention-reasons">
                     {reasons.map((r) => (
-                      <span key={r.kind} className={`status-pill ${REASON_PILL[r.kind]}`} title={r.courseTitle ? `${r.courseTitle}${r.dueDateLabel ? ` · до ${r.dueDateLabel}` : ""}` : undefined}>
+                      <span key={r.kind} className={`status-pill ${SEGMENT_META[r.kind].pill}`} title={r.courseTitle ? `${r.courseTitle}${r.dueDateLabel ? ` · до ${r.dueDateLabel}` : ""}` : undefined}>
                         {r.label}
                       </span>
                     ))}

@@ -6,6 +6,7 @@ import { MarqueeText } from "@/components/MarqueeText";
 import { Avatar } from "@/components/Avatar";
 import { CameraIcon, SpinnerIcon, XIcon } from "@/components/icons";
 import { CountUp } from "@/components/CountUp";
+import { prefersReducedMotion } from "@/lib/motion";
 
 /**
  * Аватар + ім'я + код + рівень (.profile-card, і на Home, і на Профіль).
@@ -39,7 +40,7 @@ export function ProfileCard({ dbName, levelLabel, avatarUrl = null, editable = f
   // (hover: hover) і без «Зменшити рух»; CSS читає --tilt-* (hub.css).
   useEffect(() => {
     const node = cardRef.current;
-    if (!node || !window.matchMedia?.("(hover: hover)").matches || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return undefined;
+    if (!node || !window.matchMedia?.("(hover: hover)").matches || prefersReducedMotion()) return undefined;
     // 1° і 3px (користувач, 2026-10-04): 6°/10px зі стенду на широкій
     // картці кабінету керівника смикались — краї «росли» й «меншали».
     const MAX = 1;
@@ -66,7 +67,7 @@ export function ProfileCard({ dbName, levelLabel, avatarUrl = null, editable = f
     if (avatarFlipPlayed) return;
     const node = cardRef.current?.querySelector(".avatar");
     if (!node) return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
     avatarFlipPlayed = true;
     // Навмисно без cancel у cleanup: у dev StrictMode прибирає й повертає
     // ефекти на тому САМОМУ вузлі — скасування вбило б єдиний показ.

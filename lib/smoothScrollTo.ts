@@ -1,3 +1,5 @@
+import { prefersReducedMotion } from "@/lib/motion";
+
 /**
  * Прокрутити ЕЛЕМЕНТ у полі зору за ТОЧНО задану тривалість (2026-09-22,
  * рішення користувача: швидкість скролу до потрібного модуля плану курсу
@@ -63,7 +65,7 @@ export function smoothScrollElementIntoView(
   const delta = destTop - startTop;
   if (Math.abs(delta) < 2) return;
 
-  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+  if (prefersReducedMotion()) {
     container.scrollTop = destTop;
     return;
   }

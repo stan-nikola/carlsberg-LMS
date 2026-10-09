@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import Link, { useLinkStatus } from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useLayoutEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { GearIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
-import { MANAGER_NAV as NAV_ITEMS, isManagerNavActive as isNavActive } from "@/components/managerNav";
+import { MANAGER_NAV as NAV_ITEMS, isManagerNavActive as isNavActive } from "@/components/shellNav";
 import { PlatformBrand } from "@/components/PlatformBrand";
-import { consumeProgressDirty } from "@/lib/progressDirty";
 import { NotificationBell } from "@/components/NotificationBell";
 import { SettingsSheet } from "@/components/SettingsSheet";
 import { usePullToRefresh } from "@/components/usePullToRefresh";
-import { finishLogout, prepareLogout } from "@/lib/logoutCleanup";
+import { NavPending, logout, useShellEffects, useTabPill } from "@/components/shellCommon";
 
 // Згорнутий сайдбар — особиста зручність, localStorage (як в AdminShell).
 const SIDEBAR_COLLAPSED_KEY = "manager-sidebar-collapsed";
@@ -44,21 +43,10 @@ const SIDEBAR_COLLAPSED_KEY = "manager-sidebar-collapsed";
  * самий підхід, що вже використовує .stage (SSR-безпечно, без
  * гідратаційного "стрибка").
  */
-/** Маркер «перехід триває» всередині Link (useLinkStatus працює лише в
- *  нащадку Link); стилізує саму вкладку через :has() у CSS. */
-function NavPending() {
-  const { pending } = useLinkStatus();
-  return <span className={`nav-pending${pending ? " is-pending" : ""}`} aria-hidden="true" />;
-}
-
 export function ManagerShell({ hasNewCourses = false, children }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const tabbarRef = useRef(null);
-  const pillRef = useRef(null);
-  const tabRefs = useRef(new Map());
 
   // Без ref — window-режим (/manager скролляться самим вікном, не
   // внутрішньою карткою, як /hub, див. usePullToRefresh.js). Оновлення —
@@ -66,15 +54,9 @@ export function ManagerShell({ hasNewCourses = false, children }) {
   // сторінка.
   const { pull, threshold } = usePullToRefresh();
 
-  // Щойно збережено модуль/курс — цей екран у кеші браузера ще старий.
-  useEffect(() => {
-    if (consumeProgressDirty()) router.refresh();
-  }, [pathname, router]);
-
-  // Підказка для redirects() у next.config.mjs: /hub -> /manager до рендера.
-  useEffect(() => {
-    document.cookie = "carls_shell=manager; path=/; max-age=31536000; samesite=lax";
-  }, []);
+  useShellEffects("manager");
+  // Сторінка поза вкладками (сповіщення з дзвоника) — капсулу ховаємо.
+  const { tabbarRef, pillRef, tabRef } = useTabPill(NAV_ITEMS.find((t) => isNavActive(pathname, t.href))?.href);
 
   useLayoutEffect(() => {
     try {
@@ -94,12 +76,6 @@ export function ManagerShell({ hasNewCourses = false, children }) {
       }
       return next;
     });
-  }
-
-  async function handleLogout() {
-    if (!(await prepareLogout())) return;
-    await fetch("/api/auth/logout", { method: "POST" });
-    finishLogout();
   }
 
   // Поки що єдине джерело маркера "нове" — недавно призначені курси, але
@@ -179,35 +155,6 @@ export function ManagerShell({ hasNewCourses = false, children }) {
     </nav>
   );
 
-  // Капсула під активною вкладкою — той самий прийом, що й components/HubShell.jsx
-  // (дзеркальна копія: два окремих компоненти рендерять свій таббар, тож
-  // логіка виміру дублюється, а не виноситься в спільний хук — так само,
-  // як уже дублюється сама розмітка NAV_ITEMS/TABS). left:0 на .tab-pill
-  // в CSS обов'язковий — інакше капсула "тікає" вбік (знайдений раніше
-  // баг на прототипі, той самий підводний камінь для будь-якого
-  // абсолютно спозиціонованого елемента у flex-контейнері).
-  useLayoutEffect(() => {
-    const pill = pillRef.current;
-    const bar = tabbarRef.current;
-    if (!pill || !bar) return;
-    // Сторінка поза вкладками (сповіщення з дзвоника) — капсулу ховаємо, як
-    // у HubShell, а не лишаємо під «Головною» з неактивною сірою іконкою.
-    const activeHref = NAV_ITEMS.find((t) => isNavActive(pathname, t.href))?.href;
-    pill.style.opacity = activeHref ? "1" : "0";
-    const activeEl = activeHref && tabRefs.current.get(activeHref);
-    if (!activeEl) return;
-    const move = () => {
-      const barRect = bar.getBoundingClientRect();
-      const elRect = activeEl.getBoundingClientRect();
-      pill.style.width = elRect.width + "px";
-      pill.style.height = elRect.height + "px";
-      pill.style.transform = `translate(${elRect.left - barRect.left}px, ${elRect.top - barRect.top}px)`;
-    };
-    move();
-    window.addEventListener("resize", move);
-    return () => window.removeEventListener("resize", move);
-  }, [pathname]);
-
   return (
     <div className="manager-shell">
       {/* ---- Десктоп/планшет (≥900px): постійний сайдбар зліва ---- */}
@@ -275,7 +222,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
               aria-current={isActive ? "page" : undefined}
               title={label}
             >
-              <span className="tab-btn-indicator" ref={(el) => { if (el) tabRefs.current.set(href, el); else tabRefs.current.delete(href); }}>
+              <span className="tab-btn-indicator" ref={tabRef(href)}>
                 <Icon filled={isActive} />
                 {navBadges[href] && <span className="mgr-nav-dot" aria-hidden="true" />}
               </span>
@@ -285,7 +232,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
         })}
       </nav>
 
-      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} onLogout={handleLogout} />
+      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} onLogout={logout} />
     </div>
   );
 }

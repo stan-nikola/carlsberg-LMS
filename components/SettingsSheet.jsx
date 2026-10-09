@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SettingsGearIcon, LogoutIcon, DownloadIcon, SpinnerIcon } from "@/components/icons";
+import { GearIcon, LogoutIcon, DownloadIcon, SpinnerIcon } from "@/components/icons";
 import { InstallGuideModal } from "@/components/InstallGuide";
 import { isStandalone } from "@/lib/installGuide";
 import { BottomSheet } from "@/components/BottomSheet";
@@ -78,7 +78,7 @@ export function SettingsSheet({ open, onClose, onLogout }) {
             <div className="settings-row">
               <div className="settings-label">
                 <span className="settings-ico">
-                  <SettingsGearIcon />
+                  <GearIcon />
                 </span>
                 <div>
                   <div className="settings-t">Розмір тексту</div>

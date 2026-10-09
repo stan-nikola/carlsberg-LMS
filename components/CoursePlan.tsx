@@ -9,6 +9,7 @@ import { buildProgressPath, buildSnakePath, type SnakePoint } from "@/lib/snakeP
 import { isFullyInView, smoothScrollElementIntoView } from "@/lib/smoothScrollTo";
 import { cubicBezierTimeAtProgress } from "@/lib/cubicBezier";
 import { useSeenValue } from "@/lib/useSeenValue";
+import { prefersReducedMotion } from "@/lib/motion";
 
 /**
  * План курсу — перше, що людина бачить, відкривши курс: склад курсу,
@@ -290,7 +291,7 @@ export function CoursePlanPanel({
   useLayoutEffect(() => {
     const passed = plan.modules.filter((m) => m.status === "passed").length;
     const cell = stopIndex >= 0 ? cellRefs.current[stopIndex] : null;
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotion = prefersReducedMotion();
     const wantScroll = !preview && !reduceMotion && passed >= AUTOSCROLL_MIN_PASSED && cell != null && !isFullyInView(cell);
     if (!wantScroll) {
       const id = requestAnimationFrame(() => setMounted(true));

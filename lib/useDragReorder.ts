@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { moveAdjacent, reorderBefore } from "@/lib/dragReorder";
+import { prefersReducedMotion } from "@/lib/motion";
 
 /** Скільки пікселів руху вважати «ще не тягнемо» — не смикати рядок на
  *  тремтіння пальця при звичайному натисканні на ручку. */
@@ -148,7 +149,7 @@ export function useDragReorder<T>({
     if (!container) return;
     const prevTops = rowTopsRef.current;
     const nextTops = new Map<T, number>();
-    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || document.visibilityState !== "visible";
+    const reduced = prefersReducedMotion() || document.visibilityState !== "visible";
     for (const node of container.querySelectorAll<HTMLElement>("[data-drag-row]")) {
       const id = nodeToIdRef.current.get(node);
       if (id === undefined) continue;

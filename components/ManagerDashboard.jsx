@@ -284,16 +284,6 @@ function rateColor(pct, allValues) {
   return `color-mix(in srgb, var(--cb-success) ${mix}%, var(--cb-alert) ${100 - mix}%)`;
 }
 
-/**
- * Пояснення до діаграми по ховеру — спільний HintDot. Кожен блок
- * дашборда рахує щось своє, і зі схожих назв ("Виконано" / "Складено" /
- * "З першої спроби") різницю не видно: підказка каже, що САМЕ в
- * знаменнику, бо неправильно прочитана метрика гірша за відсутню.
- */
-function ChartHint({ text }) {
-  return <HintDot text={text} />;
-}
-
 
 /**
  * Десктопний дашборд /manager — KPI, "Мої курси", 2 графіки (кільце +
@@ -1140,9 +1130,6 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
     return () => io.disconnect();
   }, [enabledKey, state.data, gridReady, gridEpoch]);
   const live = (id) => barsAnimated && inView.has(id);
-  // Числа на картках дашборда статичні (користувач, 2026-10-05: «убрать анимацию
-  // цифр совсем, только диаграммы») — 59 number-flow одночасно гальмували скрол.
-  const n = (_id, v) => v;
 
   // "Порівняння команд" (нова картка, блок АСМ) — кожен ПРЯМИЙ підлеглий
   // керівника (для АСМ — його СВ, для СВ — просто кожна людина окремо,
@@ -1282,7 +1269,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
             <span className="admin-hint mgr-card-note">
               {team.statusBar.total} {pluralPeople(team.statusBar.total)} із призначеннями
             </span>
-            <ChartHint text="Кожна людина рівно в ОДНОМУ сегменті — за найгіршим своїм станом (прострочено → відстає → не почала → неактивна → за графіком). Число в сегменті — люди; друге число поруч у легенді — скільки курсів у цьому стані саме в цих людей. Клік відкриває список саме цих людей." />
+            <HintDot text="Кожна людина рівно в ОДНОМУ сегменті — за найгіршим своїм станом (прострочено → відстає → не почала → неактивна → за графіком). Число в сегменті — люди; друге число поруч у легенді — скільки курсів у цьому стані саме в цих людей. Клік відкриває список саме цих людей." />
           </h2>
           <TeamStatusBar data={team.statusBar} />
         </div>
@@ -1294,7 +1281,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card">
           <h2>
             <PeopleIcon /> <span className="mgr-card-title">Потребують уваги</span>
-            <ChartHint text="П'ятеро найтерміновіших: прострочення важать найбільше, далі відставання від графіка, не розпочате й відсутність на платформі. Чипи називають одиницю («2 курси прострочено»), а «Нагадати» надсилає сповіщення з готовим текстом за причиною." />
+            <HintDot text="П'ятеро найтерміновіших: прострочення важать найбільше, далі відставання від графіка, не розпочате й відсутність на платформі. Чипи називають одиницю («2 курси прострочено»), а «Нагадати» надсилає сповіщення з готовим текстом за причиною." />
           </h2>
           <AttentionList items={team.attention} />
         </div>
@@ -1304,7 +1291,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card">
           <h2>
             <RingsIcon /> <span className="mgr-card-title">Показники команди</span>
-            <ChartHint text="Усі чотири кільця рахують ПРИЗНАЧЕННЯ (людина × курс), лише знаменники різні: «Виконано» — частка доведених до кінця; «Складено» — з них ті, що набрали прохідний бал курсу; «Вчасно» — вкладені в дедлайн серед тих, де дедлайн уже вирішено; «Розпочато» — ті, де є будь-який рух. Скільки ЛЮДЕЙ у якому стані — у полосі «Стан команди» вгорі. Клік веде до того, по чому треба діяти: «Вчасно» — до тих, хто не вклався, «Розпочато» — до ще не розпочатих." />
+            <HintDot text="Усі чотири кільця рахують ПРИЗНАЧЕННЯ (людина × курс), лише знаменники різні: «Виконано» — частка доведених до кінця; «Складено» — з них ті, що набрали прохідний бал курсу; «Вчасно» — вкладені в дедлайн серед тих, де дедлайн уже вирішено; «Розпочато» — ті, де є будь-який рух. Скільки ЛЮДЕЙ у якому стані — у полосі «Стан команди» вгорі. Клік веде до того, по чому треба діяти: «Вчасно» — до тих, хто не вклався, «Розпочато» — до ще не розпочатих." />
           </h2>
           {/* Кожне кільце — посилання на список за тим самим критерієм:
               «Вчасно» веде до доповнення (хто НЕ вчасно), «Розпочали» —
@@ -1326,7 +1313,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card mgr-trend-card">
           <h2>
             <CalendarIcon /> <span className="mgr-card-title">Активність по тижнях</span>
-            <ChartHint text="Скільки модулів команда склала кожного з останніх 6 тижнів — за реальними датами складання. Наведіть на стовпчик, щоб побачити, хто саме складав того тижня." />
+            <HintDot text="Скільки модулів команда склала кожного з останніх 6 тижнів — за реальними датами складання. Наведіть на стовпчик, щоб побачити, хто саме складав того тижня." />
           </h2>
           {weeklyTrend.every((w) => w.count === 0) ? (
             <p className="admin-hint">Немає завершених модулів за останні 6 тижнів.</p>
@@ -1351,7 +1338,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                       style={{ height: live("trend") ? `${Math.max(4, (w.count / trendMax) * 100)}%` : "0%" }}
                     />
                   </div>
-                  <span className="mgr-trend-count">{n("trend", w.count)}</span>
+                  <span className="mgr-trend-count">{w.count}</span>
                   {/* Коротко, в одному стилі з «-1 тиж.»: повне «Цей тиждень» на
                       телефоні переносилось на два рядки, і стовпчик над ним
                       зсувався вгору відносно сусідів (2026-10-03). Повний
@@ -1373,7 +1360,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card">
           <h2>
             <ClockIcon /> <span className="mgr-card-title">Дедлайни на горизонті</span>
-            <ChartHint text="Незавершені призначення за тим, скільки лишилось до дедлайну. Завершені сюди не входять — у них дедлайн уже вирішено. Відповідає на питання «кому написати цього тижня», а не «що вже сталось»." />
+            <HintDot text="Незавершені призначення за тим, скільки лишилось до дедлайну. Завершені сюди не входять — у них дедлайн уже вирішено. Відповідає на питання «кому написати цього тижня», а не «що вже сталось»." />
           </h2>
           {deadlineTotal === 0 ? (
             <p className="admin-hint">Немає незавершених призначень.</p>
@@ -1389,7 +1376,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                         style={{ width: `${live("deadlines") ? (b.count / deadlineMax) * 100 : 0}%` }}
                       />
                     </div>
-                    <span className="mgr-bar-value">{n("deadlines", b.count)}</span>
+                    <span className="mgr-bar-value">{b.count}</span>
                   </Link>
                 </li>
               ))}
@@ -1405,7 +1392,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card">
           <h2>
             <MedalIcon /> <span className="mgr-card-title">Розподіл балів</span>
-            <ChartHint text="Скільки завершених курсів потрапило в кожен діапазон балу. Показує розкид, який ховається за одним середнім балом. Межі тут — просто рівні відрізки шкали, а не прохідний бал: він свій у кожного курсу." />
+            <HintDot text="Скільки завершених курсів потрапило в кожен діапазон балу. Показує розкид, який ховається за одним середнім балом. Межі тут — просто рівні відрізки шкали, а не прохідний бал: він свій у кожного курсу." />
           </h2>
           {scoreTotal === 0 ? (
             <p className="admin-hint">Немає завершених курсів із балом.</p>
@@ -1421,7 +1408,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                         style={{ width: `${live("scoreDist") ? (b.count / scoreDistMax) * 100 : 0}%` }}
                       />
                     </div>
-                    <span className="mgr-bar-value">{n("scoreDist", b.count)}</span>
+                    <span className="mgr-bar-value">{b.count}</span>
                   </Link>
                 </li>
               ))}
@@ -1437,7 +1424,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card mgr-first-try-card">
           <h2>
             <CheckIcon /> <span className="mgr-card-title">З першої спроби</span>
-            <ChartHint text="Частка призначень, де ПЕРША ж спроба була успішною, серед усіх, де спроба взагалі була. Ті, хто склав із другого разу або не склав досі, знижують показник. Низьке значення при високому «Складено» — курс беруть повторами, а не з розуміння." />
+            <HintDot text="Частка призначень, де ПЕРША ж спроба була успішною, серед усіх, де спроба взагалі була. Ті, хто склав із другого разу або не склав досі, знижують показник. Низьке значення при високому «Складено» — курс беруть повторами, а не з розуміння." />
           </h2>
           {stats.firstAttempt.total === 0 ? (
             <p className="admin-hint">Немає жодної завершеної спроби.</p>
@@ -1446,12 +1433,12 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
               <CompletionRing active={inView.has("firstTry")} instant={playedAtMount.has("firstTry")} pct={stats.firstAttempt.pct} label="З першої спроби" />
               <ul className="mgr-first-try-legend">
                 <li>
-                  <b>{n("firstTry", stats.firstAttempt.passedFirst)}</b>
+                  <b>{stats.firstAttempt.passedFirst}</b>
                   <span>склали одразу</span>
                 </li>
                 <li>
                   <Link href="/manager/team?view=courses&retried=1" className="mgr-card-link">
-                    <b>{n("firstTry", stats.firstAttempt.retried)}</b>
+                    <b>{stats.firstAttempt.retried}</b>
                     <span>з другої та далі</span>
                   </Link>
                 </li>
@@ -1469,7 +1456,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card">
           <h2>
             <ClockIcon /> <span className="mgr-card-title">Час на проходження</span>
-            <ChartHint text="Скільки часу займала одна спроба проходження. Поруч — МЕДІАНА, а не середнє: одна забута відкритою вкладка на три години зсунула б середнє так, що воно перестало б описувати команду. «У фокусі» — час, коли вкладка справді була активною; велика різниця між ним і загальним означає «відкрив і пішов»." />
+            <HintDot text="Скільки часу займала одна спроба проходження. Поруч — МЕДІАНА, а не середнє: одна забута відкритою вкладка на три години зсунула б середнє так, що воно перестало б описувати команду. «У фокусі» — час, коли вкладка справді була активною; велика різниця між ним і загальним означає «відкрив і пішов»." />
           </h2>
           {stats.durations.total === 0 ? (
             <p className="admin-hint">Немає жодної спроби з виміряним часом.</p>
@@ -1487,7 +1474,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                         }}
                       />
                     </div>
-                    <span className="mgr-bar-value">{n("duration", b.count)}</span>
+                    <span className="mgr-bar-value">{b.count}</span>
                   </li>
                 ))}
               </ul>
@@ -1512,7 +1499,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card">
           <h2>
             <TrendIcon /> <span className="mgr-card-title">% складання по курсу</span>
-            <ChartHint text="Скільки людей РЕАЛЬНО склали курс (набрали його прохідний бал) із тих, кому він призначений. Той, хто дійшов до кінця й не набрав порогу, у зелену частину не рахується." />
+            <HintDot text="Скільки людей РЕАЛЬНО склали курс (набрали його прохідний бал) із тих, кому він призначений. Той, хто дійшов до кінця й не набрав порогу, у зелену частину не рахується." />
           </h2>
           {stats.courseBreakdown.length === 0 ? (
             <p className="admin-hint">Немає даних.</p>
@@ -1537,7 +1524,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                         <div className="mgr-bar-fill" style={{ width: `${live("courseBreakdown") ? c.pct : 0}%` }} />
                       </div>
                       <span className="mgr-bar-value">
-                        {n("courseBreakdown", c.completed, "a")}/{c.total} · {n("courseBreakdown", c.pct, "b")}%
+                        {c.completed}/{c.total} · {c.pct}%
                       </span>
                     </div>
                     {/* Воронка курсу: призначено → почали → склали → 100%;
@@ -1569,7 +1556,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card">
           <h2>
             <CourseIcon /> <span className="mgr-card-title">Найскладніші модулі</span>
-            <ChartHint text="Модулі, які команда найчастіше провалює — за кількістю людей, що не набрали прохідний бал модуля. Сортування за кількістю провалів, а не за відсотком: «1 з 1» дало б 100% і витіснило б реально проблемний «3 з 8». Модулі без жодного провалу в список не потрапляють. «У середньому спроб» — скільки разів людині доводилось проходити модуль: 1.0 означає «склали з першого разу», більше — матеріал давався важко навіть тим, хто зрештою склав." />
+            <HintDot text="Модулі, які команда найчастіше провалює — за кількістю людей, що не набрали прохідний бал модуля. Сортування за кількістю провалів, а не за відсотком: «1 з 1» дало б 100% і витіснило б реально проблемний «3 з 8». Модулі без жодного провалу в список не потрапляють. «У середньому спроб» — скільки разів людині доводилось проходити модуль: 1.0 означає «склали з першого разу», більше — матеріал давався важко навіть тим, хто зрештою склав." />
           </h2>
           {stats.hardestModules.length === 0 ? (
             <p className="admin-hint">Жоден модуль не провалено — складних місць поки немає.</p>
@@ -1594,7 +1581,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                       />
                     </div>
                     <span className="mgr-bar-value">
-                      {n("hardestModules", m.failed, "a")}/{m.total} · {n("hardestModules", m.pct, "b")}%
+                      {m.failed}/{m.total} · {m.pct}%
                     </span>
                   </Link>
                 </li>
@@ -1614,7 +1601,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card">
           <h2>
             <PeopleIcon /> <span className="mgr-card-title">Люди × курси</span>
-            <ChartHint text="Уся команда одним поглядом: рядок — людина (проблемні зверху), стовпчик — курс, клітинка — стан призначення. Клік по клітинці відкриває цей курс у цієї людини, по імені — сторінку людини, по назві курсу — усі призначення курсу." />
+            <HintDot text="Уся команда одним поглядом: рядок — людина (проблемні зверху), стовпчик — курс, клітинка — стан призначення. Клік по клітинці відкриває цей курс у цієї людини, по імені — сторінку людини, по назві курсу — усі призначення курсу." />
           </h2>
           <TeamMatrix data={team.matrix} />
         </div>
@@ -1628,7 +1615,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card" ref={teamCompareSectionRef}>
           <h2>
             <PeopleIcon /> <span className="mgr-card-title">Порівняння команд</span>
-            <ChartHint text="Для кожного прямого підлеглого — підсумок по ньому й усіх, хто під ним (не лише його власні призначення). Дозволяє побачити, чия команда відстає, а не лише загальний середній по всіх одразу." />
+            <HintDot text="Для кожного прямого підлеглого — підсумок по ньому й усіх, хто під ним (не лише його власні призначення). Дозволяє побачити, чия команда відстає, а не лише загальний середній по всіх одразу." />
           </h2>
           {!teamTree.data ? (
             <LinesSkeleton rows={5} />
@@ -1649,7 +1636,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                       <div className="mgr-bar-fill" style={{ width: `${live("teamCompare") ? t.pct : 0}%` }} />
                     </div>
                     <span className="mgr-bar-value">
-                      {n("teamCompare", t.completed, "a")}/{t.total} · {n("teamCompare", t.pct, "b")}%
+                      {t.completed}/{t.total} · {t.pct}%
                     </span>
                   </Link>
                 </li>
@@ -1668,7 +1655,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
         <div className="mgr-chart-card">
           <h2>
             <CourseIcon /> <span className="mgr-card-title">Найскладніші питання</span>
-            <ChartHint text="Питання (не цілі модулі), на яких команда найчастіше помиляється, по всіх курсах разом. Точніше за «Найскладніші модулі» — показує конкретне питання, яке варто переформулювати чи пояснити в матеріалі. Питання з менш ніж 3 відповідями в список не потрапляють." />
+            <HintDot text="Питання (не цілі модулі), на яких команда найчастіше помиляється, по всіх курсах разом. Точніше за «Найскладніші модулі» — показує конкретне питання, яке варто переформулювати чи пояснити в матеріалі. Питання з менш ніж 3 відповідями в список не потрапляють." />
           </h2>
           {hardestQuestions.loading ? (
             // Скелет на висоту готового списку (до 8 питань = картка L): інакше картка
@@ -1700,7 +1687,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
                     <div className="mgr-bar-fill mgr-bar-fill-alert" style={{ width: `${live("hardestQuestions") ? q.pct : 0}%` }} />
                   </div>
                   <span className="mgr-bar-value">
-                    {n("hardestQuestions", q.correct, "a")}/{q.total} · {n("hardestQuestions", q.pct, "b")}%
+                    {q.correct}/{q.total} · {q.pct}%
                   </span>
                 </li>
               ))}

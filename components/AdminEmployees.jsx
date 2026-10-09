@@ -5,12 +5,10 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronIcon, SpinnerIcon } from "@/components/icons";
 import { EmployeeDrawer } from "@/components/EmployeeDrawer";
 import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
+import { LoadingLine } from "@/components/Skeleton";
+import { ROLE_LABELS } from "@/lib/roleLabels";
+import { api } from "@/lib/api";
 
-const ROLE_LABELS = {
-  employee: "Співробітник",
-  admin: "Адміністратор",
-  hr_manager: "HR-менеджер",
-};
 
 function EmployeeCreateForm({ onCreated, onCancel }) {
   const [name, setName] = useState("");
@@ -24,13 +22,7 @@ function EmployeeCreateForm({ onCreated, onCancel }) {
     setSaving(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/employees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), externalCode: externalCode.trim(), email: email.trim() || null }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await api("/api/admin/employees", { method: "POST", body: { name: name.trim(), externalCode: externalCode.trim(), email: email.trim() || null } });
       onCreated(data);
     } catch (err) {
       setError("Помилка створення: " + err.message);
@@ -214,10 +206,7 @@ export function AdminEmployees() {
       </div>
 
       {loading ? (
-        <p className="admin-subtitle">
-          <SpinnerIcon />
-          Завантаження…
-        </p>
+        <LoadingLine />
       ) : employees.length === 0 ? (
         <p className="admin-subtitle">Нікого не знайдено.</p>
       ) : (

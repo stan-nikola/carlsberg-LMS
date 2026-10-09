@@ -99,13 +99,15 @@ export type TeamPerson = {
   activeWeeks: number[];
 };
 
-export const SEGMENT_META: Record<PersonSegment, { label: string }> = {
-  overdue: { label: "Прострочено" },
-  behind: { label: "Відстають" },
-  not_started: { label: "Не почали" },
-  inactive: { label: "Неактивні" },
-  on_track: { label: "За графіком" },
-  done: { label: "Виконано" },
+/** Підпис і колір пілюлі стану людини (.status-pill-*). «Неактивні» — червоні:
+ *  є що доробити, а людина мовчить (рішення користувача 2026-09-28). */
+export const SEGMENT_META: Record<PersonSegment, { label: string; pill: string }> = {
+  overdue: { label: "Прострочено", pill: "status-pill-fail" },
+  behind: { label: "Відстають", pill: "status-pill-alert" },
+  not_started: { label: "Не почали", pill: "status-pill-neutral" },
+  inactive: { label: "Неактивні", pill: "status-pill-fail" },
+  on_track: { label: "За графіком", pill: "status-pill-success" },
+  done: { label: "Виконано", pill: "status-pill-neutral" },
 };
 
 /** 1 курс / 2 курси / 5 курсів. */

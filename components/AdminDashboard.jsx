@@ -24,6 +24,9 @@ import { HintDot } from "@/components/HintDot";
 import { CoursePacingCalculator } from "@/components/CoursePacingCalculator";
 import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
 import { STREAK_PRESET_MESSAGES } from "@/lib/streakMessages";
+import { LoadingLine } from "@/components/Skeleton";
+import { api } from "@/lib/api";
+import { useDismiss } from "@/lib/useDismiss";
 
 // Дашборд /admin: курси розгортаються списком своїх модулів (клік по
 // заголовку курсу), клік по модулю веде в редактор курсу (components/
@@ -578,13 +581,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
     setAssignResult("");
     setAssigning(true);
     try {
-      const res = await fetch(`/api/admin/courses/${course.id}/assign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ positionCodes: targetPositions, territoryIds: targetTerritories, employeeIds: targetEmployeeIds }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await api(`/api/admin/courses/${course.id}/assign`, { method: "POST", body: { positionCodes: targetPositions, territoryIds: targetTerritories, employeeIds: targetEmployeeIds } });
       setAssignResult(
         `Призначено ${data.assignedCount} співробітник(ів)${data.skippedCount > 0 ? `, ${data.skippedCount} вже мали це призначення раніше` : ""}.`
       );
@@ -1206,6 +1203,7 @@ export function AdminDashboard() {
   const [folders, setFolders] = useState([]);
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
+  useDismiss(() => setShowCreateFolder(false), showCreateFolder);
   const [newFolderName, setNewFolderName] = useState("");
   const [folderError, setFolderError] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -1304,13 +1302,7 @@ export function AdminDashboard() {
     setFolderError("");
     setCreatingFolder(true);
     try {
-      const res = await fetch("/api/admin/course-folders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, parentId: currentFolderId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await api("/api/admin/course-folders", { method: "POST", body: { name, parentId: currentFolderId } });
       setFolders((fs) => [...fs, data]);
       setNewFolderName("");
       setShowCreateFolder(false);
@@ -1566,7 +1558,6 @@ export function AdminDashboard() {
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowCreateFolder(false);
           }}
-          onKeyDown={(e) => e.key === "Escape" && setShowCreateFolder(false)}
         >
           <div className="adm-modal" role="dialog" aria-modal="true" aria-labelledby="newFolderModalTitle">
             <h2 id="newFolderModalTitle" className="adm-modal-title">
@@ -1670,10 +1661,7 @@ export function AdminDashboard() {
       {isSearching && <p className="admin-hint" style={{ marginBottom: 8 }}>Пошук по всьому каталогу, не лише поточній папці.</p>}
 
       {!courses ? (
-        <p>
-          <SpinnerIcon />
-          Завантаження…
-        </p>
+        <LoadingLine className="" />
       ) : courses.length === 0 ? (
         <p>Курсів ще немає.</p>
       ) : visibleCourses.length === 0 && visibleFolders.length === 0 ? (

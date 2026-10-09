@@ -6,12 +6,9 @@ import { SpinnerIcon } from "@/components/icons";
 import { EmployeeBadgesSection } from "@/components/EmployeeBadgesSection";
 import { EmployeeCoursesSection } from "@/components/EmployeeCoursesSection";
 import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
+import { LoadingLine } from "@/components/Skeleton";
+import { ROLE_LABELS } from "@/lib/roleLabels";
 
-const ROLE_LABELS = {
-  employee: "Співробітник",
-  admin: "Адміністратор",
-  hr_manager: "HR-менеджер",
-};
 
 /**
  * Детальна картка співробітника (Фаза A адмінки) — повний редактор полів,
@@ -204,10 +201,7 @@ export function EmployeeDetail({ employeeId, compact = false, onChanged }) {
 
   if (loading) {
     return (
-      <p className="admin-subtitle">
-        <SpinnerIcon />
-        Завантаження…
-      </p>
+      <LoadingLine />
     );
   }
   if (error) return <p className="admin-error">{error}</p>;

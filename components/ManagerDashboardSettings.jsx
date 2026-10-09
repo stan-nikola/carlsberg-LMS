@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { XIcon } from "@/components/icons";
+import { useDismiss } from "@/lib/useDismiss";
 
 /**
  * Каталог карток-діаграм дашборда /manager (components/ManagerDashboard.jsx)
@@ -41,6 +42,7 @@ const GROUP_META = {
 const GROUP_ORDER = ["sv", "asm", "td"];
 
 export function ManagerDashboardSettings({ enabled, onToggle, onClose, onResetLayout }) {
+  useDismiss(onClose);
   return createPortal(
     <div className="mgr-drawer-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="mgr-drawer" role="dialog" aria-modal="true" aria-label="Налаштування діаграм дашборда">

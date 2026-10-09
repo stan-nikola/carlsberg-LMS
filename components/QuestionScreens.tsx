@@ -7,6 +7,7 @@ import { renderRichMarks } from "@/lib/richText";
 import { useDragReorder } from "@/lib/useDragReorder";
 import { answerFor, isAnswerDone, viewContent, type AnswerState } from "@/lib/grading";
 import { AnswerStatus } from "@/components/AnswerStatus";
+import { prefersReducedMotion } from "@/lib/motion";
 
 type Img = { url: string; caption?: string };
 type QuestionProps = {
@@ -297,7 +298,7 @@ export function MatchingScreen({ component, screenNumber, answer, onAnswer, onZo
   const prevTops = useRef(new Map<string, number>());
   const slid = useRef(false);
   useLayoutEffect(() => {
-    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const reduced = prefersReducedMotion();
     rightRefs.current.forEach((el, key) => {
       const top = el.offsetTop;
       const prev = prevTops.current.get(key);

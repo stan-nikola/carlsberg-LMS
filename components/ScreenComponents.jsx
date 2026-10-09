@@ -10,9 +10,9 @@ import { peekScrollTo, scrollToEnd } from "@/lib/scrollHints";
 import { nextTimelineTarget } from "@/lib/coursePlayerLogic";
 import { renderRichText, renderRichMarks } from "@/lib/richText";
 import { MorphRevealIcon } from "@/components/MorphRevealIcon";
-import { useBodyScrollLock } from "@/lib/useBodyScrollLock";
 import { zoneShapeClass, zoneStyle } from "@/lib/hotspotZones";
 import { parseVideoEmbed } from "@/lib/videoEmbed";
+import { useDismiss } from "@/lib/useDismiss";
 
 /**
  * Інтерактивні компоненти екрана, портовані з попередньої vanilla-JS
@@ -1240,14 +1240,7 @@ export function HotspotScreen({ component, screenNumber, answer, onAnswer }) {
  * поверх усього, закривається по фону/Esc/кнопці.
  */
 export function ImageLightbox({ src, alt, onClose }) {
-  useBodyScrollLock(Boolean(src));
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useDismiss(onClose, Boolean(src));
 
   if (!src) return null;
   return (

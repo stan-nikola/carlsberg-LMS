@@ -1,22 +1,11 @@
 import Link from "next/link";
 import { SEGMENT_META, pluralCourses, pluralPeople, type PersonSegment, type StatusBarSegment } from "@/lib/teamInsights";
 
-const SEGMENT_PILL: Record<PersonSegment, string> = {
-  overdue: "status-pill-fail",
-  behind: "status-pill-alert",
-  not_started: "status-pill-neutral",
-  // "Неактивні" — тепер справді проблемний стан (є що доробити/перескласти
-  // й людина мовчить), тож червоний, а не сірий (рішення користувача,
-  // 2026-09-28). "Усе здано" переїхало в окремий сірий "done".
-  inactive: "status-pill-fail",
-  on_track: "status-pill-success",
-  done: "status-pill-neutral",
-};
 
 /** Статус людини одним словом — той самий .status-pill, що й скрізь. */
 export function SegmentPill({ segment }: { segment: PersonSegment | null }) {
   if (!segment) return <span className="status-pill status-pill-neutral">Без призначень</span>;
-  return <span className={`status-pill ${SEGMENT_PILL[segment]}`}>{SEGMENT_META[segment].label}</span>;
+  return <span className={`status-pill ${SEGMENT_META[segment].pill}`}>{SEGMENT_META[segment].label}</span>;
 }
 
 /**
