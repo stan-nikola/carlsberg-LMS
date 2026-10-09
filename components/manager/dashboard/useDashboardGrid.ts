@@ -17,13 +17,6 @@ import {
   type StoredNode,
 } from "@/components/manager/dashboard/layout";
 
-// Остання усталена розкладка СІТКИ з висотами (x, y, w, h) — для повторного показу вкладки:
-// Next тримає попередню сторінку в Activity і заново запускає ефекти, сітку пересоздають, і без
-// цього всі картки стартували б з висоти 1 клітинки й по черзі «виростали» (13 оновлень, кожне
-// зсуває решту — ~секунда перерахунків). З висотами сітка стає одразу в потрібний вигляд, а
-// fitCards лише перевіряє. Тільки пам’ять модуля: на F5 нічого не живе, висоти завжди з вмісту.
-let settledGrid: StoredNode[] | null = null;
-
 /** id вузла gridstack — завжди id картки (gs-id). */
 const nodeId = (n: GridStackNode) => String(n.id);
 
@@ -51,6 +44,7 @@ export function useDashboardGrid({
   editMode,
   enabledCards,
   orderKey,
+  density,
 }: {
   chartsRef: RefObject<HTMLElement | null>;
   hasData: boolean;
@@ -62,6 +56,7 @@ export function useDashboardGrid({
   editMode: boolean;
   enabledCards: Set<string>;
   orderKey: string;
+  density: number;
 }) {
   // Екземпляр gridstack живе в ref, не в стані: React про його зміни
   // знати не мусить, вони не впливають на розмітку карток.
@@ -131,10 +126,11 @@ export function useDashboardGrid({
     const latestStored = readStoredGrid();
     const source = latestStored && latestStored.length > 0 ? latestStored : storedGrid;
     const fresh = source.length === 0;
-    // Та сама картка-за-карткою розкладка з висотами, якщо набір карток не змінився.
-    const sameIds = settledGrid && settledGrid.length === source.length && settledGrid.every((n) => source.some((m) => m.id === n.id));
-    const settled = settledGrid;
-    if (!fresh) grid.load(sameIds && settled ? settled : source, false);
+    // Збережена розкладка — з висотами (h): сітка одразу стає як була, fitCards лише перевіряє.
+    // Без висот картки стартували б з 1 клітинки й «виростали» по одній, а гравітація з
+    // ущільненням тим часом переставляли сітку — і F5, і повторний показ вкладки (Next
+    // Activity), і повернення з телефонної ширини давали б кожне свою розкладку.
+    if (!fresh) grid.load(source, false);
     // Ширини лише ¼/½/уся (lib/dashboardHeights.ts): довільна ширина зі
     // старої розкладки чи з ручки — до найближчої дозволеної. На телефоні
     // (одна колонка) ширина одна для всіх — нічого не чіпаємо.
@@ -192,9 +188,6 @@ export function useDashboardGrid({
         setGridReady(true);
       });
     });
-    // Будь-яка зміна позиції/ширини (перетягування, ресайз, гравітація
-    // після прибирання картки) — у localStorage. h не зберігаємо: воно
-    // щоразу рахується з вмісту.
     // Повернення з телефонної ширини. gridstack при поверненні з 1 колонки сам перераховує позиції
     // (moveScale) і збиває порядок («Стан команди» першим, «Дедлайни» на всю
     // ширину — знайдено прогоном сценаріїв 2026-10-05, ловиться при повороті
@@ -206,11 +199,27 @@ export function useDashboardGrid({
       transitionUntil = Date.now() + 600;
     };
     window.addEventListener("resize", markTransition);
+    // Колонка, яку бачив попередній спостерігач розміру (нижче): gridstack перемикає колонки у
+    // власному обробнику resize, РАНІШЕ за наш (з затримкою), тож перехід 1 → 12 впізнаємо лише
+    // за запам’ятаною.
+    let prevCol = grid.getColumn();
+    // Повернулись із однієї колонки, а сітку ще не пересоздали: позиції — від moveScale, висоти —
+    // телефонні. fitCards тут «лагодив» би діри (розтягував картки на всю ширину), а його
+    // відкладені проходи виходили за вікно transitionUntil і записували це в localStorage —
+    // пересоздана сітка читала вже зіпсовану розкладку. До пересоздання не міряємо й не пишемо.
+    const returningFromPhone = () => prevCol === 1 && grid.getColumn() === GRID_COLUMNS;
+    // Будь-яка зміна позиції/розміру (перетягування, ресайз, гравітація
+    // після прибирання картки, нова висота з fitCards) — у localStorage.
+    // h теж: без нього F5 ставив усі картки висотою в 1 клітинку, і поки
+    // fitCards їх наростив, гравітація й ущільнення переставляли сітку інакше,
+    // ніж її залишили (і інакше, ніж повернення з телефона, — там висоти є).
     const saveLayout = () => {
       // На телефоні 12-колонкову розкладку не пишемо — див. DASHBOARD_PHONE_ORDER_STORAGE_KEY.
-      if (grid.getColumn() !== GRID_COLUMNS) return;
+      if (grid.getColumn() !== GRID_COLUMNS || returningFromPhone()) return;
       if (Date.now() < transitionUntil) return;
-      const nodes = (grid.save(false) as GridStackNode[]).map(({ id, x, y, w }) => ({ id, x, y, w, pw: prefW.get(String(id)) ?? DEFAULT_CARD_W[String(id)] ?? w }));
+      // Не grid.save(): він викидає w, що дорівнює minW (і h = 1), а readStoredGrid такий запис
+      // без ширини вважав зіпсованим — після F5 ці картки ставали куди вийде.
+      const nodes = gridBoxes(grid).map((n) => ({ ...n, pw: prefW.get(n.id) ?? DEFAULT_CARD_W[n.id] ?? n.w }));
       try {
         window.localStorage.setItem(DASHBOARD_GRID_STORAGE_KEY, JSON.stringify(nodes));
       } catch {
@@ -268,10 +277,6 @@ export function useDashboardGrid({
     // домірює вже на сталій ширині; onResize сам нічого не робить, якщо
     // ширина та сама.
     let settle: ReturnType<typeof setTimeout> | undefined;
-    // Колонка, яку бачив попередній спостерігач: gridstack перемикає колонки у
-    // власному обробнику resize, РАНІШЕ за наш (з затримкою), тож `was` нижче
-    // вже нова — перехід 1 → 12 впізнаємо лише за запам’ятаною.
-    let prevCol = grid.getColumn();
     const observer = new ResizeObserver(() => {
       clearTimeout(settle);
       settle = setTimeout(() => {
@@ -282,16 +287,17 @@ export function useDashboardGrid({
         // gridstack вивів порядок із 12 колонок; повертаємо телефонний.
         if (was !== 1) applyPhoneOrder();
         // Повернулись на широкий екран (поворот планшета, розширили вікно).
-        const nowCol = grid.getColumn();
-        const returned = prevCol === 1 && nowCol === GRID_COLUMNS;
-        prevCol = nowCol;
-        if (returned) {
+        // prevCol при поверненні не оновлюємо: ця сітка до пересоздання лишається «в переході»
+        // (returningFromPhone) і нічого не міряє й не пише.
+        if (returningFromPhone()) {
           // Пересоздаємо сітку з збереженої розкладки — як після F5. Точкове
           // відновлення позицій (grid.load) не тримається: наступний прохід
           // fitCards бачить «діри» (висоти змінились на телефоні) і розтягує
-          // сусідів на всю ширину. Збережена розкладка чиста (див. markTransition).
+          // сусідів на всю ширину. Збережена розкладка чиста (див. returningFromPhone).
           setStoredGrid(readStoredGrid() || []);
           setGridEpoch((n) => n + 1);
+        } else {
+          prevCol = grid.getColumn();
         }
       }, 180);
     });
@@ -348,7 +354,7 @@ export function useDashboardGrid({
     // змінили ширину ручкою), не на кожен перемір вмісту: інакше кожен
     // прохід перетасовував позиції й розкладка ганялась по колу.
     const fitCards = ({ resetWidths = false } = {}) => {
-      if (!grid.el || fitting || gesture) return;
+      if (!grid.el || fitting || gesture || returningFromPhone()) return;
       const now = performance.now();
       if (now - burstStart > 1000) {
         burstStart = now;
@@ -398,6 +404,10 @@ export function useDashboardGrid({
           // тож рівнятись на S/L їй нема з чим — висота рівно по вмісту, без порожнечі
           // зверху й знизу (скарга користувача, 2026-10-05).
           const h = phone || (n.w ?? 0) >= GRID_COLUMNS ? Math.ceil((px + GAP_PX) / cell) : standardRows(px, GAP_PX, cell);
+          // Картка ще показує скелет (дані вантажаться, коли вона наближається до екрана), а висоту
+          // вже має — збережену, з готовим вмістом. Скелет не дає їй стиснутись: інакше після F5 вона
+          // стискалась би до S, сітка переставлялась, а з даними — росла й переставлялась знову.
+          if (!phone && h < (n.h ?? 1) && n.el.querySelector(".sk-lines")) continue;
           if (n.h !== h) grid.update(n.el, { h });
         }
         // Перетин (не мав би бути) — ущільнити зі збереженням порядку. Діра
@@ -417,7 +427,6 @@ export function useDashboardGrid({
             if (target) grid.update(target, change);
           }
         }
-        if (!phone) settledGrid = gridBoxes(grid);
       } finally {
         fitting = false;
       }
@@ -497,6 +506,11 @@ export function useDashboardGrid({
     // «з'їжджали» (живий тест 2026-10-04).
     fitCardsRef.current?.({ resetWidths: !first });
   }, [visibleKey, orderKey, chartsRef]);
+
+  // Поля карток змінились ползунком щільності — висоти під вміст перемірюємо (спостерігач стежить лише за дітьми).
+  useEffect(() => {
+    fitCardsRef.current?.();
+  }, [density]);
 
   // Вміст карток перемальовується з даними (скелетон → список, порожній
   // стан → діаграма) — нові дочірні блоки теж мають бути під наглядом.

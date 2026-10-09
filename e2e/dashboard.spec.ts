@@ -121,25 +121,50 @@ test.fixme("перестановки в режимі редагування не
   await page.getByRole("button", { name: "Готово" }).click();
 
   // Після F5 — та сама цегляна дисципліна.
-  // TODO(dashboard): F5 має відновлювати розкладку РІВНО як збережено (правило
-  // .claude/rules/manager-dashboard.md), а зараз перепаковує — див. тест нижче.
   await page.reload();
   assertBricks(await readGrid(page));
 });
 
-// Знайдено 2026-10-08 (усі 13 карток): збережена розкладка одна й та сама, але
-// F5 і повернення 1 → 12 колонок дають РІЗНІ перепакування (матриця
-// «люди × курси» переїжджає вгору, ¼-картки — у верхній ряд). Правило
-// .claude/rules/manager-dashboard.md обіцяє «як після F5, без перепакування».
-test.fixme("повернення з телефонної ширини зберігає розкладку як F5", async ({ page }) => {
+// Правило .claude/rules/manager-dashboard.md: F5 і повернення 1 → 12 колонок
+// відновлюють збережену розкладку, без перепакування.
+test("F5 і повернення з телефонної ширини зберігають розкладку", async ({ page }) => {
+  test.setTimeout(90000);
+  // Картки з даними «на підході до екрана» (порівняння команд, найскладніші питання) —
+  // спершу довантажити, щоб їхні висоти в збереженій розкладці були вже з даними.
+  for (const skeleton of await page.locator(".mgr-charts .sk-lines").all()) await skeleton.scrollIntoViewIfNeeded().catch(() => {});
+  await expect(page.locator(".mgr-charts .sk-lines")).toHaveCount(0, { timeout: 30000 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(1200);
+  const saved = await readGrid(page);
   await page.reload();
   const before = await readGrid(page);
+  const key = (b: Box) => `${b.id}:${b.x},${b.y},${b.w}`;
+  // Після F5 скелети ще не довантажились, але висоти й позиції — збережені.
+  expect(before.map(key).sort()).toEqual(saved.map(key).sort());
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(1200);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.waitForTimeout(1500);
   const after = await readGrid(page);
   assertBricks(after);
-  const key = (b: Box) => `${b.id}:${b.x},${b.y},${b.w}`;
   expect(after.map(key).sort()).toEqual(before.map(key).sort());
+});
+
+test("ползунок щільності міняє поля карток, 50% — як було, вибір зберігається", async ({ page }) => {
+  const pad = () => page.evaluate(() => parseFloat(getComputedStyle(document.querySelector(".mgr-chart-card")!).paddingTop));
+  await expect(page.locator(".mgr-charts.is-ready")).toBeVisible();
+  const base = await pad();
+  await page.getByRole("button", { name: "Налаштувати картки дашборда" }).click();
+  const slider = page.getByRole("slider", { name: /Щільність карток/ });
+  await expect(slider).toHaveValue("50");
+  await slider.fill("100");
+  await expect.poll(pad).toBe(base - 8);
+  await slider.fill("0");
+  await expect.poll(pad).toBe(base + 8);
+  await slider.fill("100");
+  await page.reload();
+  await expect.poll(pad).toBe(base - 8);
+  await page.waitForTimeout(1200);
+  assertBricks(await readGrid(page));
+  await page.evaluate(() => localStorage.removeItem("carls_manager_dashboard_density_v1"));
 });

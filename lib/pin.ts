@@ -5,3 +5,6 @@
  * тягне prisma і в клієнтський компонент не імпортується.
  */
 export const PIN_LENGTH = 6;
+
+/** Допустимий PIN: рівно PIN_LENGTH цифр (pattern в openapi.yaml — той самий). */
+export const PIN_FORMAT = new RegExp(`^\\d{${PIN_LENGTH}}$`);

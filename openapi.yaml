@@ -328,7 +328,7 @@ paths:
               type: object
               properties:
                 externalCode: { type: string }
-                pin: { type: string, pattern: "^\\d{4,6}$" }
+                pin: { type: string, pattern: "^\\d{6}$" }
               required: [externalCode, pin]
       responses:
         "200": { $ref: "#/components/responses/Ok" }

@@ -502,6 +502,10 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   accent-color: var(--green-700);
   flex-shrink: 0;
 }
+.mgr-density-slider {
+  width: 100%;
+  accent-color: var(--green-700);
+}
 /* "Скинути розкладку" — окремо від переліку карток (тут не чекбокс, а
    дія), тому звичайне посилання-кнопка, як "Завантажити звіт" у шапці
    дашборда, не рядок чеклиста. */
@@ -1960,7 +1964,9 @@ a.mgr-matrix-cell:focus-visible {
   border: var(--border-w) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface-1);
-  padding: var(--card-pad-roomy);
+  /* Поля = roomy ± до 8px за ползунком щільності (--mgr-density 0–100, 50 — без зсуву). */
+  --mgr-pad-shift: calc((50 - var(--mgr-density, 50)) * 0.16px);
+  padding: calc(var(--card-pad-y) + 4px + var(--mgr-pad-shift)) calc(var(--card-pad-x) + 4px + var(--mgr-pad-shift));
   display: flex;
   flex-direction: column;
   overflow: visible;
