@@ -4,6 +4,7 @@ import { OfflineSync } from "@/components/app/OfflineSync";
 import { DesignTokensOverride } from "@/components/app/DesignTokensOverride";
 import { TableSizes } from "@/components/app/TableSizes";
 import { CopyGuard } from "@/components/app/CopyGuard";
+import { TimeZoneCookie } from "@/components/app/TimeZoneCookie";
 import { designCss, getSavedDesign } from "@/lib/designSettings";
 
 // Токени дизайну читаються через lib/designSettings.ts (unstable_cache,
@@ -166,6 +167,7 @@ export default async function RootLayout({ children }) {
         <OfflineSync />
         <TableSizes />
         <CopyGuard />
+        <TimeZoneCookie />
       </body>
     </html>
   );

@@ -9,14 +9,14 @@ import {
   getSessionModules,
   moduleCooldownDays,
 } from "@/lib/courseContent";
-import { buildCoursePlan, toPlanView, toPlanInputs, toPacing } from "@/lib/coursePlan";
+import { buildCoursePlan, formatDate, toPlanView, toPlanInputs, toPacing } from "@/lib/coursePlan";
 import { isScored } from "@/lib/componentTypes";
 import { attemptNumbersFrom, modulePool, openAttemptAnswersFrom, toPlayerComponent } from "@/lib/moduleAttempts";
-import { formatUkraineDate } from "@/lib/ukraineTime";
 import { isManagerTier } from "@/lib/permissions";
 import { CoursePlayer } from "@/components/course/player/CoursePlayer";
 import { CourseReview } from "@/components/course/CourseReview";
 import { XIcon } from "@/components/ui/icons";
+import { viewerTimeZone } from "@/lib/viewerZone";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -132,7 +132,8 @@ export default async function CoursePage({ params, searchParams }) {
     new Date(),
     toPacing(course)
   );
-  const planView = toPlanView(plan, course.certificateEnabled !== false);
+  const zone = await viewerTimeZone();
+  const planView = toPlanView(plan, course.certificateEnabled !== false, zone);
 
   // Обраний модуль грається сам по собі — але лише якщо план справді
   // дозволяє його зараз проходити. Інакше ?module= у рядку адреси став би
@@ -167,7 +168,7 @@ export default async function CoursePage({ params, searchParams }) {
     const { module: nl, reason, unlocksAt } = nextLocked;
     lockedNotice =
       reason === "cooldown"
-        ? `Модуль «${nl.title}» відкриється ${formatUkraineDate(unlocksAt)}.`
+        ? `Модуль «${nl.title}» відкриється ${formatDate(unlocksAt, zone)}.`
         : reason === "pause"
           ? `Модуль «${nl.title}» відкриється через ${moduleCooldownDays(course, nl)} дн. після складання попереднього.`
           : `Модуль «${nl.title}» відкриється після того, як ви складете попередній модуль.`;

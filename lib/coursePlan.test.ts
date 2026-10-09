@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   opensAfterPause,
   buildCoursePlan,
+  formatDate,
   formatMinutes,
   pickPlanFocusModuleId,
   pluralDays,
@@ -580,5 +581,13 @@ describe("opensAfterPause — спільне правило паузи (наст
   });
   it("з паузою — дата через N днів від складання", () => {
     expect(opensAfterPause(done, 3)?.getTime()).toBe(new Date("2026-10-04T10:00:00Z").getTime());
+  });
+});
+
+describe("formatDate — пояс людини, що дивиться", () => {
+  it("кінець дня за Києвом у Токіо — вже наступна дата; без поясу — український час", () => {
+    const due = new Date("2026-10-10T20:59:00Z");
+    expect(formatDate(due)).toBe("10.10.2026");
+    expect(formatDate(due, "Asia/Tokyo")).toBe("11.10.2026");
   });
 });

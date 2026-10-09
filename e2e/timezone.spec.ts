@@ -17,3 +17,15 @@ test("привітання й дати — за поясом пристрою, �
   await expect(page.locator(".ct-due, .ct-completed-date").first()).toBeVisible();
   expect(errors.filter((e) => /hydrat|did not match/i.test(e))).toEqual([]);
 });
+
+test("рядки, які складає сервер (список команди), — у поясі пристрою через cookie tz", async ({ page, context }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  await loginAs(page, PERSONAS.manager);
+  await page.goto("/manager/team?view=courses");
+  await expect.poll(async () => (await context.cookies()).find((c) => c.name === "tz")?.value).toBe(encodeURIComponent("Asia/Tokyo"));
+  await page.reload();
+  await expect(page.locator("h1")).toBeVisible();
+  expect(errors.filter((e) => /hydrat|did not match/i.test(e))).toEqual([]);
+});

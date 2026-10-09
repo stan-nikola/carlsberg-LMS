@@ -8,6 +8,7 @@ import { isOverdue } from "@/lib/progress";
 import { formatDate } from "@/lib/coursePlan";
 import { SEGMENT_META } from "@/lib/teamInsights";
 import { reminderDedupeKey } from "@/lib/managerReminders";
+import { viewerTimeZone } from "@/lib/viewerZone";
 
 /**
  * POST /api/tg/overview — єдина точка даних для Mini App CarLS (app/tg).
@@ -29,9 +30,10 @@ export async function POST(request: Request) {
   // Telegram ще не підключено в профілі — звичайний стан, не помилка.
   if (!who.ok) return NextResponse.json({ linked: false as const });
   const employee = who.employee;
+  const zone = await viewerTimeZone();
 
   if (isManagerTier(employee)) {
-    const { people } = await getManagerTeamRows(employee.id);
+    const { people } = await getManagerTeamRows(employee.id, zone);
     const needsReminder = people.filter((p) => p.segment === "overdue" || p.segment === "behind" || p.segment === "not_started" || p.segment === "inactive");
     // Той самий dedupeKey, що lib/managerReminders.ts (courseId завжди
     // null тут — Mini App нагадує "загалом", без конкретного курсу).
@@ -88,7 +90,7 @@ export async function POST(request: Request) {
       title: e.course.title,
       status: e.status,
       overdue: isOverdue(e, now),
-      dueDateLabel: e.dueDate ? formatDate(new Date(e.dueDate)) : null,
+      dueDateLabel: e.dueDate ? formatDate(new Date(e.dueDate), zone) : null,
       scorePercent: e.scorePercent,
       passed: e.passed,
       modulesTotal: e.course._count.modules,

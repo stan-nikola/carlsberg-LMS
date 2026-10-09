@@ -26,7 +26,8 @@ import { resolveRetryRules, retryGate } from "./retryPolicy";
 import { allModulesPerfect, medalTier } from "./progress";
 import { pluralize, pluralWord } from "./pluralize";
 import { formatMinutes, formatWait } from "./duration";
-import { DAY_MS, formatUkraineDate } from "./ukraineTime";
+import { DAY_MS, UKRAINE_TZ } from "./ukraineTime";
+import { formatDate as formatDateIn } from "./localDate";
 
 export { formatMinutes };
 
@@ -493,8 +494,9 @@ export function buildCoursePlan(
   };
 }
 
-/** «09.10.2026» за українським часом — план рендериться на сервері в UTC. */
-export const formatDate = (date: Date): string => formatUkraineDate(date);
+/** «09.10.2026» у поясі людини (lib/viewerZone.ts); план рендериться на сервері,
+ *  тож пояс передає сторінка. Без нього — український час. */
+export const formatDate = (date: Date, zone: string = UKRAINE_TZ): string => formatDateIn(date, {}, zone);
 
 
 /** "день/дні/днів" — без цього виходить «через 3 днів». */
@@ -522,10 +524,10 @@ export type LockKind = "date" | "days" | "sequence";
  * (components/course/CoursePlan.tsx): точна дата, зворотний відлік чи просто
  * «наступний за порядком» без жодної дати.
  */
-function lockInfo(m: PlanModule): { label: string; kind: LockKind } | null {
+function lockInfo(m: PlanModule, zone: string): { label: string; kind: LockKind } | null {
   if (m.canPlay) return null;
   if (m.status === "passed") return null; // складений на 100% — не «замок», просто нічого покращувати
-  if (m.unlocksAt) return { label: `Відкриється ${formatDate(m.unlocksAt)}`, kind: "date" };
+  if (m.unlocksAt) return { label: `Відкриється ${formatDate(m.unlocksAt, zone)}`, kind: "date" };
   // Провалений під паузою перескладання: без цього рядка на картці не було
   // ЖОДНОЇ причини (повний текст жив лише в десктопному тултипі, якого на
   // телефоні не існує) — стенд механіки, 2026-09-22.
@@ -626,11 +628,11 @@ export function pickPlanFocusModuleId(plan: CoursePlanView): number | null {
   return improvable ? improvable.id : null;
 }
 
-export function toPlanView(plan: CoursePlan, certificateEnabled = true): CoursePlanView {
+export function toPlanView(plan: CoursePlan, certificateEnabled = true, zone: string = UKRAINE_TZ): CoursePlanView {
   const cert = certificateStatus(plan, certificateEnabled);
   return {
     modules: plan.modules.map((m) => {
-      const lock = lockInfo(m);
+      const lock = lockInfo(m, zone);
       return {
       id: m.id,
       order: m.order,
@@ -639,7 +641,7 @@ export function toPlanView(plan: CoursePlan, certificateEnabled = true): CourseP
       scoreLabel: m.scorePercent != null ? `${m.scorePercent}%` : null,
       scorePercent: m.scorePercent,
       medalTier: medalTier(m.scorePercent),
-      completedAtLabel: m.completedAt ? formatDate(m.completedAt) : null,
+      completedAtLabel: m.completedAt ? formatDate(m.completedAt, zone) : null,
       // Орієнтовна оцінка (з "≈") — поки не пройдено. Щойно з'явився
       // РЕАЛЬНИЙ час останньої спроби (2026-09-17) — показуємо його як
       // факт, без знака приблизності: людина сама його й витратила.
@@ -652,10 +654,10 @@ export function toPlanView(plan: CoursePlan, certificateEnabled = true): CourseP
       retakeLabel: m.retryBlockedUntil
         ? `Вільні спроби вичерпано — наступна через ${formatWait(m.retryBlockedUntil)}`
         : m.retakeAvailableAt
-          ? `Перепройти можна з ${formatDate(m.retakeAvailableAt)}`
+          ? `Перепройти можна з ${formatDate(m.retakeAvailableAt, zone)}`
           : null,
       actionLabel: moduleAction(m),
-      targetLabel: m.targetDate ? `до ${formatDate(m.targetDate)}` : null,
+      targetLabel: m.targetDate ? `до ${formatDate(m.targetDate, zone)}` : null,
       behindTarget: m.behindTarget,
       };
     }),
@@ -664,8 +666,8 @@ export function toPlanView(plan: CoursePlan, certificateEnabled = true): CourseP
     passedCount: plan.passedCount,
     moduleCount: plan.modules.length,
     remainingCount: plan.remainingCount,
-    assignedAtLabel: plan.assignedAt ? formatDate(plan.assignedAt) : null,
-    dueDateLabel: plan.dueDate ? formatDate(plan.dueDate) : null,
+    assignedAtLabel: plan.assignedAt ? formatDate(plan.assignedAt, zone) : null,
+    dueDateLabel: plan.dueDate ? formatDate(plan.dueDate, zone) : null,
     // Прострочений дедлайн одночасно з активним графіком показує ОБИДВА
     // рядки (нижче в CoursePlanPanel) — час дописуємо лише в pace-рядок,
     // інакше він продублювався б у сусідньому реченні графіка.

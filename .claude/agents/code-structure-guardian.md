@@ -74,7 +74,7 @@ ages):
 | Reduced motion | `lib/motion.ts prefersReducedMotion` | inline `matchMedia` |
 | Plurals | `lib/pluralize.ts pluralize` / `pluralWord` | `n === 1 ? … : …` |
 | Business time (deadline = end of day, daily jobs, «once a day») | `lib/ukraineTime.ts` (`deadlineAfterDays`, `endOfUkraineDay`, `ukraineDayKey`, `DAY_MS`) | server/UTC dates, `86400000` |
-| Showing a date to the viewer | `components/ui/LocalDate.tsx` in server-rendered markup; `lib/localDate.ts formatDate/formatDateTime` for client-fetched data and event handlers (device time zone) | `toLocaleDateString` / `toLocaleString` by hand |
+| Showing a date to the viewer | `components/ui/LocalDate.tsx` in server-rendered markup; `lib/localDate.ts formatDate/formatDateTime` for client-fetched data and event handlers (device time zone); labels the server builds take `await viewerTimeZone()` (`lib/viewerZone.ts`) as an argument | `toLocaleDateString` / `toLocaleString` by hand |
 | Date in text another person reads (PDF, Excel, e-mail, notification, reminder) | `lib/ukraineTime.ts formatUkraineDate` | device time zone |
 | Durations | `lib/duration.ts formatMinutes`, `formatWait` | inline minute maths |
 | Labels | `lib/roleLabels.ts ROLE_LABELS`, `lib/enrollmentStatus.ts enrollmentStatusLabel` | local label maps |

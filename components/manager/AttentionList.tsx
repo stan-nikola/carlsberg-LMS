@@ -41,7 +41,7 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
                   courseId={primary?.courseId ?? null}
                   courseTitle={primary?.courseTitle ?? null}
                   reason={primary?.kind ?? "general"}
-                  dueDateLabel={primary?.dueDateLabel ?? null}
+                  dueDate={primary?.dueDate ?? null}
                 />
               </li>
             );

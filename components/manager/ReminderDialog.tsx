@@ -5,6 +5,7 @@ import { managerPraiseText, managerReminderText } from "@/lib/notificationLogic"
 import { PaperPlaneIcon, SpinnerIcon } from "@/components/ui/icons";
 import { prefersReducedMotion } from "@/lib/motion";
 import { api } from "@/lib/api";
+import { formatUkraineDate } from "@/lib/ukraineTime";
 
 export type ReminderRecipient = { id: number; name: string };
 export type ReminderReason = "overdue" | "behind" | "not_started" | "inactive" | "failed" | "on_track" | "general";
@@ -25,7 +26,7 @@ export function ReminderDialog({
   courseId,
   courseTitle,
   reason,
-  dueDateLabel,
+  dueDate,
   mode = "remind",
 }: {
   open: boolean;
@@ -34,7 +35,8 @@ export function ReminderDialog({
   courseId: number | null;
   courseTitle: string | null;
   reason: ReminderReason;
-  dueDateLabel: string | null;
+  /** Дедлайн курсу; у тексті — за українським часом (повідомлення читає співробітник). */
+  dueDate: Date | string | null;
   mode?: ReminderMode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -53,7 +55,7 @@ export function ReminderDialog({
     if (!el) return;
     if (open && !el.open) {
       setMessage(
-        mode === "praise" ? managerPraiseText(courseTitle) : managerReminderText(reason === "on_track" ? "general" : reason, courseTitle, dueDateLabel)
+        mode === "praise" ? managerPraiseText(courseTitle) : managerReminderText(reason === "on_track" ? "general" : reason, courseTitle, dueDate ? formatUkraineDate(dueDate) : null)
       );
       setResult(null);
       setError("");
@@ -61,7 +63,7 @@ export function ReminderDialog({
     } else if (!open && el.open) {
       el.close();
     }
-  }, [open, reason, courseTitle, dueDateLabel, mode]);
+  }, [open, reason, courseTitle, dueDate, mode]);
 
   // Esc / закриття ззовні — нативна подія close; слухаємо напряму, а не
   // через JSX-проп: інакше стан `open` лишався true після Esc і наступний
@@ -148,7 +150,7 @@ export function RemindButton({
   courseId = null,
   courseTitle = null,
   reason = "general",
-  dueDateLabel = null,
+  dueDate = null,
   mode = "remind",
   label,
   className = "admin-btn-link",
@@ -158,7 +160,7 @@ export function RemindButton({
   courseId?: number | null;
   courseTitle?: string | null;
   reason?: ReminderReason;
-  dueDateLabel?: string | null;
+  dueDate?: Date | string | null;
   mode?: ReminderMode;
   label?: string;
   className?: string;
@@ -178,7 +180,7 @@ export function RemindButton({
           courseId={courseId}
           courseTitle={courseTitle}
           reason={reason}
-          dueDateLabel={dueDateLabel}
+          dueDate={dueDate}
           mode={mode}
         />
       )}

@@ -9,7 +9,6 @@ import { enrollmentStatusLabel } from "@/lib/enrollmentStatus";
 import { RemindButton, type ReminderReason } from "@/components/manager/ReminderDialog";
 import type { ScheduleStatus } from "@/lib/coursePlan";
 import { LocalDate } from "@/components/ui/LocalDate";
-import { formatUkraineDate } from "@/lib/ukraineTime";
 
 export type EnrollmentDetail = {
   id: number;
@@ -71,8 +70,6 @@ export function EnrollmentRow({
   highlighted?: boolean;
   remindRecipient?: { id: number; name: string } | null;
 }) {
-  // У тексті нагадування дата — за українським часом: лист читає інша людина.
-  const dueDateLabel = enrollment.dueDate ? formatUkraineDate(enrollment.dueDate) : null;
   const duration = formatDuration(enrollment.durationSeconds);
   const [showAttempts, setShowAttempts] = useState(false);
   const hasHistory = Boolean(enrollment.attempts && enrollment.attempts.length > 1);
@@ -163,7 +160,7 @@ export function EnrollmentRow({
                 courseId={enrollment.course.id}
                 courseTitle={enrollment.course.title}
                 reason={reason}
-                dueDateLabel={dueDateLabel}
+                dueDate={enrollment.dueDate}
               />
             )}
             {remindRecipient && passed && (

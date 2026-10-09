@@ -1,3 +1,4 @@
+import { displayZone, formatDate } from "@/lib/localDate";
 /**
  * Словник сповіщень — спільний для сервера (lib/notifications.js) і
  * клієнта (центр сповіщень, налаштування, service worker). Без залежностей
@@ -174,7 +175,7 @@ export function sanitizePreferences(input: unknown): PreferenceValues {
 }
 
 /** Відносний час для списку («щойно», «5 хв тому», «вчора», дата). */
-export function formatRelativeTime(date: string | number | Date, now: Date = new Date()): string {
+export function formatRelativeTime(date: string | number | Date, now: Date = new Date(), zone: string | undefined = displayZone()): string {
   const d = new Date(date);
   const diffMs = now.getTime() - d.getTime();
   const min = Math.floor(diffMs / 60000);
@@ -185,5 +186,5 @@ export function formatRelativeTime(date: string | number | Date, now: Date = new
   const days = Math.round(h / 24);
   if (days === 1) return "вчора";
   if (days < 7) return `${days} дн. тому`;
-  return d.toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return formatDate(d, { day: "2-digit", month: "2-digit", year: "numeric" }, zone);
 }

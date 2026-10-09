@@ -17,7 +17,7 @@ import { formatRelativeTime } from "./notificationTypes";
 import { pluralWord } from "./pluralize";
 import { isOverdue as isEnrollmentOverdue, isUnfinished } from "./progress";
 import type { RawAttempt, RawEmployee, TeamRaw } from "./teamEnrollments";
-import { DAY_MS } from "./ukraineTime";
+import { DAY_MS, UKRAINE_TZ } from "./ukraineTime";
 
 export const INACTIVE_DAYS = 14;
 export const ATTENTION_LIMIT = 5;
@@ -140,11 +140,12 @@ function iso(d: Date | null | undefined): string | null {
   return d ? new Date(d).toISOString() : null;
 }
 
-function label(d: Date | null | undefined): string | null {
-  return d ? formatDate(new Date(d)) : null;
+function label(d: Date | null | undefined, zone: string): string | null {
+  return d ? formatDate(new Date(d), zone) : null;
 }
 
-export function buildTeamRows(raw: TeamRaw, now: Date): TeamRow[] {
+/** zone — пояс, у якому показати дати людині, що дивиться (lib/viewerZone.ts). */
+export function buildTeamRows(raw: TeamRaw, now: Date, zone: string = UKRAINE_TZ): TeamRow[] {
   const courseById = new Map(raw.courses.map((c) => [c.id, c]));
   const employeeById = new Map(raw.employees.map((e) => [e.id, e]));
   const completionsByEnrollment = new Map<number, TeamRaw["completions"]>();
@@ -193,9 +194,9 @@ export function buildTeamRows(raw: TeamRaw, now: Date): TeamRow[] {
       scorePercent: e.scorePercent,
       assignedAt: new Date(e.assignedAt).toISOString(),
       dueDate: iso(e.dueDate),
-      dueDateLabel: label(e.dueDate),
+      dueDateLabel: label(e.dueDate, zone),
       completedAt: iso(e.completedAt),
-      completedAtLabel: label(e.completedAt),
+      completedAtLabel: label(e.completedAt, zone),
       isOverdue,
       isLate,
       schedule,
@@ -213,7 +214,7 @@ function weekIndex(date: Date, now: Date): number {
   return Math.floor(daysAgo / 7);
 }
 
-export function buildPeople(rows: TeamRow[], raw: TeamRaw, now: Date): TeamPerson[] {
+export function buildPeople(rows: TeamRow[], raw: TeamRaw, now: Date, zone: string = UKRAINE_TZ): TeamPerson[] {
   const rowsByEmployee = new Map<number, TeamRow[]>();
   for (const r of rows) {
     const list = rowsByEmployee.get(r.employeeId) || [];
@@ -232,10 +233,10 @@ export function buildPeople(rows: TeamRow[], raw: TeamRaw, now: Date): TeamPerso
     weeksByEmployee.set(employeeId, set);
   }
 
-  return raw.employees.map((e) => personFrom(e, rowsByEmployee.get(e.id) || [], weeksByEmployee.get(e.id), now));
+  return raw.employees.map((e) => personFrom(e, rowsByEmployee.get(e.id) || [], weeksByEmployee.get(e.id), now, zone));
 }
 
-function personFrom(e: RawEmployee, rows: TeamRow[], weeks: Set<number> | undefined, now: Date): TeamPerson {
+function personFrom(e: RawEmployee, rows: TeamRow[], weeks: Set<number> | undefined, now: Date, zone: string): TeamPerson {
   const counts: PersonCounts = { total: 0, completed: 0, overdue: 0, inProgress: 0, notStarted: 0, failed: 0, behind: 0, avgScore: null };
   let scoreSum = 0;
   let scoreCount = 0;
@@ -304,7 +305,7 @@ function personFrom(e: RawEmployee, rows: TeamRow[], weeks: Set<number> | undefi
     positionLevel: e.position?.level ?? null,
     managerId: e.managerId,
     lastSeenAt: iso(e.lastSeenAt),
-    lastSeenLabel: lastSeen ? formatRelativeTime(lastSeen, now) : "ще не заходив(ла)",
+    lastSeenLabel: lastSeen ? formatRelativeTime(lastSeen, now, zone) : "ще не заходив(ла)",
     inactive,
     segment,
     activityLabel,
@@ -367,6 +368,9 @@ export type AttentionReason = {
   courseId: number | null;
   courseSlug: string | null;
   courseTitle: string | null;
+  /** ISO дедлайну — текст нагадування форматує його за українським часом. */
+  dueDate: string | null;
+  /** Дедлайн для показу — у поясі людини, що дивиться. */
   dueDateLabel: string | null;
 };
 
@@ -398,6 +402,7 @@ export function attentionTop(people: TeamPerson[], rows: TeamRow[], limit = ATTE
           courseId: r.courseId,
           courseSlug: r.courseSlug,
           courseTitle: r.courseTitle,
+          dueDate: r.dueDate,
           dueDateLabel: r.dueDateLabel,
         });
       };
@@ -412,6 +417,7 @@ export function attentionTop(people: TeamPerson[], rows: TeamRow[], limit = ATTE
           courseId: null,
           courseSlug: null,
           courseTitle: null,
+          dueDate: null,
           dueDateLabel: null,
         });
       }

@@ -10,6 +10,7 @@ import { RemindButton } from "@/components/manager/ReminderDialog";
 import { BackButton } from "@/components/ui/BackButton";
 import { pluralize } from "@/lib/pluralize";
 import { ExportReportLink } from "@/components/manager/ExportReportLink";
+import { viewerTimeZone } from "@/lib/viewerZone";
 
 // TODO: Cache Components adoption — той самий опт-аут, що на app/manager/page.js.
 export const instant = false;
@@ -32,7 +33,7 @@ export default async function ManagerPersonPage({ params, searchParams }: { para
   const subordinateIds = await getAllSubordinates(me.id);
   if (!subordinateIds.includes(targetId)) notFound();
 
-  const [data, detail] = await Promise.all([getManagerTeamRows(me.id), getManagerEmployeeDetail(targetId)]);
+  const [data, detail] = await Promise.all([getManagerTeamRows(me.id, await viewerTimeZone()), getManagerEmployeeDetail(targetId)]);
   const person = data.people.find((p) => p.id === targetId);
   if (!person) notFound();
 

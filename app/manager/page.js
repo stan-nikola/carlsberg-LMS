@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getManagerOverview } from "@/lib/managerOverview";
 import { isManagerTier } from "@/lib/permissions";
 import { ManagerDashboard } from "@/components/manager/dashboard/ManagerDashboard";
+import { viewerTimeZone } from "@/lib/viewerZone";
 
 // TODO: Cache Components adoption. Той самий опт-аут, що вже стоїть на
 // app/hub/page.js (2026-09-22): без нього /hub ловив "uncached data during
@@ -27,7 +28,7 @@ export default async function ManagerPage() {
     // Тривіальні власні поля — без похід у базу, тож збираються тут, а не
     // всередині "use cache: private" (getManagerOverview приймає лише
     // employeeId/positionId, див. коментар у lib/managerOverview.js).
-    const overview = await getManagerOverview(employee.id, employee.positionId);
+    const overview = await getManagerOverview(employee.id, employee.positionId, await viewerTimeZone());
     initialData = {
       me: {
         id: employee.id,
