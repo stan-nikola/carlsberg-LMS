@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+import { safeEqual } from "@/lib/safeEqual";
 import { NextResponse } from "next/server";
 import { createAdminSession } from "@/lib/adminSession";
 import { auditAs } from "@/lib/audit";
@@ -28,12 +28,7 @@ export async function POST(request) {
     return NextResponse.json({ ok: false, error: "not_configured" }, { status: 500 });
   }
 
-  const matches = (candidate) => {
-    if (!candidate) return false;
-    const providedBuf = Buffer.from(password);
-    const expectedBuf = Buffer.from(candidate);
-    return providedBuf.length === expectedBuf.length && crypto.timingSafeEqual(providedBuf, expectedBuf);
-  };
+  const matches = (candidate) => safeEqual(candidate, password);
 
   // Той самий екран входу: SUPER_ADMIN_PASSWORD дає рівень "super"
   // (дизайн-система для всіх), ADMIN_PASSWORD — звичайний. Без окремого

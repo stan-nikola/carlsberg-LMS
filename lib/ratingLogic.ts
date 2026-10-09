@@ -1,3 +1,4 @@
+import { isOverdue, isPassed } from "./progress";
 /**
  * Чиста логіка рейтингу (без prisma) — саме її перевіряють тести.
  * lib/rating.ts дістає дані з БД і передає сюди.
@@ -250,9 +251,8 @@ export function mandatoryProgress(
   now: Date = new Date()
 ) {
   const mandatory = enrollments.filter((e) => e.isMandatory);
-  const isPassed = (e: { status: string; passed?: boolean | null }) => e.status === "completed" && e.passed === true;
   const completed = mandatory.filter(isPassed).length;
-  const overdue = mandatory.filter((e) => !isPassed(e) && e.dueDate && new Date(e.dueDate) < now).length;
+  const overdue = mandatory.filter((e) => isOverdue(e, now)).length;
   const upcoming = mandatory
     .filter((e) => !isPassed(e) && e.dueDate && new Date(e.dueDate) >= now)
     .map((e) => new Date(e.dueDate as Date | string))

@@ -638,7 +638,7 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
 /* Маркер "нове" (новопризначені курси — components/ManagerShell.jsx,
    hasNewCourses з app/manager/layout.js) — та сама крапка на іконці
    розділу і на бургер-кнопці, суто дата-based (isRecentlyAssigned,
-   lib/progress.js), без окремої таблиці "прочитано". */
+   lib/progress.ts), без окремої таблиці "прочитано". */
 .mgr-nav-dot {
   position: absolute;
   top: -2px;

@@ -6,6 +6,7 @@ import { syncEnrollmentEvents } from "@/lib/rating";
 import { endOfKyivDayFromInput } from "@/lib/kyivTime";
 import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
 import { removeEnrollments } from "@/lib/courseAssignment";
+import { DEFAULT_PASS_THRESHOLD } from "@/lib/grading";
 
 const VALID_STATUSES = ["not_started", "in_progress", "completed", "overdue"];
 
@@ -66,7 +67,7 @@ export async function PATCH(request, { params }) {
   // сертифікат видавався (L-5). Складено = бал не нижче порогу курсу.
   if (data.status === "completed" && !("passed" in body)) {
     const score = data.scorePercent ?? current.scorePercent;
-    if (typeof score === "number") data.passed = score >= (current.course.passThreshold ?? 80);
+    if (typeof score === "number") data.passed = score >= (current.course.passThreshold ?? DEFAULT_PASS_THRESHOLD);
   }
   if (data.passed === true && !current.firstPassedAt) data.firstPassedAt = data.completedAt ?? new Date();
 

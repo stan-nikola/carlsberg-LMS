@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import ExcelJS from "exceljs";
-import { buildManagerReport, compareTeams, parseCardIds, sheetName, type ReportInput } from "./managerReport";
+import { buildManagerReport, parseCardIds, sheetName, type ReportInput } from "./managerReport";
+import { compareTeams } from "./teamInsights";
 import type { PersonCounts, TeamPerson, TeamRow } from "./teamInsights";
 
 const counts = (over: Partial<PersonCounts> = {}): PersonCounts => ({ total: 0, completed: 0, overdue: 0, inProgress: 0, notStarted: 0, failed: 0, behind: 0, avgScore: null, ...over });
@@ -17,7 +18,7 @@ describe("compareTeams", () => {
       [11, counts({ total: 2, completed: 2, overdue: 1 })],
       [2, counts({ total: 4, completed: 4 })],
     ]);
-    const out = compareTeams(tree, map);
+    const out = compareTeams(tree, (id) => map.get(id));
     expect(out.map((t) => [t.name, t.pct, t.total, t.overdue])).toEqual([
       ["СВ Олена", 100, 4, 0],
       ["СВ Іван", 75, 4, 1],

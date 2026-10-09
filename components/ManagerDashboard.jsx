@@ -25,7 +25,7 @@ import { hasHoles, holeFillSteps, snapWidth, standardRows } from "@/lib/dashboar
 import { ManagerDashboardSettings } from "@/components/ManagerDashboardSettings";
 import { formatDuration } from "@/components/EnrollmentRow";
 import { TeamStatusBar } from "@/components/TeamStatusBar";
-import { pluralPeople } from "@/lib/teamInsights";
+import { compareTeams, pluralPeople } from "@/lib/teamInsights";
 import { AttentionList } from "@/components/AttentionList";
 import { TeamMatrix } from "@/components/TeamMatrix";
 import { ExportReportLink } from "@/components/ExportReportLink";
@@ -44,7 +44,7 @@ const DASHBOARD_CARDS_STORAGE_KEY = "carls_manager_dashboard_cards_v2";
 // нічого не вмикав/вимикав) залежить від посади: Position.code (lib/
 // permissions.js isManagerTier — SV/ASM/RM_HORECA і головні HR/маркетинг/
 // виробництва теж manager-tier). Реальних посад "T&D" у базі нема
-// (lib/employeeDepartments.js — лише Продажі/Виробництво/HR/Маркетинг),
+// (lib/employeeDepartments.ts — лише Продажі/Виробництво/HR/Маркетинг),
 // тож набір, який користувач попросив для "T&D", тут — дефолт для УСІХ
 // НЕ-SV/НЕ-ASM керівників (RM, голови HR/маркетингу/виробництва): saме
 // вони дивляться на команду згори, без щоденної роботи з конкретними
@@ -294,13 +294,6 @@ function ChartHint({ text }) {
   return <HintDot text={text} />;
 }
 
-function flattenTree(nodes, out = []) {
-  for (const node of nodes) {
-    out.push(node);
-    if (node.children && node.children.length > 0) flattenTree(node.children, out);
-  }
-  return out;
-}
 
 /**
  * Десктопний дашборд /manager — KPI, "Мої курси", 2 графіки (кільце +
@@ -1159,23 +1152,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }) {
   const teamCompare = useMemo(() => {
     if (!state.data || !teamTree.data) return [];
     const summaryMap = state.data.team.summaryByEmployeeId;
-    return teamTree.data
-      .map((node) => {
-        const subtree = [node, ...flattenTree(node.children || [])];
-        let total = 0;
-        let completed = 0;
-        let overdue = 0;
-        for (const n of subtree) {
-          const s = summaryMap[n.id];
-          if (!s) continue;
-          total += s.total;
-          completed += s.completed;
-          overdue += s.overdue;
-        }
-        return { id: node.id, name: node.name, total, completed, overdue, pct: total > 0 ? Math.round((completed / total) * 100) : 0 };
-      })
-      .filter((t) => t.total > 0)
-      .sort((a, b) => b.pct - a.pct);
+    return compareTeams(teamTree.data, (id) => summaryMap[id]);
   }, [state.data, teamTree.data]);
 
 

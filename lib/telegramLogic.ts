@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { safeEqual } from "./safeEqual";
 
 /**
  * Чиста логіка Telegram-бота (без prisma/fetch — тестується напряму):
@@ -30,7 +31,7 @@ export function verifyLinkToken(token: string | undefined | null, secret: string
   if (!/^\d{1,9}$/.test(idStr) || !/^\d{1,12}$/.test(expStr) || !/^[0-9a-f]{20}$/.test(sig)) return null;
   if (Number(expStr) * 1000 < now) return null;
   const expected = hmac(`${idStr}_${expStr}`, secret);
-  if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  if (!safeEqual(expected, sig)) return null;
   return Number(idStr);
 }
 
@@ -72,13 +73,6 @@ export function absoluteUrl(base: string | null | undefined, url: string | null 
 
 export type TelegramWebAppUser = { id: number; first_name?: string; last_name?: string; username?: string };
 
-/** Порівняння секрету з заголовка за сталий час; незаданий секрет — завжди false. */
-export function secretMatches(expected: string | undefined, provided: string | null | undefined): boolean {
-  if (!expected || !provided) return false;
-  const a = Buffer.from(expected);
-  const b = Buffer.from(provided);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 
 /**
  * Перевірка `initData` Mini App (Telegram Web Apps, офіційний алгоритм

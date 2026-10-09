@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { pluralize } from "@/lib/pluralize";
+import { enrollmentStatusLabel } from "@/lib/enrollmentStatus";
 
 /**
  * Єдиний екран Mini App — сам підлаштовується під роль (рішення
@@ -82,12 +83,7 @@ function openExternalLink(url: string) {
   else window.location.href = url;
 }
 
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  completed: { label: "Складено", cls: "ok" },
-  in_progress: { label: "У процесі", cls: "neutral" },
-  not_started: { label: "Не почато", cls: "neutral" },
-  overdue: { label: "Прострочено", cls: "bad" },
-};
+const STATUS_CLS: Record<string, string> = { in_progress: "neutral", not_started: "neutral", overdue: "bad" };
 
 export default function TelegramMiniAppPage() {
   const [initData, setInitData] = useState<string | null>(null);
@@ -221,13 +217,15 @@ function EmployeeScreen({ name, courses }: { name: string; courses: EmployeeCour
 
       <div className="tg-list">
         {courses.map((c) => {
-          const meta = c.overdue ? STATUS_META.overdue : STATUS_META[c.status] || STATUS_META.not_started;
+          const shown = c.overdue ? "overdue" : c.status;
+          const label = enrollmentStatusLabel(shown, c.passed);
+          const cls = shown === "completed" ? (c.passed ? "ok" : "bad") : STATUS_CLS[shown] || "neutral";
           const needsAction = c.overdue || c.status === "not_started" || (c.status === "completed" && c.passed === false);
           return (
             <div className="tg-row" key={c.slug}>
               <div className="tg-row-top">
                 <span className="tg-row-title">{c.title}</span>
-                <span className={`tg-pill ${meta.cls}`}>{meta.label}</span>
+                <span className={`tg-pill ${cls}`}>{label}</span>
               </div>
               <span className="tg-row-meta">
                 {c.dueDateLabel ? `Термін: ${c.dueDateLabel}` : "Без дедлайну"}

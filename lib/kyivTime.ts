@@ -10,6 +10,9 @@
  */
 export const KYIV_TZ = "Europe/Kyiv";
 
+/** Мілісекунд у добі (для різниці дат; календарні дні за Києвом — kyivDayKey/endOfKyivDay). */
+export const DAY_MS = 86_400_000;
+
 type DateLike = Date | string | number;
 
 function parts(date: DateLike) {

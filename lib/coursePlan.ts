@@ -24,14 +24,15 @@
 
 import { resolveRetryRules, retryGate } from "./retryPolicy";
 import { medalTier } from "./progress";
-import { pluralize } from "./pluralize";
+import { pluralize, pluralWord } from "./pluralize";
+import { formatMinutes, formatWait } from "./duration";
+import { DAY_MS, formatKyivDate } from "./kyivTime";
+
+export { formatMinutes };
 
 /** Пауза перед повторним проходженням, коли Module.retakeCooldownDays не задано. */
 export const RETAKE_COOLDOWN_DAYS_DEFAULT = 2;
 
-/** Скільки секунд закладаємо на один компонент екрана — те саме число, що
- *  й у lib/estimateTime.js; продубльоване значення тут не потрібне, тому
- *  кількість хвилин приходить ззовні готовою. */
 export type PlanModuleInput = {
   id: number;
   title: string;
@@ -219,11 +220,11 @@ export type PlanModuleView = {
   scoreLabel: string | null;
   /** Той самий бал, числом — картці плану потрібне саме число: чи це
    *  рівно 100% (тоді дотягувати нема куди, ціль на картці не показуємо),
-   *  і власний, вужчий за lib/progress.js medalTier поріг срібла/бронзи
+   *  і власний, вужчий за lib/progress.ts medalTier поріг срібла/бронзи
    *  для кубка на картці (2026-09-18, рішення користувача). */
   scorePercent: number | null;
   /** Медаль за бал модуля — той самий поріг, що й на картці курсу
-   *  (lib/progress.js medalTier): 100=золото, 95-99=срібло, 90-94=бронза. */
+   *  (lib/progress.ts medalTier): 100=золото, 95-99=срібло, 90-94=бронза. */
   medalTier: "gold" | "silver" | "bronze" | null;
   /** "10.09.2026" — коли складено. */
   completedAtLabel: string | null;
@@ -268,13 +269,22 @@ export type CoursePlanView = {
   certificateEarned: boolean;
 };
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const SECONDS_PER_COMPONENT = 45;
 
-function addDays(date: Date, days: number): Date {
+export function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
   return d;
+}
+
+/**
+ * Коли відкривається те, що чекає паузу після складання: наступний модуль
+ * (Module.cooldownDays / Course.modulePauseDays) або перепроходження
+ * (Module.retakeCooldownDays). null — паузи нема, відкрито одразу. Одне
+ * правило для плану курсу і сесії плеєра (lib/courseContent.js).
+ */
+export function opensAfterPause(completedAt: Date, pauseDays: number | null | undefined): Date | null {
+  return pauseDays ? addDays(completedAt, pauseDays) : null;
 }
 
 function estimateMinutes(componentCount: number): number {
@@ -284,7 +294,7 @@ function estimateMinutes(componentCount: number): number {
 /** Календарних днів між двома моментами, округлено вгору: «лишилось 3 дні»
  *  має означати 3, поки не настав сам дедлайн, а не 2 з хвостиком. */
 function daysBetween(from: Date, to: Date): number {
-  return Math.ceil((to.getTime() - from.getTime()) / MS_PER_DAY);
+  return Math.ceil((to.getTime() - from.getTime()) / DAY_MS);
 }
 
 function retakeCooldown(courseModule: PlanModuleInput): number {
@@ -293,8 +303,6 @@ function retakeCooldown(courseModule: PlanModuleInput): number {
 
 const NO_PACING: CoursePacing = { moduleDays: null, pauseDays: null };
 
-/** Пауза перед модулем: власна (Module.cooldownDays), інакше загальна для
- *  курсу (Course.modulePauseDays). Перший модуль паузи не має ніколи. */
 /**
  * Пауза перед модулем: власна Module.cooldownDays, інакше Course.modulePauseDays.
  * Одне правило для плану, сесії плеєра (lib/courseContent.js) і прев'ю в
@@ -339,7 +347,7 @@ export function buildCoursePlan(
     } else {
       const prevCompletion = byModuleId.get(modules[i - 1].id);
       if (prevCompletion?.passed) {
-        const opensAt = cooldown ? addDays(prevCompletion.completedAt, cooldown) : null;
+        const opensAt = opensAfterPause(prevCompletion.completedAt, cooldown);
         available = !opensAt || opensAt <= now;
         // Дату показуємо, лише поки вона в майбутньому — інакше «відкриється
         // 14.09» стояло б на вже доступному модулі.
@@ -379,7 +387,7 @@ export function buildCoursePlan(
     let retakeAvailableAt: Date | null = null;
     if (available && completion?.passed && completion.scorePercent < 100) {
       const cooldown = retakeCooldown(m);
-      const readyAt = cooldown ? addDays(completion.completedAt, cooldown) : null;
+      const readyAt = opensAfterPause(completion.completedAt, cooldown);
       if (!readyAt || readyAt <= now) canRetake = true;
       else retakeAvailableAt = readyAt;
     }
@@ -485,28 +493,13 @@ export function buildCoursePlan(
   };
 }
 
-/** Дата за Києвом (lib/kyivTime.ts): план рендериться на сервері в UTC, і без зони події 00:00–03:00 показували попередній день. */
-export function formatDate(date: Date): string {
-  return date.toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Kyiv" });
-}
+/** «09.10.2026» за Києвом — план рендериться на сервері в UTC. */
+export const formatDate = (date: Date): string => formatKyivDate(date);
 
-/** 6 -> "6 хв", 75 -> "1 год 15 хв". Той самий формат, що вже в кабінеті
- *  керівника, щоб час скрізь читався однаково. */
-export function formatMinutes(minutes: number): string {
-  if (minutes < 60) return `${minutes} хв`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest > 0 ? `${hours} год ${rest} хв` : `${hours} год`;
-}
 
 /** "день/дні/днів" — без цього виходить «через 3 днів». */
 export function pluralDays(n: number): string {
-  const abs = Math.abs(n) % 100;
-  const last = abs % 10;
-  if (abs > 10 && abs < 20) return "днів";
-  if (last === 1) return "день";
-  if (last >= 2 && last <= 4) return "дні";
-  return "днів";
+  return pluralWord(n, "день", "дні", "днів");
 }
 
 function moduleAction(m: PlanModule): string | null {
@@ -557,28 +550,14 @@ function paceLabel(plan: CoursePlan): string | null {
     return `До дедлайну ${pace.daysLeft} ${pluralDays(pace.daysLeft)}, але паузи між модулями довші — попередьте керівника`;
   }
   if (pace.daysLeft <= 7) {
-    return `Лишилось ${pace.daysLeft} ${pluralDays(pace.daysLeft)} і ${plan.remainingCount} модулів — плануйте ${formatMinutes(plan.remainingMinutes)}`;
+    return `Лишилось ${pace.daysLeft} ${pluralDays(pace.daysLeft)} і ${pluralize(plan.remainingCount, "модуль", "модулі", "модулів")} — плануйте ${formatMinutes(plan.remainingMinutes)}`;
   }
   return `Щоб встигнути: ${pluralize(pace.modulesPerWeek, "модуль", "модулі", "модулів")} на тиждень`;
 }
 
-/** Підпис «наступна спроба через …» рахується від МОМЕНТУ показу плану:
- *  сервер рендерить сторінку, тож час свіжий. */
-function formatWait(until: Date, now: Date = new Date()): string {
-  const minutes = Math.max(1, Math.ceil((until.getTime() - now.getTime()) / 60000));
-  if (minutes < 60) return `${minutes} хв`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest > 0 ? `${hours} год ${rest} хв` : `${hours} год`;
-}
 
 function pluralModules(n: number): string {
-  const abs = Math.abs(n) % 100;
-  const last = abs % 10;
-  if (abs > 10 && abs < 20) return "модулів";
-  if (last === 1) return "модуль";
-  if (last >= 2 && last <= 4) return "модулі";
-  return "модулів";
+  return pluralWord(n, "модуль", "модулі", "модулів");
 }
 
 /**

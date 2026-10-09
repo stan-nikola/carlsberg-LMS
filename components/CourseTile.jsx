@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CourseIcon, ChevronIcon, CertificateIcon, SpinnerIcon } from "@/components/icons";
 import { StatusBadge } from "@/components/StatusBadge";
-import { courseTileStatus, isRecentlyAssigned, isOverdue, moduleProgress } from "@/lib/progress";
+import { certificateEarned, courseTileStatus, isRecentlyAssigned, isOverdue, moduleProgress } from "@/lib/progress";
 import { pluralize } from "@/lib/pluralize";
 import { HintDot } from "@/components/HintDot";
 import { downloadCertificate } from "@/lib/downloadCertificate";
@@ -116,7 +116,7 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
   // !== false, а не === true: курси, завантажені без цього поля
   // (старий кеш, урізана вибірка), поводяться як раніше — з сертифікатом.
   const certificateAllowed = course.certificateEnabled !== false;
-  const hasCertificate = certificateAllowed && enrollment?.scorePercent === 100;
+  const hasCertificate = certificateAllowed && certificateEarned(enrollment, (course.modules || []).map((m) => m.scorePercent));
 
   return (
     // Уся картка веде в курс (2026-09-22, рішення користувача) — окремий
@@ -170,7 +170,7 @@ export function CourseTile({ course, enrollment, description, inProgressDescript
                 {new Date(enrollment.dueDate).toLocaleDateString("uk-UA")}
               </div>
             )}
-            {/* Прогрес = складені модулі, не бал (lib/progress.js
+            {/* Прогрес = складені модулі, не бал (lib/progress.ts
                 moduleProgress). До 2026-09-17 тут стояв cs.pct: у
                 незавершеного курсу він завжди 0, тож курс із одним
                 складеним модулем із десяти виглядав як незрушений.

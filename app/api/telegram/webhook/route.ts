@@ -3,7 +3,8 @@ import { auditEmployee } from "@/lib/audit";
 import type { PrismaClient } from "@/app/generated/prisma";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { isTelegramConfigured, replyToChat, telegramBotUsername } from "@/lib/telegram";
-import { parseCommand, secretMatches, verifyLinkToken } from "@/lib/telegramLogic";
+import { parseCommand, verifyLinkToken } from "@/lib/telegramLogic";
+import { safeEqual } from "@/lib/safeEqual";
 
 const prisma = prismaUntyped as PrismaClient;
 
@@ -22,7 +23,7 @@ const prisma = prismaUntyped as PrismaClient;
  */
 export async function POST(request: Request) {
   if (!isTelegramConfigured()) return NextResponse.json({ ok: false, reason: "not_configured" });
-  if (!secretMatches(process.env.TELEGRAM_WEBHOOK_SECRET, request.headers.get("x-telegram-bot-api-secret-token"))) {
+  if (!safeEqual(process.env.TELEGRAM_WEBHOOK_SECRET, request.headers.get("x-telegram-bot-api-secret-token"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

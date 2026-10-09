@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { prisma as prismaUntyped } from "@/lib/prisma";
 import { getRules } from "@/lib/rating";
 import { badgePoints } from "@/lib/ratingLogic";
+import { certificateEarned } from "@/lib/progress";
 
 // lib/prisma.js віддає `any` (синглтон через globalThis) — звужуємо, як і
 // в lib/rating.ts.
@@ -67,20 +68,27 @@ export async function getEmployeeBadgesView(employeeId: number): Promise<BadgeVi
 export type CertificateView = { slug: string; title: string; completedAt: Date; scorePercent: number | null };
 
 /**
- * Сертифікати — курси, СКЛАДЕНІ РІВНО НА 100% (scorePercent: 100), з
- * увімкненим сертифікатом. Той самий поріг, що й у
- * app/api/courses/[slug]/certificate і у статусі сертифіката в плані курсу
- * (lib/coursePlan.ts). 2026-09-19 планку опускали до простого "складений
- * курс" (Enrollment.passed) — 2026-09-22 користувач повернув назад: "Сертификат
- * только 100% пройденый курс". Новий поріг — знову скрізь одночасно.
+ * Сертифікати — курси з увімкненим сертифікатом, де виконано правило
+ * lib/progress.ts certificateEarned (кожен модуль на 100%). Той самий
+ * вердикт дає PDF-роут, картка курсу, план і фінальний екран плеєра.
  */
 async function computeEmployeeCertificates(employeeId: number): Promise<CertificateView[]> {
   const rows = await prisma.enrollment.findMany({
     where: { employeeId, status: "completed", scorePercent: 100, course: { certificateEnabled: true } },
     orderBy: { completedAt: "desc" },
-    select: { completedAt: true, scorePercent: true, course: { select: { slug: true, title: true } } },
+    select: {
+      status: true,
+      completedAt: true,
+      scorePercent: true,
+      moduleCompletions: { select: { moduleId: true, scorePercent: true } },
+      course: { select: { slug: true, title: true, modules: { select: { id: true } } } },
+    },
   });
-  return rows.map((r) => ({
+  const earned = rows.filter((r) => {
+    const scoreOf = new Map(r.moduleCompletions.map((c) => [c.moduleId, c.scorePercent]));
+    return certificateEarned(r, r.course.modules.map((m) => scoreOf.get(m.id)));
+  });
+  return earned.map((r) => ({
     slug: r.course.slug,
     title: r.course.title,
     completedAt: r.completedAt as Date,

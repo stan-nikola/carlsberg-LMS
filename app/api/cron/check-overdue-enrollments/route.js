@@ -3,7 +3,7 @@ import { markOverdueEnrollments } from "@/lib/overdueEnrollments";
 import { publishScheduledCourses, topUpTargetedAssignments } from "@/lib/courseAssignment";
 import { evaluateAutoBadgesForAll } from "@/lib/badgeRules";
 import { remindDeadlines, sendTeamDigests } from "@/lib/notifications";
-import { secretMatches } from "@/lib/telegramLogic";
+import { safeEqual } from "@/lib/safeEqual";
 import { auditAs, purgeOldAuditEntries } from "@/lib/audit";
 import { kyivHour } from "@/lib/kyivTime";
 
@@ -35,7 +35,7 @@ export const maxDuration = 300;
 export async function GET(request) {
   // Незаданий CRON_SECRET — відмова, а не «Bearer undefined» як валідний ключ.
   const secret = process.env.CRON_SECRET;
-  if (!secretMatches(secret && `Bearer ${secret}`, request.headers.get("authorization"))) {
+  if (!safeEqual(secret && `Bearer ${secret}`, request.headers.get("authorization"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const hour = kyivHour();

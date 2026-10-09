@@ -23,7 +23,7 @@ async function ManagerGate({ children }) {
     redirect("/hub?s=1");
   }
 
-  // Маркер "нове" на "Курси" — той самий isRecentlyAssigned (lib/progress.js),
+  // Маркер "нове" на "Курси" — той самий isRecentlyAssigned (lib/progress.ts),
   // що вже дає бейдж "Нове" на картках курсів у /hub: суто за датою
   // призначення (assignedAt, ще не розпочато), без окремої таблиці
   // "прочитано/непрочитано".

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSeenValue } from "@/lib/useSeenValue";
+import { pluralWord } from "@/lib/pluralize";
 
 /**
  * «↑ 2 місця з минулого разу» (стенд Motion Tuner «J», 2026-10-04): місце
@@ -9,11 +10,7 @@ import { useSeenValue } from "@/lib/useSeenValue";
  * без стрибків (не карати рухом). Без змін або перший візит — нічого.
  */
 function places(n: number) {
-  const a = Math.abs(n) % 10;
-  const b = Math.abs(n) % 100;
-  if (a === 1 && b !== 11) return "місце";
-  if (a >= 2 && a <= 4 && (b < 10 || b >= 20)) return "місця";
-  return "місць";
+  return pluralWord(n, "місце", "місця", "місць");
 }
 
 export function RankDelta({ rank, storageKey }: { rank: number; storageKey: string }) {
