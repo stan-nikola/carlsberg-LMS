@@ -9,10 +9,8 @@
      - colors.json            -> digital-black, support-шкала, системні кольори
      - sizes.json             -> шкала розмірів 5xs..5xl
 
-   Шрифт: Malty для digital-продуктів використовує Montserrat (див.
-   TypographyProvider.ts у тому ж репозиторії), а не друкарський Carlsberg
-   Sans — тому саме Montserrat підключений у app/layout.js через next/font
-   (само-хоститься, має кирилицю, на відміну від попереднього Sora).
+   Шрифт — лише Carlsberg Sans (Light/Bold/Black), як на carlsbergukraine.com
+   (рішення користувача 2026-10-08; до того текст був на Montserrat із Malty).
 
    ВАЖЛИВО: старі імена токенів (--ink/--surface/--green-700/...) навмисно
    НЕ видалені, а перевизначені через нові — так увесь наявний CSS і всі

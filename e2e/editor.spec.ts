@@ -42,3 +42,28 @@ test("правка зберігається при переході на інш�
   await openSecondScreen();
   expect((await restore).ok()).toBeTruthy();
 });
+
+test("після видалення компонента з незбереженими правками перехід на інший компонент працює", async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto(`/admin/courses/${COURSE_ID}`);
+  const items = page.locator(".admin-lesson-nav-item");
+  await expect(items.first()).toBeVisible();
+  const countBefore = await items.count();
+
+  // Новий інфо-блок на першому екрані — стає обраним.
+  const created = page.waitForResponse((r) => r.request().method() === "POST" && r.url().includes("/api/admin/components"));
+  await page.getByRole("button", { name: "+ Додати компонент" }).first().click();
+  expect((await created).ok()).toBeTruthy();
+  await expect(items).toHaveCount(countBefore + 1);
+
+  // Незбережена правка → видалити (confirm) → клік по іншому компоненту.
+  await page.locator(".admin-lesson-card textarea").first().fill("e2e: незбережена правка");
+  page.once("dialog", (d) => d.accept());
+  const deleted = page.waitForResponse((r) => r.request().method() === "DELETE" && r.url().includes("/api/admin/components/"));
+  await page.locator(".admin-lesson-card").getByRole("button", { name: "Видалити", exact: true }).click();
+  expect((await deleted).ok()).toBeTruthy();
+  await expect(items).toHaveCount(countBefore);
+
+  await items.first().click();
+  await expect(items.first()).toHaveClass(/active/);
+});

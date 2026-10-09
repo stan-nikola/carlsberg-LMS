@@ -29,7 +29,8 @@ const PIN_TTL_LABEL = "12 годин";
 
 const LOGO_CID = "carls-logo";
 
-const FONT = "Montserrat, Arial, Helvetica, sans-serif";
+// Фірмовий шрифт у поштовиках не вантажиться — Arial як запасний.
+const FONT = "'Carlsberg Sans', Arial, Helvetica, sans-serif";
 const COLOR_PRIMARY = "#00321e";
 const COLOR_ACCENT = "#17b169";
 const COLOR_BLACK = "#212833";
