@@ -1,4 +1,4 @@
-import { DAY_MS } from "@/lib/kyivTime";
+import { DAY_MS } from "@/lib/ukraineTime";
 
 type DateLike = Date | string | number;
 
@@ -97,6 +97,11 @@ export function isPassed(e: EnrollmentLike): boolean {
  *
  * @param moduleScores бал кожного модуля курсу (null/undefined — модуль не складався)
  */
+/** Кожен модуль курсу складено рівно на 100% (null — модуль ще не складався). */
+export function allModulesPerfect(moduleScores: (number | null | undefined)[]): boolean {
+  return moduleScores.length > 0 && moduleScores.every((s) => s === 100);
+}
+
 export function certificateEarned(
   enrollment: EnrollmentLike | null | undefined,
   moduleScores: (number | null | undefined)[]
@@ -104,8 +109,7 @@ export function certificateEarned(
   return (
     enrollment?.status === "completed" &&
     enrollment.scorePercent === 100 &&
-    moduleScores.length > 0 &&
-    moduleScores.every((s) => s === 100)
+    allModulesPerfect(moduleScores)
   );
 }
 

@@ -17,7 +17,7 @@ import { formatRelativeTime } from "./notificationTypes";
 import { pluralWord } from "./pluralize";
 import { isOverdue as isEnrollmentOverdue, isUnfinished } from "./progress";
 import type { RawAttempt, RawEmployee, TeamRaw } from "./teamEnrollments";
-import { DAY_MS } from "./kyivTime";
+import { DAY_MS } from "./ukraineTime";
 
 export const INACTIVE_DAYS = 14;
 export const ATTENTION_LIMIT = 5;

@@ -6,10 +6,10 @@ paths:
   - "lib/telegram*"
   - "lib/offlineOutbox*"
   - "public/sw.js"
-  - "components/Notification*"
-  - "components/OfflineSync*"
-  - "components/AdminTelegram*"
-  - "components/AdminBroadcast*"
+  - "components/notifications/**"
+  - "components/app/OfflineSync*"
+  - "components/admin/AdminTelegram*"
+  - "components/admin/AdminBroadcast*"
   - "app/api/notifications/**"
   - "app/api/push/**"
   - "app/api/telegram/**"
@@ -28,7 +28,7 @@ paths:
   (`lib/webPush.js`, бібліотека `web-push`, VAPID). Push — лише доставка;
   джерело правди — рядок у БД, тож людина без дозволу на push (або на iOS
   без встановленої PWA) усе одно бачить подію в центрі.
-- **Події** (тип → категорія у `lib/notificationTypes.js`): призначення
+- **Події** (тип → категорія у `lib/notificationTypes.ts`): призначення
   курсу (`lib/courseAssignment.js enrollEmployees`), нагадування за 3/1
   день і прострочення (cron), ачивки авто/ручні, денний дайджест
   керівнику по прямих підлеглих (cron), ручна розсилка з
@@ -66,7 +66,7 @@ paths:
   `/_next/image` офлайн підходить будь-яка закешована ширина того ж `url=`.
   Плеєр при відкритті шле SW `{type:"precache", urls}` (сторінка + усі фото
   екранів), щоб курс можна було пройти в полі без зв’язку.
-- Відповіді без мережі — `lib/offlineOutbox.js` (localStorage-черга
-  module-complete/submit по порядку), досилає `components/OfflineSync.jsx`
+- Відповіді без мережі — `lib/offlineOutbox.ts` (localStorage-черга
+  module-complete/submit по порядку), досилає `components/app/OfflineSync.jsx`
   на старті і на `online`. Background Sync API свідомо не використано —
   iOS його не має. Результат у черзі = сертифікат недоступний до синку.

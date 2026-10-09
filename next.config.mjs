@@ -100,7 +100,7 @@ const nextConfig = {
         ],
       },
       // public/guide/install.html — застосунок навмисно показує його в
-      // <iframe> (components/InstallGuide.tsx, GUIDE_URL): онбординг у
+      // <iframe> (components/shell/InstallGuide.tsx, GUIDE_URL): онбординг у
       // app/register/page.js і повторний перегляд із SettingsSheet. Загальне
       // правило вище (X-Frame-Options: DENY, frame-ancestors 'none') рахує
       // це клікджекінгом і глушить власний iframe застосунку білим екраном
@@ -187,7 +187,7 @@ const nextConfig = {
     // Фото уроків, завантажені через /admin (кнопка "Обрати фото…"),
     // тепер зберігаються у Vercel Blob (lib/adminSession.js вимагає,
     // app/api/admin/upload/route.js) — без цього next/image (InfoScreen,
-    // components/CoursePlayer.jsx) кидає "hostname is not configured"
+    // components/course/CoursePlayer.jsx) кидає "hostname is not configured"
     // на будь-яке завантажене фото, статичні /assets/… тут ні до чого.
     // upload.wikimedia.org — публічні вільно-ліцензовані фото (Wikimedia
     // Commons), використані для наповнення тестових курсів "Технік

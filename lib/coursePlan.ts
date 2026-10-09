@@ -23,10 +23,10 @@
  */
 
 import { resolveRetryRules, retryGate } from "./retryPolicy";
-import { medalTier } from "./progress";
+import { allModulesPerfect, medalTier } from "./progress";
 import { pluralize, pluralWord } from "./pluralize";
 import { formatMinutes, formatWait } from "./duration";
-import { DAY_MS, formatKyivDate } from "./kyivTime";
+import { DAY_MS, formatUkraineDate } from "./ukraineTime";
 
 export { formatMinutes };
 
@@ -493,8 +493,8 @@ export function buildCoursePlan(
   };
 }
 
-/** «09.10.2026» за Києвом — план рендериться на сервері в UTC. */
-export const formatDate = (date: Date): string => formatKyivDate(date);
+/** «09.10.2026» за українським часом — план рендериться на сервері в UTC. */
+export const formatDate = (date: Date): string => formatUkraineDate(date);
 
 
 /** "день/дні/днів" — без цього виходить «через 3 днів». */
@@ -519,7 +519,7 @@ export type LockKind = "date" | "days" | "sequence";
  * скарга користувача на «Відкриється після складання попереднього
  * модуля»): іконка в картці вже каже «закрито», підпис лише додає
  * причину, не повторює її. `kind` — який значок поставити поруч
- * (components/CoursePlan.tsx): точна дата, зворотний відлік чи просто
+ * (components/course/CoursePlan.tsx): точна дата, зворотний відлік чи просто
  * «наступний за порядком» без жодної дати.
  */
 function lockInfo(m: PlanModule): { label: string; kind: LockKind } | null {
@@ -561,21 +561,13 @@ function pluralModules(n: number): string {
 }
 
 /**
- * Статус сертифіката — компактний факт замість окремого банера-гасла
- * (2026-09-17: банер "Пройдіть курс на всі 100%!" висів над планом як
- * гучний слоган і не ніс нової інформації понад те, що вже сказано
- * підписом кнопки "Сертифікат" на завершеному курсі).
- *
- * "Отримано" — КОЖЕН модуль курсу рівно на 100% (не просто "passed" за
- * прохідним балом). 2026-09-19 тут була нижча планка — remainingCount===0,
- * тобто просто складений курс — але користувач 2026-09-22 повернув планку
- * назад: "Сертификат только 100% пройденый курс". Той самий критерій знов
- * скрізь: тут, у списку «Досягнення» (lib/achievements.ts) і в PDF-роуті
- * (app/api/courses/[slug]/certificate).
+ * Статус сертифіката — компактний факт у плані курсу (замість банера над
+ * ним). «Отримано» — за тим самим правилом, що й PDF, «Досягнення» і
+ * картка курсу (lib/progress.ts): кожен модуль рівно на 100%.
  */
 function certificateStatus(plan: CoursePlan, certificateEnabled: boolean): { label: string; earned: boolean } | null {
   if (!certificateEnabled || plan.modules.length === 0) return null;
-  const earned = plan.modules.every((m) => m.scorePercent === 100);
+  const earned = allModulesPerfect(plan.modules.map((m) => m.scorePercent));
   // Підпис "Сертифікат" під великим текстом і так каже, ЩО це за факт,
   // тож значення лишається коротким (2026-09-18: довше не вміщалось у два
   // рядки плашки, як сусідні факти).

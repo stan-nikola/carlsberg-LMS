@@ -1,8 +1,8 @@
 ---
 paths:
-  - "components/ManagerDashboard.jsx"
-  - "components/TeamMatrix*"
-  - "components/TeamStatusBar*"
+  - "components/manager/dashboard/**"
+  - "components/manager/TeamMatrix*"
+  - "components/manager/TeamStatusBar*"
   - "lib/dashboardHeights*"
   - "lib/onelineMarquee*"
   - "app/styles/manager.css"
@@ -10,9 +10,15 @@ paths:
 
 ## Дашборд керівника: сітка карток (gridstack)
 
+  Модуль `components/manager/dashboard/`: `ManagerDashboard.tsx` — дані, набір і
+  порядок карток; `useDashboardGrid.ts` — уся логіка gridstack нижче; `layout.ts` —
+  сховище (localStorage), ролеві дефолти, ширини; `ChartCard.tsx` (рамка картки +
+  `BarRow`) і `cards/` — самі картки. Нова картка = id у `CANONICAL_CARD_IDS` і
+  `DEFAULT_CARD_W` + компонент у `cards/` + рядок у `renderChartCards`.
+
   Розміри карток — як цеглинки (`lib/dashboardHeights.ts`): ширина лише
   ¼/½/уся (3/6/12 колонок, мінімум за змістом — `minCardW` у
-  `ManagerDashboard.jsx`), висота лише S або L = 2×S з проміжком
+  `components/manager/dashboard/layout.ts`), висота лише S або L = 2×S з проміжком
   (`standardRows`, `CARD_S_PX`), довгі списки скроляться в межах L.
   Дір у сітці не буває: після кожної зміни `fitCards` ущільнює, а що не
   закривається — `holeFillSteps` (розширити ¼→½/½→усю, S→L, вирівняти

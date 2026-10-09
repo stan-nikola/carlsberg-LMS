@@ -251,7 +251,7 @@ export async function answerQuestion(
   const moduleId = Number(body.moduleId);
   const componentId = Number(body.componentId);
   if (![enrollmentId, moduleId, componentId].every(Number.isInteger)) {
-    // Порожній запит прогріву з плеєра (CoursePlayer.jsx): будимо з'єднання з базою, нічого не пишемо.
+    // Порожній запит прогріву з плеєра (CoursePlayer.tsx): будимо з'єднання з базою, нічого не пишемо.
     await prisma.$queryRaw`SELECT 1`;
     return { ok: false, status: 404, error: "Question not found" };
   }

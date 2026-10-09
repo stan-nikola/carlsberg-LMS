@@ -1,6 +1,6 @@
 import { test, expect, loginAs, loginAdmin, PERSONAS } from "./fixtures";
 
-/** Оверлеї на спільному useDismiss (lib/useDismiss.ts): Esc + блок скролу сторінки. */
+/** Оверлеї на спільному useDismiss (hooks/useDismiss.ts): Esc + блок скролу сторінки. */
 
 test("налаштування дашборда: Esc закриває, сторінка під шторкою не скролиться", async ({ page }) => {
   await loginAs(page, PERSONAS.manager);
@@ -21,4 +21,13 @@ test("«Нова папка» в адмінці: Esc закриває, наві�
   await page.locator(".adm-modal-title").click();
   await page.keyboard.press("Escape");
   await expect(page.locator(".adm-modal")).toHaveCount(0);
+});
+
+test("шторка налаштувань закривається Esc", async ({ page }) => {
+  await loginAs(page, PERSONAS.employee);
+  await page.goto("/hub");
+  await page.locator(".appbar").getByRole("button", { name: "Налаштування" }).click();
+  await expect(page.locator(".sheet-overlay.open")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".sheet-overlay.open")).toHaveCount(0);
 });

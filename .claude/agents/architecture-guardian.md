@@ -66,8 +66,8 @@ time:
 2. **Code assumes a depth/shape the schema doesn't have.** Grep every
    file that queries or renders course content
    (`lib/courseContent.js`, `lib/employeeProgress.js`,
-   `lib/managerDashboard.js`, `components/CoursePlayer.jsx`,
-   `components/CourseTile.jsx`, `components/course-editor/`, any
+   `lib/managerDashboard.js`, `components/course/player/CoursePlayer.tsx`,
+   `components/hub/CourseTile.jsx`, `components/course-editor/`, any
    `app/**/courses/**` or `app/**/manager/**` route) for the literal
    hierarchy depth it walks (`course.modules`, `module.screens`,
    `screen.components`, or any `.flatMap`/nested `.map` chain over

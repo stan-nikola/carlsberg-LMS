@@ -1,6 +1,6 @@
 /**
  * Регульовані токени дизайн-системи (app/styles/tokens.css) — те, що крутить
- * стенд /admin/design (components/DesignStand.tsx). Кольори загалом сюди не
+ * стенд /admin/design (components/admin/DesignStand.tsx). Кольори загалом сюди не
  * входять (рішення користувача 2026-09-16) — крім кольорів великих помітних
  * елементів хабу й кабінету керівника (2026-10-04): кожному свій колір і
  * вигляд із палітри Carlsberg Group design guide (lib/accentPalette.ts).
@@ -226,7 +226,7 @@ export const DESIGN_TOKENS: TokenDef[] = [
   },
   // Капсула-індикатор нав-таббару (.tab-pill, app/styles/hub.css) —
   // "choice", не новий kind "ms": стенд поки рендерить лише px-повзунок і
-  // choice-випадайку (components/DesignStand.tsx), додавати третій вид
+  // choice-випадайку (components/admin/DesignStand.tsx), додавати третій вид
   // заради двох токенів — окрема робота понад цю задачу.
   {
     key: "tab-pill-duration",

@@ -10,7 +10,6 @@ import {
   CELL_STATUS_META,
   compareTeams,
   type CellStatus,
-  type PersonCounts,
   type PersonSegment,
   type TeamPerson,
   type TeamRow,

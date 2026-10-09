@@ -13,7 +13,7 @@
  *   revealContent  — розбір ПІСЛЯ відповіді: правильні варіанти, пояснення.
  *
  * Модуль чистий: `keyOf` передає викликач. Сервер дає HMAC-ключі
- * (lib/courseGrading.ts), прев'ю конструктора — просто індекси
+ * (lib/moduleAttempts.ts serverKeyOf), прев'ю конструктора — просто індекси
  * (indexKeyOf): там автор і так бачить весь вміст.
  */
 
@@ -46,7 +46,6 @@ export type QuizResponse = { selected: string[] };
 export type OrderingResponse = { order: string[] };
 export type MatchingResponse = { links: Record<string, string> };
 export type HotspotResponse = { x: number; y: number; aspect: number };
-export type GradeResponse = QuizResponse | OrderingResponse | MatchingResponse | HotspotResponse;
 
 /** Детермінований генератор [0,1) від рядка (FNV-1a → mulberry32). */
 export function seededRandom(seed: string): () => number {

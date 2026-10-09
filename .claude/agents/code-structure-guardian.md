@@ -63,17 +63,19 @@ ages):
 | Course fields from a request | `lib/courseFields.ts courseFieldsFromBody` | per-route coercion |
 | Secret compare | `lib/safeEqual.ts safeEqual` | `===` or inline `timingSafeEqual` |
 | Removing enrollments (+ points, + cache) | `lib/courseAssignment.js removeEnrollments` | `deleteMany` in a route |
-| Escape + body scroll lock for drawer/modal | `lib/useDismiss.ts useDismiss` | own `keydown` listener / `overflow: hidden` |
-| Reorderable list | `lib/useDragReorder.ts` (pointer + touch + keyboard, FLIP); DB-backed rows → `lib/useIdOrder.ts useIdOrder` + `saveOrder` | HTML5 `draggable` for reorder (fine only for drop-INTO targets: folders, org tree) |
+| Escape + body scroll lock for drawer/modal | `hooks/useDismiss.ts useDismiss` | own `keydown` listener / `overflow: hidden` |
+| Reorderable list | `hooks/useDragReorder.ts` (pointer + touch + keyboard, FLIP); DB-backed rows → `hooks/useIdOrder.ts useIdOrder` + `saveOrder` | HTML5 `draggable` for reorder (fine only for drop-INTO targets: folders, org tree) |
 | "+ Add …" row | `components/course-editor/NewItemForm.tsx` | another title-input + button form |
 | Course settings fields | `components/course-editor/CourseSettingsFields.tsx` | a second copy of a field |
-| Hover/focus explanation | `components/HintDot.tsx` | own tooltip, `title=` for a sentence |
-| "Loading…" line / page skeleton | `components/Skeleton.tsx LoadingLine` / `PageSkeleton` | spinner `<p>` by hand |
-| Enrollment status pill / passed badge | `components/EnrollmentRow.tsx StatusPill`, `components/StatusBadge.tsx` | per-file status classes |
-| Shell pieces (tab pill, logout, nav pending, shell effects) | `components/shellCommon.tsx`, tabs in `components/shellNav.ts` | a copy in a new shell |
+| Hover/focus explanation | `components/ui/HintDot.tsx` | own tooltip, `title=` for a sentence |
+| "Loading…" line / page skeleton | `components/ui/Skeleton.tsx LoadingLine` / `PageSkeleton` | spinner `<p>` by hand |
+| Enrollment status pill / passed badge | `components/manager/EnrollmentRow.tsx StatusPill`, `components/ui/StatusBadge.tsx` | per-file status classes |
+| Shell pieces (tab pill, logout, nav pending, shell effects) | `components/shell/shellCommon.tsx`, tabs in `components/shell/shellNav.ts` | a copy in a new shell |
 | Reduced motion | `lib/motion.ts prefersReducedMotion` | inline `matchMedia` |
 | Plurals | `lib/pluralize.ts pluralize` / `pluralWord` | `n === 1 ? … : …` |
-| Dates / days | `lib/kyivTime.ts formatKyivDate`, `DAY_MS`, `deadlineAfterDays` | `toLocaleDateString` without Kyiv tz, `86400000` |
+| Business time (deadline = end of day, daily jobs, «once a day») | `lib/ukraineTime.ts` (`deadlineAfterDays`, `endOfUkraineDay`, `ukraineDayKey`, `DAY_MS`) | server/UTC dates, `86400000` |
+| Showing a date to the viewer | `components/ui/LocalDate.tsx` in server-rendered markup; `lib/localDate.ts formatDate/formatDateTime` for client-fetched data and event handlers (device time zone) | `toLocaleDateString` / `toLocaleString` by hand |
+| Date in text another person reads (PDF, Excel, e-mail, notification, reminder) | `lib/ukraineTime.ts formatUkraineDate` | device time zone |
 | Durations | `lib/duration.ts formatMinutes`, `formatWait` | inline minute maths |
 | Labels | `lib/roleLabels.ts ROLE_LABELS`, `lib/enrollmentStatus.ts enrollmentStatusLabel` | local label maps |
 | Excel response | `lib/excelReport.js xlsxResponse` + `autoSheet` | headers by hand |
@@ -104,9 +106,8 @@ is a finding.
 
 New files are `.ts`/`.tsx` (`git status` must show no new `.js`/`.jsx`). A
 `.js`/`.jsx` file that is substantially edited gets converted. In TS:
-`strict`, typed props objects, no `any` except a documented shim (see
-`components/course-editor/playerScreens.ts` — loosened JS components until
-they are converted, with the reason written above). Domain types live next to
+`strict`, typed props objects, no `any` except a documented shim with the
+reason written above it. Domain types live next to
 their module (`components/course-editor/types.ts`), not inline 5 times. A
 JSDoc `@param` list on a destructured React component types the WHOLE props
 object as the first param — write one `@param {{ … }} props` instead.

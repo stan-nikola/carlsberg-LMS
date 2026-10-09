@@ -20,10 +20,12 @@ vanilla JS + Google Sheets (архів — [`/legacy`](./legacy)) на **Next.js
 широкий десктопний екран (CSS container query), не лишається "мобільною
 карткою" на великому моніторі.
 
-**Кабінет керівника** (`/manager`) — дерево команди з підсумком по
-кожному курсу (складено/не складено/прострочено), детальний розбір по
-кожному модулю, тижневий тренд активності, Excel-звіт по всій видимій
-команді.
+**Кабінет керівника** (`/manager`) — дашборд із картками, які можна
+переставляти й ховати: стан команди, «потребують уваги» з нагадуванням,
+матриця люди × курси, дедлайни, розподіл балів, найскладніші модулі й
+питання, тижнева активність, порівняння команд. Кожна цифра веде на
+список людей із фільтром (`/manager/team`) і далі на картку людини;
+Excel-звіт по всій видимій команді.
 
 **Адмінка** (`/admin`) — окремий вхід за паролем:
 - конструктор курсів (модулі/екрани/компоненти, drag-and-drop, живе
@@ -40,6 +42,30 @@ vanilla JS + Google Sheets (архів — [`/legacy`](./legacy)) на **Next.js
 - **Prisma 7** (`@prisma/adapter-pg`, конфіг у `prisma7.config.mjs`) + Postgres (Neon)
 - Vercel Blob (фото), Resend (прод-пошта) / Gmail SMTP (dev), PDFKit (сертифікати), ExcelJS/SheetJS (звіти/імпорт)
 - Vitest (тести), ESLint + Husky/lint-staged (pre-commit)
+
+## Структура проєкту
+
+| Тека | Що там |
+| --- | --- |
+| `app/` | маршрути App Router: `hub/` (співробітник), `courses/[slug]` (плеєр), `manager/`, `admin/`, `register/`, `tg/` (Telegram Mini App); `app/api/**/route.*` — API (опис у `openapi.yaml`, перегляд на `/admin/api`) |
+| `app/styles/` | CSS за розділами; токени дизайн-системи — `tokens.css` |
+| `components/ui/` | загальні атоми: `HintDot`, `Skeleton`, `StatusBadge`, `BottomSheet`, `Avatar`, `CountUp`, `CompletionRing`, іконки |
+| `components/app/` | глобальне з кореневого layout: офлайн-синк, service worker, заборона копіювання, розміри таблиць |
+| `components/shell/` | каркаси кабінетів (`HubShell`, `ManagerShell`, `AdminShell`), їхні скелети, налаштування; спільне — `shellCommon.tsx`, вкладки — `shellNav.ts` |
+| `components/hub/` | профіль, рейтинг, досягнення, сертифікати, картка курсу |
+| `components/course/` | плеєр курсу, план курсу, екрани й питання |
+| `components/course-editor/` | конструктор курсу (дерево, поля типів компонентів, прев'ю) і спільні поля налаштувань курсу |
+| `components/manager/` | дашборд керівника, список і картка людини, нагадування, звіт |
+| `components/admin/` | адмінка: каталог курсів, співробітники, оргструктура, відзнаки, журнал, дизайн-стенд |
+| `components/notifications/` | дзвоник, центр сповіщень, налаштування сповіщень |
+| `hooks/` | клієнтські хуки: `useDismiss` (Esc + блок скролу), `useDragReorder`/`useIdOrder` (перетягування), `useFlip`, `useSeenValue`, `usePullToRefresh` |
+| `lib/` | доменна логіка й серверні модулі: правила курсу (`coursePlan`, `progress`, `grading`), сесії й доступ, Prisma, сповіщення, звіти; чисті модулі — з `*.test.ts` поруч |
+| `prisma/` | схема, міграції, сид-скрипти |
+| `e2e/` | Playwright-тести крихких сценаріїв (вхід — `e2e/fixtures.ts`) |
+
+Нові файли — TypeScript. Перед тим як писати хелпер, хук чи компонент,
+перевірте, чи такий уже є: перелік спільних частин і правила структури —
+`.claude/agents/code-structure-guardian.md`.
 
 ## Розробка
 
@@ -72,15 +98,17 @@ node prisma/seed.js         # системний адмін-акаунт (для
 ```
 
 `prisma/import-employees.js` / `import-territories.js` — одноразовий
-імпорт реальної оргструктури з Excel. `prisma/seed-synthetic-demo.js` +
-`seed-synthetic-demo-departments.js` — повністю вигадана демо-організація
-(жодних реальних людей) для розробки/демонстрацій.
+імпорт реальної оргструктури з Excel. `prisma/seed-synthetic-demo.js` —
+повністю вигадана демо-організація (жодних реальних людей) для
+розробки/демонстрацій.
 
 ## Перевірка перед комітом
 
 ```bash
+npx tsc --noEmit -p .
 npm run lint
-npm run test -- --run
+npm run test
+npm run test:e2e    # Playwright; потрібен запущений dev-сервер на :3000
 npm run build
 ```
 
