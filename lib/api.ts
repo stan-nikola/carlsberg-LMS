@@ -4,9 +4,13 @@
  * лише успіх/текст помилки; особливі коди (409 з пропозицією, 404 як «нема»)
  * обробляйте звичайним fetch.
  */
-export async function api<T = Record<string, any>>(path: string, { method = "GET", body }: { method?: string; body?: unknown } = {}): Promise<T> {
+export async function api<T = Record<string, any>>(
+  path: string,
+  { method = "GET", body, keepalive }: { method?: string; body?: unknown; keepalive?: boolean } = {},
+): Promise<T> {
   const res = await fetch(path, {
     method,
+    keepalive,
     headers: body === undefined ? undefined : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });

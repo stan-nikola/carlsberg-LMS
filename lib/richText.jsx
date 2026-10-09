@@ -5,7 +5,7 @@
  * параграфи по порожньому рядку.
  *
  * Підтримується три накреслення — рівно ті, для яких у конструкторі є
- * кнопки (components/AdminCourseEditor.jsx, RichTextArea):
+ * кнопки (components/course-editor/fields/common.tsx, RichTextArea):
  *   **текст**  → жирний
  *   *текст*    → курсив
  *   __текст__  → підкреслений

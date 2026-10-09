@@ -115,7 +115,7 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
   const explanation = reveal?.explanation;
 
   // Перетягування — lib/useDragReorder.ts: та сама механіка, що й у
-  // конструкторі (components/AdminCourseEditor.jsx OrderingFields).
+  // конструкторі (components/course-editor/fields/questions.tsx OrderingFields).
   const { containerRef, containerProps, registerRow, dragId, dragDeltaY, moveByKeyboard } = useDragReorder<string>({
     ids: order,
     onReorder: setDraft,
@@ -140,7 +140,7 @@ export function OrderingScreen({ component, screenNumber, answer, onAnswer, onZo
         onZoomImage={onZoomImage}
       />
 
-      <ol className="q-order" ref={containerRef as React.RefObject<HTMLOListElement>} {...containerProps}>
+      <ol className="q-order" ref={containerRef} {...containerProps}>
         {order.map((key, pos) => {
           // Позначки по рядках — лише коли сервер віддав правильний порядок
           // (тобто відповідь правильна): після помилки він його не розкриває.

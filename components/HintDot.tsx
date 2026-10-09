@@ -14,12 +14,11 @@ import { InfoIcon } from "@/components/icons";
  * tabIndex + role/aria-label — щоб підказка відкривалась і з клавіатури,
  * а не лише мишею; :focus-visible у CSS показує той самий блок.
  *
- * @param {string} text - пояснення
- * @param {"end"|"start"} [align] - до якого краю притискається блок
- *   підказки. "end" (дефолт) — іконка біля правого краю контейнера;
- *   "start", коли вона зліва й блок інакше вилазив би за екран.
+ * align — до якого краю притискається блок підказки: "end" (дефолт) — іконка
+ * біля правого краю контейнера; "start", коли вона зліва й блок інакше
+ * вилазив би за екран.
  */
-export function HintDot({ text, align = "end", className = "" }) {
+export function HintDot({ text, align = "end", className = "" }: { text: string; align?: "end" | "start"; className?: string }) {
   return (
     <span
       className={`hint-dot hint-dot-${align}${className ? ` ${className}` : ""}`}

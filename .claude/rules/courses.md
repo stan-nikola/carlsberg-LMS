@@ -3,7 +3,7 @@ paths:
   - "components/Course*"
   - "components/QuestionScreens.tsx"
   - "components/ScreenComponentBlock*"
-  - "components/AdminCourseEditor.jsx"
+  - "components/course-editor/**"
   - "components/AdminDashboard.jsx"
   - "components/PreviewQuiz*"
   - "lib/course*"
@@ -174,7 +174,7 @@ paths:
   Новий тип питання = значення в enum `ComponentType` у schema.prisma
   (інакше база відкине запис) + рядок у `COMPONENT_TYPES` і
   `SCORED_COMPONENT_TYPES` + `defaultContentForType` + поля в
-  `AdminCourseEditor` (`ComponentTypeFields`) + рендер у
+  `FIELDS_BY_TYPE` у `components/course-editor/ComponentTypeFields.tsx` + рендер у
   `components/QuestionScreens.tsx` + гілка в `ScreenComponentBlock` і в
   `PreviewQuiz`. Нові типи зроблено БЕЗ перетягування (стрілки й тапи):
   застосунок телефонний, drag на дотику промахується.
