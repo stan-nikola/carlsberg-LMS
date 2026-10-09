@@ -44,3 +44,21 @@ test("прогрес відновлюється з того самого міс�
   await expect(page.locator(".cp-intro")).toHaveCount(0);
   await page.evaluate((slug) => localStorage.removeItem(`course_progress_${slug}`), SLUG);
 });
+
+test("лінія плану проходить крізь кожну станцію (і після анімації появи картки)", async ({ page }) => {
+  await page.goto(`/courses/${SLUG}`);
+  await expect(page.locator(".cp-plan-road-svg path").first()).toBeAttached();
+  await page.waitForTimeout(1500);
+  const missed = await page.evaluate(() => {
+    const svg = document.querySelector(".cp-plan-road-svg")!;
+    const s = svg.getBoundingClientRect();
+    const pts = [...(svg.querySelector("path")!.getAttribute("d") || "").matchAll(/[ML] ([\d.]+) ([\d.]+)/g)].map((m) => [+m[1], +m[2]]);
+    return [...document.querySelectorAll(".cp-plan-dot")]
+      .map((d) => {
+        const r = d.getBoundingClientRect();
+        return [r.left + r.width / 2 - s.left, r.top + r.height / 2 - s.top];
+      })
+      .filter(([x, y]) => !pts.some(([px, py]) => Math.abs(px - x) <= 1.5 && Math.abs(py - y) <= 1.5));
+  });
+  expect(missed, "станції, повз які йде лінія").toEqual([]);
+});

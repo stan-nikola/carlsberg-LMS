@@ -234,6 +234,12 @@ export function CoursePlanPanel({
       const gridEl = gridRef.current;
       if (!gridEl) return;
       const containerRect = gridEl.getBoundingClientRect();
+      if (!containerRect.width) return; // сітку ще не видно — нема що міряти
+      // Картка курсу в'їжджає з анімацією масштабу: замір посеред неї стискав
+      // усі координати (~2%), і лінія повертала вниз, не дійшовши до станцій
+      // праворуч, а кінця анімації ResizeObserver не бачить (2026-10-09).
+      // Ділимо на поточний масштаб — справжня ширина / видима.
+      const k = gridEl.offsetWidth / containerRect.width;
       const points: SnakePoint[] = [];
       for (let i = 0; i < cellRefs.current.length; i += 1) {
         const cell = cellRefs.current[i];
@@ -242,9 +248,9 @@ export function CoursePlanPanel({
         const cellRect = cell.getBoundingClientRect();
         const dotRect = dot.getBoundingClientRect();
         points.push({
-          x: dotRect.left + dotRect.width / 2 - containerRect.left,
-          y: dotRect.top + dotRect.height / 2 - containerRect.top,
-          rowBottom: cellRect.bottom - containerRect.top,
+          x: (dotRect.left + dotRect.width / 2 - containerRect.left) * k,
+          y: (dotRect.top + dotRect.height / 2 - containerRect.top) * k,
+          rowBottom: (cellRect.bottom - containerRect.top) * k,
         });
       }
       setPath({
