@@ -5,7 +5,7 @@ import { getHardestQuestions } from "@/lib/managerDashboard";
 
 // GET /api/manager/hardest-questions — окремо від решти кабінету
 // (аудит швидкодії, 2026-09-19): картка "Найскладніші питання" вимкнена
-// за замовчуванням (components/ManagerDashboard.jsx), тож зайвий
+// за замовчуванням (components/manager/dashboard/ManagerDashboard.tsx), тож зайвий
 // groupBy по QuestionAnswer + findMany по Component не мають виконуватись
 // на КОЖЕН заход у /manager — лише коли керівник сам увімкнув цю картку.
 export async function GET() {

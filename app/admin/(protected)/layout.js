@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAdminLevel } from "@/lib/adminSession";
-import { AdminShell } from "@/components/AdminShell";
+import { AdminShell } from "@/components/shell/AdminShell";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components

@@ -26,7 +26,7 @@
   scroll-behavior: smooth;
   position: relative;
 }
-/* "Потягнути, щоб оновити" (components/usePullToRefresh.js, 2026-09-19) —
+/* "Потягнути, щоб оновити" (hooks/usePullToRefresh.ts, 2026-09-19) —
    перший дочірній елемент .hub-viewport, тому росте height штовхає
    контент вниз без position:absolute/трансформацій. transition лише на
    opacity: height анімує сам React-стан кадр-у-кадр під час тягнення
@@ -60,12 +60,6 @@
   text-transform: uppercase;
   color: var(--green-700);
   margin-bottom: 4px;
-}
-.hub-h1 {
-  font-size: calc(21px * var(--fs-scale));
-  font-weight: 900;
-  margin-bottom: 16px;
-  line-height: 1.25;
 }
 /* Єдиний заголовок вкладки хаба (Home/Навчання/Досягнення/Профіль,
    2026-09-22) — один kicker-рядок (.greeting: мono, uppercase, зелений)
@@ -290,26 +284,6 @@ a.profile-card-link:focus-visible {
     font-size: 0.7em;
     opacity: 0.75;
   }
-}
-
-.xp-wrap {
-  margin-bottom: 16px;
-}
-.xp-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 6px;
-}
-.xp-label {
-  font-size: calc(11.5px * var(--fs-scale));
-  color: var(--ink-soft);
-  font-weight: 600;
-}
-.xp-num {
-  font-family: var(--font-mono);
-  font-size: calc(11px * var(--fs-scale));
-  color: var(--ink-soft);
 }
 .xp-track {
   height: var(--size-2xs);
@@ -635,7 +609,7 @@ a.profile-card-link:focus-visible {
 .ct-cert-square svg {
   width: 20px;
   height: 20px;
-  /* SpinnerIcon (components/icons.jsx) несе свій margin-right/vertical-align
+  /* SpinnerIcon (components/ui/icons.jsx) несе свій margin-right/vertical-align
      — розраховані на "іконка+текст поруч" (кнопки /admin), тут іконка
      сама по собі в центрованому квадраті, зайвий відступ зсував би її
      вбік. */
@@ -706,17 +680,6 @@ a.profile-card-link:focus-visible {
 }
 
 /* "coming soon" placeholder course cards (Learning tab) */
-.placeholder-card {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  background: var(--surface-1);
-  border: var(--border-w) dashed var(--line);
-  border-radius: var(--radius-card);
-  padding: 14px;
-  margin-bottom: 12px;
-  opacity: 0.85;
-}
 .ct-icon {
   width: 46px;
   height: 46px;
@@ -794,18 +757,6 @@ a.profile-card-link:focus-visible {
     max-height: calc(1.4em * 4);
     overflow-y: auto;
   }
-}
-.pc-soon {
-  font-family: var(--font-mono);
-  font-size: calc(9px * var(--fs-scale));
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: var(--surface-2);
-  color: var(--ink-soft);
-  padding: 2px 7px;
-  border-radius: var(--radius-badge);
-  font-weight: 700;
-  flex-shrink: 0;
 }
 
 .badge-grid {
@@ -905,7 +856,7 @@ a.profile-card-link:focus-visible {
 }
 /* До Фази C адмінки тут завжди був блюр+lock-заглушка ("Рейтинг з'явиться
    скоро") поверх фейкових рядків — реальний рейтинг тепер рендериться
-   САМ ПО СОБІ (components/AchievementsPanel.jsx: .leaderboard-list АБО
+   САМ ПО СОБІ (components/hub/AchievementsPanel.jsx: .leaderboard-list АБО
    .leaderboard-lock, ніколи разом), блюр/pointer-events:none лишались б
    зайвими й ламали б клікабельність реальних даних. */
 .leaderboard-list {
@@ -1075,8 +1026,8 @@ a.lb-row-link:focus-visible {
    форма НЕ заокруглена (--radius-btn, не 999px) — той самий фірмовий
    прямокутний язик Malty, що вже стояв у .tab-btn-indicator нижче
    ("прямокутник, не піл" — те рішення лишається чинним, міняється лише
-   механіка руху). Позиція/розмір рахує JS (components/HubShell.jsx,
-   components/ManagerShell.jsx — getBoundingClientRect, той самий прийом,
+   механіка руху). Позиція/розмір рахує JS (components/shell/HubShell.jsx,
+   components/shell/ManagerShell.jsx — getBoundingClientRect, той самий прийом,
    що вже є в CoursePlan snake-path). left:0 ОБОВ'ЯЗКОВИЙ: без нього
    position:absolute усередині flex-контейнера сам вираховує "статичну
    позицію" за алгоритмом flex-розкладки, і translateX/Y рахується не
@@ -1237,7 +1188,7 @@ a.lb-row-link:focus-visible {
   text-align: center;
 }
 
-/* Фото профілю (components/Avatar.tsx): та сама кругла форма, фото
+/* Фото профілю (components/ui/Avatar.tsx): та сама кругла форма, фото
    покриває кружок; -sm — у лідерборді й дереві команди. */
 .avatar img {
   width: 100%;
@@ -1355,7 +1306,7 @@ a.lb-row-link:focus-visible {
   height: 83.6px;
   font-size: calc(26.4px * var(--fs-scale));
   /* Легкий фліп при заході на сторінку (запит користувача) робить
-     components/ProfileCard.jsx через Web Animations API, а не CSS-анімація
+     components/hub/ProfileCard.jsx через Web Animations API, а не CSS-анімація
      на цьому класі: клас спрацьовував на КОЖНЕ монтування, і в dev
      (React StrictMode монтує двічі) аватар перевертався двічі поспіль. */
   transform-style: preserve-3d;

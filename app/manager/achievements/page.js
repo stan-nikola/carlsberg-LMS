@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/session";
 import { getEmployeeBadgesView, getEmployeeCertificates } from "@/lib/achievements";
 import { getEmployeeRating, getTeamLeaderboardByPosition } from "@/lib/rating";
-import { AchievementsPanel } from "@/components/AchievementsPanel";
+import { AchievementsPanel } from "@/components/hub/AchievementsPanel";
 
 // «Досягнення» керівника — та сама панель, що й app/hub/achievements/page.js,
 // але лідерборд — уся гілка підпорядкування, ЗГРУПОВАНА за посадою
@@ -21,7 +21,7 @@ export default async function ManagerAchievementsPage({ searchParams }) {
 
   const cohortLabel = employee.position ? `на посаді ${employee.position.code}` : "колег";
   // ?highlight=rating — з клікабельної картки профілю на /manager
-  // (components/ManagerDashboard.jsx). ?highlight=badge&badgeId=N — зі
+  // (components/manager/dashboard/ManagerDashboard.tsx). ?highlight=badge&badgeId=N — зі
   // сповіщення "Нова відзнака" (той самий підхід, що й /hub/achievements).
   const sp = await searchParams;
   const highlightRating = sp?.highlight === "rating";

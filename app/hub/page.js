@@ -1,11 +1,11 @@
 import { getCurrentUser } from "@/lib/session";
 import { getHubHomeData } from "@/lib/employeeProgress";
 import { getEmployeeRating } from "@/lib/rating";
-import { CourseTile } from "@/components/CourseTile";
-import { ProfileCard } from "@/components/ProfileCard";
-import { GreetingHeading } from "@/components/GreetingHeading";
-import { NotificationSettings } from "@/components/NotificationSettings";
-import { MandatoryCard } from "@/components/RatingBlocks";
+import { CourseTile } from "@/components/hub/CourseTile";
+import { ProfileCard } from "@/components/hub/ProfileCard";
+import { GreetingHeading } from "@/components/hub/GreetingHeading";
+import { NotificationSettings } from "@/components/notifications/NotificationSettings";
+import { MandatoryCard } from "@/components/hub/RatingBlocks";
 
 // Портовано з .hub-screen[data-tab="home"] в legacy index.html +
 // js/cabinet.js. Дані — з БД (Enrollment) замість localStorage.

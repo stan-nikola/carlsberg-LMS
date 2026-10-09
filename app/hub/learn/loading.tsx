@@ -1,4 +1,4 @@
-import { PageSkeleton } from "@/components/Skeleton";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 /** Власний Suspense-кордон для /hub/learn — див. app/hub/achievements/loading.tsx
  *  (той самий аудит швидкодії, 2026-09-19): без нього префетч цієї

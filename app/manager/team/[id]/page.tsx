@@ -3,13 +3,13 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getAllSubordinates } from "@/lib/permissions";
 import { getManagerEmployeeDetail, getManagerTeamRows } from "@/lib/managerOverview";
-import { Avatar } from "@/components/Avatar";
-import { EnrollmentRow, type EnrollmentDetail } from "@/components/EnrollmentRow";
-import { SegmentPill } from "@/components/TeamStatusBar";
-import { RemindButton } from "@/components/ReminderDialog";
-import { BackButton } from "@/components/BackButton";
+import { Avatar } from "@/components/ui/Avatar";
+import { EnrollmentRow, type EnrollmentDetail } from "@/components/manager/EnrollmentRow";
+import { SegmentPill } from "@/components/manager/TeamStatusBar";
+import { RemindButton } from "@/components/manager/ReminderDialog";
+import { BackButton } from "@/components/ui/BackButton";
 import { pluralize } from "@/lib/pluralize";
-import { ExportReportLink } from "@/components/ExportReportLink";
+import { ExportReportLink } from "@/components/manager/ExportReportLink";
 
 // TODO: Cache Components adoption — той самий опт-аут, що на app/manager/page.js.
 export const instant = false;

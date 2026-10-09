@@ -4,7 +4,7 @@ import { getTeamTree } from "@/lib/managerDashboard";
 
 // GET /api/admin/employees/tree — дерево ВСІЄЇ організації (корінь —
 // getTeamTree(null), тобто всі співробітники без керівника) для
-// components/EmployeeTree.jsx (Фаза A адмінки: редактор дерева
+// components/admin/EmployeeTree.jsx (Фаза A адмінки: редактор дерева
 // підпорядкування, на відміну від /manager, де той самий getTeamTree
 // викликається з реальним managerId конкретного керівника).
 export async function GET() {

@@ -1,4 +1,4 @@
-import { ReportScreen } from "@/components/ReportScreen";
+import { ReportScreen } from "@/components/manager/ReportScreen";
 
 // TODO: Cache Components adoption — той самий опт-аут, що на app/manager/page.js.
 export const instant = false;

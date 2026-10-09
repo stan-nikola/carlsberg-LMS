@@ -207,7 +207,7 @@
    клік «Далі»: React просто монтує ЩЕ один новий вузол замість
    попереднього — старий і його анімація зникають разом із ним, новий
    стартує свою з нуля. Напрямок задає data-nav на .cp-viewport
-   (components/CoursePlayer.jsx, navDirection): "forward" — «Далі»/
+   (components/course/player/CoursePlayer.tsx, navDirection): "forward" — «Далі»/
    продовження модуля/картки в'їжджають ЗНИЗУ; "back" — «Назад»/
    перескладання/рестарт курсу в'їжджають ЗВЕРХУ (directional cue —
    людина вчиться, що зворотний рух завжди «зверху», ще до першого
@@ -258,7 +258,7 @@
 }
 /* Кілька компонентів на одному екрані (screens[idx-1].components) —
    каскадна поява одна за одною, а не всі одразу пачкою. --stagger-i —
-   інлайн-властивість з JS-індексу (components/CoursePlayer.jsx
+   інлайн-властивість з JS-індексу (components/course/player/CoursePlayer.tsx
    ScreenComponentBlock), капнута на 5, щоб екран із десятком компонентів
    не розтягував появу на цілу секунду. Анімація власна (не той самий
    in-keyframe, що в .cp-screen) — .screen-component не повинен ще й сам
@@ -435,20 +435,6 @@
   padding: var(--card-pad-compact);
   margin-top: 8px;
 }
-.cp-certificate-hint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--gold-soft);
-  border-color: var(--gold);
-  color: color-mix(in srgb, var(--gold) 55%, var(--cb-black));
-  font-weight: 600;
-}
-.cp-certificate-hint svg {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
 
 /* quiz options (single/multi) */
 /* Банер блоку питань — портовано з legacy (course-assortment.html
@@ -533,7 +519,7 @@
    спершу у звичайного питання, тепер і в «порядку кроків» та
    «відповідності». Вона дублювала банер, що стоїть просто над нею, і
    називала тип, замість сказати, ЩО РОБИТИ — інструкція тепер другим
-   рядком у самому банері (components/QuestionScreens.tsx QuestionHeader). */
+   рядком у самому банері (components/course/QuestionScreens.tsx QuestionHeader). */
 @media (prefers-reduced-motion: reduce) {
   .quiz-banner::after,
   .quiz-banner-ico {
@@ -611,7 +597,7 @@
 }
 /* Підсумок усередині маркера після відповіді (2026-09-23): галочка в
    зеленому кружечку, хрестик — у червоному. Іконку малює
-   MorphRevealIcon (CoursePlayer.jsx), тут лише центрування й колір. */
+   MorphRevealIcon (CoursePlayer.tsx), тут лише центрування й колір. */
 .opt-mark {
   display: inline-flex;
   align-items: center;
@@ -1076,7 +1062,7 @@
    Портовано з попередньої vanilla-JS розробки "8 кроків телесейлінгу"
    (акордеони, чек-листи, діалог-скрипт дзвінка, таймлайн кроків) — але
    вже на фірмових токенах Carlsberg, а не на власних кольорах того
-   прототипу. Розмітка — components/LessonScreens.jsx. */
+   прототипу. Розмітка — components/course/screens/. */
 
 /* ---- Акордеон-картки ---- */
 .acc-list {
@@ -1709,7 +1695,7 @@
   flex-shrink: 0;
 }
 
-/* Фото всередині будь-якого компонента (components/ScreenComponents.jsx
+/* Фото всередині будь-якого компонента (components/course/screens/media.tsx
    ScreenMedia) — стоїть між вступним рядком і власним вмістом типу.
    Окремий клас від .cp-info-media: у інфо-блоку своя логіка з
    @container-перерозкладкою "фото поруч із текстом", а тут фото завжди
@@ -1982,7 +1968,7 @@
   }
 }
 
-/* Конфеті на весь екран (components/ScreenComponents.jsx ConfettiBurst) —
+/* Конфеті на весь екран (components/course/screens/celebrate.tsx ConfettiBurst) —
    фінальний екран курсу, пройденого на 100%. position:fixed, бо падати
    має через усе вікно, а не в межах картки курсу. pointer-events:none —
    шар декоративний і не повинен перехоплювати кліки по кнопці
@@ -2167,7 +2153,7 @@
   }
   /* Фото не вище половини екрана — інакше один знімок займає весь
      в'юпорт і текст під ним доводиться шукати скролом. Обгортка тримає
-     реальні пропорції фото (--img-aspect, components/ScreenComponents.jsx
+     реальні пропорції фото (--img-aspect, components/course/screens/media.tsx
      CourseImage): ширина = min(колонка, 48vh × пропорція), тобто рівно та,
      за якої висота стає 48vh; менші фото так само тягнуться на всю
      колонку, як і на мобільному (width:100%). Центр — margin:auto.
@@ -2375,7 +2361,7 @@
   }
 }
 
-/* ---- Гаряча точка на фото (components/ScreenComponents.jsx
+/* ---- Гаряча точка на фото (components/course/screens/HotspotScreen.tsx
    HotspotScreen) ---- */
 /* ---- Фото з точками (ImagePinsScreen) ----
    Пояснялка, а не питання: точки видно одразу, тап розкриває підпис
@@ -2934,12 +2920,12 @@
   }
 }
 
-/* Результат у черзі офлайн (lib/offlineOutbox.js) — не помилка, а очікування мережі. */
+/* Результат у черзі офлайн (lib/offlineOutbox.ts) — не помилка, а очікування мережі. */
 .cp-save-status.cp-save-queued {
   color: color-mix(in srgb, var(--cb-notification) 70%, var(--cb-black));
 }
 
-/* ===================== План курсу (components/CoursePlan.tsx) =====================
+/* ===================== План курсу (components/course/CoursePlan.tsx) =====================
    Перший екран курсу: склад курсу, що складено, з чого піде навчання, коли
    відкриються закриті модулі й скільки часу закласти. До 2026-09-17 плеєр
    показував лише «екран 3 з 18», і людина не бачила ні плану, ні способу
@@ -2978,10 +2964,8 @@
   background: var(--cb-fail-light);
 }
 /* ===================== Дорога плану курсу — суцільна "змійка" =====================
-   (2026-09-17, П'ЯТА ітерація — див. довгий коментар над CoursePlanPanel
-   у components/CoursePlan.tsx для повного обґрунтування: чому мобільний
-   режим — ліва рейка, а не флагшток; чому колір без червоного; чому
-   картки на десктопі за контентом, не жорсткою сіткою.) */
+   Обґрунтування (флагшток, колір без червоного, картки за контентом) — у
+   коментарі над CoursePlanPanel у components/course/CoursePlan.tsx. */
 .cp-plan-road-wrap {
   position: relative;
 }
@@ -3018,7 +3002,7 @@
   /* 3.24s = 1.08s база × 3 ("в три рази повільніше", 2026-09-22, скарга
      користувача — попередня швидкість була занадто миттєвою, щоб встигати
      стежити оком за скролом) — МАЄ збігатись із ROAD_DRAW_MS у
-     components/CoursePlan.tsx: звідти рахується і затримка сплеску
+     components/course/CoursePlan.tsx: звідти рахується і затримка сплеску
      масштабу на кожному вузлі, і тривалість синхронного скролу до
      потрібного модуля. */
   transition: stroke-dashoffset 3.24s var(--ease-premium);
@@ -3451,7 +3435,7 @@
   background: var(--cb-alert-light);
 }
 .cp-plan-pace.is-ahead,
-.cp-plan-pace.is-on_track {
+.cp-plan-pace.is-on-track {
   background: var(--cb-secondary-tint);
 }
 
@@ -3496,7 +3480,7 @@
    найбільша можлива "зона влучання" це кнопка (рішення чинне й далі, тут
    не переглядалось).
 
-   «Порядок кроків» — перетягування (lib/useDragReorder.ts, 2026-09-23,
+   «Порядок кроків» — перетягування (hooks/useDragReorder.ts, 2026-09-23,
    явне прохання користувача — "максимально юзер френдли drag and drop
    без скачків/мигань/дерганей"). Попереднє рішення (стрілки, бо "drag на
    дотику промахується") було свідомо переглянуте: ручка ВЕЛИКА (44px —
@@ -3534,7 +3518,7 @@
   touch-action: none;
   /* transform — лише для рядка "в руці" (інлайн-стиль dragDeltaY, JSX);
      решта отримують той самий transform ТИМЧАСОВО від FLIP-анімації
-     (lib/useDragReorder.ts), тож властивість мусить бути дозволена всім,
+     (hooks/useDragReorder.ts), тож властивість мусить бути дозволена всім,
      не лише .is-dragging. */
 }
 .q-order-row:active {

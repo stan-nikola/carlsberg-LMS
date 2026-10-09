@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/session";
 import { getManagerOverview } from "@/lib/managerOverview";
 import { isManagerTier } from "@/lib/permissions";
-import { ManagerDashboard } from "@/components/ManagerDashboard";
+import { ManagerDashboard } from "@/components/manager/dashboard/ManagerDashboard";
 
 // TODO: Cache Components adoption. Той самий опт-аут, що вже стоїть на
 // app/hub/page.js (2026-09-22): без нього /hub ловив "uncached data during
@@ -10,7 +10,7 @@ import { ManagerDashboard } from "@/components/ManagerDashboard";
 // Component з getCurrentUser()/сесією), тож про всяк випадок і тут.
 export const instant = false;
 
-// Дані рахуються тут (Server Component), не в ManagerDashboard.jsx через
+// Дані рахуються тут (Server Component), не в ManagerDashboard.tsx через
 // клієнтський fetch — інакше екран щоразу монтувався з порожнім станом і
 // власним скелетоном, повз кеш getManagerOverview (аудит "быстродействия
 // не почувствовал", 2026-09-19). ManagerGate (app/manager/layout.js) уже

@@ -3,7 +3,7 @@ import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/admin/territories — для пікера "кому призначати" (по
-// території) у /admin (components/TerritoryPicker.jsx).
+// території) у /admin (components/admin/TerritoryPicker.jsx).
 //
 // territories: пласкі вузли з parentId — саме дерево (RM -> ASM -> SV) і
 // відступи будує клієнт.

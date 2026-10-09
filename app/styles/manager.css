@@ -98,7 +98,7 @@ body:has(.manager-shell:not([style*="display: none"])) {
   padding: clamp(11px, 2.8vw, 22px) clamp(5px, 1.4vw, 14px) 60px clamp(5px, 1.25vw, 13px);
 }
 /* Курси/Досягнення/Профіль — той самий контент-паттерн, що в /hub
-   (.hub-h1/.greeting/.badge-grid/.profile-card тощо, hub.css), який був
+   (.greeting/.badge-grid/.profile-card тощо, hub.css), який був
    спроєктований під вузьку телефонну картку. На повній десктопній
    ширині ці класи не ламаються (жодних фіксованих px-ширин всередині),
    але виглядають краще з розумним максимумом, а не розтягнуті на весь
@@ -151,12 +151,6 @@ body:has(.manager-shell:not([style*="display: none"])) {
 }
 .card-grid .course-tile .ct-desc + * {
   margin-top: auto;
-}
-
-.manager-topbar-name {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--ink);
 }
 
 .mgr-page-header {
@@ -316,11 +310,11 @@ body:has(.manager-shell:not([style*="display: none"])) {
    Модель iOS: довге натискання (або кнопка в шапці) вмикає режим, картки
    ледь погойдуються — це єдиний сигнал "тепер їх можна тягати", далі
    палець/миша тягне картку, а сусіди розступаються (FLIP-анімація в
-   components/ManagerDashboard.jsx). */
+   components/manager/dashboard/ManagerDashboard.tsx). */
 /* rotate:, а НЕ transform: rotate() — окрема CSS-властивість. transform у
    цих картках уже зайнятий двома речами: зсувом картки за курсором
    (інлайновий style) і FLIP-анімацією сусідів (Web Animations API,
-   components/ManagerDashboard.jsx). Анімація transform у каскаді б'є
+   components/manager/dashboard/ManagerDashboard.tsx). Анімація transform у каскаді б'є
    інлайновий стиль, тож гойдання просто затирало і перетягування, і
    FLIP — картки смикались по всій сітці. Незалежні rotate/translate/scale
    складаються між собою, не перетираючи одне одного. */
@@ -561,7 +555,7 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   top: 0;
   height: 100vh;
 }
-/* Сам бренд-блок — components/PlatformBrand.jsx (спільний з хабом,
+/* Сам бренд-блок — components/shell/PlatformBrand.jsx (спільний з хабом,
    app/globals.css .platform-brand*); тут лише відступ під нього в
    контексті сайдбара. */
 .mgr-sidebar-brand {
@@ -635,7 +629,7 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   position: relative;
   display: inline-flex;
 }
-/* Маркер "нове" (новопризначені курси — components/ManagerShell.jsx,
+/* Маркер "нове" (новопризначені курси — components/shell/ManagerShell.jsx,
    hasNewCourses з app/manager/layout.js) — та сама крапка на іконці
    розділу і на бургер-кнопці, суто дата-based (isRecentlyAssigned,
    lib/progress.ts), без окремої таблиці "прочитано". */
@@ -688,12 +682,6 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-}
-.mgr-sidebar-user {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
 }
 
 .mgr-appbar {
@@ -847,8 +835,8 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   background: var(--accent-st-alert);
   color: var(--accent-st-alert-on);
 }
-.is-not_started.mgr-status-seg,
-.is-not_started .mgr-status-dot {
+.is-not-started.mgr-status-seg,
+.is-not-started .mgr-status-dot {
   background: var(--p-notstarted-bg);
   color: var(--p-notstarted-ink);
 }
@@ -856,8 +844,8 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
 .is-inactive .mgr-status-dot {
   background: var(--p-inactive-bg);
 }
-.is-on_track.mgr-status-seg,
-.is-on_track .mgr-status-dot {
+.is-on-track.mgr-status-seg,
+.is-on-track .mgr-status-dot {
   background: var(--accent-st-success);
   color: var(--accent-st-success-on);
 }
@@ -1120,7 +1108,7 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-/* ---- Ручки зміни розміру (components/TeamMatrix.tsx) ----
+/* ---- Ручки зміни розміру (components/manager/TeamMatrix.tsx) ----
    Невидима смужка 9px на межі клітинки; на ховері/під час тягнення в ній
    проступає 2px риска акцентного кольору — так само підсвічує межу Excel.
    touch-action:none — інакше палець на телефоні прокручує таблицю замість
@@ -1230,11 +1218,11 @@ html:has(.manager-shell):has(.mgr-drawer-overlay) body {
   background: var(--accent-st-alert);
   color: var(--accent-st-alert-on);
 }
-.mgr-matrix-cell.is-in_progress {
+.mgr-matrix-cell.is-in-progress {
   background: var(--accent-st-info);
   color: var(--accent-st-info-on);
 }
-.mgr-matrix-cell.is-not_started {
+.mgr-matrix-cell.is-not-started {
   background: var(--cb-overlay-10);
   color: var(--ink-soft);
 }
@@ -1673,7 +1661,7 @@ a.mgr-matrix-cell:focus-visible {
     transform: translateY(8px);
   }
 }
-/* Паперовий літачок із кнопки «Надіслати» (components/ReminderDialog.tsx,
+/* Паперовий літачок із кнопки «Надіслати» (components/manager/ReminderDialog.tsx,
    PaperPlaneIcon, фірмовий зелений) — траєкторія з демо-туру: вгору-праворуч,
    з нахилом, зникає. */
 .mgr-plane svg {
@@ -1941,7 +1929,7 @@ a.mgr-matrix-cell:focus-visible {
 /* Сітка карток — gridstack.js (2026-09-24, рішення користувача; історія:
    flex-wrap → власний CSS grid у юнітах → gridstack). Базові стилі —
    gridstack/dist/gridstack.min.css (підключено в app/layout.js ДО цього
-   файлу). Структура кожної картки (components/ManagerDashboard.jsx
+   файлу). Структура кожної картки (components/manager/dashboard/ManagerDashboard.tsx
    renderChartCards):
      .grid-stack-item[gs-*] > .grid-stack-item-content > .mgr-chart-card
    Позиції/ширини рахує gridstack (12 колонок, CSS-змінні на елементах),
@@ -2199,7 +2187,7 @@ a.mgr-matrix-cell:focus-visible {
   background: var(--accent-bar-chart);
   /* --dur-slow/--ease-premium — ті самі токени руху, що вже скрізь у
      проєкті (не власна довільна тривалість) — заповнення анімується від
-     0% при появі даних (components/ManagerDashboard.jsx, barsAnimated),
+     0% при появі даних (components/manager/dashboard/ManagerDashboard.tsx, barsAnimated),
      не стрибає миттєво на фінальне значення. ×1.5 — те саме сповільнення,
      що й .mgr-ring-fill/.mgr-trend-bar-fill. */
   transition: width calc(var(--dur-slow) * 1.5) var(--ease-premium);
@@ -2357,7 +2345,7 @@ a.mgr-matrix-cell:focus-visible {
   /* Один рядок у всіх колонок — інакше колонка з довшим підписом мала
      коротшу доріжку, і її стовпчик стояв вище за сусідів (скарга
      користувача 2026-10-03, «Цей тиждень» у два рядки). Підписи короткі
-     («-5 тиж.» … «Цей тиж.», ManagerDashboard.jsx) і влазять навіть у
+     («-5 тиж.» … «Цей тиж.», ManagerDashboard.tsx) і влазять навіть у
      вузьку колонку телефона; якщо колись не влізе — обріжеться, а не
      зсуне графік. */
   font-size: 9.5px;
@@ -2560,7 +2548,7 @@ a.mgr-matrix-cell:focus-visible {
   }
 }
 
-/* ---- Екран Excel-звіту на iPhone (components/ReportScreen.tsx) ---- */
+/* ---- Екран Excel-звіту на iPhone (components/manager/ReportScreen.tsx) ---- */
 .mgr-report-card {
   display: flex;
   flex-direction: column;
@@ -2634,7 +2622,7 @@ a.mgr-matrix-cell:focus-visible {
 }
 
 /* Стандартні висоти S/L (lib/dashboardHeights.ts, рішення користувача
-   2026-10-04): висоту ставить fitCards у components/ManagerDashboard.jsx, а
+   2026-10-04): висоту ставить fitCards у components/manager/dashboard/useDashboardGrid.ts, а
    сама картка тягнеться на всю висоту свого місця в сітці — повітря
    лишається всередині картки знизу, а не дірою між картками. */
 .mgr-charts .grid-stack-item-content > .mgr-chart-card {
@@ -2682,7 +2670,7 @@ a.mgr-matrix-cell:focus-visible {
   }
 }
 /* Рядки таблиці команди переїжджають при сортуванні (стенд «I», FLIP —
-   lib/useFlip.ts): 0.45s ease. */
+   hooks/useFlip.ts): 0.45s ease. */
 .mgr-team-table tbody tr.is-flipping {
   transition: transform 0.45s ease;
 }

@@ -1,10 +1,10 @@
-import { PageSkeleton } from "@/components/Skeleton";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 
 /** Показується миттєво при переході між розділами /manager, поки сервер
  *  рендерить нову сторінку — каркас (сайдбар/appbar) лишається на місці.
  *
  *  `admin-page manager-page` — обидва класи разом, як на реальних сторінках
- *  (ManagerDashboard.jsx: `admin-page manager-page`): саме `.admin-page`
+ *  (ManagerDashboard.tsx: `admin-page manager-page`): саме `.admin-page`
  *  дає `width:100%`/`min-height:100vh`/фон (manager.css docs, ~рядок 7),
  *  `.manager-page` — лише додатковий паддинг. Самого `manager-page` без
  *  `admin-page` бракувало — скелетон рендерився в природну висоту вмісту

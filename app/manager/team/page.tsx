@@ -1,9 +1,9 @@
 import { getCurrentUser } from "@/lib/session";
 import { getManagerTeamRows } from "@/lib/managerOverview";
 import { applyTeamFilters, describeTeamQuery, parseTeamQuery } from "@/lib/teamInsights";
-import { TeamList } from "@/components/TeamList";
-import { ExportReportLink } from "@/components/ExportReportLink";
-import { BackButton } from "@/components/BackButton";
+import { TeamList } from "@/components/manager/TeamList";
+import { ExportReportLink } from "@/components/manager/ExportReportLink";
+import { BackButton } from "@/components/ui/BackButton";
 
 // TODO: Cache Components adoption — той самий опт-аут, що на app/manager/page.js.
 export const instant = false;

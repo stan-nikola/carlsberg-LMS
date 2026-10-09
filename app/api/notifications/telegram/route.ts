@@ -6,7 +6,7 @@ import { isTelegramConfigured, telegramBotUsername } from "@/lib/telegram";
 import { deepLink, signLinkToken } from "@/lib/telegramLogic";
 
 /**
- * Telegram у профілі співробітника (components/NotificationSettings.jsx).
+ * Telegram у профілі співробітника (components/notifications/NotificationSettings.jsx).
  *  GET    — стан: чи налаштовано бота, чи прив’язано чат, deep link для
  *           кнопки «Підключити» (токен на 15 хв, новий при кожному GET).
  *  DELETE — відв’язати.

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { isSuperAdmin } from "@/lib/adminSession";
-import { ApiDocs } from "@/components/ApiDocs";
+import { ApiDocs } from "@/components/admin/ApiDocs";
 
 // TODO: Cache Components adoption — той самий опт-аут, що на сусідніх сторінках адмінки.
 export const instant = false;

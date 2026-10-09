@@ -1,4 +1,4 @@
-/* Сторінки стану: 404 (app/not-found.js) і помилка (app/error.js). Кнопки — спільні
+/* Сторінки стану: 404 (app/not-found.tsx) і помилка (app/error.tsx). Кнопки — спільні
    .btn-primary-full / .btn-secondary-full з globals.css, кольори й розміри — токени.
    global-error.js має власні inline-стилі: він замінює кореневий layout, і ці
    файли до нього не доходять. */

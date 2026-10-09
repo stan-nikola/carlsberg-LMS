@@ -3,7 +3,7 @@ import { audit } from "@/lib/audit";
 import { adminGuard } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { syncEnrollmentEvents } from "@/lib/rating";
-import { endOfKyivDayFromInput } from "@/lib/kyivTime";
+import { endOfUkraineDayFromInput } from "@/lib/ukraineTime";
 import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
 import { removeEnrollments } from "@/lib/courseAssignment";
 import { DEFAULT_PASS_THRESHOLD } from "@/lib/grading";
@@ -49,9 +49,9 @@ export async function PATCH(request, { params }) {
   if ("scorePercent" in body) data.scorePercent = body.scorePercent === "" ? null : Number(body.scorePercent);
   if ("passed" in body) data.passed = body.passed;
   if ("completedAt" in body) data.completedAt = body.completedAt ? new Date(body.completedAt) : null;
-  // Дедлайн із форми («2026-10-01») — кінець цього дня за Києвом, а не 03:00
-  // (lib/kyivTime.ts): інакше курс ставав простроченим у сам день дедлайну.
-  if ("dueDate" in body) data.dueDate = body.dueDate ? endOfKyivDayFromInput(String(body.dueDate)) : null;
+  // Дедлайн із форми («2026-10-01») — кінець цього дня за українським часом, а не 03:00
+  // (lib/ukraineTime.ts): інакше курс ставав простроченим у сам день дедлайну.
+  if ("dueDate" in body) data.dueDate = body.dueDate ? endOfUkraineDayFromInput(String(body.dueDate)) : null;
 
   // Дедлайн перенесли в майбутнє, а статус лишився «прострочено» (форма
   // шле поточний статус назад як є) — повертаємо справжній стан. Раніше

@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
 import { getNotificationFeed } from "@/lib/notificationFeed";
-import { NotificationCenter } from "@/components/NotificationCenter";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 // Server Component + кешована стрічка (lib/notificationFeed.js) замість
 // клієнтського fetch() на монтуванні NotificationCenter.jsx — той самий
