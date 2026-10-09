@@ -38,7 +38,7 @@ paths:
   (`app/api/cron/check-overdue-enrollments/route.js` →
   `evaluateAutoBadgesForAll`). Той самий список показується
   співробітнику в `components/AchievementsPanel.jsx`
-  (`lib/achievements.js`).
+  (`lib/achievements.ts`).
 - Ручна корекція проходження курсу (`Enrollment.adminNote`,
   `components/EmployeeCoursesSection.jsx`,
   `app/api/admin/enrollments/[enrollmentId]/route.js`) — статус/бал/дати
