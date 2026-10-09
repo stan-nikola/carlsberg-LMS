@@ -6,7 +6,6 @@ import {
   GripIcon,
   ChevronIcon,
   SpinnerIcon,
-  InfoIcon,
   FolderIcon,
   RootIcon,
   ArrowBackIcon,
@@ -17,68 +16,20 @@ import {
   XIcon,
 } from "@/components/icons";
 import { TerritoryPicker } from "@/components/TerritoryPicker";
-import { AccordionField } from "@/components/AccordionField";
 import { pluralize } from "@/lib/pluralize";
-import { DEFAULT_PASS_THRESHOLD } from "@/lib/grading";
-import { HintDot } from "@/components/HintDot";
-import { CoursePacingCalculator } from "@/components/CoursePacingCalculator";
 import { EMPLOYEE_DEPARTMENTS } from "@/lib/employeeDepartments";
-import { STREAK_PRESET_MESSAGES } from "@/lib/streakMessages";
 import { LoadingLine } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 import { useDismiss } from "@/lib/useDismiss";
 import { saveOrder, useIdOrder } from "@/lib/useIdOrder";
+import { NewItemForm } from "@/components/course-editor/NewItemForm";
+import { CourseSettingsFields, courseRequestBody, useCourseForm } from "@/components/course-editor/CourseSettingsFields";
 
 // Дашборд /admin: курси розгортаються списком своїх модулів (клік по
 // заголовку курсу), клік по модулю веде в редактор курсу (components/
 // course-editor/CourseEditor.tsx) одразу до цього модуля (?module=ID). Тут же — форми
-// створення нового курсу (назва + всі атрибути, як у CourseSettingsBar
-// редактора) і нового модуля всередині вже наявного курсу.
-
-// Пояснення до двох прапорців курсу — один текст на обидві форми
-// (створення і редагування), щоб вони не розійшлися формулюванням.
-const CERTIFICATE_HINT =
-  "Сертифікат — PDF з ім'ям співробітника, назвою курсу й датою завершення. " +
-  "Видається лише за 100% правильних відповідей: це свідомо вища планка, ніж прохідний бал " +
-  "(той дає лише «залік»). Знята галочка прибирає кнопку завантаження з картки курсу.";
-const FIRST_LOGIN_HINT =
-  "Курс автоматично призначається кожному, хто вперше успішно увійшов на платформу. " +
-  "Саме перший вхід, а не момент появи в базі: співробітники завантажуються пачками з HR-імпорту, " +
-  "і призначення на тому етапі копило б прострочення тим, хто платформу ще не відкривав. " +
-  "Діє разом зі звичайним призначенням за посадою/територією, не замість нього.";
-
-// Підказки до полів курсу. Одне джерело на обидві форми — інакше
-// формулювання розходяться, і той самий регулятор пояснено по-різному.
-const HINTS = {
-  title: "Назва, яку співробітник бачить на картці курсу в хабі та в списку призначень. Її ж підставляє лист і сповіщення про призначення.",
-  description: "Один-два рядки під назвою: навіщо цей курс і кому. Видно на картці ще до того, як людина його відкрила.",
-  category:
-    "Департамент курсу. Показується тегом на картці в хабі і ЗВУЖУЄ списки в «Кому призначати» нижче — лишає тільки посади цього департаменту. Порожньо — тега немає, списки повні.",
-  previewDevice:
-    "Під який екран ви узгоджуєте вміст: прев'ю праворуч у конструкторі показує саме його. На реальний застосунок співробітника НЕ впливає — той підлаштовується під екран кожної людини сам.",
-  deadlineDays:
-    "Скільки днів дається на весь курс від дати призначення. Це єдиний ЖОРСТКИЙ термін: після нього курс стає простроченим. Дати по модулях — м'який орієнтир без штрафу.",
-  moduleDays:
-    "М'який графік: k-й модуль варто скласти до «дата призначення + k × цих днів». Штрафу немає — у плані курсу людина бачить лише «ви йдете за графіком» чи «відстаєте на N модулів». Порожньо — графіка немає.",
-  modulePauseDays:
-    "Наступний модуль відкриється не раніше ніж через стільки днів після СКЛАДАННЯ попереднього (не від дати призначення). Окремий модуль може задати власну паузу — вона має пріоритет над цією.",
-  publishAt:
-    "Курс сам призначиться всім із обраних нижче посад і територій у цю дату — щоденною перевіркою. Порожньо — призначення лише вручну кнопкою «Призначити зараз».",
-  passThreshold:
-    "Скільки відсотків питань треба відповісти правильно, щоб зарахувався модуль і курс у цілому. Сертифікат рахується окремо й видається лише за 100%.",
-  points:
-    "Скільки балів рейтингу дає складання саме цього курсу. Порожньо — береться загальне правило платформи для всіх курсів.",
-  isMandatory:
-    "Курс позначається обов'язковим на картці й потрапляє в лічильник «N обов'язкових курсів» на головній у співробітника. Доступ це не змінює — лише пріоритет і статистику.",
-  assignTo:
-    "Кому курс призначиться кнопкою «Призначити зараз» або в дату публікації. Це лише збережений намір: сам по собі список нікого не записує на курс. Якщо вище обрано департамент, тут лишились тільки його посади.",
-  retryFreeAttempts:
-    "Скільки разів підряд можна перескласти ПРОВАЛЕНИЙ модуль без паузи. Миттєвий повтор корисний для навчання, тому перші спроби вільні. Порожньо — обмеження немає зовсім, повтор завжди одразу.",
-  retryCooldownHours:
-    "Пауза після того, як вільні спроби скінчились. У годинах, а не днях: доба між спробами всередині робочого дня — завелика ціна за помилку, а година вже ламає перебір варіантів. Порожньо або 0 — паузи немає.",
-  retrySection:
-    "Світова практика ділиться надвоє. Сертифікаційні іспити ставлять паузу добу й більше, щоб не можна було заучити питання. Навчання на освоєння дає спроби без обмежень: постійна величина — знання, змінна — час. Тут другий випадок, тому дефолт — повтор одразу. Обмеження варто вмикати там, де питань у модулі мало: інакше варіанти просто перебирають. Разом із паузою працює «пул питань» у налаштуваннях модуля — з другої спроби питання інші.",
-};
+// створення й налаштувань курсу (поля спільні: course-editor/CourseSettingsFields.tsx)
+// і нового модуля всередині вже наявного курсу.
 
 // Кольорова "схема" для іконок папок у сітці Провідника — різні папки
 // різного кольору для швидкої візуальної орієнтації (як кольорові папки в
@@ -101,206 +52,17 @@ function folderTileColor(folderId) {
   return FOLDER_TILE_COLORS[idx];
 }
 
-function toDatetimeLocalValue(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-/** Спільний заголовок-акордеон для обох полів "Кому призначати" (посади /
- * співробітники) — та сама caret+summary поведінка, щоб обидва блоки
- * виглядали однаково: згорнуто за замовчуванням (другорядні, необов'язкові
- * поля), згорнутий заголовок все одно показує, що вже обрано. */
-
-/** Іконка "ⓘ" з підказкою-бульбашкою по ховеру/фокусу — для короткого
- * пояснення, яке не варто тримати завжди розгорнутим текстом під полем
- * (займає місце, повторюється на кожному курсі). CSS-only (.admin-info-tip*
- * у admin.css), клавіатурно доступна — сама іконка кнопка, бульбашка
- * з'являється і на :hover, і на :focus-within. */
-function InfoTip({ text }) {
-  return (
-    <span className="admin-info-tip">
-      <button type="button" className="admin-info-tip-icon" aria-label="Детальніше">
-        <InfoIcon />
-      </button>
-      <span className="admin-info-tip-bubble" role="tooltip">
-        {text}
-      </span>
-    </span>
-  );
-}
-
-/**
- * Мотиваційні тости за серію правильних відповідей поспіль (streak) — з
- * конфеті, портовано з попередньої vanilla-JS розробки "8 кроків
- * телесейлінгу" (lib/streakMessages.js). Свідомо НЕ редактор довільного
- * списку (був ним, спростили за запитом) — просто перемикач: увімкнено
- * = курс отримує всі 10 готових порогів по наростанню (2, 3, 4… 12),
- * вимкнено = тостів не буде взагалі. Текст самих тостів міняється
- * централізовано в lib/streakMessages.js, не по одному в кожному курсі.
- */
-function StreakMessagesField({ value, onChange }) {
-  const enabled = Array.isArray(value) && value.length > 0;
-
-  return (
-    <div className="admin-field">
-      <label className="admin-checkbox admin-checkbox-wrap">
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={(e) => onChange(e.target.checked ? STREAK_PRESET_MESSAGES : null)}
-        />
-        <span>Повідомлення за серію правильних відповідей</span>
-        <InfoTip text="Повідомлення з конфеті на 2, 5, 10-й правильній відповіді поспіль (далі що 5) і за ідеально пройдений модуль питань." />
-      </label>
-    </div>
-  );
-}
-
-// otherSelected: чи вже щось обрано в сусідній картці ("За
-// співробітниками") — якщо так, "не обрано" тут не показуємо: людина вже
-// бачить, що призначення налаштовано (через конкретних людей), і друге
-// "не обрано" поруч лише плутає, ніби взагалі нічого не вибрано.
-// filterDepartment — обраний Course.category (лейбл "Департамент"):
-// звужує список до посад ЦЬОГО департаменту (Position.department), щоб не
-// пропонувати, наприклад, збутові посади для HR-курсу. Порожній
-// filterDepartment ("необов'язково" не обрано) — показує всі посади, як і
-// раніше.
-function PositionsAccordionField({ positions, value, onChange, otherSelected, filterDepartment }) {
-  const visiblePositions = filterDepartment ? positions.filter((p) => p.department === filterDepartment) : positions;
-  const names = visiblePositions.filter((p) => value.includes(p.code)).map((p) => p.name);
-  const summary =
-    names.length > 0
-      ? names.length <= 2
-        ? names.join(", ")
-        : `${names.slice(0, 2).join(", ")} +${names.length - 2}`
-      : otherSelected
-        ? ""
-        : "не обрано";
-
-  function toggle(code) {
-    onChange(value.includes(code) ? value.filter((c) => c !== code) : [...value, code]);
-  }
-
-  return (
-    <AccordionField title="За посадами" summary={summary}>
-      <div className="admin-checkbox-grid">
-        {visiblePositions.map((p) => (
-          <label key={p.code} className="admin-checkbox">
-            <input type="checkbox" checked={value.includes(p.code)} onChange={() => toggle(p.code)} />
-            <span>{p.name}</span>
-          </label>
-        ))}
-      </div>
-    </AccordionField>
-  );
-}
-
-// positionsSelected: чи вже обрано хоч одну посаду в сусідній картці —
-// тоді порожній вибір тут означає щось конкретне ("всім із посади"), а не
-// голе "не обрано" (та ж логіка узгодженості, що й у PositionsAccordionField).
-function TerritoryAccordionField({
-  territories,
-  employees,
-  value,
-  onChange,
-  employeeValue,
-  onEmployeeChange,
-  positionsSelected,
-  filterDepartment,
-}) {
-  // Той самий принцип, що в PositionsAccordionField — звужуємо список до
-  // обраного департаменту, але лише для ВІДОБРАЖЕННЯ в пікері: мапа імен
-  // (employeesById) лишається на повному списку, щоб уже обрані раніше
-  // employeeValue коректно показували ім'я навіть якщо департамент курсу
-  // потім змінили.
-  const visibleEmployees = filterDepartment ? employees.filter((e) => e.department === filterDepartment) : employees;
-  const byId = new Map(territories.map((t) => [t.id, t]));
-  const employeesById = new Map(employees.map((e) => [e.id, e]));
-  const names = [
-    ...value.map((id) => byId.get(id)?.name),
-    ...employeeValue.map((id) => employeesById.get(id)?.name),
-  ].filter(Boolean);
-  const summary =
-    names.length > 0
-      ? names.length <= 2
-        ? names.join(", ")
-        : `${names.slice(0, 2).join(", ")} +${names.length - 2}`
-      : positionsSelected
-        ? "всім із посади"
-        : "";
-
-  return (
-    <AccordionField title="За співробітниками" summary={summary} footer="Порожньо = всім із обраної посади.">
-      <TerritoryPicker
-        territories={territories}
-        employees={visibleEmployees}
-        value={value}
-        onChange={onChange}
-        employeeValue={employeeValue}
-        onEmployeeChange={onEmployeeChange}
-      />
-    </AccordionField>
-  );
-}
-
 function CourseCreateForm({ positions, territories, employees, folderId, onCreated, onCancel }) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [isMandatory, setIsMandatory] = useState(true);
-  const [certificateEnabled, setCertificateEnabled] = useState(true);
-  const [assignOnFirstLogin, setAssignOnFirstLogin] = useState(false);
-  const [deadlineDays, setDeadlineDays] = useState("");
-  const [moduleDays, setModuleDays] = useState("");
-  const [retryFreeAttempts, setRetryFreeAttempts] = useState("");
-  const [retryCooldownHours, setRetryCooldownHours] = useState("");
-  const [modulePauseDays, setModulePauseDays] = useState("");
-  const [passThreshold, setPassThreshold] = useState(80);
-  const [points, setPoints] = useState("");
-  const [previewDevice, setPreviewDevice] = useState("phone");
-  const [streakMessages, setStreakMessages] = useState(STREAK_PRESET_MESSAGES);
-  const [targetPositions, setTargetPositions] = useState([]);
-  const [targetTerritories, setTargetTerritories] = useState([]);
-  const [targetEmployeeIds, setTargetEmployeeIds] = useState([]);
-  const [publishAt, setPublishAt] = useState("");
+  const { values, set } = useCourseForm();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function handleCreate() {
-    if (!title.trim()) return;
+    if (!values.title.trim()) return;
     setError("");
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/courses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description: description || null,
-          category: category || null,
-          isMandatory,
-          certificateEnabled,
-          assignOnFirstLogin,
-          deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
-          moduleDays: moduleDays === "" ? null : Number(moduleDays),
-          retryFreeAttempts: retryFreeAttempts === "" ? null : Number(retryFreeAttempts),
-          retryCooldownHours: retryCooldownHours === "" ? null : Number(retryCooldownHours),
-          modulePauseDays: modulePauseDays === "" ? null : Number(modulePauseDays),
-          passThreshold: passThreshold === "" ? 80 : Number(passThreshold),
-          points: points === "" ? null : Number(points),
-          previewDevice,
-          streakMessages,
-          targetPositions,
-          targetTerritories,
-          targetEmployeeIds,
-          publishAt: publishAt ? new Date(publishAt).toISOString() : null,
-          folderId,
-        }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      onCreated(await res.json());
+      onCreated(await api("/api/admin/courses", { method: "POST", body: { ...courseRequestBody(values), folderId } }));
     } catch (err) {
       setError("Помилка створення: " + err.message);
     } finally {
@@ -310,215 +72,15 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
 
   return (
     <div className="admin-course-settings" style={{ marginTop: 0 }}>
-      <div className="admin-form-columns">
-        <div className="admin-form-section">
-          <span className="admin-form-section-title">Загальна інформація</span>
-          <div className="admin-form-row">
-            <div className="admin-field">
-              <label className="admin-label">
-                Назва курсу <HintDot align="start" text={HINTS.title} />
-              </label>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" autoFocus />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Опис (необов&apos;язково) <HintDot align="start" text={HINTS.description} />
-              </label>
-              <input value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input-flex" />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Департамент <HintDot align="start" text={HINTS.category} />
-              </label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className="admin-select" style={{ width: "100%" }}>
-                <option value="">— без департаменту —</option>
-                {EMPLOYEE_DEPARTMENTS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="admin-field">
-              {/* Під який екран НАСАМПЕРЕД узгоджували контент — лише
-                  прапорець-намір для прев'ю в конструкторі
-                  (components/course-editor/preview.tsx), реальний застосунок
-                  співробітника сам адаптується під його справжній екран
-                  незалежно від цього вибору. */}
-              <label className="admin-label">
-                Платформа конструктора <HintDot align="start" text={HINTS.previewDevice} />
-              </label>
-              <select
-                value={previewDevice}
-                onChange={(e) => setPreviewDevice(e.target.value)}
-                className="admin-select"
-                style={{ width: "100%" }}
-              >
-                <option value="phone">Мобільний</option>
-                <option value="laptop">Ноутбук</option>
-              </select>
-            </div>
-          </div>
-          <StreakMessagesField value={streakMessages} onChange={setStreakMessages} />
-
-          <div className="admin-form-subsection">
-            <span className="admin-form-section-title">
-              Перескладання <HintDot align="start" text={HINTS.retrySection} />
-            </span>
-            <p className="admin-hint">
-              Діє на модуль, який НЕ склали. Для вже складеного модуля працює інше правило — «пауза перед
-              повторним проходженням» у налаштуваннях самого модуля.
-            </p>
-            <div className="admin-form-row">
-              <div className="admin-field">
-                <label className="admin-label">
-                  Спроб підряд без паузи <HintDot align="start" text={HINTS.retryFreeAttempts} />
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={retryFreeAttempts}
-                  onChange={(e) => setRetryFreeAttempts(e.target.value)}
-                  className="admin-input-flex"
-                  placeholder="без обмежень"
-                />
-              </div>
-              <div className="admin-field">
-                <label className="admin-label">
-                  Пауза після них (годин) <HintDot align="start" text={HINTS.retryCooldownHours} />
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={retryCooldownHours}
-                  onChange={(e) => setRetryCooldownHours(e.target.value)}
-                  className="admin-input-flex"
-                  placeholder="без паузи"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="admin-form-section">
-          <span className="admin-form-section-title">Розклад</span>
-          <div className="admin-form-row">
-            <div className="admin-field">
-              <label className="admin-label">
-                Дедлайн (днів на проходження) <HintDot align="start" text={HINTS.deadlineDays} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={deadlineDays}
-                onChange={(e) => setDeadlineDays(e.target.value)}
-                className="admin-input-flex"
-                placeholder="без дедлайну"
-              />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Рекомендовано днів на модуль <HintDot align="start" text={HINTS.moduleDays} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={moduleDays}
-                onChange={(e) => setModuleDays(e.target.value)}
-                className="admin-input-flex"
-                placeholder="без графіка"
-              />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Мінімальна пауза перед наступним модулем (днів) <HintDot align="start" text={HINTS.modulePauseDays} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={modulePauseDays}
-                onChange={(e) => setModulePauseDays(e.target.value)}
-                className="admin-input-flex"
-                placeholder="0"
-              />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Дата публікації (авто-призначення) <HintDot align="start" text={HINTS.publishAt} />
-              </label>
-              <input type="datetime-local" value={publishAt} onChange={(e) => setPublishAt(e.target.value)} className="admin-input-flex" />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Прохідний бал (%) <HintDot align="start" text={HINTS.passThreshold} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={passThreshold}
-                onChange={(e) => setPassThreshold(e.target.value)}
-                className="admin-input-flex"
-              />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Бали рейтингу (порожньо = за правилом) <HintDot align="start" text={HINTS.points} />
-              </label>
-              <input type="number" min="0" value={points} onChange={(e) => setPoints(e.target.value)} className="admin-input-flex" placeholder="100" />
-            </div>
-          </div>
-          <CoursePacingCalculator
-            modules={[]}
-            moduleDays={moduleDays}
-            pauseDays={modulePauseDays}
-            deadlineDays={deadlineDays}
-            onSuggestDeadline={(d) => setDeadlineDays(String(d))}
-          />
-          <label className="admin-checkbox">
-            <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
-            <span>Обов&apos;язковий курс</span>
-            <HintDot align="start" text={HINTS.isMandatory} />
-          </label>
-          <label className="admin-checkbox">
-            <input type="checkbox" checked={certificateEnabled} onChange={(e) => setCertificateEnabled(e.target.checked)} />
-            <span>Видавати сертифікат за проходження</span>
-            <HintDot text={CERTIFICATE_HINT} align="start" />
-          </label>
-        </div>
-
-        <div className="admin-form-section">
-          <span className="admin-form-section-title">
-            Кому призначати <HintDot align="start" text={HINTS.assignTo} />
-          </span>
-          <label className="admin-checkbox">
-            <input
-              type="checkbox"
-              checked={assignOnFirstLogin}
-              onChange={(e) => setAssignOnFirstLogin(e.target.checked)}
-            />
-            <span>Новоприбулим на платформу</span>
-            <HintDot text={FIRST_LOGIN_HINT} align="start" />
-          </label>
-          <PositionsAccordionField
-            positions={positions}
-            value={targetPositions}
-            onChange={setTargetPositions}
-            otherSelected={targetTerritories.length > 0 || targetEmployeeIds.length > 0}
-            filterDepartment={category || null}
-          />
-          <TerritoryAccordionField
-            territories={territories}
-            employees={employees}
-            value={targetTerritories}
-            onChange={setTargetTerritories}
-            employeeValue={targetEmployeeIds}
-            onEmployeeChange={setTargetEmployeeIds}
-            positionsSelected={targetPositions.length > 0}
-            filterDepartment={category || null}
-          />
-        </div>
-      </div>
+      <CourseSettingsFields
+        values={values}
+        set={set}
+        positions={positions}
+        territories={territories}
+        employees={employees}
+        modules={[]}
+        autoFocusTitle
+      />
 
       <div className="admin-status-line">
         {error && <span className="admin-error">{error}</span>}
@@ -539,25 +101,8 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
 /** Редагування налаштувань уже наявного курсу — той самий набір полів, що
  * й у CourseCreateForm, просто передзаповнений і зберігає через PATCH. */
 function CourseSettingsBar({ course, positions, territories, employees, onSaved, onDeleted }) {
-  const [title, setTitle] = useState(course.title);
-  const [description, setDescription] = useState(course.description || "");
-  const [category, setCategory] = useState(course.category || "");
-  const [isMandatory, setIsMandatory] = useState(course.isMandatory);
-  const [certificateEnabled, setCertificateEnabled] = useState(course.certificateEnabled !== false);
-  const [assignOnFirstLogin, setAssignOnFirstLogin] = useState(Boolean(course.assignOnFirstLogin));
-  const [deadlineDays, setDeadlineDays] = useState(course.deadlineDays ?? "");
-  const [moduleDays, setModuleDays] = useState(course.moduleDays ?? "");
-  const [retryFreeAttempts, setRetryFreeAttempts] = useState(course.retryFreeAttempts ?? "");
-  const [retryCooldownHours, setRetryCooldownHours] = useState(course.retryCooldownHours ?? "");
-  const [modulePauseDays, setModulePauseDays] = useState(course.modulePauseDays ?? "");
-  const [passThreshold, setPassThreshold] = useState(course.passThreshold ?? DEFAULT_PASS_THRESHOLD);
-  const [points, setPoints] = useState(course.points ?? "");
-  const [previewDevice, setPreviewDevice] = useState(course.previewDevice || "phone");
-  const [streakMessages, setStreakMessages] = useState(course.streakMessages || null);
-  const [targetPositions, setTargetPositions] = useState(course.targetPositions);
-  const [targetTerritories, setTargetTerritories] = useState(course.targetTerritories);
-  const [targetEmployeeIds, setTargetEmployeeIds] = useState(course.targetEmployeeIds || []);
-  const [publishAt, setPublishAt] = useState(toDatetimeLocalValue(course.publishAt));
+  const { values, set } = useCourseForm(course);
+  const { targetPositions, targetTerritories, targetEmployeeIds } = values;
   const [saving, setSaving] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [assignResult, setAssignResult] = useState("");
@@ -664,33 +209,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
     setError("");
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/courses/${course.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description: description || null,
-          category: category || null,
-          isMandatory,
-          certificateEnabled,
-          assignOnFirstLogin,
-          deadlineDays: deadlineDays === "" ? null : Number(deadlineDays),
-          moduleDays: moduleDays === "" ? null : Number(moduleDays),
-          retryFreeAttempts: retryFreeAttempts === "" ? null : Number(retryFreeAttempts),
-          retryCooldownHours: retryCooldownHours === "" ? null : Number(retryCooldownHours),
-          modulePauseDays: modulePauseDays === "" ? null : Number(modulePauseDays),
-          passThreshold: passThreshold === "" ? 80 : Number(passThreshold),
-          points: points === "" ? null : Number(points),
-          previewDevice,
-          streakMessages,
-          targetPositions,
-          targetTerritories,
-          targetEmployeeIds,
-          publishAt: publishAt ? new Date(publishAt).toISOString() : null,
-        }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      onSaved(await res.json());
+      onSaved(await api(`/api/admin/courses/${course.id}`, { method: "PATCH", body: courseRequestBody(values) }));
     } catch (err) {
       setError("Помилка збереження: " + err.message);
     } finally {
@@ -706,221 +225,15 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
 
   return (
     <div className="admin-course-settings">
-      <div className="admin-form-columns">
-        <div className="admin-form-section">
-          <span className="admin-form-section-title">Загальна інформація</span>
-          <div className="admin-form-row">
-            <div className="admin-field">
-              <label className="admin-label">
-                Назва курсу <HintDot align="start" text={HINTS.title} />
-              </label>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Опис (необов&apos;язково) <HintDot align="start" text={HINTS.description} />
-              </label>
-              <input value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input-flex" />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Департамент <HintDot align="start" text={HINTS.category} />
-              </label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className="admin-select" style={{ width: "100%" }}>
-                <option value="">— без департаменту —</option>
-                {EMPLOYEE_DEPARTMENTS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="admin-field">
-              {/* Під який екран НАСАМПЕРЕД узгоджували контент — лише
-                  прапорець-намір для прев'ю в конструкторі
-                  (components/course-editor/preview.tsx), реальний застосунок
-                  співробітника сам адаптується під його справжній екран
-                  незалежно від цього вибору. */}
-              <label className="admin-label">
-                Платформа конструктора <HintDot align="start" text={HINTS.previewDevice} />
-              </label>
-              <select
-                value={previewDevice}
-                onChange={(e) => setPreviewDevice(e.target.value)}
-                className="admin-select"
-                style={{ width: "100%" }}
-              >
-                <option value="phone">Мобільний</option>
-                <option value="laptop">Ноутбук</option>
-              </select>
-            </div>
-          </div>
-          <StreakMessagesField value={streakMessages} onChange={setStreakMessages} />
-
-          <div className="admin-form-subsection">
-            <span className="admin-form-section-title">
-              Перескладання <HintDot align="start" text={HINTS.retrySection} />
-            </span>
-            <p className="admin-hint">
-              Діє на модуль, який НЕ склали. Для вже складеного модуля працює інше правило — «пауза перед
-              повторним проходженням» у налаштуваннях самого модуля.
-            </p>
-            <div className="admin-form-row">
-              <div className="admin-field">
-                <label className="admin-label">
-                  Спроб підряд без паузи <HintDot align="start" text={HINTS.retryFreeAttempts} />
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={retryFreeAttempts}
-                  onChange={(e) => setRetryFreeAttempts(e.target.value)}
-                  className="admin-input-flex"
-                  placeholder="без обмежень"
-                />
-              </div>
-              <div className="admin-field">
-                <label className="admin-label">
-                  Пауза після них (годин) <HintDot align="start" text={HINTS.retryCooldownHours} />
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={retryCooldownHours}
-                  onChange={(e) => setRetryCooldownHours(e.target.value)}
-                  className="admin-input-flex"
-                  placeholder="без паузи"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="admin-form-section">
-          <span className="admin-form-section-title">Розклад</span>
-          <div className="admin-form-row">
-            <div className="admin-field">
-              <label className="admin-label">
-                Дедлайн (днів на проходження) <HintDot align="start" text={HINTS.deadlineDays} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={deadlineDays}
-                onChange={(e) => setDeadlineDays(e.target.value)}
-                className="admin-input-flex"
-                placeholder="без дедлайну"
-              />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Рекомендовано днів на модуль <HintDot align="start" text={HINTS.moduleDays} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={moduleDays}
-                onChange={(e) => setModuleDays(e.target.value)}
-                className="admin-input-flex"
-                placeholder="без графіка"
-              />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Мінімальна пауза перед наступним модулем (днів) <HintDot align="start" text={HINTS.modulePauseDays} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={modulePauseDays}
-                onChange={(e) => setModulePauseDays(e.target.value)}
-                className="admin-input-flex"
-                placeholder="0"
-              />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Дата публікації (авто-призначення) <HintDot align="start" text={HINTS.publishAt} />
-              </label>
-              <input
-                type="datetime-local"
-                value={publishAt}
-                onChange={(e) => setPublishAt(e.target.value)}
-                className="admin-input-flex"
-              />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Прохідний бал (%) <HintDot align="start" text={HINTS.passThreshold} />
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={passThreshold}
-                onChange={(e) => setPassThreshold(e.target.value)}
-                className="admin-input-flex"
-              />
-            </div>
-            <div className="admin-field">
-              <label className="admin-label">
-                Бали рейтингу (порожньо = за правилом) <HintDot align="start" text={HINTS.points} />
-              </label>
-              <input type="number" min="0" value={points} onChange={(e) => setPoints(e.target.value)} className="admin-input-flex" placeholder="100" />
-            </div>
-          </div>
-          <CoursePacingCalculator
-            modules={course.modules || []}
-            moduleDays={moduleDays}
-            pauseDays={modulePauseDays}
-            deadlineDays={deadlineDays}
-            onSuggestDeadline={(d) => setDeadlineDays(String(d))}
-          />
-          <p className="admin-hint" style={{ fontSize: "0.8em" }}>{statusText}</p>
-          <label className="admin-checkbox">
-            <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
-            <span>Обов&apos;язковий курс</span>
-            <HintDot align="start" text={HINTS.isMandatory} />
-          </label>
-          <label className="admin-checkbox">
-            <input type="checkbox" checked={certificateEnabled} onChange={(e) => setCertificateEnabled(e.target.checked)} />
-            <span>Видавати сертифікат за проходження</span>
-            <HintDot text={CERTIFICATE_HINT} align="start" />
-          </label>
-        </div>
-
-        <div className="admin-form-section">
-          <span className="admin-form-section-title">
-            Кому призначати <HintDot align="start" text={HINTS.assignTo} />
-          </span>
-          <label className="admin-checkbox">
-            <input
-              type="checkbox"
-              checked={assignOnFirstLogin}
-              onChange={(e) => setAssignOnFirstLogin(e.target.checked)}
-            />
-            <span>Новоприбулим на платформу</span>
-            <HintDot text={FIRST_LOGIN_HINT} align="start" />
-          </label>
-          <PositionsAccordionField
-            positions={positions}
-            value={targetPositions}
-            onChange={setTargetPositions}
-            otherSelected={targetTerritories.length > 0 || targetEmployeeIds.length > 0}
-            filterDepartment={category || null}
-          />
-          <TerritoryAccordionField
-            territories={territories}
-            employees={employees}
-            value={targetTerritories}
-            onChange={setTargetTerritories}
-            employeeValue={targetEmployeeIds}
-            onEmployeeChange={setTargetEmployeeIds}
-            positionsSelected={targetPositions.length > 0}
-            filterDepartment={category || null}
-          />
-        </div>
-      </div>
+      <CourseSettingsFields
+        values={values}
+        set={set}
+        positions={positions}
+        territories={territories}
+        employees={employees}
+        modules={course.modules || []}
+        statusText={statusText}
+      />
 
       {assignResult && <p className="admin-hint">{assignResult}</p>}
 
@@ -978,39 +291,6 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
           </button>
         </span>
       </div>
-    </div>
-  );
-}
-
-function NewModuleInlineForm({ courseId, nextOrder, onCreated }) {
-  const [title, setTitle] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  async function handleCreate() {
-    if (!title.trim()) return;
-    setSaving(true);
-    try {
-      const res = await fetch("/api/admin/modules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseId, title, order: nextOrder }),
-      });
-      if (res.ok) {
-        setTitle("");
-        onCreated(await res.json());
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="admin-row admin-new-lesson">
-      <input placeholder="Назва нового модуля" value={title} onChange={(e) => setTitle(e.target.value)} className="admin-input-flex" />
-      <button type="button" onClick={handleCreate} disabled={saving} className="admin-btn" title="Створити новий модуль у цьому курсі">
-        {saving && <SpinnerIcon />}
-        {saving ? "Створення…" : "+ Додати модуль"}
-      </button>
     </div>
   );
 }
@@ -1144,9 +424,13 @@ function CourseExpandedBody({ course, positions, territories, employees, onModul
           onReordered={(reordered) => onModulesReordered(course.id, reordered)}
         />
       )}
-      <NewModuleInlineForm
-        courseId={course.id}
-        nextOrder={course.modules.length + 1}
+      <NewItemForm
+        endpoint="/api/admin/modules"
+        makeBody={(title) => ({ courseId: course.id, title, order: course.modules.length + 1 })}
+        placeholder="Назва нового модуля"
+        label="+ Додати модуль"
+        savingLabel="Створення…"
+        hint="Створити новий модуль у цьому курсі"
         onCreated={(created) => onModuleAdded(course.id, created)}
       />
     </div>

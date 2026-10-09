@@ -49,13 +49,18 @@ function Caret({ open }) {
  * дерево "перемикається" з географії на реальну оргструктуру рівно там,
  * де географія закінчується.
  *
- * @param {{ id: number, name: string, parentId: number|null }[]} territories
- * @param {{ id: number, name: string, positionName: string|null, territoryId: number|null, managerId: number|null }[]} employees
- * @param {number[]} value - обрані id територій (може бути будь-якого рівня дерева)
- * @param {(next: number[]) => void} onChange
- * @param {number[]} [employeeValue] - обрані id КОНКРЕТНИХ людей (точкове призначення
- *   в обхід посади/території — Course.targetEmployeeIds), окремо від value
- * @param {(next: number[]) => void} [onEmployeeChange]
+ * value — обрані id територій (будь-якого рівня дерева); employeeValue — обрані
+ * id КОНКРЕТНИХ людей (точкове призначення в обхід посади/території —
+ * Course.targetEmployeeIds), окремо від value.
+ *
+ * @param {{
+ *   territories: { id: number, name: string, parentId: number|null }[],
+ *   employees: { id: number, name: string, positionName: string|null, territoryId: number|null, managerId: number|null }[],
+ *   value: number[],
+ *   onChange: (next: number[]) => void,
+ *   employeeValue?: number[],
+ *   onEmployeeChange?: (next: number[]) => void,
+ * }} props
  */
 export function TerritoryPicker({ territories, employees, value, onChange, employeeValue = [], onEmployeeChange = () => {} }) {
   const [query, setQuery] = useState("");
