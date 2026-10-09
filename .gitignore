@@ -66,3 +66,7 @@ next-env.d.ts
 # (граф-звіт по кодовій базі), перегенерується самим скілом за потреби,
 # у git не потрібен
 /graphify-out
+
+# playwright
+/test-results/
+/playwright-report/
