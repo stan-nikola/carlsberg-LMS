@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { moveAdjacent, reorderBefore } from "@/lib/dragReorder";
 import { prefersReducedMotion } from "@/lib/motion";
 
@@ -18,7 +18,7 @@ const FLIP_EASING = "cubic-bezier(0.2, 0.8, 0.2, 1)";
  * перевірена на картках дашборда керівника (ManagerDashboard.jsx
  * moveCardBefore/handleCardPointerMove), спрощена до однієї осі й
  * винесена сюди: рівно та сама потреба одразу в двох місцях — конструктор
- * («Порядок кроків», AdminCourseEditor.jsx OrderingFields — список
+ * («Порядок кроків», course-editor/fields/questions.tsx OrderingFields — список
  * об'єктів `{text}`) і сам плеєр (OrderingScreen, QuestionScreens.tsx —
  * список позицій-чисел), — щоб не писати драг двічі й не розходитись у
  * поведінці.
@@ -56,14 +56,23 @@ export function useDragReorder<T>({
   ids,
   onReorder,
   disabled = false,
+  handleOnly = false,
 }: {
   ids: T[];
   onReorder: (next: T[]) => void;
   disabled?: boolean;
+  /** Тягнути лише за ручку [data-drag-handle]: решта рядка — звичайні
+   *  кнопки (шеврон, назва), які драг із будь-якої точки «з’їдав». */
+  handleOnly?: boolean;
 }) {
   const [dragId, setDragId] = useState<T | null>(null);
   const [dragDeltaY, setDragDeltaY] = useState(0);
   const containerRef = useRef<HTMLElement | null>(null);
+  // Callback-ref, а не сам об'єкт: його можна повісити на будь-який
+  // елемент списку (<div>, <ul>, <ol>) без приведення типів.
+  const setContainer = useCallback((node: HTMLElement | null) => {
+    containerRef.current = node;
+  }, []);
   // WeakMap, а не звичайний Map: рядки монтуються/розмонтовуються (додали/
   // видалили крок), і без цього тут накопичувались би мертві вузли —
   // WeakMap прибирає їх сам разом зі збіркою сміття DOM-вузла.
@@ -92,6 +101,7 @@ export function useDragReorder<T>({
     // картку замість того, щоб поставити курсор у текст.
     const isHandle = (e.target as HTMLElement)?.closest?.("[data-drag-handle]");
     if (!isHandle) {
+      if (handleOnly) return;
       const interactive = (e.target as HTMLElement)?.closest?.('button, input, textarea, select, a, [contenteditable="true"]');
       if (interactive) return;
     }
@@ -187,7 +197,7 @@ export function useDragReorder<T>({
   }
 
   return {
-    containerRef,
+    containerRef: setContainer,
     containerProps: {
       onPointerDown: handlePointerDown,
       onPointerMove: handlePointerMove,

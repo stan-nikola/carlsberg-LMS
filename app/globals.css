@@ -224,7 +224,7 @@ html:has(.stage--course-player:not([style*="display: none"])) {
   /* Контейнер-запит (не viewport-запит) для внутрішнього широкого reflow
      (course-player.css, @container cp-card) — .course-card живе і в
      реальному застосунку (де вона сама росте на широких екранах, нижче),
-     і в мокапах адмін-конструктора (components/AdminCourseEditor.jsx,
+     і в мокапах адмін-конструктора (components/course-editor/preview.tsx,
      app/styles/admin.css), де ФІЗИЧНИЙ розмір рамки не пов'язаний з
      реальною шириною вікна браузера адміна (телефон-мокап лишається
      вузьким, навіть коли сам браузер широкий) — @media (min-width) тут
@@ -694,7 +694,7 @@ html:has(.sheet-overlay.open) body {
   display: inline-block;
 }
 
-/* ---- Підказка по ховеру (components/HintDot.jsx) — спільний паттерн
+/* ---- Підказка по ховеру (components/HintDot.tsx) — спільний паттерн
    для пояснень, які потрібні лише тому, хто спитав: що саме рахує
    діаграма, що робить неочевидна кнопка. Текст приходить у data-hint і
    малюється через ::after; ширина блоку обмежена, переноситься нормально.

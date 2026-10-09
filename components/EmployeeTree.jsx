@@ -9,7 +9,7 @@ import { computeTreeVisibility } from "@/lib/orgTree";
  * Дерево ВСІЄЇ організації (app/api/admin/employees/tree — getTeamTree(null),
  * lib/managerDashboard.js) з перетягуванням вузла НА інший вузол = зміна
  * managerId. На відміну від reorder-паттерну в AdminDashboard.jsx/
- * AdminCourseEditor.jsx (drop МІЖ рядками, той самий список) — тут drop
+ * course-editor/tree.tsx (drop МІЖ рядками, той самий список) — тут drop
  * ЗАВЖДИ означає "стати підлеглим вузла, на який кинули", контейнер
  * (дерево) не змінюється, тому семантика dragOver/drop інша, хоч сам
  * event-стек (draggable + onDragStart/onDragOver/onDrop/onDragEnd) і

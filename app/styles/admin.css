@@ -1330,7 +1330,7 @@
   flex-direction: column;
   height: 100%;
 }
-/* Зум рахує JS (components/AdminCourseEditor.jsx usePhoneScreenZoom) і
+/* Зум рахує JS (components/course-editor/preview.tsx usePhoneScreenZoom) і
    кладе його в --cp-zoom на сам мокап: тільки так екран усередині рамки
    має РІВНО 440 логічних px — ширину справжнього iPhone Pro Max — при
    будь-якому фізичному розмірі рамки. Стале число тут працювати не може:
@@ -1459,7 +1459,7 @@
    знизу для меню, тут потрібен центрований, великий (майже на весь
    екран) оверлей, де в ноутбук-мокапу реально є місце розгорнутись.
    Рендериться через createPortal у document.body (components/
-   AdminCourseEditor.jsx), НЕ як звичайний вкладений JSX — інакше DOM-вузол
+   course-editor/preview.tsx), НЕ як звичайний вкладений JSX — інакше DOM-вузол
    лишався б усередині .adm-shell і успадковував його zoom:85%, який тихо
    стискав усі vh-розрахунки нижче на 15% (реальна причина, чому модалка
    раз у раз виходила меншою за розрахунок). */
@@ -1492,7 +1492,7 @@
   justify-content: center;
 }
 .admin-preview-modal-close {
-  /* Кнопка тепер ДИТИНА мокапа (components/AdminCourseEditor.jsx), тож
+  /* Кнопка тепер ДИТИНА мокапа (components/course-editor/preview.tsx), тож
      absolute рахується від самої рамки пристрою — хрестик стоїть упритул
      до неї, а не в куті екрана за сотні пікселів від того, що закриває
      (прохання користувача 2026-09-23).
@@ -1689,17 +1689,18 @@
   margin-bottom: 0;
   border-bottom: var(--border-w) solid var(--line);
 }
-/* Карточка екрана тягнеться лише за ручку, тож «хапальний» курсор — на
-   ній, а не на всьому рядку (успадкований .admin-drag-row дав би grab
-   навіть над заголовком, обіцяючи те, чого там нема). */
-.admin-module.admin-drag-row {
+/* Модуль, екран і компонент у конструкторі тягнуться лише за ручку
+   (useDragReorder handleOnly), тож «хапальний» курсор — на ній, а не на
+   всьому рядку (успадкований .admin-drag-row дав би grab навіть над
+   заголовком, обіцяючи те, чого там нема). */
+.admin-drag-row.is-handle-only {
   cursor: default;
   touch-action: auto;
 }
 /* …а заборона нативного скролу — навпаки, лише на ручці: без неї палець
    на ній гортав би сторінку замість перетягування. На решті рядка скрол
    має лишатись звичайним. */
-.admin-module.admin-drag-row .admin-drag-handle {
+.admin-drag-row.is-handle-only .admin-drag-handle {
   touch-action: none;
 }
 /* Розгорнутий екран: повітря знизу, щоб його вміст не впирався в
@@ -1799,12 +1800,8 @@
   flex: 1;
 }
 .admin-drag-handle {
-  /* Стилі спільні для ДВОХ різних механізмів драгу під однаковим
-     виглядом: <span draggable> нативного HTML5 dnd (ComponentNavList,
-     ModuleHeader — перетягування екранів/модулів) і <button> хука
-     lib/useDragReorder.ts (OrderingFields нижче — перетягування кроків).
-     border/background/font — скидання UA-стилів кнопки: <span> їх ніколи
-     не мав, тож нуль на нуль тут не шкодить. */
+  /* Ручка lib/useDragReorder.ts — і <span>, і <button> (кроки «порядку»,
+     екрани): border/background/font скидають UA-стилі кнопки. */
   border: none;
   background: none;
   font: inherit;
@@ -2428,7 +2425,7 @@
 }
 
 /* Кнопки накреслень над КОЖНИМ багаторядковим полем конструктора
-   (components/AdminCourseEditor.jsx RichTextArea — текст екрану, картки,
+   (components/course-editor/fields/common.tsx RichTextArea — текст екрану, картки,
    кроки таймлайну, репліки, пояснення, вступні рядки). Ж/К/П — звичні
    підписи з текстових редакторів; сам знак розмітки лишається в title, бо
    текст можна правити й руками. */
@@ -2546,7 +2543,7 @@
   margin-bottom: 12px;
 }
 
-/* ---- Редактор гарячих точок (components/AdminCourseEditor.jsx
+/* ---- Редактор гарячих точок (components/course-editor/fields/hotspot.tsx
    HotspotFields): клік по фото ставить зону. Координати рахуються від
    РЕАЛЬНОЇ геометрії цього <img>, тому ніякого ресайзу тут бути не
    повинно — лише природний розмір у межах ширини колонки. ---- */
@@ -2762,7 +2759,7 @@
   gap: 14px;
   flex-wrap: wrap;
 }
-/* Повне проходження в прев'ю (components/AdminCourseEditor.jsx
+/* Повне проходження в прев'ю (components/course-editor/preview.tsx
    CourseRunPreview): усередині мокапа живе справжній CoursePlayer, тож
    рамка мусить дати йому повну висоту й власний скрол, а не обрізати. */
 .adm-run-preview {

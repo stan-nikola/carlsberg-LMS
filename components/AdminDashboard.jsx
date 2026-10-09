@@ -27,10 +27,11 @@ import { STREAK_PRESET_MESSAGES } from "@/lib/streakMessages";
 import { LoadingLine } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 import { useDismiss } from "@/lib/useDismiss";
+import { saveOrder, useIdOrder } from "@/lib/useIdOrder";
 
 // Дашборд /admin: курси розгортаються списком своїх модулів (клік по
 // заголовку курсу), клік по модулю веде в редактор курсу (components/
-// AdminCourseEditor.jsx) одразу до цього модуля (?module=ID). Тут же — форми
+// course-editor/CourseEditor.tsx) одразу до цього модуля (?module=ID). Тут же — форми
 // створення нового курсу (назва + всі атрибути, як у CourseSettingsBar
 // редактора) і нового модуля всередині вже наявного курсу.
 
@@ -341,7 +342,7 @@ function CourseCreateForm({ positions, territories, employees, folderId, onCreat
             <div className="admin-field">
               {/* Під який екран НАСАМПЕРЕД узгоджували контент — лише
                   прапорець-намір для прев'ю в конструкторі
-                  (components/AdminCourseEditor.jsx), реальний застосунок
+                  (components/course-editor/preview.tsx), реальний застосунок
                   співробітника сам адаптується під його справжній екран
                   незалежно від цього вибору. */}
               <label className="admin-label">
@@ -737,7 +738,7 @@ function CourseSettingsBar({ course, positions, territories, employees, onSaved,
             <div className="admin-field">
               {/* Під який екран НАСАМПЕРЕД узгоджували контент — лише
                   прапорець-намір для прев'ю в конструкторі
-                  (components/AdminCourseEditor.jsx), реальний застосунок
+                  (components/course-editor/preview.tsx), реальний застосунок
                   співробітника сам адаптується під його справжній екран
                   незалежно від цього вибору. */}
               <label className="admin-label">
@@ -1014,62 +1015,34 @@ function NewModuleInlineForm({ courseId, nextOrder, onCreated }) {
   );
 }
 
-/** Список модулів курсу з перетягуванням (native HTML5 drag-and-drop —
- * бібліотека тут не потрібна, звичайний реордер невеликого списку). Після
- * drop — оптимістично оновлює порядок локально й одразу зберігає
- * order кожного модуля (1..N) через PATCH, щоб не розійтися з базою. */
+/** Список модулів курсу: тягнеться за ручку (lib/useIdOrder.ts), порядок
+ *  зберігається одразу. Сам рядок курсу — HTML5-draggable (перенесення в
+ *  папку), тож dragstart зсередини списку гаситься, інакше браузер тягнув
+ *  би весь курс замість модуля. */
 function ModuleList({ courseId, modules, onReordered }) {
-  const [dragIndex, setDragIndex] = useState(null);
-  const [overIndex, setOverIndex] = useState(null);
-
-  async function persistOrder(reordered) {
-    await Promise.all(
-      reordered.map((courseModule, i) =>
-        fetch(`/api/admin/modules/${courseModule.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order: i + 1 }),
-        })
-      )
-    );
-  }
-
-  function handleDrop(targetIndex) {
-    if (dragIndex === null || dragIndex === targetIndex) {
-      setDragIndex(null);
-      setOverIndex(null);
-      return;
-    }
-    const reordered = [...modules];
-    const [moved] = reordered.splice(dragIndex, 1);
-    reordered.splice(targetIndex, 0, moved);
-    const withOrder = reordered.map((m, i) => ({ ...m, order: i + 1 }));
-    onReordered(withOrder);
-    persistOrder(withOrder);
-    setDragIndex(null);
-    setOverIndex(null);
-  }
+  const { containerRef, containerProps, registerRow, dragId, dragDeltaY } = useIdOrder(modules, (next) =>
+    onReordered(saveOrder("modules", next))
+  );
 
   return (
-    <ul className="admin-block-list">
-      {modules.map((courseModule, i) => (
+    <ul
+      className="admin-block-list"
+      ref={containerRef}
+      {...containerProps}
+      onDragStart={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    >
+      {modules.map((courseModule) => (
         <li
           key={courseModule.id}
-          draggable
-          onDragStart={() => setDragIndex(i)}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setOverIndex(i);
-          }}
-          onDragLeave={() => setOverIndex((v) => (v === i ? null : v))}
-          onDrop={() => handleDrop(i)}
-          onDragEnd={() => {
-            setDragIndex(null);
-            setOverIndex(null);
-          }}
-          className={`admin-block-list-item${overIndex === i && dragIndex !== null && dragIndex !== i ? " admin-drag-over" : ""}`}
+          ref={registerRow(courseModule.id)}
+          data-drag-row
+          className={`admin-block-list-item admin-drag-row is-handle-only${dragId === courseModule.id ? " is-dragging" : ""}`}
+          style={dragId === courseModule.id ? { transform: `translateY(${dragDeltaY}px)` } : undefined}
         >
-          <span className="admin-drag-handle" title="Перетягніть, щоб змінити порядок">
+          <span className="admin-drag-handle" data-drag-handle title="Перетягніть, щоб змінити порядок">
             <GripIcon />
           </span>
           <Link href={`/admin/courses/${courseId}?module=${courseModule.id}`} className="admin-block-list-link">

@@ -149,7 +149,7 @@ export function ComponentScreen({ component, screenNumber, onGateProgress, onZoo
   }
 }
 
-// Експортуються також для живого прев'ю в /admin (components/AdminCourseEditor.jsx) —
+// Експортуються також для живого прев'ю в /admin (components/course-editor/preview.tsx) —
 // той самий рендер, що бачить співробітник у плеєрі, не окрема копія розмітки.
 export function InfoScreen({ component, screenNumber, onZoomImage }) {
   const { kicker, lead, body, images, note } = component.content || {};

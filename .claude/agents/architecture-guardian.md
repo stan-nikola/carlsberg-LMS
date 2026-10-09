@@ -67,7 +67,7 @@ time:
    file that queries or renders course content
    (`lib/courseContent.js`, `lib/employeeProgress.js`,
    `lib/managerDashboard.js`, `components/CoursePlayer.jsx`,
-   `components/CourseTile.jsx`, `components/AdminCourseEditor.jsx`, any
+   `components/CourseTile.jsx`, `components/course-editor/`, any
    `app/**/courses/**` or `app/**/manager/**` route) for the literal
    hierarchy depth it walks (`course.modules`, `module.screens`,
    `screen.components`, or any `.flatMap`/nested `.map` chain over

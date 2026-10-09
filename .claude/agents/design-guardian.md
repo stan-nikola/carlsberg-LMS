@@ -119,7 +119,7 @@ Two related shared pieces, same rule — use them, don't re-roll them:
   `container-type: inline-size` measures the **content box** — a
   threshold that looks right against the card's outer width will fire
   early by exactly its padding + border.
-- **`HintDot`** (`components/HintDot.jsx`, `.hint-dot` in globals.css)
+- **`HintDot`** (`components/HintDot.tsx`, `.hint-dot` in globals.css)
   for any hover explanation. Flag a new hand-rolled `::after` tooltip, and
   flag a bare `title=` used for a full explanatory sentence (no wrap or
   delay control). `title=` on a short label is still fine.
