@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SpinnerIcon } from "@/components/icons";
+import { SpinnerIcon } from "@/components/ui/icons";
 import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, RETIRED_COMPONENT_TYPES, defaultContentForType } from "@/lib/componentTypes";
 import { api } from "@/lib/api";
 import { ComponentTypeFields } from "@/components/course-editor/ComponentTypeFields";

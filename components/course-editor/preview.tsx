@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ComponentType, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { ComponentScreen, QuizScreen, CoursePlayer, HotspotScreen } from "@/components/course-editor/playerScreens";
-import { OrderingScreen, MatchingScreen } from "@/components/QuestionScreens";
-import { ChevronIcon, XIcon } from "@/components/icons";
+import { CoursePlayer } from "@/components/course/player/CoursePlayer";
+import { ComponentScreen } from "@/components/course/player/screens";
+import { QuizScreen } from "@/components/course/player/QuizScreen";
+import { HotspotScreen } from "@/components/course/screens/HotspotScreen";
+import { OrderingScreen, MatchingScreen } from "@/components/course/QuestionScreens";
+import { ChevronIcon, XIcon } from "@/components/ui/icons";
 import { isScored } from "@/lib/componentTypes";
 import { moduleCooldownDays } from "@/lib/coursePlan";
-import { useDismiss } from "@/lib/useDismiss";
+import { useDismiss } from "@/hooks/useDismiss";
 import type { EditorCourse, LiveComponent } from "@/components/course-editor/types";
 
 /** Пропси «екрана» прев'ю — однакові для докнутого мокапа і модалки. */
@@ -27,7 +30,7 @@ const zoomStyle = (zoom: number | null) => (zoom ? ({ "--cp-zoom": zoom } as CSS
 
 /** Права колонка — жива прев'ю обраного екрану З ТИМ САМИМ "хромом", що
  * й реальний CoursePlayer (шапка з лічильником кроку, прогрес-бар, кнопки
- * навігації внизу — components/CoursePlayer.jsx) — не просто вміст
+ * навігації внизу — components/course/player/CoursePlayer.tsx) — не просто вміст
  * екрану, а точний вигляд того, що побачить співробітник у застосунку.
  * Кнопки "Назад"/"Далі" тут керують ТИМ САМИМ обраним екраном, що й ліва
  * колонка (onBack/onNext), — прев'ю справді "гортається" так само. */
@@ -419,7 +422,7 @@ export function ComponentPreview({
   return (
     <div className="admin-editor-preview">
       {/* Без мітки платформи й без перемикача — платформа обирається ОДИН
-          РАЗ у "Загальна інформація" (components/AdminDashboard.jsx,
+          РАЗ у "Загальна інформація" (components/admin/AdminDashboard.jsx,
           Course.previewDevice), тут просто мокап відповідного пристрою,
           за проханням користувача, без зайвого напису над ним. */}
       {isLaptop ? (
@@ -459,7 +462,7 @@ export function ComponentPreview({
       )}
 
       {/* createPortal у document.body, не звичайний вкладений JSX — .adm-shell
-          (components/AdminShell.jsx) несе zoom:85% на весь свій піддерево
+          (components/shell/AdminShell.jsx) несе zoom:85% на весь свій піддерево
           (навмисно, компенсує розмір тексту адмінки), і position:fixed
           НЕ рятує від успадкованого zoom — усі vh-розрахунки модалки
           (.laptop-mockup/.iphone-mockup--modal, app/styles/admin.css)

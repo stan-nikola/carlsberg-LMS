@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { SpinnerIcon } from "@/components/icons";
-import { ListRowControls, useListOps } from "@/components/ListEditor";
+import { SpinnerIcon } from "@/components/ui/icons";
+import { ListRowControls, useListOps } from "@/components/course-editor/ListEditor";
 import { parseVideoEmbed } from "@/lib/videoEmbed";
 import type { MediaItem } from "@/components/course-editor/types";
 

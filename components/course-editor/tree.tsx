@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronIcon, GripIcon, PencilIcon } from "@/components/icons";
+import { ChevronIcon, GripIcon, PencilIcon } from "@/components/ui/icons";
 import { COMPONENT_TYPES, COMPONENT_TYPE_LABELS, defaultContentForType } from "@/lib/componentTypes";
-import { HintDot } from "@/components/HintDot";
-import { useDragReorder } from "@/lib/useDragReorder";
-import { saveOrder, useIdOrder } from "@/lib/useIdOrder";
+import { HintDot } from "@/components/ui/HintDot";
+import { useDragReorder } from "@/hooks/useDragReorder";
+import { saveOrder, useIdOrder } from "@/hooks/useIdOrder";
 import { api } from "@/lib/api";
 import { NewItemForm } from "@/components/course-editor/NewItemForm";
 import type { EditorComponent, EditorModule, EditorScreen, QuestionStats } from "@/components/course-editor/types";
@@ -367,7 +367,7 @@ function ScreenHeader({
     onRename?.(next);
   }
 
-  // Рядок і розгортається по кліку, і тягнеться (lib/useDragReorder.ts).
+  // Рядок і розгортається по кліку, і тягнеться (hooks/useDragReorder.ts).
   // Хук рух відстежує, але клік НЕ гасить — його теперішнім користувачам
   // (кроки «порядку») це не було потрібно, там onClick немає взагалі. Тут
   // потрібно: без цієї перевірки екран після кожного перетягування ще й
@@ -506,7 +506,7 @@ function ScreenHeader({
  * що заборонено правилами хуків: кожен модуль має власний список і власний
  * стан перетягування.
  *
- * Механіка — той самий lib/useDragReorder.ts, що вже тягає кроки «порядку»
+ * Механіка — той самий hooks/useDragReorder.ts, що вже тягає кроки «порядку»
  * в конструкторі й у плеєрі: pointer events (працює і пальцем, на відміну
  * від HTML5-drag), FLIP-доїзд сусідів, стрілки з клавіатури на ручці.
  * Другого механізму перетягування в цьому файлі свідомо не заводимо.

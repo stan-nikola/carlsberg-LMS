@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { SpinnerIcon } from "@/components/icons";
+import { SpinnerIcon } from "@/components/ui/icons";
 import { api } from "@/lib/api";
 
 /** Рядок «назва + Додати …» під списком модулів, екранів чи компонентів. */
