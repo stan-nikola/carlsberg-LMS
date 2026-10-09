@@ -107,3 +107,18 @@ test("модулі в розгорнутому курсі на /admin тягну
   await expect.poll(() => rows.nth(0).innerText()).toBe(a);
   await page.waitForLoadState("networkidle");
 });
+
+test("збереження без перестановки не «проганяє» модулі зі старих позицій", async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto(`/admin/courses/${COURSE_ID}`);
+  const modules = page.locator(".admin-editor-edit > .admin-block");
+  await expect(page.locator(".admin-lesson-card")).toBeVisible();
+  // Згорнути перший модуль — усі нижче зсуваються вгору без перестановки.
+  await modules.first().locator(":scope > .admin-accordion-header h3, :scope > .admin-accordion-header .admin-accordion-caret").first().click();
+  const saved = page.waitForResponse((r) => r.request().method() === "PATCH" && r.url().includes("/api/admin/components/"));
+  await page.locator(".admin-lesson-card").getByRole("button", { name: "Зберегти", exact: true }).click();
+  expect((await saved).ok()).toBeTruthy();
+  await page.waitForTimeout(50);
+  const running = await modules.evaluateAll((rows) => rows.reduce((n, r) => n + r.getAnimations().length, 0));
+  expect(running).toBe(0);
+});

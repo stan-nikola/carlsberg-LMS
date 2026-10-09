@@ -26,6 +26,9 @@ export function HintDot({ text, align = "end", className = "" }: { text: string;
       role="note"
       aria-label={text}
       data-hint={text}
+      // Усередині <label> клік по «ⓘ» інакше перемикав би сусідню галочку
+      // (тап на телефоні — єдиний спосіб відкрити підказку). Фокус лишається.
+      onClick={(e) => e.preventDefault()}
     >
       <InfoIcon />
     </span>

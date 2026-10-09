@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { gradeLocally, gradeResponse, indexKeyOf, publicContent, revealContent, revealFor, seededRandom } from "./grading";
+import { gradeLocally, gradeResponse, indexKeyOf, publicContent, revealContent, revealFor, scorePercentOf, seededRandom } from "./grading";
+
+describe("scorePercentOf", () => {
+  it("100% лише за всі правильні — 199 з 200 не округлюється до 100", () => {
+    expect(scorePercentOf(200, 200)).toBe(100);
+    expect(scorePercentOf(199, 200)).toBe(99);
+    expect(scorePercentOf(999, 1000)).toBe(99);
+  });
+  it("звичайне округлення нижче 100 і модуль без питань", () => {
+    expect(scorePercentOf(2, 3)).toBe(67);
+    expect(scorePercentOf(0, 5)).toBe(0);
+    expect(scorePercentOf(0, 0)).toBe(100);
+  });
+});
 
 const quiz = {
   questionType: "multi",

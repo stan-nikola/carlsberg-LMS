@@ -232,68 +232,6 @@
   font-weight: 600;
 }
 
-/* ---- Підказка-бульбашка по іконці "ⓘ" ----
-   CSS-only: з'являється на :hover/:focus-within, без жодного JS-стану.
-   Іконка — реальна <button>, тож доступна і з клавіатури (Tab + фокус). */
-.admin-info-tip {
-  position: relative;
-  display: inline-flex;
-  cursor: help;
-}
-.admin-info-tip-icon {
-  display: inline-flex;
-  width: 15px;
-  height: 15px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--ink-soft);
-  cursor: help;
-}
-.admin-info-tip-icon svg {
-  width: 15px;
-  height: 15px;
-}
-.admin-info-tip-icon:focus-visible {
-  outline: none;
-  box-shadow: var(--cb-focus-ring);
-  border-radius: 50%;
-}
-.admin-info-tip-bubble {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  transform: translateX(-50%) translateY(4px);
-  width: 230px;
-  padding: 9px 11px;
-  border-radius: var(--radius-sm);
-  background: var(--cb-black);
-  color: var(--cb-white);
-  font-size: 11.5px;
-  font-weight: 400;
-  line-height: 1.4;
-  text-align: left;
-  white-space: normal;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-fast) var(--ease-premium), transform var(--dur-fast) var(--ease-premium);
-  z-index: var(--z-overlay);
-}
-.admin-info-tip-bubble::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-top-color: var(--cb-black);
-}
-.admin-info-tip:hover .admin-info-tip-bubble,
-.admin-info-tip:focus-within .admin-info-tip-bubble {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-  pointer-events: auto;
-}
 .admin-input-mono {
   font-family: var(--font-mono);
   /* 16px, не менше — той самий анти-зум фікс, що й .admin-input-flex
@@ -442,8 +380,8 @@
    на короткі підписи; з довшим текстом (як тут) він вилазить за межі
    вузької grid-колонки .admin-form-columns. Дозволяємо перенос: normal
    на самому лейблі + min-width:0 саме на текстовому <span> (перший span —
-   checkbox input не span, другий span це вже .admin-info-tip і його чіпати
-   не треба), щоб той міг стиснутись і перенестись, а не виштовхнути ряд. */
+   checkbox input не span, другий span — HintDot, його чіпати не
+   треба), щоб той міг стиснутись і перенестись, а не виштовхнути ряд. */
 .admin-checkbox-wrap {
   white-space: normal;
 }

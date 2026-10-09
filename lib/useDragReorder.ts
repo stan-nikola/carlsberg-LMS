@@ -52,6 +52,10 @@ const FLIP_EASING = "cubic-bezier(0.2, 0.8, 0.2, 1)";
  * стрибав би щоразу, як пересувались інші (той самий прийом, що в
  * ManagerDashboard: dragRef.current.startX/Y += shift).
  */
+function sameOrder<T>(a: T[], b: T[]) {
+  return a.length === b.length && a.every((id, i) => id === b[i]);
+}
+
 export function useDragReorder<T>({
   ids,
   onReorder,
@@ -79,7 +83,27 @@ export function useDragReorder<T>({
   const nodeToIdRef = useRef(new WeakMap<HTMLElement, T>());
   const dragRef = useRef<{ id: T; startY: number; pressY: number; moved: boolean } | null>(null);
   const lastSwapRef = useRef<T | null>(null);
-  const rowTopsRef = useRef(new Map<T, number>());
+  // Позиції рядків, зняті РІВНО перед перестановкою (крок First у FLIP), і
+  // порядок, до якого вони належать. Не «позиції з минулого рендера»: між
+  // рендерами розмітка рухається й без перестановки (розгорнули модуль,
+  // зберегли сусідній блок), і застарілі позиції гнали б рядки через
+  // півекрана після будь-якого збереження.
+  const flipFromRef = useRef<{ tops: Map<T, number>; order: T[] } | null>(null);
+
+  function rowTops() {
+    const tops = new Map<T, number>();
+    for (const node of containerRef.current?.querySelectorAll<HTMLElement>("[data-drag-row]") ?? []) {
+      const id = nodeToIdRef.current.get(node);
+      if (id !== undefined) tops.set(id, node.offsetTop);
+    }
+    return tops;
+  }
+
+  function reorder(next: T[]) {
+    if (next === ids) return;
+    flipFromRef.current = { tops: rowTops(), order: ids };
+    onReorder(next);
+  }
 
   /** ref callback-фабрика: реєструє, який DOM-вузол відповідає якому id. */
   function registerRow(id: T) {
@@ -138,8 +162,7 @@ export function useDragReorder<T>({
     }
     if (overId === lastSwapRef.current) return;
     lastSwapRef.current = overId;
-    const next = reorderBefore(ids, drag.id, overId);
-    if (next !== ids) onReorder(next);
+    reorder(reorderBefore(ids, drag.id, overId));
   }
 
   function handlePointerUp() {
@@ -156,16 +179,17 @@ export function useDragReorder<T>({
   // тож offsetTop завжди повертає "справжню" позицію в потоці.
   useLayoutEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
-    const prevTops = rowTopsRef.current;
-    const nextTops = new Map<T, number>();
+    const from = flipFromRef.current;
+    flipFromRef.current = null;
+    // Нові ids без перестановки (батько перестворив масив після збереження) —
+    // анімувати нічого.
+    if (!container || !from || sameOrder(from.order, ids)) return;
     const reduced = prefersReducedMotion() || document.visibilityState !== "visible";
     for (const node of container.querySelectorAll<HTMLElement>("[data-drag-row]")) {
       const id = nodeToIdRef.current.get(node);
       if (id === undefined) continue;
       const top = node.offsetTop;
-      nextTops.set(id, top);
-      const old = prevTops.get(id);
+      const old = from.tops.get(id);
       if (id === dragId) {
         // Узятий рядок: якщо його ВЛАСНА позиція в потоці змінилась
         // (переставили повз кількох рядків одразу), переприв'язуємо
@@ -188,12 +212,13 @@ export function useDragReorder<T>({
         easing: FLIP_EASING,
       });
     }
-    rowTopsRef.current = nextTops;
-  }, [ids, dragId]);
+    // dragId навмисно поза залежностями: читаємо його поточне значення в мить
+    // перестановки, а сам старт/кінець драгу нічого не переставляє.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids]);
 
   function moveByKeyboard(id: T, dir: -1 | 1) {
-    const next = moveAdjacent(ids, id, dir);
-    if (next !== ids) onReorder(next);
+    reorder(moveAdjacent(ids, id, dir));
   }
 
   return {

@@ -11,6 +11,7 @@ export function NewItemForm<T>({
   onCreated,
   placeholder,
   label,
+  savingLabel,
   hint,
   titleRequired = true,
   inputClassName = "admin-input-flex",
@@ -22,6 +23,8 @@ export function NewItemForm<T>({
   onCreated: (created: T) => void;
   placeholder: string;
   label: string;
+  /** Підпис кнопки, поки йде запит (за замовчуванням той самий). */
+  savingLabel?: string;
   hint: string;
   titleRequired?: boolean;
   inputClassName?: string;
@@ -58,7 +61,7 @@ export function NewItemForm<T>({
       {children}
       <button type="button" onClick={handleCreate} disabled={saving} className={buttonClassName} title={hint}>
         {saving && <SpinnerIcon />}
-        {label}
+        {saving && savingLabel ? savingLabel : label}
       </button>
     </div>
   );

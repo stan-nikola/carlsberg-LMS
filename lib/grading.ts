@@ -24,6 +24,17 @@ export type KeyOf = (kind: "o" | "s" | "l" | "r", index: number) => string;
 /** Прохідний бал курсу за замовчуванням — той самий, що @default(80) у Course.passThreshold. */
 export const DEFAULT_PASS_THRESHOLD = 80;
 
+/**
+ * Бал у відсотках. 100% — лише коли правильні ВСІ відповіді: звичайне
+ * округлення давало 100 за 199 з 200, а 100% — це планка сертифіката
+ * (lib/progress.ts certificateEarned, рішення користувача 2026-10-09).
+ * Модуль без питань (лише матеріал) нікого не блокує — 100%.
+ */
+export function scorePercentOf(scoreRaw: number, scoreMax: number): number {
+  if (scoreMax <= 0 || scoreRaw >= scoreMax) return 100;
+  return Math.min(99, Math.round((scoreRaw / scoreMax) * 100));
+}
+
 export const indexKeyOf: KeyOf = (kind, index) => `${kind}${index}`;
 
 type Obj = Record<string, unknown>;
