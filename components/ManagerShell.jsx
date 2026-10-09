@@ -3,7 +3,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, GearIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
+import { GearIcon, ChevronIcon, SpinnerIcon } from "@/components/icons";
+import { MANAGER_NAV as NAV_ITEMS, isManagerNavActive as isNavActive } from "@/components/managerNav";
 import { PlatformBrand } from "@/components/PlatformBrand";
 import { consumeProgressDirty } from "@/lib/progressDirty";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -13,13 +14,6 @@ import { finishLogout, prepareLogout } from "@/lib/logoutCleanup";
 
 // Згорнутий сайдбар — особиста зручність, localStorage (як в AdminShell).
 const SIDEBAR_COLLAPSED_KEY = "manager-sidebar-collapsed";
-
-const NAV_ITEMS = [
-  { href: "/manager", label: "Команда", Icon: HomeIcon },
-  { href: "/manager/courses", label: "Курси", Icon: LearnIcon },
-  { href: "/manager/achievements", label: "Досягнення", Icon: AchievementsIcon },
-  { href: "/manager/profile", label: "Профіль", Icon: ProfileIcon },
-];
 
 // Навігація між вкладками — штатна Next.js (2026-09-22). Раніше тут стояв
 // власний SPA-диспетчер (PR #68: перехоплення кліків, pushState, рендер
@@ -55,13 +49,6 @@ const NAV_ITEMS = [
 function NavPending() {
   const { pending } = useLinkStatus();
   return <span className={`nav-pending${pending ? " is-pending" : ""}`} aria-hidden="true" />;
-}
-
-/** «Команда» (до 2026-10-04 — «Головна») лишається активною і на drill-down сторінках /manager/team/*
- *  (2026-09-23): вони — підрозділи дашборда, окремого пункту меню не мають. */
-function isNavActive(pathname, href) {
-  if (href === "/manager") return pathname === "/manager" || pathname.startsWith("/manager/team");
-  return pathname === href;
 }
 
 export function ManagerShell({ hasNewCourses = false, children }) {
@@ -204,7 +191,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
     const bar = tabbarRef.current;
     if (!pill || !bar) return;
     // Сторінка поза вкладками (сповіщення з дзвоника) — капсулу ховаємо, як
-    // у HubShell, а не лишаємо під «Командою» з неактивною сірою іконкою.
+    // у HubShell, а не лишаємо під «Головною» з неактивною сірою іконкою.
     const activeHref = NAV_ITEMS.find((t) => isNavActive(pathname, t.href))?.href;
     pill.style.opacity = activeHref ? "1" : "0";
     const activeEl = activeHref && tabRefs.current.get(activeHref);

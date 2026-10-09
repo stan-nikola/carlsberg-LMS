@@ -1,3 +1,5 @@
+import { formatKyivDate } from "@/lib/kyivTime";
+
 /**
  * Рядки "Ваш код / Керівник (email) / Зареєстровано" + дисклеймер —
  * винесено з app/hub/profile/page.js, щоб той самий блок рендерився і в
@@ -17,7 +19,7 @@ export function ProfileDetailPanel({ externalCode, managerEmail, firstLoginAt })
         </div>
         <div className="pd-row">
           <span className="pd-k">Зареєстровано</span>
-          <span className="pd-v">{firstLoginAt ? new Date(firstLoginAt).toLocaleDateString("uk-UA") : "—"}</span>
+          <span className="pd-v">{firstLoginAt ? formatKyivDate(firstLoginAt) : "—"}</span>
         </div>
       </div>
       <p className="hub-empty-note">Дані використовуються лише для проходження курсів і зберігаються в системі компанії.</p>

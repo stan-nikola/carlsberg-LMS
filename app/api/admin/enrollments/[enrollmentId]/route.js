@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { syncEnrollmentEvents } from "@/lib/rating";
 import { endOfKyivDayFromInput } from "@/lib/kyivTime";
 import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
+import { removeEnrollments } from "@/lib/courseAssignment";
 
 const VALID_STATUSES = ["not_started", "in_progress", "completed", "overdue"];
 
@@ -108,11 +109,8 @@ export async function DELETE(request, { params }) {
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { enrollmentId } = await params;
-  await prisma.enrollment.delete({ where: { id: Number(enrollmentId) } });
-  // RatingEvent посилається на enrollment через refType/refId, без FK —
-  // каскаду нема, бали за знятий курс прибираємо самі (той самий
-  // синхронізатор: enrollment'а вже нема, тож «бажаних» подій нуль).
-  await syncEnrollmentEvents(Number(enrollmentId));
+  const { removedCount } = await removeEnrollments({ id: Number(enrollmentId) });
+  if (removedCount === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await audit("enrollment.delete", "enrollment", enrollmentId);
   return NextResponse.json({ ok: true });
 }

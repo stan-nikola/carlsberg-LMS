@@ -1,14 +1,8 @@
 import Link from "next/link";
-import { HomeIcon, LearnIcon, AchievementsIcon, ProfileIcon, GearIcon, BellIcon } from "@/components/icons";
+import { GearIcon, BellIcon } from "@/components/icons";
+import { MANAGER_NAV as NAV_ITEMS } from "@/components/managerNav";
 import { PlatformBrand } from "@/components/PlatformBrand";
 import { PageSkeleton } from "@/components/Skeleton";
-
-const NAV_ITEMS = [
-  { href: "/manager", label: "Команда", Icon: HomeIcon },
-  { href: "/manager/courses", label: "Курси", Icon: LearnIcon },
-  { href: "/manager/achievements", label: "Досягнення", Icon: AchievementsIcon },
-  { href: "/manager/profile", label: "Профіль", Icon: ProfileIcon },
-];
 
 /**
  * Дзеркало HubShellSkeleton.jsx для app/manager/layout.js — той самий
@@ -18,7 +12,7 @@ const NAV_ITEMS = [
  * миттєвий каркас на час очікування. hasNewCourses ще невідомий — без
  * бейджа "нове".
  *
- * "Команда" одразу активна (перший пункт NAV_ITEMS = /manager, куди й
+ * "Головна" одразу активна (перший пункт NAV_ITEMS = /manager, куди й
  * веде layout за замовчуванням) — на відміну від таббару /hub, тут не
  * потрібен окремий трюк: .mgr-nav-link.active/.tab-btn.active керуються
  * чистим CSS (border/колір), без JS-виміру getBoundingClientRect. Дзвіночок/

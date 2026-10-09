@@ -34,11 +34,10 @@ export default async function ManagerTeamPage({ searchParams }: { searchParams: 
 
   return (
     <div className="manager-page manager-team-page">
-      {/* Сюди ведуть цифри дашборда, а назад вела лише вкладка «Команда»
-          в меню — і та без прокрутки/розкладки, як лишили. Кругла «назад»
-          повертає саме туди, звідки прийшли (2026-09-24). */}
+      {/* «Назад» — лише коли сюди прийшли з цифри дашборда (є фільтр):
+          повертає туди ж, з прокруткою й розкладкою. Без фільтра це вкладка меню. */}
       <div className="mgr-page-head">
-        <BackButton />
+        {chips.length > 0 && <BackButton />}
         <span className="mgr-page-head-rule" aria-hidden="true" />
         <h1 className="greeting hub-greeting-h1">КОМАНДА</h1>
         <ExportReportLink />

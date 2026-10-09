@@ -1,11 +1,14 @@
-/** "3 модулі" / "1 екран" / "5 екранів" — українська форма множини для
- * коротких підписів (кількість блоків/модулів/екранів курсу тощо).
- * Було продубльовано локально в components/AdminCourseEditor.jsx —
- * винесено сюди як єдине джерело, щоб CourseTile міг використати ту саму
- * логіку для картки курсу в хабі. */
+/** Українська форма слова для числа: 1 модуль, 3 модулі, 5 модулів (знак числа не важить). */
+export function pluralWord(n: number, one: string, few: string, many: string): string {
+  const abs = Math.abs(n);
+  const mod10 = abs % 10;
+  const mod100 = abs % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
+
+/** «3 модулі» — число разом зі словом у правильній формі. */
 export function pluralize(n: number, one: string, few: string, many: string): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  const word = mod10 === 1 && mod100 !== 11 ? one : mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20) ? few : many;
-  return `${n} ${word}`;
+  return `${n} ${pluralWord(n, one, few, many)}`;
 }

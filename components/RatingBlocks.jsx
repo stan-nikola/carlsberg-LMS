@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatKyivDate } from "@/lib/kyivTime";
 import { CountUp } from "@/components/CountUp";
 import { LevelLabel } from "@/components/LevelLabel";
 import { RankDelta } from "@/components/RankDelta";
@@ -71,7 +72,7 @@ export function MandatoryCard({ progress, href }) {
             {overdue > 0 ? (
               <span className="rt-overdue">Прострочено: {overdue}</span>
             ) : nextDue ? (
-              <>Найближчий дедлайн: {nextDue.toLocaleDateString("uk-UA")}</>
+              <>Найближчий дедлайн: {formatKyivDate(nextDue)}</>
             ) : completed === total ? (
               "Усе пройдено — так тримати!"
             ) : (

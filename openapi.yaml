@@ -348,6 +348,23 @@ paths:
       summary: Чи увімкнено тестовий вхід і кого можна обрати (публічний, до сесії)
       responses:
         "200": { $ref: "#/components/responses/Ok" }
+  /api/test/login:
+    post:
+      security: []
+      tags: [auth]
+      summary: Вхід без PIN для браузерних тестів — лише в dev, у production відповідає 404
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string, description: "externalCode співробітника" }
+                admin: { type: string, enum: [admin, super], description: "admin_session потрібного рівня" }
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   # --------------------------------------------------------------- courses
   /api/courses/{slug}/answer:

@@ -3,6 +3,7 @@ import { audit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
 import { slugify, uniqueSlug } from "@/lib/slug";
+import { invalidateEmployeeEnrollments } from "@/lib/employeeProgress";
 
 // GET /api/admin/courses/:courseId — повне дерево курс -> модулі -> екрани
 // -> компоненти, для адмінського редактора контенту.
@@ -68,7 +69,7 @@ export async function PATCH(request, { params }) {
   if (body.description !== undefined) data.description = body.description;
   if (body.category !== undefined) data.category = body.category || null;
   if (body.isMandatory !== undefined) data.isMandatory = body.isMandatory;
-  if (body.deadlineDays !== undefined) data.deadlineDays = body.deadlineDays;
+  if (body.deadlineDays !== undefined) data.deadlineDays = body.deadlineDays === "" || body.deadlineDays == null ? null : Number(body.deadlineDays);
   if (body.moduleDays !== undefined) data.moduleDays = body.moduleDays === "" || body.moduleDays == null ? null : Number(body.moduleDays);
   if (body.modulePauseDays !== undefined) {
     data.modulePauseDays = body.modulePauseDays === "" || body.modulePauseDays == null ? null : Number(body.modulePauseDays);
@@ -94,6 +95,8 @@ export async function PATCH(request, { params }) {
   }
 
   const course = await prisma.course.update({ where: { id: Number(courseId) }, data });
+  // Назва, терміни, поріг — у плитках і плані курсу співробітника.
+  invalidateEmployeeEnrollments();
   await audit("course.update", "course", courseId, data);
   return NextResponse.json(course);
 }
