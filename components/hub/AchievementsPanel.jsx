@@ -126,7 +126,7 @@ export function AchievementsPanel({
                   <h4 className="lb-group-title">{group.positionName}</h4>
                   <div className="leaderboard-list">
                     {group.rows.map((row, i) => (
-                      <LeaderRow key={row.id} row={row} rank={i + 1} currentEmployeeId={currentEmployeeId} href={leaderHref?.(row.id)} />
+                      <LeaderRow key={row.id} row={row} rank={i + 1} currentEmployeeId={currentEmployeeId} href={leaderHref?.(row)} />
                     ))}
                   </div>
                 </div>

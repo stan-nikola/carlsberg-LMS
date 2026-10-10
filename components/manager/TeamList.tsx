@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+import { personHref } from "@/lib/personPath";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusPill } from "@/components/manager/EnrollmentRow";
@@ -172,7 +173,7 @@ export function TeamList({
                     <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} aria-label={`Обрати ${p.name}`} />
                   </td>
                   <td>
-                    <Link href={`/manager/team/${p.id}`} className="mgr-team-person">
+                    <Link href={personHref(p)} className="mgr-team-person">
                       <Avatar name={p.name} src={p.avatarUrl} size="sm" />
                       <span className="mgr-team-person-text">
                         <span className="mgr-team-person-name">{p.name}</span>
@@ -218,12 +219,12 @@ export function TeamList({
                     <input type="checkbox" checked={selected.has(r.employeeId)} onChange={() => toggle(r.employeeId)} aria-label={`Обрати ${r.employeeName}`} />
                   </td>
                   <td>
-                    <Link href={`/manager/team/${r.employeeId}`} className="mgr-team-person-name">
+                    <Link href={personHref({ id: r.employeeId, externalCode: r.employeeCode })} className="mgr-team-person-name">
                       {r.employeeName}
                     </Link>
                   </td>
                   <td>
-                    <Link href={`/manager/team/${r.employeeId}?course=${encodeURIComponent(r.courseSlug)}`} className="mgr-team-course" title={r.courseTitle}>
+                    <Link href={personHref({ id: r.employeeId, externalCode: r.employeeCode }, r.courseSlug)} className="mgr-team-course" title={r.courseTitle}>
                       {r.courseTitle}
                     </Link>
                   </td>

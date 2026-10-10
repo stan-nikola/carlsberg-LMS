@@ -61,6 +61,7 @@ function row(over: Partial<TeamRow> = {}): TeamRow {
   return {
     enrollmentId: 1,
     employeeId: 1,
+    employeeCode: null,
     employeeName: "Особа 1",
     courseId: 10,
     courseSlug: "c",

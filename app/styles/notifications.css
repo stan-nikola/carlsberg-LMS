@@ -1,5 +1,5 @@
 /* ===================== Сповіщення (центр, дзвіночок, налаштування) =====
-   components/notifications/NotificationBell.jsx, NotificationCenter.jsx,
+   components/notifications/NotificationBell.jsx, NotificationCenter.tsx,
    NotificationSettings.jsx, AdminBroadcast.jsx. Лише токени tokens.css. */
 
 .ntf-bell {
@@ -119,11 +119,207 @@
   color: inherit;
   text-decoration: none;
 }
+/* ---- Кабінет керівника: стрічка як у LinkedIn/GitHub (користувач, 2026-10-10) ----
+   Колонка по центру (.manager-notifications-page), зверху чипи-фільтри за розділом
+   і «Очистити все», записи згруповані за днями. Рядок: аватар людини (подія про
+   підлеглого) або кружок-іконка, крапка «нове», заголовок і короткий час в одному
+   ряду, текст у два рядки (клік по рядку розгортає), кнопки дії; «×» — видалити. */
+.ntf-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: calc(12px * var(--fs-scale));
+  color: var(--ink-soft);
+}
+.ntf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ntf-chips .mgr-filter-chip {
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(12.5px * var(--fs-scale));
+}
+.ntf-chip-count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-badge);
+  background: var(--accent-unread);
+  color: var(--cb-white);
+  font-size: calc(10.5px * var(--fs-scale));
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+.ntf-toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.ntf-error {
+  margin: 0;
+  font-size: calc(12px * var(--fs-scale));
+  color: var(--p-danger-text);
+}
+.ntf-list--mgr {
+  gap: 10px;
+}
+.ntf-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* Заголовок дня — той самий kicker, що заголовки вкладок (.greeting у hub.css). */
+.ntf-group-title {
+  margin: 10px 0 0;
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--fs-scale));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.ntf-row {
+  position: relative;
+}
+.ntf-list--mgr .ntf-item {
+  align-items: flex-start;
+  gap: 14px;
+  padding: var(--card-pad);
+  padding-right: 52px; /* місце під кнопку видалення */
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .ntf-list--mgr .ntf-item:hover {
+    background: var(--cb-overlay-10);
+  }
+}
+.ntf-list--mgr .ntf-item:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
+.ntf-list--mgr .ntf-ico,
+.ntf-list--mgr .ntf-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+}
+.ntf-list--mgr .ntf-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--cb-overlay-10);
+  font-size: 20px;
+}
+.ntf-list--mgr .ntf-body {
+  flex: 1 1 auto;
+  gap: 4px;
+}
+.ntf-list--mgr .ntf-title {
+  font-size: calc(14.5px * var(--fs-scale));
+}
+.ntf-list--mgr .ntf-msg {
+  font-size: calc(13.5px * var(--fs-scale));
+  line-height: 1.45;
+  /* Два рядки — решта за кліком по рядку (.is-open). */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.ntf-list--mgr .ntf-item.is-open .ntf-msg {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+.ntf-list--mgr .ntf-time {
+  margin-left: auto;
+  flex: none;
+  padding-left: 8px;
+}
+.ntf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.ntf-actions .admin-btn {
+  text-decoration: none;
+}
+.ntf-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ntf-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-unread);
+}
+.ntf-del {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--iconbtn-sm);
+  height: var(--iconbtn-sm);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-btn);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  /* На мишці з'являється при наведенні на рядок (чи фокусі), на дотику — завжди. */
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-premium), background var(--dur-fast) var(--ease-premium);
+}
+.ntf-del svg {
+  width: 16px;
+  height: 16px;
+}
+.ntf-row:hover .ntf-del,
+.ntf-del:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .ntf-del {
+    opacity: 1;
+  }
+}
+@media (hover: hover) {
+  .ntf-del:hover {
+    background: var(--cb-fail-light);
+    color: color-mix(in srgb, var(--cb-fail) 70%, var(--cb-black));
+  }
+}
+.ntf-del:focus-visible {
+  outline: none;
+  box-shadow: var(--cb-focus-ring);
+}
 .ntf-item.unread {
   border-color: var(--accent-unread-bd);
   background: var(--accent-unread-bg);
   /* Непрочитане раз «дзижчить» при появі (демо-тур: buzz), по черзі. */
   animation: ntfBuzz 0.5s ease calc(350ms + var(--k, 0) * 90ms) 1;
+}
+/* Прийшли з push/Telegram: один спалах, як рамка рейтингу після кліку на зелену
+   картку Home (rt-highlight-flash, rating.css); замінює «дзижчання» цього запису. */
+.ntf-item.is-highlight {
+  animation: rt-highlight-flash 1.4s ease-out 1 both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ntf-item.is-highlight {
+    animation: none;
+  }
 }
 @keyframes ntfBuzz {
   20%,

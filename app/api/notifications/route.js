@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, getSessionClaims } from "@/lib/session";
 import { auditEmployee } from "@/lib/audit";
+import { withPeople } from "@/lib/notificationFeed";
 
 const PAGE_SIZE = 30;
 
@@ -63,10 +65,32 @@ export async function GET(request) {
   ]);
 
   const hasMore = items.length > PAGE_SIZE;
-  const page = hasMore ? items.slice(0, PAGE_SIZE) : items;
+  const page = await withPeople(hasMore ? items.slice(0, PAGE_SIZE) : items);
   return NextResponse.json({
     items: page,
     unreadCount,
     nextCursor: hasMore ? page[page.length - 1].id : null,
   });
+}
+
+/**
+ * DELETE /api/notifications — { ids: number[] } або { all: true }. Видаляє ЛИШЕ свої
+ * сповіщення (where employeeId) — чужі id ігноруються. Кнопка «×» і «Очистити все»
+ * у центрі сповіщень кабінету керівника. Центр читає перший екран із кешу
+ * (lib/notificationFeed.ts), тож тег скидаємо одразу.
+ */
+export async function DELETE(request) {
+  const employee = await getCurrentUser();
+  if (!employee) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await request.json().catch(() => ({}));
+  const where = { employeeId: employee.id };
+  if (body.all !== true) {
+    const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter(Number.isInteger) : [];
+    if (ids.length === 0) return NextResponse.json({ error: "ids or all required" }, { status: 400 });
+    where.id = { in: ids };
+  }
+  const r = await prisma.notification.deleteMany({ where });
+  revalidateTag("notifications", { expire: 0 });
+  return NextResponse.json({ deleted: r.count });
 }

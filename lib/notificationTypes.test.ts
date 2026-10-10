@@ -5,6 +5,7 @@ import {
   wantsCategory,
   wantsTelegramCategory,
   sanitizePreferences,
+  notificationCenterUrl,
 } from "@/lib/notificationTypes";
 
 describe("telegramCategoryKey", () => {
@@ -45,5 +46,12 @@ describe("sanitizePreferences", () => {
   it("порожній/невалідний вхід — порожній об'єкт", () => {
     expect(sanitizePreferences(null)).toEqual({});
     expect(sanitizePreferences("x")).toEqual({});
+  });
+});
+
+describe("notificationCenterUrl", () => {
+  it("веде на запис у центрі сповіщень свого кабінету", () => {
+    expect(notificationCenterUrl(42, false)).toBe("/hub/notifications?highlight=42");
+    expect(notificationCenterUrl(42, true)).toBe("/manager/notifications?highlight=42");
   });
 });

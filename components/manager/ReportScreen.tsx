@@ -73,7 +73,6 @@ export function ReportScreen({ cards }: { cards: string }) {
         <button type="button" className="iconbtn mgr-back-btn" onClick={close} title="Закрити" aria-label="Закрити">
           <XIcon />
         </button>
-        <span className="mgr-page-head-rule" aria-hidden="true" />
         <h1 className="greeting hub-greeting-h1">ЗВІТ</h1>
       </div>
 

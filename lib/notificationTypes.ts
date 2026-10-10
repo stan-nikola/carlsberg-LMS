@@ -131,6 +131,16 @@ export function toManagerUrl(url: string | null | undefined): string | null {
   return `${HUB_TO_MANAGER[pathname] ?? "/manager"}${rest}`;
 }
 
+/**
+ * Адреса запису в центрі сповіщень (дзвоник), який треба підсвітити, — те, на що
+ * ведуть push і Telegram (рішення користувача, 2026-10-10: клік веде не в курс чи
+ * відзнаку, а на саме повідомлення в дзвінку; перехід у курс — уже з центру).
+ * Керівник кабінету /hub не бачить, тож для нього — /manager/notifications.
+ */
+export function notificationCenterUrl(notificationId: number, isManager: boolean): string {
+  return `${isManager ? "/manager" : "/hub"}/notifications?highlight=${notificationId}`;
+}
+
 export type PreferenceValues = Record<string, boolean>;
 
 /** Дефолти вподобань — усе увімкнено (рядка в БД може не бути). */

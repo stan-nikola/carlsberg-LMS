@@ -175,6 +175,7 @@ export function ManagerShell({ hasNewCourses = false, children }) {
           <SpinnerIcon />
         </div>
         {children}
+        <footer className="mgr-copyright">© Development by Stanislav Karmanov</footer>
       </main>
 
       {/* ---- Мобільний (<900px): нижній таббар, той самий, що в /hub ---- */}

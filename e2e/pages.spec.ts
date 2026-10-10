@@ -62,7 +62,7 @@ test.describe("керівник", () => {
     ["/manager", ".mgr-charts.is-ready"],
     ["/manager/team", ".mgr-team-table"],
     ["/manager/team?status=overdue", ".mgr-team-list"],
-    ["/manager/team/327", ".mgr-enrollment-list"],
+    ["/manager/team/SR0106", ".mgr-enrollment-list"],
     ["/manager/courses", ".course-tile"],
     ["/manager/achievements", "main"],
     ["/manager/profile", ".profile-card"],

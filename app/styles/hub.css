@@ -848,10 +848,11 @@ a.profile-card-link:focus-visible {
   line-height: 1.25;
 }
 
+/* Без радіуса й обрізання: обгортка не має ні фону, ні рамки, а заокруглений кут з
+   overflow:hidden зрізав першу літеру заголовка посади («Технік HoReCa» → «ехнік»,
+   користувач 2026-10-10). position — для заглушки .leaderboard-lock (inset:0). */
 .leaderboard-wrap {
   position: relative;
-  border-radius: var(--radius-card);
-  overflow: hidden;
   margin-bottom: 8px;
 }
 /* До Фази C адмінки тут завжди був блюр+lock-заглушка ("Рейтинг з'явиться

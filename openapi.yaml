@@ -458,6 +458,14 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/Ok" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [notifications]
+      summary: "Видалити свої сповіщення — `{ids}` або `{all: true}` (кабінет керівника); чужі id ігноруються"
+      security: [{ session: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Ok" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
   /api/notifications/read:
     post:
       tags: [notifications]

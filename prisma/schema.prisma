@@ -717,12 +717,13 @@ model Notification {
   /// team_digest, broadcast …) — для аналітики/фільтрів.
   type      String
   /// Категорія для налаштувань «які сповіщення отримувати» —
-  /// lib/notificationTypes.js NOTIFICATION_CATEGORIES (courses, deadlines,
+  /// lib/notificationTypes.ts NOTIFICATION_CATEGORIES (courses, deadlines,
   /// badges, team, news). Одна з них, не довільний рядок.
   category  String    @default("system")
   title     String?
   message   String
-  /// Куди веде клік по сповіщенню (в застосунку і в push) — відносний шлях.
+  /// Куди веде клік по рядку в центрі сповіщень — відносний шлях. Push і Telegram
+  /// ведуть не сюди, а на сам запис у дзвінку (lib/notificationTypes.ts notificationCenterUrl).
   url       String?
   /// Захист від дублів для подій, які cron може згенерувати повторно
   /// (нагадування «3 дні до дедлайну» на той самий Enrollment, денний

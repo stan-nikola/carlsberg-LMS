@@ -327,16 +327,16 @@ async function computeTeamLeaderboardByPosition(managerId: number) {
   const [people, points] = await Promise.all([
     prisma.employee.findMany({
       where: { id: { in: ids }, isActive: true },
-      select: { id: true, name: true, avatarUrl: true, position: { select: { id: true, name: true, level: true } } },
+      select: { id: true, name: true, avatarUrl: true, externalCode: true, position: { select: { id: true, name: true, level: true } } },
     }),
     sumPoints(ids),
   ]);
   const pointsById = new Map(points.map((p) => [p.employeeId, p.points]));
-  const groups = new Map<number, { positionId: number; positionName: string; level: number; rows: { id: number; name: string; avatarUrl: string | null; points: number }[] }>();
+  const groups = new Map<number, { positionId: number; positionName: string; level: number; rows: { id: number; name: string; avatarUrl: string | null; externalCode: string | null; points: number }[] }>();
   for (const p of people) {
     if (!p.position) continue; // без посади рейтингувати нема з ким
     const g = groups.get(p.position.id) || { positionId: p.position.id, positionName: p.position.name, level: p.position.level, rows: [] };
-    g.rows.push({ id: p.id, name: p.name, avatarUrl: p.avatarUrl ?? null, points: pointsById.get(p.id) || 0 });
+    g.rows.push({ id: p.id, name: p.name, avatarUrl: p.avatarUrl ?? null, externalCode: p.externalCode ?? null, points: pointsById.get(p.id) || 0 });
     groups.set(p.position.id, g);
   }
   return Array.from(groups.values())

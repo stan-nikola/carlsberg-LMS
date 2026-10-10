@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/session";
+import { personHref } from "@/lib/personPath";
 import { getEmployeeBadgesView, getEmployeeCertificates } from "@/lib/achievements";
 import { getEmployeeRating, getTeamLeaderboardByPosition } from "@/lib/rating";
 import { AchievementsPanel } from "@/components/hub/AchievementsPanel";
@@ -36,7 +37,7 @@ export default async function ManagerAchievementsPage({ searchParams }) {
         certificates={certificates}
         leaderboard={[]}
         leaderboardGroups={leaderboardGroups}
-        leaderHref={(id) => `/manager/team/${id}`}
+        leaderHref={(row) => personHref(row)}
         leaderboardTitle="Лідери команди за посадами (% від найкращого у своїй посаді)"
         cohortLabel={cohortLabel}
         currentEmployeeId={employee.id}

@@ -4,11 +4,13 @@ import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
 import { RemindButton } from "@/components/manager/ReminderDialog";
 import { SEGMENT_META, type AttentionItem } from "@/lib/teamInsights";
+import { personHref } from "@/lib/personPath";
 
 
 /**
- * «Потребують уваги» — топ-5 людей за терміновістю (lib/teamInsights.ts
- * attentionTop): ім'я → сторінка людини, чипи причин, «Нагадати» з
+ * «Потребують уваги» — усі, кому треба увага, за терміновістю (lib/teamInsights.ts
+ * attentionTop): ім'я → сторінка людини, чипи причин, під ними — курс і дедлайн
+ * найгіршої причини, скільки пройдено й коли заходив(ла); «Нагадати» з
  * шаблоном за найгіршою причиною і курсом-прикладом.
  */
 export function AttentionList({ items }: { items: AttentionItem[] }) {
@@ -24,7 +26,7 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
               <li key={person.id} className="mgr-attention-row" style={{ "--i": i } as React.CSSProperties}>
                 <Avatar name={person.name} src={person.avatarUrl} size="sm" />
                 <div className="mgr-attention-main">
-                  <Link href={`/manager/team/${person.id}`} className="mgr-attention-name">
+                  <Link href={personHref(person)} className="mgr-attention-name">
                     {person.name}
                   </Link>
                   <span className="mgr-attention-meta">{person.positionName || "—"}</span>
@@ -34,6 +36,14 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
                         {r.label}
                       </span>
                     ))}
+                  </span>
+                  {primary?.courseTitle && (
+                    <span className="mgr-attention-detail">
+                      «{primary.courseTitle}»{primary.dueDateLabel ? ` · до ${primary.dueDateLabel}` : ""}
+                    </span>
+                  )}
+                  <span className="mgr-attention-detail">
+                    Завершено {person.counts.completed} з {person.counts.total} · Останній вхід: {person.lastSeenLabel}
                   </span>
                 </div>
                 <RemindButton

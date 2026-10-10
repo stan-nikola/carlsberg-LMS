@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { personHref } from "@/lib/personPath";
 import { CELL_STATUS_META, type CellStatus, type TeamMatrixData } from "@/lib/teamInsights";
 import { EMPTY_SIZES, parseSizes, resizedTo, sizeOf, withSize, type MatrixSizeKind, type MatrixSizes } from "@/lib/matrixSizes";
 import { isClass } from "@/lib/cssClass";
@@ -143,7 +144,7 @@ export function TeamMatrix({ data }: { data: TeamMatrixData }) {
               return (
                 <tr key={person.id} style={{ height: sizeOf(sizes, "row", rowKey), "--r": ri } as React.CSSProperties}>
                   <th scope="row" className="mgr-matrix-corner">
-                    <Link href={`/manager/team/${person.id}`} prefetch={false} className="mgr-matrix-person">
+                    <Link href={personHref(person)} prefetch={false} className="mgr-matrix-person">
                       {person.name}
                     </Link>
                     <span
@@ -157,7 +158,7 @@ export function TeamMatrix({ data }: { data: TeamMatrixData }) {
                     <td key={cell.courseSlug} className="mgr-matrix-td" style={{ "--c": ci, "--r": ri } as React.CSSProperties}>
                       {cell.status ? (
                         <Link
-                          href={`/manager/team/${person.id}?course=${encodeURIComponent(cell.courseSlug)}`}
+                          href={personHref(person, cell.courseSlug)}
                           prefetch={false}
                           className={`mgr-matrix-cell ${isClass(cell.status)}`}
                           aria-label={`${person.name}: ${CELL_META[cell.status].label}`}

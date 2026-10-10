@@ -20,7 +20,6 @@ import type { RawAttempt, RawEmployee, TeamRaw } from "./teamEnrollments";
 import { DAY_MS, UKRAINE_TZ } from "./ukraineTime";
 
 export const INACTIVE_DAYS = 14;
-export const ATTENTION_LIMIT = 5;
 export const MATRIX_ROW_CAP = 15;
 export const TREND_WEEKS = 6;
 
@@ -41,6 +40,7 @@ export const CELL_STATUS_META: Record<CellStatus, { label: string; mark: string 
 export type TeamRow = {
   enrollmentId: number;
   employeeId: number;
+  employeeCode: string | null;
   employeeName: string;
   courseId: number;
   courseSlug: string;
@@ -184,6 +184,7 @@ export function buildTeamRows(raw: TeamRaw, now: Date, zone: string = UKRAINE_TZ
     rows.push({
       enrollmentId: e.id,
       employeeId: e.employeeId,
+      employeeCode: employee.externalCode ?? null,
       employeeName: employee.name,
       courseId: course.id,
       courseSlug: course.slug,
@@ -376,9 +377,10 @@ export type AttentionReason = {
 
 export type AttentionItem = { person: TeamPerson; reasons: AttentionReason[] };
 
-/** Топ-N людей за терміновістю; причини — по одній на вид, з найгіршим
- *  курсом (найдавніший дедлайн) як прикладом для тексту нагадування. */
-export function attentionTop(people: TeamPerson[], rows: TeamRow[], limit = ATTENTION_LIMIT): AttentionItem[] {
+/** Люди, яким треба увага, за терміновістю (limit — обрізати; за замовчуванням усі);
+ *  причини — по одній на вид, з найгіршим курсом (найдавніший дедлайн) як
+ *  прикладом для тексту нагадування. */
+export function attentionTop(people: TeamPerson[], rows: TeamRow[], limit = Infinity): AttentionItem[] {
   const rowsByEmployee = new Map<number, TeamRow[]>();
   for (const r of rows) {
     const list = rowsByEmployee.get(r.employeeId) || [];

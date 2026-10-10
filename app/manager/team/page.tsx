@@ -39,7 +39,6 @@ export default async function ManagerTeamPage({ searchParams }: { searchParams: 
           повертає туди ж, з прокруткою й розкладкою. Без фільтра це вкладка меню. */}
       <div className="mgr-page-head">
         {chips.length > 0 && <BackButton />}
-        <span className="mgr-page-head-rule" aria-hidden="true" />
         <h1 className="greeting hub-greeting-h1">КОМАНДА</h1>
         <ExportReportLink />
       </div>

@@ -1,12 +1,38 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { personKeyOf } from "@/lib/personPath";
 
 const PAGE_SIZE = 30;
 
 /**
+ * Людина, про яку подія (url /manager/team/<код>; старі рядки — /team/<id>) — ім'я й
+ * фото для аватара в рядку стрічки керівника (lib/notificationView.ts). Один запит
+ * на сторінку, зниклі співробітники просто без `person`.
+ */
+export async function withPeople<T extends { url: string | null }>(items: T[]) {
+  const keys = Array.from(new Set(items.map((n) => personKeyOf(n.url)).filter((k): k is string => k !== null)));
+  if (keys.length === 0) return items;
+  const ids = keys.filter((k) => /^\d+$/.test(k)).map(Number);
+  const codes = keys.filter((k) => !/^\d+$/.test(k));
+  const people = await prisma.employee.findMany({
+    where: { OR: [...(ids.length ? [{ id: { in: ids } }] : []), ...(codes.length ? [{ externalCode: { in: codes, mode: "insensitive" as const } }] : [])] },
+    select: { id: true, name: true, avatarUrl: true, externalCode: true },
+  });
+  const byKey = new Map<string, (typeof people)[number]>();
+  for (const p of people) {
+    byKey.set(String(p.id), p);
+    if (p.externalCode) byKey.set(p.externalCode.toLowerCase(), p);
+  }
+  return items.map((n) => {
+    const person = byKey.get((personKeyOf(n.url) ?? "").toLowerCase());
+    return person ? { ...n, person } : n;
+  });
+}
+
+/**
  * Перша сторінка стрічки сповіщень + лічильник непрочитаних — те, що
  * реально потрібно ОДРАЗУ при відкритті /manager/notifications чи
- * /hub/notifications. Раніше NotificationCenter.jsx тягнув це звичайним
+ * /hub/notifications. Раніше NotificationCenter.tsx тягнув це звичайним
  * client-side fetch() у useEffect на кожному монтуванні — той самий баг-
  * клас, що вже виправлений для /manager (аудит "вообще без скелетонов
  * мгновенно", 2026-09-20): JSON-відповідь Route Handler не бере участі в
@@ -23,7 +49,7 @@ const PAGE_SIZE = 30;
  * Пагінація "Показати ще" (cursor не null) лишається звичайним
  * client-side fetch — вона й так по кліку, не на монтуванні.
  */
-export async function getNotificationFeed(employeeId) {
+export async function getNotificationFeed(employeeId: number) {
   "use cache: private";
   cacheLife("seconds");
   cacheTag("notifications");
@@ -39,6 +65,6 @@ export async function getNotificationFeed(employeeId) {
   ]);
 
   const hasMore = items.length > PAGE_SIZE;
-  const page = hasMore ? items.slice(0, PAGE_SIZE) : items;
+  const page = await withPeople(hasMore ? items.slice(0, PAGE_SIZE) : items);
   return { items: page, unreadCount, nextCursor: hasMore ? page[page.length - 1].id : null };
 }

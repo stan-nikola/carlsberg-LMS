@@ -52,8 +52,8 @@ export async function telegramApi<T = unknown>(method: string, body?: Record<str
 
 export type TelegramPayload = { title?: string | null; message: string; url?: string | null };
 
-function buildSendBody(chatId: string, payload: TelegramPayload) {
-  const open = absoluteUrl(appBaseUrl(), payload.url);
+function buildSendBody(chatId: string, payload: TelegramPayload, url: string | null | undefined) {
+  const open = absoluteUrl(appBaseUrl(), url);
   // Пряме посилання відкривало вбудований браузер Telegram, а не
   // встановлений PWA (скарга користувача, 2026-09-28) — /go напряму не
   // веде нікуди, лише намагається "вирватись" у Chrome на Android
@@ -80,7 +80,8 @@ function isGone(r: { ok: false; error_code?: number; description: string }): boo
  */
 export async function sendTelegramToLinks(
   links: { employeeId: number; chatId: string }[],
-  payload: TelegramPayload
+  payload: TelegramPayload,
+  urlFor?: (employeeId: number) => string
 ): Promise<{ sent: number; removed: number; failed: number }> {
   if (!isTelegramConfigured() || links.length === 0) return { sent: 0, removed: 0, failed: 0 };
 
@@ -92,7 +93,7 @@ export async function sendTelegramToLinks(
     if (i > 0) await new Promise((r) => setTimeout(r, 1000));
     await Promise.all(
       links.slice(i, i + 25).map(async (link) => {
-        const r = await telegramApi("sendMessage", buildSendBody(link.chatId, payload));
+        const r = await telegramApi("sendMessage", buildSendBody(link.chatId, payload, urlFor ? urlFor(link.employeeId) : payload.url));
         if (r.ok) delivered.push(link.employeeId);
         else if (isGone(r)) gone.push(link.employeeId);
         else failed.push({ employeeId: link.employeeId, error: r.description.slice(0, 200) });

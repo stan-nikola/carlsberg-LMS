@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getAllSubordinates } from "@/lib/permissions";
 import { getManagerEmployeeDetail, getManagerTeamRows } from "@/lib/managerOverview";
@@ -11,6 +11,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { pluralize } from "@/lib/pluralize";
 import { ExportReportLink } from "@/components/manager/ExportReportLink";
 import { viewerTimeZone } from "@/lib/viewerZone";
+import { personHref } from "@/lib/personPath";
 
 // TODO: Cache Components adoption — той самий опт-аут, що на app/manager/page.js.
 export const instant = false;
@@ -19,7 +20,9 @@ type SearchParams = Record<string, string | string[] | undefined>;
 
 /**
  * /manager/team/[id] — одна людина: стан, курси з модулями, «Нагадати».
- * Межі ієрархії — як у /api/manager/employees/[id]: [id] має бути серед
+ * [id] — код співробітника (SR0016, lib/personPath.ts); старий числовий id
+ * (посилання зі сповіщень, створених раніше) приймається й переводиться на код.
+ * Межі ієрархії — як у /api/manager/employees/[id]: людина має бути серед
  * getAllSubordinates(керівник), інакше 404 (не 403 — не підтверджуємо,
  * що такий співробітник узагалі існує). Admin-роль цього не обходить.
  */
@@ -27,18 +30,22 @@ export default async function ManagerPersonPage({ params, searchParams }: { para
   const me = await getCurrentUser();
   if (!me) return null; // гостя переадресує лейаут (див. app/manager/team/page.tsx)
   const { id } = await params;
-  const targetId = Number(id);
-  if (!Number.isInteger(targetId) || targetId <= 0) notFound();
+  const key = decodeURIComponent(id);
+  const legacyId = /^\d+$/.test(key) ? Number(key) : null;
+
+  const data = await getManagerTeamRows(me.id, await viewerTimeZone());
+  const person = legacyId !== null ? data.people.find((p) => p.id === legacyId) : data.people.find((p) => p.externalCode?.toLowerCase() === key.toLowerCase());
+  if (!person) notFound();
+  const targetId = person.id;
 
   const subordinateIds = await getAllSubordinates(me.id);
   if (!subordinateIds.includes(targetId)) notFound();
 
-  const [data, detail] = await Promise.all([getManagerTeamRows(me.id, await viewerTimeZone()), getManagerEmployeeDetail(targetId)]);
-  const person = data.people.find((p) => p.id === targetId);
-  if (!person) notFound();
-
   const sp = await searchParams;
   const highlight = typeof sp?.course === "string" ? sp.course : null;
+  if (legacyId !== null && person.externalCode) redirect(personHref(person, highlight));
+
+  const detail = await getManagerEmployeeDetail(targetId);
   const rowBySlug = new Map(data.rows.filter((r) => r.employeeId === targetId).map((r) => [r.courseSlug, r]));
   const recipient = { id: person.id, name: person.name };
   const enrollments = detail as EnrollmentDetail[];
@@ -55,7 +62,6 @@ export default async function ManagerPersonPage({ params, searchParams }: { para
           список: два різні наміри, обидва потрібні. */}
       <div className="mgr-page-head">
         <BackButton fallback="/manager/team" />
-        <span className="mgr-page-head-rule" aria-hidden="true" />
         <h1 className="greeting hub-greeting-h1">
           <Link href="/manager/team" className="mgr-crumb">
             КОМАНДА
