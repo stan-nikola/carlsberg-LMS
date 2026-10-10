@@ -78,7 +78,7 @@ export const LONG_PRESS_MOVE_TOLERANCE_PX = 8;
 // розкладка не міняється), висота — СТРОГО по вмісту (sizeToContent),
 // картки «спливають» угору в порожнє місце (float:false), перетягування
 // з плейсхолдером і автоскролом сторінки біля краю. Зберігається лише
-// {x,y,w} по картках; старі ключі юнітів/пікселів ігноруються.
+// {x,y,w,h} по картках; старі ключі юнітів/пікселів ігноруються.
 export const DASHBOARD_GRID_STORAGE_KEY = "carls_manager_dashboard_grid_v4";
 // v3 — та сама розкладка, але y у клітинках по 24px; читаємо її, переводячи
 // y у нові клітинки, щоб розстановка керівника не загубилась.
@@ -92,6 +92,18 @@ export const LEGACY_GRID_STORAGE_KEY = "carls_manager_dashboard_grid_v3";
 // розкладки, і заразом псувалась десктопна. Тому: телефон пише лише свій
 // список id згори вниз, а 12-колонкову розкладку пише лише десктоп.
 export const DASHBOARD_PHONE_ORDER_STORAGE_KEY = "carls_manager_dashboard_phone_order_v1";
+// Щільність карток, 0–100 %: чим більше, тим менші поля карток. 50 — вигляд, що був до ползунка.
+export const DASHBOARD_DENSITY_STORAGE_KEY = "carls_manager_dashboard_density_v1";
+export const DEFAULT_DENSITY = 50;
+export function readStoredDensity(): number {
+  try {
+    const raw = window.localStorage.getItem(DASHBOARD_DENSITY_STORAGE_KEY);
+    const n = Number(raw);
+    return raw !== null && Number.isInteger(n) && n >= 0 && n <= 100 ? n : DEFAULT_DENSITY;
+  } catch {
+    return DEFAULT_DENSITY;
+  }
+}
 const LEGACY_CELL_HEIGHT_PX = 24;
 export const GRID_COLUMNS = 12;
 // Крок висоти. Висота «по вмісту» округлюється вгору до цілої клітинки, і
@@ -141,7 +153,11 @@ export function observeCards(root: HTMLElement | null, observer: ResizeObserver 
   }
 }
 
-/** Збережена розкладка gridstack: масив {id,x,y,w}; будь-яке сміття → null. */
+/**
+ * Збережена розкладка gridstack: масив {id,x,y,w,h}; будь-яке сміття → null.
+ * Запис без w — це записи до 2026-10-09 через grid.save(), який викидав ширину,
+ * рівну мінімальній: її й повертаємо, а не відкидаємо картку.
+ */
 export function readStoredGrid(): StoredNode[] | null {
   if (typeof window === "undefined") return null;
   try {
@@ -155,8 +171,13 @@ export function readStoredGrid(): StoredNode[] | null {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return null;
     return parsed
-      .filter((n: StoredNode) => n && typeof n.id === "string" && Number.isInteger(n.x) && Number.isInteger(n.y) && Number.isInteger(n.w))
-      .map((n: StoredNode) => ({ ...n, y: n.y * yScale }));
+      .filter((n: StoredNode) => n && typeof n.id === "string" && Number.isInteger(n.x) && Number.isInteger(n.y))
+      .map(({ h, ...n }: StoredNode) => ({
+        ...n,
+        y: n.y * yScale,
+        w: Number.isInteger(n.w) ? n.w : minCardW(n.id),
+        ...(Number.isInteger(h) && h! >= 1 ? { h } : {}),
+      }));
   } catch {
     return null;
   }

@@ -293,9 +293,8 @@ export default function RegisterPage() {
       return;
     }
     // Неповний код не шлемо: сервер рахує кожен запит у ліміт 5 спроб, і
-    // Enter після п'яти з шести цифр спалював би одну з них. Нижня межа 4 —
-    // перехід 4 → 6 цифр (див. app/api/auth/confirm/route.js), потім PIN_LENGTH.
-    if (pin.length < 4) {
+    // Enter після п'яти з шести цифр спалював би одну з них.
+    if (pin.length < PIN_LENGTH) {
       setPinError(`PIN-код має ${PIN_LENGTH} цифр — введіть усі.`);
       return;
     }

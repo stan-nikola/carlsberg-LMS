@@ -41,7 +41,7 @@ const GROUP_META = {
 };
 const GROUP_ORDER = ["sv", "asm", "td"];
 
-export function ManagerDashboardSettings({ enabled, onToggle, onClose, onResetLayout }) {
+export function ManagerDashboardSettings({ enabled, onToggle, onClose, onResetLayout, density, onDensity }) {
   useDismiss(onClose);
   return createPortal(
     <div className="mgr-drawer-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -56,6 +56,23 @@ export function ManagerDashboardSettings({ enabled, onToggle, onClose, onResetLa
           Групи нижче — просто підказка, що зазвичай цікаво тій чи іншій ролі. Вмикайте будь-яку картку незалежно
           від групи — дашборд запам&apos;ятає вибір у цьому браузері.
         </p>
+
+        <div className="mgr-drawer-group">
+          <label className="mgr-drawer-group-title" htmlFor="mgrDensity">
+            Щільність карток: {density}%
+          </label>
+          <input
+            id="mgrDensity"
+            className="mgr-density-slider"
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value={density}
+            onChange={(e) => onDensity(Number(e.target.value))}
+          />
+          <p className="admin-hint mgr-drawer-group-hint">Більше — менші поля карток, більше карток на екрані. 50% — як було.</p>
+        </div>
 
         {GROUP_ORDER.map((group) => (
           <div className="mgr-drawer-group" key={group}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactElement } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties, type ReactElement } from "react";
 import { XIcon, DashboardTuneIcon, ArrowsMoveIcon } from "@/components/ui/icons";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { ProfileCard } from "@/components/hub/ProfileCard";
@@ -17,16 +17,19 @@ import { CourseBreakdownCard, DeadlinesCard, HardestModulesCard, HardestQuestion
 import {
   CANONICAL_CARD_IDS,
   DASHBOARD_CARDS_STORAGE_KEY,
+  DASHBOARD_DENSITY_STORAGE_KEY,
   DASHBOARD_GRID_STORAGE_KEY,
   DASHBOARD_ORDER_STORAGE_KEY,
   DASHBOARD_PHONE_ORDER_STORAGE_KEY,
   DEFAULT_CARD_W,
+  DEFAULT_DENSITY,
   LEGACY_GRID_STORAGE_KEY,
   LONG_PRESS_MOVE_TOLERANCE_PX,
   LONG_PRESS_MS,
   mergeCardOrder,
   minCardW,
   readStoredCards,
+  readStoredDensity,
   readStoredGrid,
   readStoredOrder,
   roleDefaultCards,
@@ -109,6 +112,16 @@ export function ManagerDashboard({ initialData = null, initialError = false }: {
   const [cardOverride, setCardOverride] = useState<Set<string> | null>(null);
   const enabledCards = cardOverride ?? roleDefaultCards(state.data?.me?.position?.code);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Щільність карток (ползунок у налаштуваннях). Дефолт на сервері, збережене — в ефекті нижче (як cardOverride).
+  const [density, setDensity] = useState(DEFAULT_DENSITY);
+  function changeDensity(next: number) {
+    setDensity(next);
+    try {
+      window.localStorage.setItem(DASHBOARD_DENSITY_STORAGE_KEY, String(next));
+    } catch {
+      // Без localStorage щільність живе до перезавантаження.
+    }
+  }
   // "Найскладніші питання" — єдина з нових карток, що рахується окремим
   // запитом (lib/managerDashboard.js getHardestQuestions), а не з уже
   // завантаженого /api/manager/overview: вимкнена за замовчуванням, тож
@@ -166,6 +179,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }: {
     const storedCards = readStoredCards();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- одноразове читання localStorage після монтування, не синхронізація зі стейтом React
     if (storedCards) setCardOverride(storedCards);
+    setDensity(readStoredDensity());
     const order = readStoredOrder();
     if (order) setStoredOrder(order);
     setStoredGrid(readStoredGrid() || []);
@@ -342,7 +356,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }: {
   }
 
   const hasData = Boolean(state.data);
-  useDashboardGrid({ chartsRef, hasData, storedGrid, setStoredGrid, gridEpoch, setGridEpoch, setGridReady, editMode, enabledCards, orderKey });
+  useDashboardGrid({ chartsRef, hasData, storedGrid, setStoredGrid, gridEpoch, setGridEpoch, setGridReady, editMode, enabledCards, orderKey, density });
 
   // Клік повз картки виходить із режиму перетягування — як тап по вільному
   // місцю екрана на iPhone (запит користувача). Слухач на документі, а не
@@ -543,6 +557,8 @@ export function ManagerDashboard({ initialData = null, initialError = false }: {
           onToggle={toggleCard}
           onClose={() => setSettingsOpen(false)}
           onResetLayout={resetLayout}
+          density={density}
+          onDensity={changeDensity}
         />
       )}
 
@@ -564,7 +580,7 @@ export function ManagerDashboard({ initialData = null, initialError = false }: {
           зміна пропса з боку React перезаписала б атрибут цілком і стерла
           їх (спіймано живим тестом: після входу в режим редагування сітка
           лишалась visibility:hidden). Режим редагування — клас на обгортці. */}
-      <div className={`mgr-charts-wrap${editMode ? " mgr-charts-edit" : ""}`}>
+      <div className={`mgr-charts-wrap${editMode ? " mgr-charts-edit" : ""}`} style={{ "--mgr-density": density } as CSSProperties}>
       <section
         key={gridEpoch}
         ref={chartsRef}

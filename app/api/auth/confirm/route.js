@@ -4,12 +4,7 @@ import { confirmLoginPin, invalidateLoginPin } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { clientIp, hitRateLimit, normalizeExternalCode, pinThrottleKey, recordSuccess, registerAttempt, settleFailure, tooManyRequests } from "@/lib/loginThrottle";
 import { auditEmployee } from "@/lib/audit";
-import { PIN_LENGTH } from "@/lib/pin";
-
-// Формат PIN: лише цифри, 4…PIN_LENGTH. Нижня межа 4 — перехід 2026-10-05 з
-// 4 на 6 цифр: код, виданий до деплою, доживає свої 12 годин. Після
-// 2026-10-07 звузити до рівно PIN_LENGTH (і pattern у openapi.yaml разом).
-const PIN_FORMAT = new RegExp(`^\\d{4,${PIN_LENGTH}}$`);
+import { PIN_FORMAT } from "@/lib/pin";
 
 /**
  * POST /api/auth/confirm
